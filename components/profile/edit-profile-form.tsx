@@ -1,0 +1,242 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Controller, useForm, type Control } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type { Profile } from "@prisma/client";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { AvatarUploader } from "@/components/profile/avatar-uploader";
+import { updateProfileSchema, type UpdateProfileInput } from "@/lib/validations/profile";
+import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
+
+type BooleanFieldName =
+  | "isCreator"
+  | "isCouple"
+  | "showInSearch"
+  | "showExactLocation"
+  | "isIncognito";
+
+function FieldWrapper({
+  label,
+  htmlFor,
+  error,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={htmlFor} className="text-sm font-medium">
+        {label}
+      </label>
+      {children}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  description,
+  control,
+  name,
+}: {
+  label: string;
+  description: string;
+  control: Control<UpdateProfileInput>;
+  name: BooleanFieldName;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-card px-4 py-3">
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+      <Controller
+        control={control}
+        name={name}
+        render={({ field }) => (
+          <Switch checked={field.value} onCheckedChange={field.onChange} />
+        )}
+      />
+    </div>
+  );
+}
+
+export function EditProfileForm({ profile }: { profile: Profile }) {
+  const router = useRouter();
+  const [status, setStatus] = useState<"idle" | "saving" | "success">("idle");
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<UpdateProfileInput>({
+    resolver: zodResolver(updateProfileSchema),
+    defaultValues: {
+      displayName: profile.displayName,
+      bio: profile.bio,
+      avatarUrl: profile.avatarUrl,
+      gender: profile.gender,
+      orientation: profile.orientation,
+      city: profile.city,
+      country: profile.country,
+      isCreator: profile.isCreator,
+      isCouple: profile.isCouple,
+      showInSearch: profile.showInSearch,
+      showExactLocation: profile.showExactLocation,
+      isIncognito: profile.isIncognito,
+    },
+  });
+
+  const avatarUrl = watch("avatarUrl");
+
+  async function onSubmit(data: UpdateProfileInput) {
+    setServerError(null);
+    setStatus("saving");
+
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      setStatus("idle");
+      setServerError(body?.error ?? "Something went wrong. Please try again.");
+      return;
+    }
+
+    setStatus("success");
+    router.push("/profile");
+    router.refresh();
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8">
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Photo
+        </h2>
+        <AvatarUploader
+          defaultUrl={avatarUrl}
+          fallback={profile.displayName.slice(0, 2).toUpperCase()}
+          onUploaded={(url) => setValue("avatarUrl", url, { shouldDirty: true })}
+        />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          About you
+        </h2>
+        <FieldWrapper label="Display name" htmlFor="displayName" error={errors.displayName?.message}>
+          <Input id="displayName" {...register("displayName")} />
+        </FieldWrapper>
+        <FieldWrapper label="Bio" htmlFor="bio" error={errors.bio?.message}>
+          <Textarea id="bio" rows={4} {...register("bio")} />
+        </FieldWrapper>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FieldWrapper label="Gender" htmlFor="gender" error={errors.gender?.message}>
+            <Select id="gender" {...register("gender")}>
+              {GENDER_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </Select>
+          </FieldWrapper>
+          <FieldWrapper label="Orientation" htmlFor="orientation" error={errors.orientation?.message}>
+            <Select id="orientation" {...register("orientation")}>
+              {ORIENTATION_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </Select>
+          </FieldWrapper>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FieldWrapper label="City" htmlFor="city" error={errors.city?.message}>
+            <Input id="city" {...register("city")} />
+          </FieldWrapper>
+          <FieldWrapper label="Country" htmlFor="country" error={errors.country?.message}>
+            <Input id="country" {...register("country")} />
+          </FieldWrapper>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Profile type
+        </h2>
+        <ToggleRow
+          label="Creator"
+          description="Unlock subscriptions, tiers, and paid posts."
+          control={control}
+          name="isCreator"
+        />
+        <ToggleRow
+          label="Couple"
+          description="Show that this profile represents a couple."
+          control={control}
+          name="isCouple"
+        />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Privacy
+        </h2>
+        <ToggleRow
+          label="Show in search results"
+          description="Let others find your profile through search."
+          control={control}
+          name="showInSearch"
+        />
+        <ToggleRow
+          label="Show exact location"
+          description="Display your precise city instead of an approximate area."
+          control={control}
+          name="showExactLocation"
+        />
+        <ToggleRow
+          label="Incognito mode"
+          description="Hide your profile from viewer lists and discovery feeds."
+          control={control}
+          name="isIncognito"
+        />
+      </section>
+
+      {serverError && (
+        <p role="alert" className="text-sm text-destructive">
+          {serverError}
+        </p>
+      )}
+
+      <div className="flex gap-3">
+        <Button type="submit" disabled={status !== "idle"}>
+          {status === "saving" && "Saving..."}
+          {status === "success" && "Saved!"}
+          {status === "idle" && "Save changes"}
+        </Button>
+        <Button type="button" variant="outline" onClick={() => router.push("/profile")}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
