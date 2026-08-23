@@ -5,8 +5,13 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProfileView } from "@/components/profile/profile-view";
+import { getCreatorProfilePosts } from "@/lib/posts";
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: { section?: string };
+}) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     redirect("/login");
@@ -28,10 +33,19 @@ export default async function ProfilePage() {
     );
   }
 
+  const posts = profile.isCreator ? await getCreatorProfilePosts(profile.id, profile.id) : [];
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Profile" description="Manage your public profile and desires." />
-      <ProfileView profile={profile} desires={profile.desires} isOwner />
+      <ProfileView
+        profile={profile}
+        desires={profile.desires}
+        posts={posts}
+        isOwner
+        profileHref="/profile"
+        activeSection={searchParams.section === "posts" ? "posts" : "about"}
+      />
     </div>
   );
 }

@@ -5,19 +5,54 @@ import { Heart, MapPin, Pencil, Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { DesireMapSummary } from "@/components/profile/desire-map-summary";
+import { PostList } from "@/components/posts/post-list";
+import type { PostView } from "@/lib/posts";
+
+function ProfileSectionTab({
+  href,
+  label,
+  isActive,
+}: {
+  href: string;
+  label: string;
+  isActive: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={isActive ? "page" : undefined}
+      className={cn(
+        "inline-flex h-9 items-center rounded-full border px-4 text-sm font-medium transition-colors",
+        isActive
+          ? "border-transparent bg-gradient-to-r from-neon-pink to-neon-cyan text-background"
+          : "border-border/60 bg-card text-muted-foreground hover:text-foreground"
+      )}
+    >
+      {label}
+    </Link>
+  );
+}
 
 export function ProfileView({
   profile,
   desires,
+  posts,
   isOwner,
+  profileHref,
+  activeSection = "about",
 }: {
   profile: Profile;
   desires: Desire[];
+  posts: PostView[];
   isOwner: boolean;
+  profileHref: string;
+  activeSection?: "about" | "posts";
 }) {
   const initials = profile.displayName.slice(0, 2).toUpperCase();
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
+  const section = profile.isCreator ? activeSection : "about";
 
   return (
     <div className="flex flex-col gap-6">
@@ -59,16 +94,37 @@ export function ProfileView({
         )}
       </div>
 
-      <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Bio
-        </h2>
-        <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
-          {profile.bio || "No bio yet."}
-        </p>
-      </div>
+      {profile.isCreator && (
+        <div className="flex gap-2">
+          <ProfileSectionTab href={profileHref} label="About" isActive={section === "about"} />
+          <ProfileSectionTab
+            href={`${profileHref}?section=posts`}
+            label="Posts"
+            isActive={section === "posts"}
+          />
+        </div>
+      )}
 
-      <DesireMapSummary desires={desires} isOwner={isOwner} />
+      {section === "posts" ? (
+        <PostList
+          posts={posts}
+          showAuthor={false}
+          emptyMessage={isOwner ? "You haven't published anything yet." : "No posts yet."}
+        />
+      ) : (
+        <>
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Bio
+            </h2>
+            <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+              {profile.bio || "No bio yet."}
+            </p>
+          </div>
+
+          <DesireMapSummary desires={desires} isOwner={isOwner} />
+        </>
+      )}
     </div>
   );
 }

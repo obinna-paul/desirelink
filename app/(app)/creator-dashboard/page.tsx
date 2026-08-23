@@ -15,7 +15,6 @@ import { SubscriberGrowthChart, EarningsChart } from "@/components/creator/analy
 import {
   DEFAULT_CREATOR_DASHBOARD_TAB,
   formatCents,
-  getCreatorPosts,
   getCreatorStats,
   getCreatorTiers,
   getEarningsByMonth,
@@ -23,6 +22,7 @@ import {
   getSubscribers,
   isCreatorDashboardTab,
 } from "@/lib/creator";
+import { getCreatorProfilePosts } from "@/lib/posts";
 
 export default async function CreatorDashboardPage({
   searchParams,
@@ -88,8 +88,8 @@ async function AudienceTab({ profileId }: { profileId: string }) {
 }
 
 async function ContentTab({ profileId }: { profileId: string }) {
-  const posts = await getCreatorPosts(profileId);
-  return <ContentList posts={posts} />;
+  const posts = await getCreatorProfilePosts(profileId, profileId);
+  return <ContentList initialPosts={posts} />;
 }
 
 async function TiersTab({ profileId }: { profileId: string }) {

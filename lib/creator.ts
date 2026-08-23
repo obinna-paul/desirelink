@@ -57,14 +57,6 @@ export async function getSubscribers(profileId: string) {
   });
 }
 
-export async function getCreatorPosts(profileId: string) {
-  return prisma.post.findMany({
-    where: { authorId: profileId },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
-}
-
 export async function getCreatorTiers(profileId: string) {
   return prisma.creatorTier.findMany({
     where: { creatorId: profileId },

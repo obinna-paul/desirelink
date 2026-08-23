@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export const HOME_TABS = [
   { value: "browse", label: "Browse" },
+  { value: "feed", label: "Feed" },
   { value: "chat", label: "Chat" },
   { value: "flirt", label: "Flirt" },
   { value: "meet", label: "Meet" },

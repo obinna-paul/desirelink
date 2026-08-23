@@ -6,11 +6,14 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProfileView } from "@/components/profile/profile-view";
+import { getCreatorProfilePosts } from "@/lib/posts";
 
 export default async function PublicProfilePage({
   params,
+  searchParams,
 }: {
   params: { username: string };
+  searchParams: { section?: string };
 }) {
   const session = await getServerSession(authOptions);
 
@@ -31,23 +34,21 @@ export default async function PublicProfilePage({
     });
   }
 
+  const viewerProfile =
+    !isOwner && session?.user?.id
+      ? await prisma.profile.findUnique({ where: { userId: session.user.id }, select: { id: true } })
+      : null;
+
   let visiblePrivacyLevels: PrivacyLevel[] = ["public"];
 
   if (isOwner) {
     visiblePrivacyLevels = ["public", "followers", "private"];
-  } else if (session?.user?.id) {
-    const viewerProfile = await prisma.profile.findUnique({
-      where: { userId: session.user.id },
-      select: { id: true },
-    });
-
-    const isFollower = viewerProfile
-      ? Boolean(
-          await prisma.circleMember.findFirst({
-            where: { userId: viewerProfile.id, circle: { userId: profile.id } },
-          })
-        )
-      : false;
+  } else if (viewerProfile) {
+    const isFollower = Boolean(
+      await prisma.circleMember.findFirst({
+        where: { userId: viewerProfile.id, circle: { userId: profile.id } },
+      })
+    );
 
     if (isFollower) {
       visiblePrivacyLevels = ["public", "followers"];
@@ -59,10 +60,21 @@ export default async function PublicProfilePage({
     orderBy: { createdAt: "asc" },
   });
 
+  const posts = profile.isCreator
+    ? await getCreatorProfilePosts(profile.id, isOwner ? profile.id : (viewerProfile?.id ?? null))
+    : [];
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title={profile.displayName} description={`@${profile.username}`} />
-      <ProfileView profile={profile} desires={desires} isOwner={isOwner} />
+      <ProfileView
+        profile={profile}
+        desires={desires}
+        posts={posts}
+        isOwner={isOwner}
+        profileHref={`/profile/${profile.username}`}
+        activeSection={searchParams.section === "posts" ? "posts" : "about"}
+      />
     </div>
   );
 }

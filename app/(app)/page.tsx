@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { HomeTabs } from "@/components/home/home-tabs";
 import { ProfileGrid } from "@/components/home/profile-grid";
 import { AvailableTonightStrip } from "@/components/home/available-tonight-strip";
+import { PostList } from "@/components/posts/post-list";
 import {
   DEFAULT_HOME_TAB,
   getHomeFeed,
@@ -15,9 +16,11 @@ import {
   type HomeTabValue,
 } from "@/lib/home-feed";
 import { getAvailableTonight } from "@/lib/availability";
+import { getFeedPosts } from "@/lib/posts";
 
 const EMPTY_MESSAGES: Record<HomeTabValue, string> = {
   browse: "No one to show yet. Check back soon.",
+  feed: "",
   chat: "No one is open to chat right now.",
   flirt: 'No matches for Flirt right now. Add "Flirting" to your own Desire Map to be found here.',
   meet: "No one open to meeting nearby right now.",
@@ -71,6 +74,24 @@ export default async function HomePage({
         <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
           Event listings are coming soon. Hosting and RSVPs will show up here.
         </div>
+      </div>
+    );
+  }
+
+  if (tab === "feed") {
+    const posts = await getFeedPosts(viewerProfile?.id ?? null);
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Home"
+          description="Browse profiles across DesireLink, filtered by what you're into right now."
+        />
+        <AvailableTonightStrip items={availableTonight} />
+        <HomeTabs activeTab={tab} />
+        <PostList
+          posts={posts}
+          emptyMessage="No posts yet. Subscribe to creators to see their posts here."
+        />
       </div>
     );
   }
