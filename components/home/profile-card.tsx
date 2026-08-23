@@ -25,10 +25,14 @@ export function ProfileCard({ profile }: { profile: ProfileCardData }) {
           <div className="flex flex-wrap items-center gap-1.5">
             <p className="truncate text-sm font-semibold">{profile.displayName}</p>
             {profile.isCreator && (
-              <Sparkles className="h-3.5 w-3.5 shrink-0 text-neon-pink" aria-label="Creator" />
+              <Sparkles
+                role="img"
+                aria-label="Creator"
+                className="h-3.5 w-3.5 shrink-0 text-neon-pink"
+              />
             )}
             {profile.isCouple && (
-              <Heart className="h-3.5 w-3.5 shrink-0 text-neon-cyan" aria-label="Couple" />
+              <Heart role="img" aria-label="Couple" className="h-3.5 w-3.5 shrink-0 text-neon-cyan" />
             )}
           </div>
           <p className="truncate text-xs text-muted-foreground">@{profile.username}</p>
@@ -39,12 +43,12 @@ export function ProfileCard({ profile }: { profile: ProfileCardData }) {
       {visibleDesires.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {visibleDesires.map((desire) => (
-            <Badge key={desire.id} variant="outline" className="text-[11px]">
+            <Badge key={desire.id} variant="outline">
               {desire.category}
             </Badge>
           ))}
           {extraDesireCount > 0 && (
-            <Badge variant="outline" className="text-[11px] text-muted-foreground">
+            <Badge variant="outline" className="text-muted-foreground">
               +{extraDesireCount} more
             </Badge>
           )}

@@ -29,14 +29,14 @@ export function TopBarSearch() {
         onChange={(event) => setValue(event.target.value)}
         placeholder="Search people"
         aria-label="Search by username or display name"
-        className="h-9 w-full rounded-full border border-input bg-background pl-8 pr-8 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        className="h-9 w-full rounded-full border border-input bg-background pl-8 pr-8 text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:text-sm"
       />
       {value && (
         <button
           type="button"
           aria-label="Clear search"
           onClick={handleClear}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           <X className="h-4 w-4" />
         </button>

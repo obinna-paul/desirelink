@@ -124,20 +124,21 @@ export function DesireMapEditor({
                     onClick={() =>
                       setState((prev) => ({ ...prev, [category]: { ...prev[category], level: null } }))
                     }
-                    className="text-muted-foreground hover:text-foreground"
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {DESIRE_LEVEL_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
                     type="button"
                     size="sm"
                     variant={value.level === option.value ? "default" : "outline"}
+                    aria-pressed={value.level === option.value}
                     className="h-7 px-2.5 text-xs"
                     onClick={() => setLevel(category, option.value)}
                   >

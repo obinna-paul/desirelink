@@ -13,6 +13,7 @@ export function HomeTabs({ activeTab }: { activeTab: HomeTabValue }) {
             <li key={tab.value}>
               <Link
                 href={`/?tab=${tab.value}`}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "inline-flex h-9 items-center whitespace-nowrap rounded-full border px-4 text-sm font-medium transition-colors",
                   isActive
