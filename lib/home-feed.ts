@@ -23,7 +23,7 @@ export function isHomeTabValue(value: string | undefined): value is HomeTabValue
 
 const MEET_RADIUS_KM = 50;
 
-function profileCardSelect() {
+export function profileCardSelect() {
   return {
     id: true,
     username: true,
