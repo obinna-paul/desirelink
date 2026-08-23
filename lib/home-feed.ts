@@ -23,23 +23,31 @@ export function isHomeTabValue(value: string | undefined): value is HomeTabValue
 
 const MEET_RADIUS_KM = 50;
 
-export const PROFILE_CARD_SELECT = {
-  id: true,
-  username: true,
-  displayName: true,
-  avatarUrl: true,
-  city: true,
-  country: true,
-  isCreator: true,
-  isCouple: true,
-  desires: {
-    where: { privacy: "public" },
-    select: { id: true, category: true },
-    take: 4,
-  },
-} satisfies Prisma.ProfileSelect;
+function profileCardSelect() {
+  return {
+    id: true,
+    username: true,
+    displayName: true,
+    avatarUrl: true,
+    city: true,
+    country: true,
+    isCreator: true,
+    isCouple: true,
+    desires: {
+      where: { privacy: "public" },
+      select: { id: true, category: true },
+      take: 4,
+    },
+    availabilityStatuses: {
+      where: { expiresAt: { gt: new Date() } },
+      select: { status: true, expiresAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+    },
+  } satisfies Prisma.ProfileSelect;
+}
 
-export type ProfileCardData = Prisma.ProfileGetPayload<{ select: typeof PROFILE_CARD_SELECT }>;
+export type ProfileCardData = Prisma.ProfileGetPayload<{ select: ReturnType<typeof profileCardSelect> }>;
 
 type ViewerProfile = {
   id: string;
@@ -90,7 +98,7 @@ export async function getHomeFeed(
     case "chat": {
       const profiles = await prisma.profile.findMany({
         where: { ...visible, ...notSelf, openToChat: true },
-        select: PROFILE_CARD_SELECT,
+        select: profileCardSelect(),
         orderBy: { updatedAt: "desc" },
         take: 24,
       });
@@ -105,7 +113,7 @@ export async function getHomeFeed(
           openToChat: true,
           desires: { some: { category: "Flirting" } },
         },
-        select: PROFILE_CARD_SELECT,
+        select: profileCardSelect(),
         orderBy: { updatedAt: "desc" },
         take: 24,
       });
@@ -116,7 +124,7 @@ export async function getHomeFeed(
       if (!hasLocation(viewerProfile)) {
         const profiles = await prisma.profile.findMany({
           where: { ...visible, ...notSelf, openToMeet: true },
-          select: PROFILE_CARD_SELECT,
+          select: profileCardSelect(),
           orderBy: { updatedAt: "desc" },
           take: 24,
         });
@@ -128,7 +136,7 @@ export async function getHomeFeed(
 
       const candidates = await prisma.profile.findMany({
         where: { ...visible, ...notSelf, openToMeet: true },
-        select: { ...PROFILE_CARD_SELECT, locationLat: true, locationLng: true },
+        select: { ...profileCardSelect(), locationLat: true, locationLng: true },
         take: 200,
       });
 
@@ -153,7 +161,7 @@ export async function getHomeFeed(
     case "creators": {
       const profiles = await prisma.profile.findMany({
         where: { ...visible, ...notSelf, isCreator: true },
-        select: PROFILE_CARD_SELECT,
+        select: profileCardSelect(),
         orderBy: { updatedAt: "desc" },
         take: 24,
       });
@@ -163,7 +171,7 @@ export async function getHomeFeed(
     case "couples": {
       const profiles = await prisma.profile.findMany({
         where: { ...visible, ...notSelf, isCouple: true },
-        select: PROFILE_CARD_SELECT,
+        select: profileCardSelect(),
         orderBy: { updatedAt: "desc" },
         take: 24,
       });
@@ -173,7 +181,7 @@ export async function getHomeFeed(
     case "explore": {
       const profiles = await prisma.profile.findMany({
         where: { ...visible, ...notSelf },
-        select: PROFILE_CARD_SELECT,
+        select: profileCardSelect(),
         orderBy: { createdAt: "desc" },
         take: 24,
       });
@@ -187,7 +195,7 @@ export async function getHomeFeed(
     default: {
       const profiles = await prisma.profile.findMany({
         where: { ...visible, ...notSelf },
-        select: PROFILE_CARD_SELECT,
+        select: profileCardSelect(),
         orderBy: [{ communityStanding: "desc" }, { createdAt: "desc" }],
         take: 24,
       });
@@ -212,7 +220,7 @@ export async function searchProfiles(
         { displayName: { contains: query, mode: "insensitive" } },
       ],
     },
-    select: PROFILE_CARD_SELECT,
+    select: profileCardSelect(),
     orderBy: { displayName: "asc" },
     take: 24,
   });

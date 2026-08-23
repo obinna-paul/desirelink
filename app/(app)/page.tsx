@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { HomeTabs } from "@/components/home/home-tabs";
 import { ProfileGrid } from "@/components/home/profile-grid";
+import { AvailableTonightStrip } from "@/components/home/available-tonight-strip";
 import {
   DEFAULT_HOME_TAB,
   getHomeFeed,
@@ -13,6 +14,7 @@ import {
   searchProfiles,
   type HomeTabValue,
 } from "@/lib/home-feed";
+import { getAvailableTonight } from "@/lib/availability";
 
 const EMPTY_MESSAGES: Record<HomeTabValue, string> = {
   browse: "No one to show yet. Check back soon.",
@@ -40,6 +42,8 @@ export default async function HomePage({
     select: { id: true, locationLat: true, locationLng: true },
   });
 
+  const availableTonight = await getAvailableTonight(20, viewerProfile?.id);
+
   const query = searchParams.q?.trim();
 
   if (query) {
@@ -47,6 +51,7 @@ export default async function HomePage({
     return (
       <div className="flex flex-col gap-6">
         <PageHeader title="Search" description={`Results for "${query}"`} />
+        <AvailableTonightStrip items={availableTonight} />
         <ProfileGrid profiles={results} emptyMessage={`No one found matching "${query}".`} />
       </div>
     );
@@ -61,6 +66,7 @@ export default async function HomePage({
           title="Home"
           description="Browse profiles across DesireLink, filtered by what you're into right now."
         />
+        <AvailableTonightStrip items={availableTonight} />
         <HomeTabs activeTab={tab} />
         <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
           Event listings are coming soon. Hosting and RSVPs will show up here.
@@ -77,6 +83,7 @@ export default async function HomePage({
         title="Home"
         description="Browse profiles across DesireLink, filtered by what you're into right now."
       />
+      <AvailableTonightStrip items={availableTonight} />
       <HomeTabs activeTab={tab} />
       {note && <p className="text-sm text-muted-foreground">{note}</p>}
       <ProfileGrid profiles={profiles} emptyMessage={EMPTY_MESSAGES[tab]} />

@@ -7,17 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SignOutButton } from "@/components/layout/sign-out-button";
 import { TopBarSearch } from "@/components/layout/top-bar-search";
+import { AvailabilityQuickAction } from "@/components/layout/availability-quick-action";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getActiveAvailability } from "@/lib/availability";
 
 export async function TopBar() {
   const session = await getServerSession(authOptions);
   const profile = session?.user?.id
     ? await prisma.profile.findUnique({
         where: { userId: session.user.id },
-        select: { avatarUrl: true, displayName: true },
+        select: { id: true, avatarUrl: true, displayName: true },
       })
     : null;
+
+  const activeStatus = profile ? await getActiveAvailability(profile.id) : null;
 
   const initials = profile?.displayName ? profile.displayName.slice(0, 2).toUpperCase() : "YOU";
 
@@ -33,6 +37,7 @@ export async function TopBar() {
         <Suspense fallback={<div className="h-9 w-28 sm:w-44 md:w-64" />}>
           <TopBarSearch />
         </Suspense>
+        {profile && <AvailabilityQuickAction initialStatus={activeStatus} />}
         <Button variant="ghost" size="icon" aria-label="Notifications">
           <Bell className="h-5 w-5" />
         </Button>

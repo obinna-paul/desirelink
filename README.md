@@ -59,6 +59,22 @@ supabase/     schema.sql and migrations/
    supabase db push
    ```
 
+5. **Configure real-time availability status (optional)**
+
+   The "Active Now" sidebar and availability status broadcasts use [Pusher Channels](https://pusher.com/channels/). Without these set, everything still works (setting/clearing your status, the Available Tonight strip, badges on cards) — it just won't push live updates to other open tabs/sessions until they reload.
+
+   ```
+   # Server (Pusher app credentials — pusher.com dashboard)
+   PUSHER_APP_ID=
+   PUSHER_KEY=
+   PUSHER_SECRET=
+   PUSHER_CLUSTER=
+
+   # Client (safe to expose — must match PUSHER_KEY/PUSHER_CLUSTER above)
+   NEXT_PUBLIC_PUSHER_KEY=
+   NEXT_PUBLIC_PUSHER_CLUSTER=
+   ```
+
 ## Adding shadcn/ui components
 
 ```bash
