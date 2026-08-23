@@ -10,6 +10,8 @@ export const updateProfileSchema = z.object({
   country: z.string().max(100),
   isCreator: z.boolean(),
   isCouple: z.boolean(),
+  openToChat: z.boolean(),
+  openToMeet: z.boolean(),
   showInSearch: z.boolean(),
   showExactLocation: z.boolean(),
   isIncognito: z.boolean(),

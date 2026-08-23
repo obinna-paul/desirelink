@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { getServerSession } from "next-auth";
-import { Bell, Search } from "lucide-react";
+import { Bell } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SignOutButton } from "@/components/layout/sign-out-button";
+import { TopBarSearch } from "@/components/layout/top-bar-search";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -28,9 +30,9 @@ export async function TopBar() {
       </Link>
 
       <div className="flex items-center gap-1 md:gap-2">
-        <Button variant="ghost" size="icon" aria-label="Search">
-          <Search className="h-5 w-5" />
-        </Button>
+        <Suspense fallback={<div className="h-9 w-28 sm:w-44 md:w-64" />}>
+          <TopBarSearch />
+        </Suspense>
         <Button variant="ghost" size="icon" aria-label="Notifications">
           <Bell className="h-5 w-5" />
         </Button>

@@ -18,6 +18,8 @@ import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
 type BooleanFieldName =
   | "isCreator"
   | "isCouple"
+  | "openToChat"
+  | "openToMeet"
   | "showInSearch"
   | "showExactLocation"
   | "isIncognito";
@@ -96,6 +98,8 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       country: profile.country,
       isCreator: profile.isCreator,
       isCouple: profile.isCouple,
+      openToChat: profile.openToChat,
+      openToMeet: profile.openToMeet,
       showInSearch: profile.showInSearch,
       showExactLocation: profile.showExactLocation,
       isIncognito: profile.isIncognito,
@@ -194,6 +198,24 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
           description="Show that this profile represents a couple."
           control={control}
           name="isCouple"
+        />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Availability
+        </h2>
+        <ToggleRow
+          label="Open to chat"
+          description="Show up in the Chat and Flirt tabs and let people message you."
+          control={control}
+          name="openToChat"
+        />
+        <ToggleRow
+          label="Open to meet"
+          description="Show up in the Meet tab for people nearby."
+          control={control}
+          name="openToMeet"
         />
       </section>
 
