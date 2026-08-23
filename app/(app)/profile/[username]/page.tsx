@@ -1,0 +1,61 @@
+import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import type { PrivacyLevel } from "@prisma/client";
+
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/layout/page-header";
+import { ProfileView } from "@/components/profile/profile-view";
+
+export default async function PublicProfilePage({
+  params,
+}: {
+  params: { username: string };
+}) {
+  const session = await getServerSession(authOptions);
+
+  const profile = await prisma.profile.findUnique({
+    where: { username: params.username },
+  });
+
+  if (!profile) {
+    notFound();
+  }
+
+  const isOwner = session?.user?.id === profile.userId;
+
+  let visiblePrivacyLevels: PrivacyLevel[] = ["public"];
+
+  if (isOwner) {
+    visiblePrivacyLevels = ["public", "followers", "private"];
+  } else if (session?.user?.id) {
+    const viewerProfile = await prisma.profile.findUnique({
+      where: { userId: session.user.id },
+      select: { id: true },
+    });
+
+    const isFollower = viewerProfile
+      ? Boolean(
+          await prisma.circleMember.findFirst({
+            where: { userId: viewerProfile.id, circle: { userId: profile.id } },
+          })
+        )
+      : false;
+
+    if (isFollower) {
+      visiblePrivacyLevels = ["public", "followers"];
+    }
+  }
+
+  const desires = await prisma.desire.findMany({
+    where: { userId: profile.id, privacy: { in: visiblePrivacyLevels } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader title={profile.displayName} description={`@${profile.username}`} />
+      <ProfileView profile={profile} desires={desires} isOwner={isOwner} />
+    </div>
+  );
+}

@@ -1,16 +1,19 @@
 import Link from "next/link";
-import type { Profile } from "@prisma/client";
+import type { Desire, Profile } from "@prisma/client";
 import { Heart, MapPin, Pencil, Sparkles } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DesireMapSummary } from "@/components/profile/desire-map-summary";
 
 export function ProfileView({
   profile,
+  desires,
   isOwner,
 }: {
   profile: Profile;
+  desires: Desire[];
   isOwner: boolean;
 }) {
   const initials = profile.displayName.slice(0, 2).toUpperCase();
@@ -64,6 +67,8 @@ export function ProfileView({
           {profile.bio || "No bio yet."}
         </p>
       </div>
+
+      <DesireMapSummary desires={desires} isOwner={isOwner} />
     </div>
   );
 }

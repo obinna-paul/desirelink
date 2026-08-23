@@ -14,6 +14,7 @@ export default async function ProfilePage() {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
+    include: { desires: { orderBy: { createdAt: "asc" } } },
   });
 
   if (!profile) {
@@ -30,7 +31,7 @@ export default async function ProfilePage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Profile" description="Manage your public profile and desires." />
-      <ProfileView profile={profile} isOwner />
+      <ProfileView profile={profile} desires={profile.desires} isOwner />
     </div>
   );
 }

@@ -201,6 +201,7 @@ model Desire {
   privacy   PrivacyLevel
   createdAt DateTime     @default(now())
 
+  @@unique([userId, category])
   @@index([userId])
   @@index([category])
 }
