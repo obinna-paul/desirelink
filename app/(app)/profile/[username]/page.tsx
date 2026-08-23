@@ -24,6 +24,13 @@ export default async function PublicProfilePage({
 
   const isOwner = session?.user?.id === profile.userId;
 
+  if (!isOwner) {
+    await prisma.profile.update({
+      where: { id: profile.id },
+      data: { profileViews: { increment: 1 } },
+    });
+  }
+
   let visiblePrivacyLevels: PrivacyLevel[] = ["public"];
 
   if (isOwner) {

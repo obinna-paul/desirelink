@@ -2,6 +2,7 @@ import {
   CalendarDays,
   Compass,
   Home,
+  LineChart,
   MessageCircle,
   PlusCircle,
   Settings,
@@ -27,5 +28,6 @@ export const primaryNavItems: NavItem[] = [
 export const secondaryNavItems: NavItem[] = [
   { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/communities", label: "Communities", icon: Users },
+  { href: "/creator-dashboard", label: "Creator Studio", icon: LineChart },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

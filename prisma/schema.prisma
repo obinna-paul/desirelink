@@ -157,6 +157,7 @@ model Profile {
   isVerified        Boolean @default(false)
   isTrustedMember   Boolean @default(false)
   communityStanding Int     @default(0)
+  profileViews      Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
