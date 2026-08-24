@@ -42,3 +42,10 @@ next-env.d.ts
 # Python bytecode cache (ui-ux-pro-max skill)
 __pycache__/
 *.pyc
+
+# local agent/plugin/runtime artifacts
+/.agents/
+/.npm-cache/
+/.codex-dev-server*.log
+/.codex-git-*
+/.codex-last-commit-sha.txt
