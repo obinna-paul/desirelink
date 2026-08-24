@@ -9,11 +9,13 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { EventGrid } from "@/components/events/event-grid";
 import { EventFiltersPanel } from "@/components/events/event-filters";
+import { RecommendedEventsBanner } from "@/components/events/recommended-events-banner";
 import {
   parseEventFilters,
   searchEvents,
   type EventSearchParams,
 } from "@/lib/events";
+import { getRecommendedEventsForUser } from "@/lib/event-recommendations";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +35,10 @@ export default async function EventsPage({
   });
 
   const filters = parseEventFilters(searchParams);
-  const { events, note } = await searchEvents(filters, viewerProfile);
+  const [{ events, note }, recommendedEvents] = await Promise.all([
+    searchEvents(filters, viewerProfile),
+    getRecommendedEventsForUser(session.user.id, 3),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -54,6 +59,8 @@ export default async function EventsPage({
           </Link>
         </Button>
       </div>
+
+      <RecommendedEventsBanner recommendations={recommendedEvents ?? []} />
 
       <EventFiltersPanel initialFilters={filters} />
 

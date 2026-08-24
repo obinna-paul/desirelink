@@ -6,7 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { formatCents } from "@/lib/creator";
 import type { UpcomingEvent } from "@/lib/events";
 
-export function EventCard({ event }: { event: UpcomingEvent }) {
+export function EventCard({
+  event,
+  matchScore,
+}: {
+  event: UpcomingEvent;
+  matchScore?: number;
+}) {
   const location = [event.venueName, event.city].filter(Boolean).join(", ");
   const hostInitials = event.host.displayName.slice(0, 2).toUpperCase();
 
@@ -26,6 +32,9 @@ export function EventCard({ event }: { event: UpcomingEvent }) {
       <div className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant="outline">{event.eventType}</Badge>
+          {typeof matchScore === "number" && (
+            <Badge variant="neon">{matchScore}% match</Badge>
+          )}
           {event.priceCents > 0 ? (
             <Badge variant="secondary">{formatCents(event.priceCents)}</Badge>
           ) : (

@@ -7,7 +7,7 @@ const DEFAULT_RECOMMENDATION_LIMIT = 6;
 const MAX_RECOMMENDATION_LIMIT = 50;
 const CANDIDATE_LIMIT = 250;
 
-const DESIRE_LEVEL_WEIGHT: Record<DesireLevel, number> = {
+export const DESIRE_LEVEL_WEIGHT: Record<DesireLevel, number> = {
   curious: 3,
   interested: 6,
   looking: 14,
