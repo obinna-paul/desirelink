@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
-import type { PrivacyLevel } from "@prisma/client";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +8,7 @@ import { ProfileView } from "@/components/profile/profile-view";
 import { getCreatorProfilePosts } from "@/lib/posts";
 import { getPublicTiers } from "@/lib/tiers";
 import { getBlockRelationship } from "@/lib/block";
+import { getProfileVisibility, getVisibleDesires } from "@/lib/circles";
 import { getReviewableContexts, getReviewsForProfile, getReviewSummary } from "@/lib/reviews";
 
 export default async function PublicProfilePage({
@@ -50,26 +50,8 @@ export default async function PublicProfilePage({
     });
   }
 
-  let visiblePrivacyLevels: PrivacyLevel[] = ["public"];
-
-  if (isOwner) {
-    visiblePrivacyLevels = ["public", "followers", "private"];
-  } else if (viewerProfile) {
-    const isFollower = Boolean(
-      await prisma.circleMember.findFirst({
-        where: { userId: viewerProfile.id, circle: { userId: profile.id } },
-      })
-    );
-
-    if (isFollower) {
-      visiblePrivacyLevels = ["public", "followers"];
-    }
-  }
-
-  const desires = await prisma.desire.findMany({
-    where: { userId: profile.id, privacy: { in: visiblePrivacyLevels } },
-    orderBy: { createdAt: "asc" },
-  });
+  const visibility = await getProfileVisibility(profile.id, viewerProfile?.id ?? null, isOwner);
+  const desires = await getVisibleDesires(profile.id, visibility);
 
   const viewerOrOwnerId = isOwner ? profile.id : (viewerProfile?.id ?? null);
 
@@ -96,6 +78,7 @@ export default async function PublicProfilePage({
         reviewSummary={reviewSummary}
         reviews={reviews}
         reviewableContexts={reviewableContexts}
+        visibleProfileFields={visibility.profileFields}
         profileHref={`/profile/${profile.username}`}
         activeSection={
           searchParams.section === "posts"

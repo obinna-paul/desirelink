@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { HomeTabs } from "@/components/home/home-tabs";
 import { ProfileGrid } from "@/components/home/profile-grid";
+import { RecommendedForYou } from "@/components/home/recommended-for-you";
 import { AvailableTonightStrip } from "@/components/home/available-tonight-strip";
 import { PostList } from "@/components/posts/post-list";
 import { EventGrid } from "@/components/events/event-grid";
@@ -20,6 +21,7 @@ import {
 import { getAvailableTonight } from "@/lib/availability";
 import { getFeedPosts } from "@/lib/posts";
 import { getHomeUpcomingEvents, getTonightEvents } from "@/lib/events";
+import { getPersonalizedRecommendations } from "@/lib/recommendations";
 
 const EMPTY_MESSAGES: Record<HomeTabValue, string> = {
   browse: "No one to show yet. Check back soon.",
@@ -48,9 +50,10 @@ export default async function HomePage({
     select: { id: true, locationLat: true, locationLng: true },
   });
 
-  const [availableTonight, tonightEvents] = await Promise.all([
+  const [availableTonight, tonightEvents, recommendations] = await Promise.all([
     getAvailableTonight(20, viewerProfile?.id),
     getTonightEvents(viewerProfile),
+    getPersonalizedRecommendations(session.user.id, 6),
   ]);
 
   const query = searchParams.q?.trim();
@@ -79,6 +82,7 @@ export default async function HomePage({
         />
         <AvailableTonightStrip items={availableTonight} />
         <EventsTonightStrip events={tonightEvents} />
+        <RecommendedForYou recommendations={recommendations ?? []} />
         <HomeTabs activeTab={tab} />
         <EventGrid
           events={events}
@@ -98,6 +102,7 @@ export default async function HomePage({
         />
         <AvailableTonightStrip items={availableTonight} />
         <EventsTonightStrip events={tonightEvents} />
+        <RecommendedForYou recommendations={recommendations ?? []} />
         <HomeTabs activeTab={tab} />
         <PostList
           posts={posts}
@@ -117,6 +122,7 @@ export default async function HomePage({
       />
       <AvailableTonightStrip items={availableTonight} />
       <EventsTonightStrip events={tonightEvents} />
+      <RecommendedForYou recommendations={recommendations ?? []} />
       <HomeTabs activeTab={tab} />
       {note && <p className="text-sm text-muted-foreground">{note}</p>}
       <ProfileGrid profiles={profiles} emptyMessage={EMPTY_MESSAGES[tab]} />

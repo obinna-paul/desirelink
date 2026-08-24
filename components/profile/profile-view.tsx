@@ -23,6 +23,7 @@ import { BlockButton } from "@/components/safety/block-button";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { ReviewDialog } from "@/components/reviews/review-dialog";
 import { ReviewsSection } from "@/components/reviews/reviews-section";
+import { ALL_PROFILE_FIELD_NAMES, type ProfileFieldName } from "@/lib/circles";
 import type { PostView } from "@/lib/posts";
 import type { PublicTierView } from "@/lib/tiers";
 import type { ReviewableContext, ReviewData, ReviewSummary } from "@/lib/reviews";
@@ -65,6 +66,7 @@ export function ProfileView({
   reviewSummary,
   reviews,
   reviewableContexts = [],
+  visibleProfileFields = ALL_PROFILE_FIELD_NAMES,
 }: {
   profile: Profile;
   desires: Desire[];
@@ -78,9 +80,11 @@ export function ProfileView({
   reviewSummary?: ReviewSummary;
   reviews?: ReviewData[];
   reviewableContexts?: ReviewableContext[];
+  visibleProfileFields?: ProfileFieldName[];
 }) {
   const initials = profile.displayName.slice(0, 2).toUpperCase();
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
+  const visibleFieldSet = new Set<ProfileFieldName>(visibleProfileFields);
   const showMembershipTab = profile.isCreator && (tiers.length > 0 || isOwner);
   const section = profile.isCreator
     ? activeSection === "membership" && !showMembershipTab
@@ -131,7 +135,7 @@ export function ProfileView({
               )}
             </div>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
-            {location && (
+            {visibleFieldSet.has("location") && location && (
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                 <MapPin className="h-3 w-3" /> {location}
               </p>
@@ -216,14 +220,54 @@ export function ProfileView({
         </div>
       ) : (
         <>
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Bio
-            </h2>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
-              {profile.bio || "No bio yet."}
-            </p>
-          </div>
+          {visibleFieldSet.has("bio") && (
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Bio
+              </h2>
+              <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+                {profile.bio || "No bio yet."}
+              </p>
+            </div>
+          )}
+
+          {(visibleFieldSet.has("identity") || visibleFieldSet.has("availability")) && (
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Details
+              </h2>
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {visibleFieldSet.has("identity") && (
+                  <>
+                    <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+                      <p className="text-xs text-muted-foreground">Gender</p>
+                      <p className="text-sm font-medium">{profile.gender || "Unspecified"}</p>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+                      <p className="text-xs text-muted-foreground">Orientation</p>
+                      <p className="text-sm font-medium">{profile.orientation || "Unspecified"}</p>
+                    </div>
+                  </>
+                )}
+                {visibleFieldSet.has("availability") && (
+                  <>
+                    <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+                      <p className="text-xs text-muted-foreground">Chat</p>
+                      <p className="text-sm font-medium">
+                        {profile.openToChat ? "Open to chat" : "Not open to chat"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+                      <p className="text-xs text-muted-foreground">Meet</p>
+                      <p className="text-sm font-medium">
+                        {profile.openToMeet ? "Open to meet" : "Not open to meet"}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           <DesireMapSummary desires={desires} isOwner={isOwner} />
 

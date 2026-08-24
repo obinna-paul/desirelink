@@ -201,30 +201,30 @@ model Profile {
 
   desires                Desire[]
   creatorTiers           CreatorTier[]
-  subscriptionsAsSub     Subscription[]       @relation("SubscriptionSubscriber")
-  subscriptionsAsCreator Subscription[]       @relation("SubscriptionCreator")
+  subscriptionsAsSub     Subscription[]        @relation("SubscriptionSubscriber")
+  subscriptionsAsCreator Subscription[]        @relation("SubscriptionCreator")
   hostedEvents           Event[]
   eventRsvps             EventRsvp[]
-  sentMessages           Message[]            @relation("MessageSender")
-  receivedMessages       Message[]            @relation("MessageRecipient")
+  sentMessages           Message[]             @relation("MessageSender")
+  receivedMessages       Message[]             @relation("MessageRecipient")
   createdRooms           Room[]
   roomMemberships        RoomMember[]
   roomPosts              RoomPost[]
   posts                  Post[]
-  blocksMade             Block[]              @relation("BlockBlocker")
-  blocksReceived         Block[]              @relation("BlockBlocked")
-  reportsMade            Report[]             @relation("ReportReporter")
-  reportsReceived        Report[]             @relation("ReportReportedUser")
+  blocksMade             Block[]               @relation("BlockBlocker")
+  blocksReceived         Block[]               @relation("BlockBlocked")
+  reportsMade            Report[]              @relation("ReportReporter")
+  reportsReceived        Report[]              @relation("ReportReportedUser")
   circles                Circle[]
   circleMemberships      CircleMember[]
   availabilityStatuses   AvailabilityStatus[]
   accessApplications     AccessApplication[]
   transactions           Transaction[]
-  reviewsGiven           Review[]             @relation("ReviewReviewer")
-  reviewsReceived        Review[]             @relation("ReviewReviewee")
+  reviewsGiven           Review[]              @relation("ReviewReviewer")
+  reviewsReceived        Review[]              @relation("ReviewReviewee")
   groupMessages          GroupMessage[]
-  chatMutesReceived      GroupChatMute[]      @relation("GroupChatMuteTarget")
-  chatMutesIssued        GroupChatMute[]      @relation("GroupChatMuteIssuer")
+  chatMutesReceived      GroupChatMute[]       @relation("GroupChatMuteTarget")
+  chatMutesIssued        GroupChatMute[]       @relation("GroupChatMuteIssuer")
   verificationRequests   VerificationRequest[]
 
   @@index([city, country])
@@ -371,14 +371,14 @@ model Room {
 }
 
 model RoomMember {
-  id        String            @id @default(cuid())
+  id        String           @id @default(cuid())
   roomId    String
-  room      Room              @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room      Room             @relation(fields: [roomId], references: [id], onDelete: Cascade)
   userId    String
-  profile   Profile           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile   Profile          @relation(fields: [userId], references: [id], onDelete: Cascade)
   role      RoomRole
-  status    RoomMemberStatus  @default(approved)
-  createdAt DateTime          @default(now())
+  status    RoomMemberStatus @default(approved)
+  createdAt DateTime         @default(now())
 
   @@unique([roomId, userId])
   @@index([roomId])
@@ -504,6 +504,7 @@ model Circle {
   members     CircleMember[]
   permissions CirclePermission[]
 
+  @@unique([userId, name])
   @@index([userId])
 }
 
@@ -515,6 +516,7 @@ model CircleMember {
   profile   Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
+  @@unique([circleId, userId])
   @@index([circleId])
   @@index([userId])
 }
@@ -527,6 +529,7 @@ model CirclePermission {
   visible   Boolean  @default(true)
   createdAt DateTime @default(now())
 
+  @@unique([circleId, fieldName])
   @@index([circleId])
 }
 
@@ -602,17 +605,17 @@ model Review {
 // --- Verification (creators & hosts) ----------------------------------------
 
 model VerificationRequest {
-  id          String                     @id @default(cuid())
+  id          String                    @id @default(cuid())
   profileId   String
-  profile     Profile                    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile     Profile                   @relation(fields: [profileId], references: [id], onDelete: Cascade)
   requestType VerificationRequestType
   govIdUrl    String
   selfieUrl   String
-  status      VerificationRequestStatus  @default(pending)
+  status      VerificationRequestStatus @default(pending)
   reviewerId  String?
   reviewedAt  DateTime?
-  createdAt   DateTime                   @default(now())
-  updatedAt   DateTime                   @updatedAt
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
 
   @@index([profileId])
   @@index([status])

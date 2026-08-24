@@ -1,9 +1,15 @@
 import Link from "next/link";
-import { CreditCard, ChevronRight, ShieldCheck } from "lucide-react";
+import { CreditCard, ChevronRight, ShieldCheck, UsersRound } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 
 const SETTINGS_LINKS = [
+  {
+    href: "/settings/circles",
+    label: "Circles",
+    description: "Control which members can see private profile fields and desires.",
+    icon: UsersRound,
+  },
   {
     href: "/settings/subscriptions",
     label: "Subscriptions",

@@ -6,7 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import type { ProfileCardData } from "@/lib/home-feed";
 import { AVAILABILITY_STATUS_LABELS } from "@/lib/availability-options";
 
-export function ProfileCard({ profile }: { profile: ProfileCardData }) {
+export function ProfileCard({
+  profile,
+  matchScore,
+}: {
+  profile: ProfileCardData;
+  matchScore?: number;
+}) {
   const initials = profile.displayName.slice(0, 2).toUpperCase();
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
   const visibleDesires = profile.desires.slice(0, 3);
@@ -78,6 +84,12 @@ export function ProfileCard({ profile }: { profile: ProfileCardData }) {
           {location && <p className="truncate text-xs text-muted-foreground">{location}</p>}
         </div>
       </div>
+
+      {typeof matchScore === "number" && (
+        <Badge variant="secondary" className="w-fit">
+          {matchScore}% match
+        </Badge>
+      )}
 
       {activeStatus && (
         <Badge variant="neon" className="w-fit gap-1.5">
