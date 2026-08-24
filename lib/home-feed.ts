@@ -190,7 +190,7 @@ export async function getHomeFeed(
         orderBy: { createdAt: "desc" },
         take: 24,
       });
-      return { profiles, note: "Fresh faces: the newest members to join DesireLink." };
+      return { profiles, note: "Fresh faces: the newest members to join Udala." };
     }
 
     case "events":

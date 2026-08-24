@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { triggerEvent } from "@/lib/pusher-server";
 import { isBlockedEitherWay } from "@/lib/block";
+import { flagContentIfNeeded } from "@/lib/moderation";
 import {
   getConversationChannelName,
   getUserChannelName,
@@ -13,7 +14,7 @@ export const CONNECTION_REASONS = [
   {
     value: "shared_interest",
     label: "Shared interest",
-    template: "Hi! I noticed we're both into similar things on DesireLink.",
+    template: "Hi! I noticed we're both into similar things on Udala.",
   },
   {
     value: "same_event",
@@ -172,6 +173,11 @@ export async function sendMessage(
     return { ok: false, status: 400, error: `Message is too long (max ${MAX_MESSAGE_LENGTH} characters)` };
   }
 
+  const sender = await prisma.profile.findUnique({ where: { id: senderId }, select: { isSuspended: true } });
+  if (!sender || sender.isSuspended) {
+    return { ok: false, status: 403, error: "Your account is suspended from messaging" };
+  }
+
   const recipient = await prisma.profile.findUnique({ where: { id: recipientId }, select: { id: true } });
   if (!recipient) {
     return { ok: false, status: 404, error: "Recipient not found" };
@@ -184,6 +190,12 @@ export async function sendMessage(
   const message = await prisma.message.create({
     data: { senderId, recipientId, content: trimmed },
     include: { sender: { select: counterpartSelect } },
+  });
+  await flagContentIfNeeded({
+    contentType: "message",
+    contentId: message.id,
+    contentOwnerId: senderId,
+    content: message.content,
   });
 
   await Promise.all([

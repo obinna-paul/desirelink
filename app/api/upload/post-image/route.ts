@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: "desirelink/posts",
+          folder: "udala/posts",
           transformation: [{ width: 1600, height: 1600, crop: "limit" }],
         },
         (error, result) => {

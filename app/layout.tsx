@@ -7,8 +7,11 @@ import { SessionProvider } from "@/components/providers/session-provider";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "DesireLink",
+  title: "Udala",
   description: "Real-time adult social marketplace",
+  icons: {
+    icon: "/udala-logo.png",
+  },
 };
 
 export default function RootLayout({

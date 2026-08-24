@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { BrandLogo } from "@/components/brand-logo";
+
 export function AuthCard({
   title,
   description,
@@ -14,11 +16,10 @@ export function AuthCard({
       <div className="w-full max-w-sm">
         <Link
           href="/landing"
-          className="mb-8 block text-center text-2xl font-bold tracking-tight"
+          className="mx-auto mb-8 block h-28 w-28 overflow-hidden rounded-2xl"
+          aria-label="Udala"
         >
-          <span className="bg-gradient-to-r from-neon-pink to-neon-cyan bg-clip-text text-transparent">
-            DesireLink
-          </span>
+          <BrandLogo className="h-full w-full" priority />
         </Link>
         <div className="rounded-xl border border-border/60 bg-card p-6 shadow-lg">
           <div className="mb-6">

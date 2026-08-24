@@ -1,4 +1,4 @@
--- DesireLink initial schema
+-- Udala initial schema
 -- Run via Supabase SQL editor or `supabase db push`
 
 create table if not exists public.profiles (

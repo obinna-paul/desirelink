@@ -29,7 +29,7 @@ export default async function DesireOnboardingPage() {
           className="mb-8 block text-center text-2xl font-bold tracking-tight"
         >
           <span className="bg-gradient-to-r from-neon-pink to-neon-cyan bg-clip-text text-transparent">
-            DesireLink
+            Udala
           </span>
         </Link>
 

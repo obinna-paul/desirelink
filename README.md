@@ -1,4 +1,4 @@
-# DesireLink
+# Udala
 
 Real-time adult social marketplace connecting people, creators, communities, and offline experiences. Web-first, PWA-ready, mobile-responsive.
 

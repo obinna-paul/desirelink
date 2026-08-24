@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: "desirelink/avatars",
+          folder: "udala/avatars",
           public_id: session.user.id,
           overwrite: true,
           transformation: [{ width: 512, height: 512, crop: "fill", gravity: "face" }],

@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SignOutButton } from "@/components/layout/sign-out-button";
 import { TopBarSearch } from "@/components/layout/top-bar-search";
 import { AvailabilityQuickAction } from "@/components/layout/availability-quick-action";
+import { BrandLogo } from "@/components/brand-logo";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getActiveAvailability } from "@/lib/availability";
@@ -27,9 +28,12 @@ export async function TopBar() {
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border/60 bg-background/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-6">
-      <Link href="/" className="text-xl font-bold tracking-tight">
+      <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight">
+        <span className="hidden h-9 w-9 shrink-0 overflow-hidden rounded-lg sm:block">
+          <BrandLogo className="h-full w-full" priority />
+        </span>
         <span className="bg-gradient-to-r from-neon-pink to-neon-cyan bg-clip-text text-transparent">
-          DesireLink
+          Udala
         </span>
       </Link>
 
