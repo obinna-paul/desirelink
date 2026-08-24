@@ -224,6 +224,7 @@ model CreatorTier {
 
   subscriptions      Subscription[]
   accessApplications AccessApplication[]
+  transactions       Transaction[]
 
   @@index([creatorId])
 }
@@ -483,6 +484,8 @@ model Transaction {
   profile        Profile       @relation(fields: [userId], references: [id], onDelete: Cascade)
   subscriptionId String?
   subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  tierId         String?
+  tier           CreatorTier?  @relation(fields: [tierId], references: [id], onDelete: SetNull)
   amountCents    Int
   status         String
   provider       String
@@ -490,6 +493,7 @@ model Transaction {
 
   @@index([userId])
   @@index([subscriptionId])
+  @@index([tierId])
 }
 
 model Review {

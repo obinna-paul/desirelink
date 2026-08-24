@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-
-const SUBSCRIPTION_LENGTH_MONTHS = 1;
+import { createCheckoutSession } from "@/lib/payments";
 
 export type TierViewerState =
   | "owner"
@@ -101,47 +100,15 @@ async function hasActiveSubscription(subscriberId: string, tierId: string): Prom
   return Boolean(existing);
 }
 
-async function isTierFull(tierId: string, maxSubscribers: number | null): Promise<boolean> {
-  if (!maxSubscribers) return false;
-  const activeCount = await prisma.subscription.count({
-    where: { tierId, status: "active", endsAt: { gt: new Date() } },
-  });
-  return activeCount >= maxSubscribers;
-}
-
-async function activateSubscription(subscriberId: string, tier: { id: string; creatorId: string; priceCents: number }) {
-  const now = new Date();
-  const endsAt = new Date(now);
-  endsAt.setMonth(endsAt.getMonth() + SUBSCRIPTION_LENGTH_MONTHS);
-
-  const subscription = await prisma.subscription.create({
-    data: {
-      subscriberId,
-      creatorId: tier.creatorId,
-      tierId: tier.id,
-      status: "active",
-      startsAt: now,
-      endsAt,
-    },
-  });
-
-  await prisma.transaction.create({
-    data: {
-      userId: subscriberId,
-      subscriptionId: subscription.id,
-      amountCents: tier.priceCents,
-      status: "succeeded",
-      provider: "mock",
-    },
-  });
-
-  return subscription;
-}
-
 export type SubscribeResult =
-  | { ok: true; state: "subscribed" | "pending" }
+  | { ok: true; state: "subscribed" | "pending" | "checkout"; checkoutUrl?: string }
   | { ok: false; status: number; error: string };
 
+/**
+ * Handles a click on "Subscribe" / "Apply" for a tier. Approval-gated tiers
+ * submit an AccessApplication; everything else hands off to the payments
+ * service to start a checkout session.
+ */
 export async function subscribeToTier(subscriberId: string, tierId: string): Promise<SubscribeResult> {
   const tier = await prisma.creatorTier.findUnique({ where: { id: tierId } });
   if (!tier) {
@@ -174,39 +141,27 @@ export async function subscribeToTier(subscriberId: string, tierId: string): Pro
     return { ok: true, state: "pending" };
   }
 
-  if (await isTierFull(tierId, tier.maxSubscribers)) {
-    return { ok: false, status: 409, error: "This tier is full." };
+  const checkout = await createCheckoutSession(subscriberId, tierId);
+  if (!checkout.ok) {
+    return { ok: false, status: checkout.status, error: checkout.error };
   }
 
-  await activateSubscription(subscriberId, tier);
-  return { ok: true, state: "subscribed" };
+  return { ok: true, state: "checkout", checkoutUrl: checkout.checkoutUrl };
 }
 
+/** Handles "Complete payment" once an approval-gated application has been approved. */
 export async function completeApprovedPayment(
   subscriberId: string,
   tierId: string
 ): Promise<SubscribeResult> {
-  const tier = await prisma.creatorTier.findUnique({ where: { id: tierId } });
-  if (!tier) {
-    return { ok: false, status: 404, error: "Tier not found" };
-  }
-
   if (await hasActiveSubscription(subscriberId, tierId)) {
     return { ok: true, state: "subscribed" };
   }
 
-  const application = await prisma.accessApplication.findUnique({
-    where: { tierId_userId: { tierId, userId: subscriberId } },
-  });
-
-  if (application?.status !== "approved") {
-    return { ok: false, status: 403, error: "Your application hasn't been approved yet." };
+  const checkout = await createCheckoutSession(subscriberId, tierId);
+  if (!checkout.ok) {
+    return { ok: false, status: checkout.status, error: checkout.error };
   }
 
-  if (await isTierFull(tierId, tier.maxSubscribers)) {
-    return { ok: false, status: 409, error: "This tier is full." };
-  }
-
-  await activateSubscription(subscriberId, tier);
-  return { ok: true, state: "subscribed" };
+  return { ok: true, state: "checkout", checkoutUrl: checkout.checkoutUrl };
 }

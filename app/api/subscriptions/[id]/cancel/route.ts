@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { subscribeToTier } from "@/lib/tiers";
+import { cancelSubscription } from "@/lib/payments";
 
 export async function POST(_req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -15,16 +15,19 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     where: { userId: session.user.id },
     select: { id: true },
   });
-
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  const result = await subscribeToTier(profile.id, params.id);
-
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: result.status });
+  const subscription = await prisma.subscription.findUnique({ where: { id: params.id } });
+  if (!subscription || subscription.subscriberId !== profile.id) {
+    return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ state: result.state, checkoutUrl: result.checkoutUrl }, { status: 200 });
+  const result = await cancelSubscription(params.id);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
+  }
+
+  return NextResponse.json({ subscription: result.subscription }, { status: 200 });
 }

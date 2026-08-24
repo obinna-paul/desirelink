@@ -26,5 +26,5 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  return NextResponse.json({ state: result.state }, { status: 200 });
+  return NextResponse.json({ state: result.state, checkoutUrl: result.checkoutUrl }, { status: 200 });
 }

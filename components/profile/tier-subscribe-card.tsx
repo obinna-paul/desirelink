@@ -39,13 +39,18 @@ export function TierSubscribeCard({ tier }: { tier: PublicTierView }) {
     const res = await fetch(path, { method: "POST" });
     const body = await res.json().catch(() => null);
 
-    setPending(false);
-
     if (!res.ok) {
+      setPending(false);
       setError(body?.error ?? "Something went wrong. Please try again.");
       return;
     }
 
+    if (body.state === "checkout" && body.checkoutUrl) {
+      router.push(body.checkoutUrl);
+      return;
+    }
+
+    setPending(false);
     setState(body.state as TierViewerState);
     router.refresh();
   }
