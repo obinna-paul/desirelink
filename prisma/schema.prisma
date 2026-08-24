@@ -74,6 +74,11 @@ enum ModerationStatus {
   action_taken
 }
 
+enum ChatChannelType {
+  room
+  event
+}
+
 // --- Auth ------------------------------------------------------------------
 
 model User {
@@ -191,6 +196,9 @@ model Profile {
   transactions           Transaction[]
   reviewsGiven           Review[]             @relation("ReviewReviewer")
   reviewsReceived        Review[]             @relation("ReviewReviewee")
+  groupMessages          GroupMessage[]
+  chatMutesReceived      GroupChatMute[]      @relation("GroupChatMuteTarget")
+  chatMutesIssued        GroupChatMute[]      @relation("GroupChatMuteIssuer")
 
   @@index([city, country])
   @@index([isCreator])
@@ -362,6 +370,37 @@ model RoomPost {
 
   @@index([roomId])
   @@index([authorId])
+}
+
+// --- Group chat (rooms & events) --------------------------------------------
+// channelId is polymorphic (a Room.id or an Event.id depending on channelType),
+// so it's a plain indexed string rather than a foreign key.
+
+model GroupMessage {
+  id          String          @id @default(cuid())
+  channelType ChatChannelType
+  channelId   String
+  senderId    String
+  sender      Profile         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content     String
+  createdAt   DateTime        @default(now())
+
+  @@index([channelType, channelId])
+  @@index([senderId])
+}
+
+model GroupChatMute {
+  id          String          @id @default(cuid())
+  channelType ChatChannelType
+  channelId   String
+  userId      String
+  profile     Profile         @relation("GroupChatMuteTarget", fields: [userId], references: [id], onDelete: Cascade)
+  mutedById   String
+  mutedBy     Profile         @relation("GroupChatMuteIssuer", fields: [mutedById], references: [id], onDelete: Cascade)
+  createdAt   DateTime        @default(now())
+
+  @@unique([channelType, channelId, userId])
+  @@index([channelType, channelId])
 }
 
 // --- Creator posts -------------------------------------------------------

@@ -18,6 +18,18 @@ export async function getViewerRsvpStatus(eventId: string, viewerProfileId: stri
   return rsvp.status === "waitlist" ? null : (rsvp.status as RsvpAction);
 }
 
+export async function isEventHost(eventId: string, profileId: string): Promise<boolean> {
+  const event = await prisma.event.findUnique({ where: { id: eventId }, select: { hostId: true } });
+  return event?.hostId === profileId;
+}
+
+/** The host, or anyone currently RSVP'd "going" — event chat is for confirmed attendees. */
+export async function canAccessEventChat(eventId: string, profileId: string): Promise<boolean> {
+  if (await isEventHost(eventId, profileId)) return true;
+  const status = await getViewerRsvpStatus(eventId, profileId);
+  return status === "going";
+}
+
 export type EventAttendees = {
   profiles: ProfileCardData[];
   counts: { total: number; couples: number; singles: number; creators: number; newMembers: number };

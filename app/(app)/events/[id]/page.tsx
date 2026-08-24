@@ -9,16 +9,27 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SectionTab } from "@/components/layout/section-tab";
 import { ProfileGrid } from "@/components/home/profile-grid";
 import { EventGrid } from "@/components/events/event-grid";
 import { RsvpButtons } from "@/components/events/rsvp-buttons";
+import { GroupChat } from "@/components/chat/group-chat";
 import { formatCents } from "@/lib/creator";
 import { getEventDetail, getSimilarEvents } from "@/lib/events";
 import { getEventAttendees, getViewerRsvpStatus } from "@/lib/rsvp";
+import { getGroupMessages, getMutedUserIds } from "@/lib/group-chat";
 
 export const dynamic = "force-dynamic";
 
-export default async function EventDetailPage({ params }: { params: { id: string } }) {
+type EventSection = "details" | "chat";
+
+export default async function EventDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { section?: string };
+}) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     redirect("/login");
@@ -40,10 +51,14 @@ export default async function EventDetailPage({ params }: { params: { id: string
   const isHost = event.hostId === viewerProfile.id;
   const viewerRsvp = isHost ? null : await getViewerRsvpStatus(event.id, viewerProfile.id);
   const canSeeFullGuestList = isHost || viewerRsvp === "going";
+  const canAccessChat = canSeeFullGuestList;
+  const section: EventSection = searchParams.section === "chat" ? "chat" : "details";
 
-  const [attendees, similarEvents] = await Promise.all([
+  const [attendees, similarEvents, chatMessages, mutedUserIds] = await Promise.all([
     getEventAttendees(event.id, canSeeFullGuestList),
     getSimilarEvents(event, viewerProfile.id),
+    canAccessChat ? getGroupMessages("event", event.id) : Promise.resolve([]),
+    canAccessChat ? getMutedUserIds("event", event.id) : Promise.resolve([]),
   ]);
 
   const location = [event.venueName, event.address, event.city].filter(Boolean).join(", ");
@@ -132,41 +147,68 @@ export default async function EventDetailPage({ params }: { params: { id: string
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">Who&apos;s going?</h2>
-
-        <div className="flex flex-wrap gap-1.5">
-          <Badge variant="neon">{attendees.counts.total} going</Badge>
-          <Badge variant="outline">{attendees.counts.couples} couples</Badge>
-          <Badge variant="outline">{attendees.counts.singles} singles</Badge>
-          <Badge variant="outline">{attendees.counts.creators} creators</Badge>
-          <Badge variant="outline">{attendees.counts.newMembers} new members</Badge>
-        </div>
-
-        <p className="flex items-center gap-1.5 text-xs italic text-muted-foreground">
-          <UserPlus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          See who you follow is attending — coming soon.
-        </p>
-
-        {attendees.hasHiddenAttendees && (
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
-            {canSeeFullGuestList
-              ? `Showing the first ${attendees.profiles.length} of ${attendees.counts.total} attendees.`
-              : "Some attendees are private. RSVP as Going to see the full guest list."}
-          </p>
-        )}
-
-        <ProfileGrid
-          profiles={attendees.profiles}
-          emptyMessage="No one's RSVP'd going yet. Be the first!"
-        />
+      <div className="flex gap-2">
+        <SectionTab href={`/events/${event.id}`} label="Details" isActive={section === "details"} />
+        <SectionTab href={`/events/${event.id}?section=chat`} label="Chat" isActive={section === "chat"} />
       </div>
 
-      {similarEvents.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold">Similar Events</h2>
-          <EventGrid events={similarEvents} emptyMessage="" />
+      {section === "details" ? (
+        <>
+          <div className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold">Who&apos;s going?</h2>
+
+            <div className="flex flex-wrap gap-1.5">
+              <Badge variant="neon">{attendees.counts.total} going</Badge>
+              <Badge variant="outline">{attendees.counts.couples} couples</Badge>
+              <Badge variant="outline">{attendees.counts.singles} singles</Badge>
+              <Badge variant="outline">{attendees.counts.creators} creators</Badge>
+              <Badge variant="outline">{attendees.counts.newMembers} new members</Badge>
+            </div>
+
+            <p className="flex items-center gap-1.5 text-xs italic text-muted-foreground">
+              <UserPlus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              See who you follow is attending — coming soon.
+            </p>
+
+            {attendees.hasHiddenAttendees && (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                {canSeeFullGuestList
+                  ? `Showing the first ${attendees.profiles.length} of ${attendees.counts.total} attendees.`
+                  : "Some attendees are private. RSVP as Going to see the full guest list."}
+              </p>
+            )}
+
+            <ProfileGrid
+              profiles={attendees.profiles}
+              emptyMessage="No one's RSVP'd going yet. Be the first!"
+            />
+          </div>
+
+          {similarEvents.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <h2 className="text-sm font-semibold">Similar Events</h2>
+              <EventGrid events={similarEvents} emptyMessage="" />
+            </div>
+          )}
+        </>
+      ) : canAccessChat ? (
+        <GroupChat
+          channelType="event"
+          channelId={event.id}
+          viewerProfileId={viewerProfile.id}
+          initialMessages={chatMessages}
+          canPost={canAccessChat}
+          isAdmin={isHost}
+          initiallyMuted={mutedUserIds.includes(viewerProfile.id)}
+          moderationTargets={isHost ? attendees.profiles : []}
+          initialMutedUserIds={mutedUserIds}
+        />
+      ) : (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+          <Lock className="h-6 w-6 text-neon-pink" aria-hidden="true" />
+          <p className="font-medium text-foreground">Chat is for confirmed attendees</p>
+          <p>RSVP as Going to join the conversation.</p>
         </div>
       )}
     </div>

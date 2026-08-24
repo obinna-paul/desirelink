@@ -125,11 +125,31 @@ export async function joinRoom(roomId: string, profileId: string): Promise<JoinR
   return { ok: true, state: status === "pending" ? "pending" : "joined" };
 }
 
-async function isRoomAdmin(roomId: string, requesterId: string): Promise<boolean> {
+export async function isRoomAdmin(roomId: string, requesterId: string): Promise<boolean> {
   const membership = await prisma.roomMember.findUnique({
     where: { roomId_userId: { roomId, userId: requesterId } },
   });
   return Boolean(membership && membership.role === "admin" && membership.status === "approved");
+}
+
+/** Anyone who can see a public room's content, or an approved/admin member of a private one. */
+export async function canAccessRoomChat(roomId: string, profileId: string): Promise<boolean> {
+  const room = await prisma.room.findUnique({ where: { id: roomId }, select: { isPrivate: true } });
+  if (!room) return false;
+  if (!room.isPrivate) return true;
+
+  const membership = await prisma.roomMember.findUnique({
+    where: { roomId_userId: { roomId, userId: profileId } },
+  });
+  return Boolean(membership && membership.status === "approved");
+}
+
+/** Posting requires actual (approved) membership, even in a public room — same rule as RoomPost. */
+export async function canPostInRoomChat(roomId: string, profileId: string): Promise<boolean> {
+  const membership = await prisma.roomMember.findUnique({
+    where: { roomId_userId: { roomId, userId: profileId } },
+  });
+  return Boolean(membership && membership.status === "approved");
 }
 
 export type ModerationResult = { ok: true } | { ok: false; status: number; error: string };
