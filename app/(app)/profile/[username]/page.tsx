@@ -75,6 +75,7 @@ export default async function PublicProfilePage({
         posts={posts}
         tiers={tiers}
         isOwner={isOwner}
+        canMessage={!isOwner && Boolean(viewerProfile)}
         profileHref={`/profile/${profile.username}`}
         activeSection={
           searchParams.section === "posts"

@@ -26,12 +26,16 @@ export const pusherServer = isConfigured
     })
   : null;
 
-export async function triggerAvailabilityEvent(event: string, data: unknown) {
+export async function triggerEvent(channel: string, event: string, data: unknown) {
   if (!pusherServer) return;
   try {
-    await pusherServer.trigger(AVAILABILITY_CHANNEL, event, data);
+    await pusherServer.trigger(channel, event, data);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error("[pusher] failed to trigger event", event, error);
   }
+}
+
+export async function triggerAvailabilityEvent(event: string, data: unknown) {
+  await triggerEvent(AVAILABILITY_CHANNEL, event, data);
 }

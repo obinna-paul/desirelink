@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Desire, Profile } from "@prisma/client";
-import { Heart, MapPin, Pencil, Sparkles } from "lucide-react";
+import { Heart, MapPin, MessageCircle, Pencil, Sparkles } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,7 @@ export function ProfileView({
   isOwner,
   profileHref,
   activeSection = "about",
+  canMessage = false,
 }: {
   profile: Profile;
   desires: Desire[];
@@ -53,6 +54,7 @@ export function ProfileView({
   isOwner: boolean;
   profileHref: string;
   activeSection?: "about" | "posts" | "membership";
+  canMessage?: boolean;
 }) {
   const initials = profile.displayName.slice(0, 2).toUpperCase();
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
@@ -94,12 +96,20 @@ export function ProfileView({
           </div>
         </div>
 
-        {isOwner && (
+        {isOwner ? (
           <Button asChild variant="outline">
             <Link href="/profile/edit">
               <Pencil className="h-4 w-4" /> Edit Profile
             </Link>
           </Button>
+        ) : (
+          canMessage && (
+            <Button asChild variant="outline" className="gap-1.5">
+              <Link href={`/messages?with=${profile.username}`}>
+                <MessageCircle className="h-4 w-4" aria-hidden="true" /> Message
+              </Link>
+            </Button>
+          )
         )}
       </div>
 

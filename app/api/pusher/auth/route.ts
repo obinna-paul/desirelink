@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { pusherServer } from "@/lib/pusher-server";
+import { pusherServer, AVAILABILITY_CHANNEL } from "@/lib/pusher-server";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -32,10 +32,34 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  const authResponse = pusherServer.authorizeChannel(socketId, channelName, {
-    user_id: profile.id,
-    user_info: { displayName: profile.displayName },
-  });
+  if (channelName === AVAILABILITY_CHANNEL) {
+    const authResponse = pusherServer.authorizeChannel(socketId, channelName, {
+      user_id: profile.id,
+      user_info: { displayName: profile.displayName },
+    });
+    return NextResponse.json(authResponse);
+  }
 
-  return NextResponse.json(authResponse);
+  // private-conversation-{profileIdA}-{profileIdB} (ids are hyphen-free cuids,
+  // sorted — see lib/message-channels.ts): only the two participants may subscribe.
+  if (channelName.startsWith("private-conversation-")) {
+    const ids = channelName.slice("private-conversation-".length).split("-");
+    if (ids.length !== 2 || !ids.includes(profile.id)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const authResponse = pusherServer.authorizeChannel(socketId, channelName);
+    return NextResponse.json(authResponse);
+  }
+
+  // private-user-{profileId}: only that user may subscribe to their own inbox channel.
+  if (channelName.startsWith("private-user-")) {
+    const targetId = channelName.slice("private-user-".length);
+    if (targetId !== profile.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const authResponse = pusherServer.authorizeChannel(socketId, channelName);
+    return NextResponse.json(authResponse);
+  }
+
+  return NextResponse.json({ error: "Unknown channel" }, { status: 403 });
 }
