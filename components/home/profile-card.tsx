@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Heart, Sparkles } from "lucide-react";
+import { BadgeCheck, Heart, ShieldCheck, Sparkles } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,21 @@ export function ProfileCard({ profile }: { profile: ProfileCardData }) {
             )}
             {profile.isCouple && (
               <Heart role="img" aria-label="Couple" className="h-3.5 w-3.5 shrink-0 text-neon-cyan" />
+            )}
+            {profile.isTrustedMember ? (
+              <ShieldCheck
+                role="img"
+                aria-label="Trusted member"
+                className="h-3.5 w-3.5 shrink-0 text-neon-cyan"
+              />
+            ) : (
+              profile.isVerified && (
+                <BadgeCheck
+                  role="img"
+                  aria-label="Verified"
+                  className="h-3.5 w-3.5 shrink-0 text-neon-pink"
+                />
+              )
             )}
           </div>
           <p className="truncate text-xs text-muted-foreground">@{profile.username}</p>

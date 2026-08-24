@@ -18,6 +18,7 @@ import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
 type BooleanFieldName =
   | "isCreator"
   | "isCouple"
+  | "isVerified"
   | "openToChat"
   | "openToMeet"
   | "showInSearch"
@@ -98,6 +99,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       country: profile.country,
       isCreator: profile.isCreator,
       isCouple: profile.isCouple,
+      isVerified: profile.isVerified,
       openToChat: profile.openToChat,
       openToMeet: profile.openToMeet,
       showInSearch: profile.showInSearch,
@@ -198,6 +200,18 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
           description="Show that this profile represents a couple."
           control={control}
           name="isCouple"
+        />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Verification
+        </h2>
+        <ToggleRow
+          label="Verified"
+          description="Attest that this is your real identity. Boosts your reputation and shows a Verified badge."
+          control={control}
+          name="isVerified"
         />
       </section>
 

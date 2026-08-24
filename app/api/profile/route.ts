@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateProfileSchema } from "@/lib/validations/profile";
+import { recalculateReputation } from "@/lib/reputation";
 
 export async function PATCH(req: Request) {
   const session = await getServerSession(authOptions);
@@ -26,5 +27,10 @@ export async function PATCH(req: Request) {
     data: parsed.data,
   });
 
-  return NextResponse.json({ profile }, { status: 200 });
+  const { score, isTrustedMember } = await recalculateReputation(profile.id);
+
+  return NextResponse.json(
+    { profile: { ...profile, communityStanding: score, isTrustedMember } },
+    { status: 200 }
+  );
 }

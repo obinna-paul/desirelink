@@ -81,6 +81,11 @@ enum ReportTargetType {
   event
 }
 
+enum ReviewContextType {
+  event
+  transaction
+}
+
 enum ChatChannelType {
   room
   event
@@ -562,15 +567,19 @@ model Transaction {
 }
 
 model Review {
-  id         String   @id @default(cuid())
-  reviewerId String
-  reviewer   Profile  @relation("ReviewReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
-  revieweeId String
-  reviewee   Profile  @relation("ReviewReviewee", fields: [revieweeId], references: [id], onDelete: Cascade)
-  rating     Int
-  comment    String
-  createdAt  DateTime @default(now())
+  id          String            @id @default(cuid())
+  reviewerId  String
+  reviewer    Profile           @relation("ReviewReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  revieweeId  String
+  reviewee    Profile           @relation("ReviewReviewee", fields: [revieweeId], references: [id], onDelete: Cascade)
+  contextType ReviewContextType
+  contextId   String
+  rating      Int
+  comment     String
+  createdAt   DateTime          @default(now())
 
+  @@unique([reviewerId, revieweeId, contextType, contextId])
   @@index([reviewerId])
   @@index([revieweeId])
+  @@index([contextType, contextId])
 }

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { recalculateReputation } from "@/lib/reputation";
 
 export const REPORT_TARGET_TYPES = ["profile", "message", "post", "event"] as const;
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
@@ -81,6 +82,8 @@ export async function submitReport(
       status: "pending",
     },
   });
+
+  await recalculateReputation(reportedUserId);
 
   return { ok: true, reportId: report.id };
 }

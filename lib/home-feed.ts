@@ -34,6 +34,8 @@ export function profileCardSelect() {
     country: true,
     isCreator: true,
     isCouple: true,
+    isVerified: true,
+    isTrustedMember: true,
     desires: {
       where: { privacy: "public" },
       select: { id: true, category: true },

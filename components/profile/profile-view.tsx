@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Desire, Profile } from "@prisma/client";
-import { Heart, MapPin, MessageCircle, Pencil, Sparkles } from "lucide-react";
+import { BadgeCheck, Heart, MapPin, MessageCircle, Pencil, ShieldCheck, Sparkles } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +11,11 @@ import { PostList } from "@/components/posts/post-list";
 import { TierSubscribeCard } from "@/components/profile/tier-subscribe-card";
 import { BlockButton } from "@/components/safety/block-button";
 import { ReportDialog } from "@/components/safety/report-dialog";
+import { ReviewDialog } from "@/components/reviews/review-dialog";
+import { ReviewsSection } from "@/components/reviews/reviews-section";
 import type { PostView } from "@/lib/posts";
 import type { PublicTierView } from "@/lib/tiers";
+import type { ReviewableContext, ReviewData, ReviewSummary } from "@/lib/reviews";
 
 function ProfileSectionTab({
   href,
@@ -49,6 +52,9 @@ export function ProfileView({
   activeSection = "about",
   canMessage = false,
   canModerate = false,
+  reviewSummary,
+  reviews,
+  reviewableContexts = [],
 }: {
   profile: Profile;
   desires: Desire[];
@@ -59,6 +65,9 @@ export function ProfileView({
   activeSection?: "about" | "posts" | "membership";
   canMessage?: boolean;
   canModerate?: boolean;
+  reviewSummary?: ReviewSummary;
+  reviews?: ReviewData[];
+  reviewableContexts?: ReviewableContext[];
 }) {
   const initials = profile.displayName.slice(0, 2).toUpperCase();
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
@@ -90,6 +99,16 @@ export function ProfileView({
                   <Heart className="h-3 w-3" /> Couple
                 </Badge>
               )}
+              {profile.isTrustedMember && (
+                <Badge variant="neon" className="gap-1">
+                  <ShieldCheck className="h-3 w-3" /> Trusted
+                </Badge>
+              )}
+              {profile.isVerified && (
+                <Badge variant="outline" className="gap-1">
+                  <BadgeCheck className="h-3 w-3" /> Verified
+                </Badge>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
             {location && (
@@ -114,6 +133,13 @@ export function ProfileView({
                   <MessageCircle className="h-4 w-4" aria-hidden="true" /> Message
                 </Link>
               </Button>
+            )}
+            {reviewableContexts.length > 0 && (
+              <ReviewDialog
+                revieweeId={profile.id}
+                revieweeName={profile.displayName}
+                contexts={reviewableContexts}
+              />
             )}
             {canModerate && (
               <>
@@ -180,6 +206,10 @@ export function ProfileView({
           </div>
 
           <DesireMapSummary desires={desires} isOwner={isOwner} />
+
+          {reviewSummary && reviews && (
+            <ReviewsSection summary={reviewSummary} reviews={reviews} />
+          )}
         </>
       )}
     </div>

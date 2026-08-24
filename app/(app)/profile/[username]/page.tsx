@@ -9,6 +9,7 @@ import { ProfileView } from "@/components/profile/profile-view";
 import { getCreatorProfilePosts } from "@/lib/posts";
 import { getPublicTiers } from "@/lib/tiers";
 import { getBlockRelationship } from "@/lib/block";
+import { getReviewableContexts, getReviewsForProfile, getReviewSummary } from "@/lib/reviews";
 
 export default async function PublicProfilePage({
   params,
@@ -75,6 +76,12 @@ export default async function PublicProfilePage({
   const posts = profile.isCreator ? await getCreatorProfilePosts(profile.id, viewerOrOwnerId) : [];
   const tiers = profile.isCreator ? await getPublicTiers(profile.id, viewerOrOwnerId) : [];
 
+  const [reviewSummary, reviews, reviewableContexts] = await Promise.all([
+    getReviewSummary(profile.id),
+    getReviewsForProfile(profile.id),
+    viewerProfile ? getReviewableContexts(viewerProfile.id, profile.id) : Promise.resolve([]),
+  ]);
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title={profile.displayName} description={`@${profile.username}`} />
@@ -86,6 +93,9 @@ export default async function PublicProfilePage({
         isOwner={isOwner}
         canMessage={!isOwner && Boolean(viewerProfile)}
         canModerate={!isOwner && Boolean(viewerProfile)}
+        reviewSummary={reviewSummary}
+        reviews={reviews}
+        reviewableContexts={reviewableContexts}
         profileHref={`/profile/${profile.username}`}
         activeSection={
           searchParams.section === "posts"
