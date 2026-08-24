@@ -1,32 +1,32 @@
 import Link from "next/link";
-import { CreditCard, ChevronRight, ShieldCheck } from "lucide-react";
+import { ChevronRight, Flag, ShieldOff } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 
-const SETTINGS_LINKS = [
+const SAFETY_LINKS = [
   {
-    href: "/settings/subscriptions",
-    label: "Subscriptions",
-    description: "Manage the creators you're subscribed to and cancel anytime.",
-    icon: CreditCard,
+    href: "/safety/blocked",
+    label: "Blocked users",
+    description: "See and manage the people you've blocked.",
+    icon: ShieldOff,
   },
   {
-    href: "/safety",
-    label: "Safety Center",
-    description: "Blocked users, report history, and safety tools.",
-    icon: ShieldCheck,
+    href: "/safety/reports",
+    label: "Report history",
+    description: "Track the reports you've submitted and their status.",
+    icon: Flag,
   },
 ];
 
-export default function SettingsPage() {
+export default function SafetyCenterPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Settings"
-        description="Manage your account, privacy, and safety preferences."
+        title="Safety Center"
+        description="Tools to help you stay in control of who can reach you."
       />
       <ul className="flex flex-col gap-2">
-        {SETTINGS_LINKS.map((link) => (
+        {SAFETY_LINKS.map((link) => (
           <li key={link.href}>
             <Link
               href={link.href}
@@ -46,9 +46,6 @@ export default function SettingsPage() {
           </li>
         ))}
       </ul>
-      <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
-        More settings coming soon.
-      </div>
     </div>
   );
 }

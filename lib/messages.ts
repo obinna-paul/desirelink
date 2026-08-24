@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { triggerEvent } from "@/lib/pusher-server";
+import { isBlockedEitherWay } from "@/lib/block";
 import {
   getConversationChannelName,
   getUserChannelName,
@@ -174,6 +175,10 @@ export async function sendMessage(
   const recipient = await prisma.profile.findUnique({ where: { id: recipientId }, select: { id: true } });
   if (!recipient) {
     return { ok: false, status: 404, error: "Recipient not found" };
+  }
+
+  if (await isBlockedEitherWay(senderId, recipientId)) {
+    return { ok: false, status: 403, error: "You can't message this user" };
   }
 
   const message = await prisma.message.create({

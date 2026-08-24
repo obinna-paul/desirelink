@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { DesireMapSummary } from "@/components/profile/desire-map-summary";
 import { PostList } from "@/components/posts/post-list";
 import { TierSubscribeCard } from "@/components/profile/tier-subscribe-card";
+import { BlockButton } from "@/components/safety/block-button";
+import { ReportDialog } from "@/components/safety/report-dialog";
 import type { PostView } from "@/lib/posts";
 import type { PublicTierView } from "@/lib/tiers";
 
@@ -46,6 +48,7 @@ export function ProfileView({
   profileHref,
   activeSection = "about",
   canMessage = false,
+  canModerate = false,
 }: {
   profile: Profile;
   desires: Desire[];
@@ -55,6 +58,7 @@ export function ProfileView({
   profileHref: string;
   activeSection?: "about" | "posts" | "membership";
   canMessage?: boolean;
+  canModerate?: boolean;
 }) {
   const initials = profile.displayName.slice(0, 2).toUpperCase();
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
@@ -103,13 +107,21 @@ export function ProfileView({
             </Link>
           </Button>
         ) : (
-          canMessage && (
-            <Button asChild variant="outline" className="gap-1.5">
-              <Link href={`/messages?with=${profile.username}`}>
-                <MessageCircle className="h-4 w-4" aria-hidden="true" /> Message
-              </Link>
-            </Button>
-          )
+          <div className="flex flex-wrap items-center gap-2">
+            {canMessage && (
+              <Button asChild variant="outline" className="gap-1.5">
+                <Link href={`/messages?with=${profile.username}`}>
+                  <MessageCircle className="h-4 w-4" aria-hidden="true" /> Message
+                </Link>
+              </Button>
+            )}
+            {canModerate && (
+              <>
+                <ReportDialog targetType="profile" targetId={profile.id} />
+                <BlockButton profileId={profile.id} initiallyBlocked={false} />
+              </>
+            )}
+          </div>
         )}
       </div>
 

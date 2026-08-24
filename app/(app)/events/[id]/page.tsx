@@ -14,6 +14,7 @@ import { ProfileGrid } from "@/components/home/profile-grid";
 import { EventGrid } from "@/components/events/event-grid";
 import { RsvpButtons } from "@/components/events/rsvp-buttons";
 import { GroupChat } from "@/components/chat/group-chat";
+import { ReportDialog } from "@/components/safety/report-dialog";
 import { formatCents } from "@/lib/creator";
 import { getEventDetail, getSimilarEvents } from "@/lib/events";
 import { getEventAttendees, getViewerRsvpStatus } from "@/lib/rsvp";
@@ -129,7 +130,7 @@ export default async function EventDetailPage({
             </div>
           </Link>
 
-          <div className="border-t border-border/60 pt-4">
+          <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
             {isHost ? (
               <Button asChild variant="outline" className="gap-1.5">
                 <Link href={`/events/manage/${event.id}/edit`}>
@@ -137,11 +138,14 @@ export default async function EventDetailPage({
                 </Link>
               </Button>
             ) : (
-              <RsvpButtons
-                eventId={event.id}
-                initialStatus={viewerRsvp}
-                isPriced={event.priceCents > 0}
-              />
+              <>
+                <RsvpButtons
+                  eventId={event.id}
+                  initialStatus={viewerRsvp}
+                  isPriced={event.priceCents > 0}
+                />
+                <ReportDialog targetType="event" targetId={event.id} label="Report event" />
+              </>
             )}
           </div>
         </div>

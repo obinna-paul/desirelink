@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ProfileView } from "@/components/profile/profile-view";
 import { getCreatorProfilePosts } from "@/lib/posts";
 import { getPublicTiers } from "@/lib/tiers";
+import { getBlockRelationship } from "@/lib/block";
 
 export default async function PublicProfilePage({
   params,
@@ -28,17 +29,25 @@ export default async function PublicProfilePage({
 
   const isOwner = session?.user?.id === profile.userId;
 
+  const viewerProfile =
+    !isOwner && session?.user?.id
+      ? await prisma.profile.findUnique({ where: { userId: session.user.id }, select: { id: true } })
+      : null;
+
+  const blockRelationship = viewerProfile
+    ? await getBlockRelationship(viewerProfile.id, profile.id)
+    : "none";
+
+  if (blockRelationship !== "none") {
+    notFound();
+  }
+
   if (!isOwner) {
     await prisma.profile.update({
       where: { id: profile.id },
       data: { profileViews: { increment: 1 } },
     });
   }
-
-  const viewerProfile =
-    !isOwner && session?.user?.id
-      ? await prisma.profile.findUnique({ where: { userId: session.user.id }, select: { id: true } })
-      : null;
 
   let visiblePrivacyLevels: PrivacyLevel[] = ["public"];
 
@@ -76,6 +85,7 @@ export default async function PublicProfilePage({
         tiers={tiers}
         isOwner={isOwner}
         canMessage={!isOwner && Boolean(viewerProfile)}
+        canModerate={!isOwner && Boolean(viewerProfile)}
         profileHref={`/profile/${profile.username}`}
         activeSection={
           searchParams.section === "posts"

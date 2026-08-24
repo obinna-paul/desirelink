@@ -4,6 +4,7 @@ import { Lock } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { ReportDialog } from "@/components/safety/report-dialog";
 import { cn } from "@/lib/utils";
 import type { PostView } from "@/lib/posts";
 
@@ -46,11 +47,14 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
         ) : (
           <p className="text-xs text-muted-foreground">{timeAgo}</p>
         )}
-        {post.isSubscriberOnly && (
-          <Badge variant="outline" className="shrink-0 gap-1 text-muted-foreground">
-            <Lock className="h-3 w-3" aria-hidden="true" /> Subscribers only
-          </Badge>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {post.isSubscriberOnly && (
+            <Badge variant="outline" className="gap-1 text-muted-foreground">
+              <Lock className="h-3 w-3" aria-hidden="true" /> Subscribers only
+            </Badge>
+          )}
+          <ReportDialog targetType="post" targetId={post.id} label="Report post" variant="icon" />
+        </div>
       </div>
 
       {post.locked ? (

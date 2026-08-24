@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Send } from "lucide-react";
+import { ShieldX, Send } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { ReportDialog } from "@/components/safety/report-dialog";
 import { cn } from "@/lib/utils";
 import { getPusherClient } from "@/lib/pusher-client";
 import {
@@ -26,10 +27,12 @@ export function ChatWindow({
   viewerProfileId,
   counterpart,
   initialMessages,
+  blocked = false,
 }: {
   viewerProfileId: string;
   counterpart: ConversationParticipant;
   initialMessages: Message[];
+  blocked?: boolean;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -112,18 +115,28 @@ export function ChatWindow({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-3 border-b border-border/60 px-4 py-3">
-        <Avatar className="h-9 w-9 border border-border">
-          <AvatarImage src={counterpart.avatarUrl} alt={counterpart.displayName} />
-          <AvatarFallback className="text-xs">
-            {counterpart.displayName.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div>
-          <p className="text-sm font-medium">{counterpart.displayName}</p>
-          <p className="text-xs text-muted-foreground">@{counterpart.username}</p>
+      <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-9 w-9 border border-border">
+            <AvatarImage src={counterpart.avatarUrl} alt={counterpart.displayName} />
+            <AvatarFallback className="text-xs">
+              {counterpart.displayName.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-sm font-medium">{counterpart.displayName}</p>
+            <p className="text-xs text-muted-foreground">@{counterpart.username}</p>
+          </div>
         </div>
+        <ReportDialog targetType="profile" targetId={counterpart.id} label={`Report ${counterpart.displayName}`} variant="icon" />
       </div>
+
+      {blocked && (
+        <p className="flex items-center gap-1.5 border-b border-border/60 bg-secondary/60 px-4 py-2 text-xs text-muted-foreground">
+          <ShieldX className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          You can&apos;t message this user.
+        </p>
+      )}
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
         {messages.length === 0 ? (
@@ -135,7 +148,7 @@ export function ChatWindow({
             {messages.map((message) => {
               const isMine = message.senderId === viewerProfileId;
               return (
-                <li key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
+                <li key={message.id} className={cn("group flex items-end gap-1.5", isMine ? "justify-end" : "justify-start")}>
                   <div
                     className={cn(
                       "max-w-[75%] rounded-2xl px-3.5 py-2 text-sm",
@@ -154,6 +167,16 @@ export function ChatWindow({
                       {formatMessageTime(message.createdAt)}
                     </p>
                   </div>
+                  {!isMine && (
+                    <span className="opacity-0 transition-opacity group-hover:opacity-100">
+                      <ReportDialog
+                        targetType="message"
+                        targetId={message.id}
+                        label="Report message"
+                        variant="icon"
+                      />
+                    </span>
+                  )}
                 </li>
               );
             })}
@@ -161,7 +184,7 @@ export function ChatWindow({
         )}
       </div>
 
-      {isNewConversation && (
+      {isNewConversation && !blocked && (
         <div className="flex flex-col gap-2 border-t border-border/60 px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Why are you reaching out?
@@ -207,9 +230,13 @@ export function ChatWindow({
               }
             }}
             placeholder={
-              isNewConversation && !reason ? "Pick a reason above to get started" : "Write a message..."
+              blocked
+                ? "You can't message this user"
+                : isNewConversation && !reason
+                  ? "Pick a reason above to get started"
+                  : "Write a message..."
             }
-            disabled={isNewConversation && !reason}
+            disabled={blocked || (isNewConversation && !reason)}
             className="min-h-[44px] flex-1 resize-none"
             rows={1}
           />
@@ -217,7 +244,7 @@ export function ChatWindow({
             type="button"
             size="icon"
             aria-label="Send message"
-            disabled={sending || !content.trim() || (isNewConversation && !reason)}
+            disabled={blocked || sending || !content.trim() || (isNewConversation && !reason)}
             onClick={handleSend}
           >
             <Send className="h-4 w-4" aria-hidden="true" />

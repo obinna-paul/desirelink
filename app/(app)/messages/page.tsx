@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ConversationList } from "@/components/messages/conversation-list";
 import { ChatWindow } from "@/components/messages/chat-window";
 import { getConversation, getConversations } from "@/lib/messages";
+import { isBlockedEitherWay } from "@/lib/block";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,10 @@ export default async function MessagesPage({
     ? await getConversation(viewerProfile.id, validCounterpart.id)
     : [];
 
+  const isBlocked = validCounterpart
+    ? await isBlockedEitherWay(viewerProfile.id, validCounterpart.id)
+    : false;
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Messages" description="Direct conversations with your connections." />
@@ -78,6 +83,7 @@ export default async function MessagesPage({
                   viewerProfileId={viewerProfile.id}
                   counterpart={validCounterpart}
                   initialMessages={initialMessages}
+                  blocked={isBlocked}
                 />
               </div>
             </>
