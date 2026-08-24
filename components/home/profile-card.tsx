@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgeCheck, Heart, ShieldCheck, Sparkles } from "lucide-react";
+import { Award, BadgeCheck, CalendarCheck, Heart, ShieldCheck, Sparkles } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +58,20 @@ export function ProfileCard({ profile }: { profile: ProfileCardData }) {
                   className="h-3.5 w-3.5 shrink-0 text-neon-pink"
                 />
               )
+            )}
+            {profile.isVerifiedCreator && (
+              <Award
+                role="img"
+                aria-label="Verified creator"
+                className="h-3.5 w-3.5 shrink-0 text-neon-pink"
+              />
+            )}
+            {profile.isVerifiedHost && (
+              <CalendarCheck
+                role="img"
+                aria-label="Verified host"
+                className="h-3.5 w-3.5 shrink-0 text-neon-cyan"
+              />
             )}
           </div>
           <p className="truncate text-xs text-muted-foreground">@{profile.username}</p>

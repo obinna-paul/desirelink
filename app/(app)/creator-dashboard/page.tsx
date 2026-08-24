@@ -25,6 +25,8 @@ import {
   isCreatorDashboardTab,
 } from "@/lib/creator";
 import { getCreatorProfilePosts } from "@/lib/posts";
+import { getMyVerificationRequests } from "@/lib/verification";
+import { VerificationRequestCard } from "@/components/verification/verification-request-card";
 
 export default async function CreatorDashboardPage({
   searchParams,
@@ -69,6 +71,9 @@ export default async function CreatorDashboardPage({
       {tab === "tiers" && <TiersTab profileId={profile.id} />}
       {tab === "applications" && <ApplicationsTab profileId={profile.id} />}
       {tab === "analytics" && <AnalyticsTab profileId={profile.id} />}
+      {tab === "verification" && (
+        <VerificationTab profileId={profile.id} isVerifiedCreator={profile.isVerifiedCreator} />
+      )}
     </div>
   );
 }
@@ -103,6 +108,25 @@ async function TiersTab({ profileId }: { profileId: string }) {
 async function ApplicationsTab({ profileId }: { profileId: string }) {
   const applications = await getCreatorApplications(profileId);
   return <ApplicationsList initialApplications={applications} />;
+}
+
+async function VerificationTab({
+  profileId,
+  isVerifiedCreator,
+}: {
+  profileId: string;
+  isVerifiedCreator: boolean;
+}) {
+  const requests = await getMyVerificationRequests(profileId);
+  const latest = requests.find((request) => request.requestType === "creator") ?? null;
+
+  return (
+    <VerificationRequestCard
+      requestType="creator"
+      isVerified={isVerifiedCreator}
+      latestStatus={latest?.status ?? null}
+    />
+  );
 }
 
 async function AnalyticsTab({ profileId }: { profileId: string }) {

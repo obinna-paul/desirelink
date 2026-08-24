@@ -7,6 +7,7 @@ export const CREATOR_DASHBOARD_TABS = [
   { value: "tiers", label: "Tiers" },
   { value: "applications", label: "Applications" },
   { value: "analytics", label: "Analytics" },
+  { value: "verification", label: "Verification" },
 ] as const;
 
 export type CreatorDashboardTab = (typeof CREATOR_DASHBOARD_TABS)[number]["value"];

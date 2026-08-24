@@ -91,6 +91,17 @@ enum ChatChannelType {
   event
 }
 
+enum VerificationRequestType {
+  creator
+  host
+}
+
+enum VerificationRequestStatus {
+  pending
+  approved
+  denied
+}
+
 // --- Auth ------------------------------------------------------------------
 
 model User {
@@ -100,6 +111,7 @@ model User {
   name          String
   image         String?
   emailVerified DateTime?
+  isAdmin       Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -178,6 +190,8 @@ model Profile {
   showInSearch      Boolean @default(true)
   showExactLocation Boolean @default(false)
   isVerified        Boolean @default(false)
+  isVerifiedCreator Boolean @default(false)
+  isVerifiedHost    Boolean @default(false)
   isTrustedMember   Boolean @default(false)
   communityStanding Int     @default(0)
   profileViews      Int     @default(0)
@@ -211,6 +225,7 @@ model Profile {
   groupMessages          GroupMessage[]
   chatMutesReceived      GroupChatMute[]      @relation("GroupChatMuteTarget")
   chatMutesIssued        GroupChatMute[]      @relation("GroupChatMuteIssuer")
+  verificationRequests   VerificationRequest[]
 
   @@index([city, country])
   @@index([isCreator])
@@ -582,4 +597,24 @@ model Review {
   @@index([reviewerId])
   @@index([revieweeId])
   @@index([contextType, contextId])
+}
+
+// --- Verification (creators & hosts) ----------------------------------------
+
+model VerificationRequest {
+  id          String                     @id @default(cuid())
+  profileId   String
+  profile     Profile                    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  requestType VerificationRequestType
+  govIdUrl    String
+  selfieUrl   String
+  status      VerificationRequestStatus  @default(pending)
+  reviewerId  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+
+  @@index([profileId])
+  @@index([status])
+  @@index([requestType, status])
 }

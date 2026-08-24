@@ -9,6 +9,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { EventManageList } from "@/components/events/event-manage-list";
 import { getHostEvents } from "@/lib/events";
+import { getMyVerificationRequests } from "@/lib/verification";
+import { VerificationRequestCard } from "@/components/verification/verification-request-card";
 
 export default async function ManageEventsPage() {
   const session = await getServerSession(authOptions);
@@ -18,13 +20,17 @@ export default async function ManageEventsPage() {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true },
+    select: { id: true, isVerifiedHost: true },
   });
   if (!profile) {
     redirect("/login");
   }
 
-  const events = await getHostEvents(profile.id);
+  const [events, requests] = await Promise.all([
+    getHostEvents(profile.id),
+    getMyVerificationRequests(profile.id),
+  ]);
+  const latestHostRequest = requests.find((request) => request.requestType === "host") ?? null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -35,6 +41,12 @@ export default async function ManageEventsPage() {
         </Link>
       </Button>
       <EventManageList initialEvents={events} />
+      <VerificationRequestCard
+        requestType="host"
+        isVerified={profile.isVerifiedHost}
+        latestStatus={latestHostRequest?.status ?? null}
+        ineligibleMessage={events.length === 0 ? "Host at least one event before requesting host verification." : undefined}
+      />
     </div>
   );
 }

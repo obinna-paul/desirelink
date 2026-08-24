@@ -1,6 +1,16 @@
 import Link from "next/link";
 import type { Desire, Profile } from "@prisma/client";
-import { BadgeCheck, Heart, MapPin, MessageCircle, Pencil, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  Award,
+  BadgeCheck,
+  CalendarCheck,
+  Heart,
+  MapPin,
+  MessageCircle,
+  Pencil,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -107,6 +117,16 @@ export function ProfileView({
               {profile.isVerified && (
                 <Badge variant="outline" className="gap-1">
                   <BadgeCheck className="h-3 w-3" /> Verified
+                </Badge>
+              )}
+              {profile.isVerifiedCreator && (
+                <Badge variant="outline" className="gap-1">
+                  <Award className="h-3 w-3" /> Verified creator
+                </Badge>
+              )}
+              {profile.isVerifiedHost && (
+                <Badge variant="outline" className="gap-1">
+                  <CalendarCheck className="h-3 w-3" /> Verified host
                 </Badge>
               )}
             </div>
