@@ -12,11 +12,13 @@ import { AudienceList } from "@/components/creator/audience-list";
 import { ContentList } from "@/components/creator/content-list";
 import { TierManager } from "@/components/creator/tier-manager";
 import { ApplicationsList } from "@/components/creator/applications-list";
+import { CreatorAssistantPanel } from "@/components/creator/assistant-panel";
 import { SubscriberGrowthChart, EarningsChart } from "@/components/creator/analytics-charts";
 import {
   DEFAULT_CREATOR_DASHBOARD_TAB,
   formatCents,
   getCreatorApplications,
+  getCreatorAssistantInsights,
   getCreatorStats,
   getCreatorTiers,
   getEarningsByMonth,
@@ -66,6 +68,7 @@ export default async function CreatorDashboardPage({
       <DashboardTabs activeTab={tab} />
 
       {tab === "overview" && <OverviewTab profileId={profile.id} />}
+      {tab === "assistant" && <AssistantTab profileId={profile.id} />}
       {tab === "audience" && <AudienceTab profileId={profile.id} />}
       {tab === "content" && <ContentTab profileId={profile.id} />}
       {tab === "tiers" && <TiersTab profileId={profile.id} />}
@@ -76,6 +79,11 @@ export default async function CreatorDashboardPage({
       )}
     </div>
   );
+}
+
+async function AssistantTab({ profileId }: { profileId: string }) {
+  const insights = await getCreatorAssistantInsights(profileId);
+  return <CreatorAssistantPanel insights={insights} />;
 }
 
 async function OverviewTab({ profileId }: { profileId: string }) {
