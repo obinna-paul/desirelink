@@ -8,6 +8,8 @@ import { HomeTabs } from "@/components/home/home-tabs";
 import { ProfileGrid } from "@/components/home/profile-grid";
 import { AvailableTonightStrip } from "@/components/home/available-tonight-strip";
 import { PostList } from "@/components/posts/post-list";
+import { EventGrid } from "@/components/events/event-grid";
+import { EventsTonightStrip } from "@/components/events/events-tonight-strip";
 import {
   DEFAULT_HOME_TAB,
   getHomeFeed,
@@ -17,6 +19,7 @@ import {
 } from "@/lib/home-feed";
 import { getAvailableTonight } from "@/lib/availability";
 import { getFeedPosts } from "@/lib/posts";
+import { getHomeUpcomingEvents, getTonightEvents } from "@/lib/events";
 
 const EMPTY_MESSAGES: Record<HomeTabValue, string> = {
   browse: "No one to show yet. Check back soon.",
@@ -45,7 +48,10 @@ export default async function HomePage({
     select: { id: true, locationLat: true, locationLng: true },
   });
 
-  const availableTonight = await getAvailableTonight(20, viewerProfile?.id);
+  const [availableTonight, tonightEvents] = await Promise.all([
+    getAvailableTonight(20, viewerProfile?.id),
+    getTonightEvents(viewerProfile),
+  ]);
 
   const query = searchParams.q?.trim();
 
@@ -55,6 +61,7 @@ export default async function HomePage({
       <div className="flex flex-col gap-6">
         <PageHeader title="Search" description={`Results for "${query}"`} />
         <AvailableTonightStrip items={availableTonight} />
+        <EventsTonightStrip events={tonightEvents} />
         <ProfileGrid profiles={results} emptyMessage={`No one found matching "${query}".`} />
       </div>
     );
@@ -63,6 +70,7 @@ export default async function HomePage({
   const tab = isHomeTabValue(searchParams.tab) ? searchParams.tab : DEFAULT_HOME_TAB;
 
   if (tab === "events") {
+    const events = await getHomeUpcomingEvents(viewerProfile, 24);
     return (
       <div className="flex flex-col gap-6">
         <PageHeader
@@ -70,10 +78,12 @@ export default async function HomePage({
           description="Browse profiles across DesireLink, filtered by what you're into right now."
         />
         <AvailableTonightStrip items={availableTonight} />
+        <EventsTonightStrip events={tonightEvents} />
         <HomeTabs activeTab={tab} />
-        <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
-          Event listings are coming soon. Hosting and RSVPs will show up here.
-        </div>
+        <EventGrid
+          events={events}
+          emptyMessage="No upcoming events yet. Head to Events to host one."
+        />
       </div>
     );
   }
@@ -87,6 +97,7 @@ export default async function HomePage({
           description="Browse profiles across DesireLink, filtered by what you're into right now."
         />
         <AvailableTonightStrip items={availableTonight} />
+        <EventsTonightStrip events={tonightEvents} />
         <HomeTabs activeTab={tab} />
         <PostList
           posts={posts}
@@ -105,6 +116,7 @@ export default async function HomePage({
         description="Browse profiles across DesireLink, filtered by what you're into right now."
       />
       <AvailableTonightStrip items={availableTonight} />
+      <EventsTonightStrip events={tonightEvents} />
       <HomeTabs activeTab={tab} />
       {note && <p className="text-sm text-muted-foreground">{note}</p>}
       <ProfileGrid profiles={profiles} emptyMessage={EMPTY_MESSAGES[tab]} />

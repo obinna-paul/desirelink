@@ -1,15 +1,39 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
 import { CalendarPlus, ListChecks } from "lucide-react";
 
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { EventCard } from "@/components/events/event-card";
-import { getUpcomingEvents } from "@/lib/events";
+import { EventGrid } from "@/components/events/event-grid";
+import { EventFiltersPanel } from "@/components/events/event-filters";
+import {
+  parseEventFilters,
+  searchEvents,
+  type EventSearchParams,
+} from "@/lib/events";
 
 export const dynamic = "force-dynamic";
 
-export default async function EventsPage() {
-  const events = await getUpcomingEvents();
+export default async function EventsPage({
+  searchParams,
+}: {
+  searchParams: EventSearchParams;
+}) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const viewerProfile = await prisma.profile.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true, locationLat: true, locationLng: true },
+  });
+
+  const filters = parseEventFilters(searchParams);
+  const { events, note } = await searchEvents(filters, viewerProfile);
 
   return (
     <div className="flex flex-col gap-6">
@@ -31,17 +55,18 @@ export default async function EventsPage() {
         </Button>
       </div>
 
-      {events.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
-          No upcoming events yet. Be the first to host one.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-          {events.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
-      )}
+      <EventFiltersPanel initialFilters={filters} />
+
+      <p className="text-sm text-muted-foreground">
+        {events.length} upcoming {events.length === 1 ? "event" : "events"}
+      </p>
+
+      {note && <p className="text-sm text-muted-foreground">{note}</p>}
+
+      <EventGrid
+        events={events}
+        emptyMessage="No events match these filters yet. Try widening your search, or be the first to host one."
+      />
     </div>
   );
 }
