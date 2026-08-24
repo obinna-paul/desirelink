@@ -1,0 +1,118 @@
+import { notFound, redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { Lock, Users2 } from "lucide-react";
+
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/layout/page-header";
+import { Badge } from "@/components/ui/badge";
+import { JoinButton } from "@/components/rooms/join-button";
+import { RoomPostList } from "@/components/rooms/room-post-list";
+import { RoomMembersPanel } from "@/components/rooms/room-members-panel";
+import { canViewRoomContent, getApprovedMembers, getPendingMembers, getRoomDetail, getRoomPosts } from "@/lib/rooms";
+
+export const dynamic = "force-dynamic";
+
+export default async function RoomDetailPage({ params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const viewerProfile = await prisma.profile.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true },
+  });
+  if (!viewerProfile) {
+    redirect("/login");
+  }
+
+  const detail = await getRoomDetail(params.id, viewerProfile.id);
+  if (!detail) {
+    notFound();
+  }
+
+  const { room, state } = detail;
+  const canView = canViewRoomContent(room, state);
+  const isAdmin = state === "admin";
+  const canPost = state === "member" || state === "admin";
+
+  const [posts, members, pendingMembers] = canView
+    ? await Promise.all([
+        getRoomPosts(room.id),
+        getApprovedMembers(room.id),
+        isAdmin ? getPendingMembers(room.id) : Promise.resolve([]),
+      ])
+    : [[], [], []];
+
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader title={room.name} description={room.isPrivate ? "Private room" : "Public room"} />
+
+      <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+        <div className="flex h-40 w-full items-center justify-center overflow-hidden bg-secondary">
+          {room.coverImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={room.coverImageUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <Users2 className="h-10 w-10 text-muted-foreground" aria-hidden="true" />
+          )}
+        </div>
+
+        <div className="flex flex-col gap-4 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {room.isPrivate ? (
+                <Badge variant="secondary" className="gap-1">
+                  <Lock className="h-3 w-3" aria-hidden="true" /> Private
+                </Badge>
+              ) : (
+                <Badge variant="outline">Public</Badge>
+              )}
+              <Badge variant="outline" className="gap-1">
+                <Users2 className="h-3 w-3" aria-hidden="true" /> {room._count.members} members
+              </Badge>
+            </div>
+            <JoinButton roomId={room.id} initialState={state} isPrivate={room.isPrivate} />
+          </div>
+
+          {room.description && <p className="text-sm text-muted-foreground">{room.description}</p>}
+
+          <p className="text-xs text-muted-foreground">
+            Created by <span className="font-medium text-foreground">{room.createdBy.displayName}</span>
+          </p>
+        </div>
+      </div>
+
+      {canView ? (
+        <div className="flex flex-col gap-6">
+          <div>
+            <h2 className="mb-3 text-sm font-semibold">Posts</h2>
+            <RoomPostList
+              roomId={room.id}
+              initialPosts={posts}
+              canPost={canPost}
+              canModerate={isAdmin}
+            />
+          </div>
+
+          <div>
+            <h2 className="mb-3 text-sm font-semibold">Members</h2>
+            <RoomMembersPanel
+              roomId={room.id}
+              initialMembers={members}
+              initialPending={pendingMembers}
+              isAdmin={isAdmin}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+          <Lock className="h-6 w-6 text-neon-pink" aria-hidden="true" />
+          <p className="font-medium text-foreground">This room is private</p>
+          <p>Request to join to see posts and members.</p>
+        </div>
+      )}
+    </div>
+  );
+}

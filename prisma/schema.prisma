@@ -42,6 +42,11 @@ enum RoomRole {
   member
 }
 
+enum RoomMemberStatus {
+  pending
+  approved
+}
+
 enum ReportStatus {
   pending
   reviewed
@@ -331,14 +336,16 @@ model Room {
 }
 
 model RoomMember {
-  id        String   @id @default(cuid())
+  id        String            @id @default(cuid())
   roomId    String
-  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room      Room              @relation(fields: [roomId], references: [id], onDelete: Cascade)
   userId    String
-  profile   Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile   Profile           @relation(fields: [userId], references: [id], onDelete: Cascade)
   role      RoomRole
-  createdAt DateTime @default(now())
+  status    RoomMemberStatus  @default(approved)
+  createdAt DateTime          @default(now())
 
+  @@unique([roomId, userId])
   @@index([roomId])
   @@index([userId])
 }
