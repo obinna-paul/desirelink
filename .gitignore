@@ -49,3 +49,9 @@ __pycache__/
 /.codex-dev-server*.log
 /.codex-git-*
 /.codex-last-commit-sha.txt
+
+# generated PWA service worker files
+/public/sw.js
+/public/workbox-*.js
+/public/worker-*.js
+/public/fallback-*.js

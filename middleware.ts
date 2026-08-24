@@ -17,6 +17,6 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/((?!login|signup|landing|api/auth|api/signup|_next/static|_next/image|favicon.ico).*)",
+    "/((?!login|signup|landing|offline|api/auth|api/signup|_next/static|_next/image|favicon.ico|manifest.json|sw.js|workbox-.*\\.js|fallback-.*\\.js|icons/.*|udala-logo.png).*)",
   ],
 };
