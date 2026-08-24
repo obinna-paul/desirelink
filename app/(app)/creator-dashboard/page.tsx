@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import dynamic from "next/dynamic";
 import { getServerSession } from "next-auth";
 import { DollarSign, Eye, Users } from "lucide-react";
 
@@ -13,7 +14,7 @@ import { ContentList } from "@/components/creator/content-list";
 import { TierManager } from "@/components/creator/tier-manager";
 import { ApplicationsList } from "@/components/creator/applications-list";
 import { CreatorAssistantPanel } from "@/components/creator/assistant-panel";
-import { SubscriberGrowthChart, EarningsChart } from "@/components/creator/analytics-charts";
+import { ChartSkeleton } from "@/components/ui/skeleton";
 import {
   DEFAULT_CREATOR_DASHBOARD_TAB,
   formatCents,
@@ -29,6 +30,16 @@ import {
 import { getCreatorProfilePosts } from "@/lib/posts";
 import { getMyVerificationRequests } from "@/lib/verification";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
+
+const SubscriberGrowthChart = dynamic(
+  () => import("@/components/creator/analytics-charts").then((mod) => mod.SubscriberGrowthChart),
+  { loading: () => <ChartSkeleton /> }
+);
+
+const EarningsChart = dynamic(
+  () => import("@/components/creator/analytics-charts").then((mod) => mod.EarningsChart),
+  { loading: () => <ChartSkeleton /> }
+);
 
 export default async function CreatorDashboardPage({
   searchParams,

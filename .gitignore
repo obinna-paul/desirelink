@@ -47,6 +47,7 @@ __pycache__/
 /.agents/
 /.npm-cache/
 /.codex-dev-server*.log
+/.lighthouse*.json
 /.codex-git-*
 /.codex-last-commit-sha.txt
 

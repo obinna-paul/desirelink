@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Image as ImageIcon, Loader2, X } from "lucide-react";
 
@@ -119,9 +120,8 @@ export function RoomForm() {
         </h2>
         <div className="flex items-center gap-4">
           {coverImageUrl ? (
-            <div className="relative h-24 w-40 overflow-hidden rounded-lg border border-border/60">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={coverImageUrl} alt="" className="h-full w-full object-cover" />
+            <div className="relative h-24 w-40 overflow-hidden rounded-lg border border-border/60 bg-secondary">
+              <Image src={coverImageUrl} alt="" fill sizes="10rem" className="object-cover" />
               <button
                 type="button"
                 aria-label="Remove cover image"

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import { Zap } from "lucide-react";
 import type { AvailabilityStatusType } from "@prisma/client";
 
@@ -17,21 +18,46 @@ import {
 
 export type ActiveStatus = { status: AvailabilityStatusType; expiresAt: string } | null;
 
+type AvailabilityResponse = { status: ActiveStatus };
+
 function formatExpiry(expiresAt: string) {
   return new Date(expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-export function AvailabilityQuickAction({ initialStatus }: { initialStatus: ActiveStatus }) {
+async function fetchAvailability(url: string): Promise<AvailabilityResponse> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error("Availability could not be loaded");
+  }
+
+  return res.json();
+}
+
+function AvailabilityQuickActionComponent({ initialStatus }: { initialStatus: ActiveStatus }) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const [activeStatus, setActiveStatus] = useState<ActiveStatus>(initialStatus);
   const [selectedStatus, setSelectedStatus] = useState<AvailabilityStatusType>(
     initialStatus?.status ?? "available_tonight"
   );
   const [durationHours, setDurationHours] = useState(DEFAULT_AVAILABILITY_DURATION_HOURS);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { data, mutate } = useSWR<AvailabilityResponse>("/api/availability", fetchAvailability, {
+    fallbackData: { status: initialStatus },
+    dedupingInterval: 30_000,
+    refreshInterval: 60_000,
+    revalidateOnFocus: true,
+  });
+  const activeStatus = data?.status ?? null;
+  const currentStatusLabel = useMemo(
+    () => (activeStatus ? AVAILABILITY_STATUS_LABELS[activeStatus.status] : null),
+    [activeStatus]
+  );
+  const expiryLabel = useMemo(
+    () => (activeStatus ? formatExpiry(activeStatus.expiresAt) : null),
+    [activeStatus]
+  );
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -60,7 +86,7 @@ export function AvailabilityQuickAction({ initialStatus }: { initialStatus: Acti
     }
 
     const body = await res.json();
-    setActiveStatus(body.status);
+    mutate({ status: body.status }, { revalidate: false });
     setOpen(false);
     router.refresh();
   }
@@ -76,7 +102,7 @@ export function AvailabilityQuickAction({ initialStatus }: { initialStatus: Acti
       return;
     }
 
-    setActiveStatus(null);
+    mutate({ status: null }, { revalidate: false });
     setOpen(false);
     router.refresh();
   }
@@ -88,7 +114,7 @@ export function AvailabilityQuickAction({ initialStatus }: { initialStatus: Acti
         size="icon"
         aria-label={
           activeStatus
-            ? `Availability status: ${AVAILABILITY_STATUS_LABELS[activeStatus.status]}. Open to change.`
+            ? `Availability status: ${currentStatusLabel}. Open to change.`
             : "Set an availability status"
         }
         aria-expanded={open}
@@ -111,10 +137,10 @@ export function AvailabilityQuickAction({ initialStatus }: { initialStatus: Acti
               <div>
                 <p className="text-xs text-muted-foreground">Currently</p>
                 <p className="text-sm font-medium">
-                  {AVAILABILITY_STATUS_LABELS[activeStatus.status]}
+                  {currentStatusLabel}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Until {formatExpiry(activeStatus.expiresAt)}
+                  Until {expiryLabel}
                 </p>
               </div>
               <Button
@@ -184,3 +210,5 @@ export function AvailabilityQuickAction({ initialStatus }: { initialStatus: Acti
     </div>
   );
 }
+
+export const AvailabilityQuickAction = memo(AvailabilityQuickActionComponent);

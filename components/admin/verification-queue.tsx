@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 
@@ -60,21 +61,27 @@ function RequestRow({
       <div className="flex flex-wrap gap-4">
         <a href={request.govIdUrl} target="_blank" rel="noreferrer" className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground">Government ID</span>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={request.govIdUrl}
-            alt={`${request.profile.displayName}'s government ID`}
-            className="h-20 w-32 rounded-lg border border-border/60 object-cover"
-          />
+          <span className="relative h-20 w-32 overflow-hidden rounded-lg border border-border/60 bg-secondary">
+            <Image
+              src={request.govIdUrl}
+              alt={`${request.profile.displayName}'s government ID`}
+              fill
+              sizes="8rem"
+              className="object-cover"
+            />
+          </span>
         </a>
         <a href={request.selfieUrl} target="_blank" rel="noreferrer" className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground">Selfie</span>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={request.selfieUrl}
-            alt={`${request.profile.displayName}'s selfie`}
-            className="h-20 w-32 rounded-lg border border-border/60 object-cover"
-          />
+          <span className="relative h-20 w-32 overflow-hidden rounded-lg border border-border/60 bg-secondary">
+            <Image
+              src={request.selfieUrl}
+              alt={`${request.profile.displayName}'s selfie`}
+              fill
+              sizes="8rem"
+              className="object-cover"
+            />
+          </span>
         </a>
       </div>
     </li>

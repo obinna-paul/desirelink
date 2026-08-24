@@ -1,3 +1,5 @@
+import nextDynamic from "next/dynamic";
+import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { Lock, Users2 } from "lucide-react";
@@ -10,13 +12,16 @@ import { SectionTab } from "@/components/layout/section-tab";
 import { JoinButton } from "@/components/rooms/join-button";
 import { RoomPostList } from "@/components/rooms/room-post-list";
 import { RoomMembersPanel } from "@/components/rooms/room-members-panel";
-import { GroupChat } from "@/components/chat/group-chat";
 import { canViewRoomContent, getApprovedMembers, getPendingMembers, getRoomDetail, getRoomPosts } from "@/lib/rooms";
 import { getGroupMessages, getMutedUserIds } from "@/lib/group-chat";
 
 export const dynamic = "force-dynamic";
 
 type RoomSection = "posts" | "members" | "chat";
+
+const GroupChat = nextDynamic(() =>
+  import("@/components/chat/group-chat").then((mod) => mod.GroupChat)
+);
 
 export default async function RoomDetailPage({
   params,
@@ -65,10 +70,16 @@ export default async function RoomDetailPage({
       <PageHeader title={room.name} description={room.isPrivate ? "Private room" : "Public room"} />
 
       <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
-        <div className="flex h-40 w-full items-center justify-center overflow-hidden bg-secondary">
+        <div className="relative flex h-40 w-full items-center justify-center overflow-hidden bg-secondary">
           {room.coverImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={room.coverImageUrl} alt="" className="h-full w-full object-cover" />
+            <Image
+              src={room.coverImageUrl}
+              alt=""
+              fill
+              priority
+              sizes="(min-width: 1024px) 56rem, 100vw"
+              className="object-cover"
+            />
           ) : (
             <Users2 className="h-10 w-10 text-muted-foreground" aria-hidden="true" />
           )}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import NextImage from "next/image";
 import { AlertTriangle, Image as ImageIcon, Loader2, ShieldCheck, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -69,8 +70,11 @@ export function PostComposer({
   const [showPiiWarning, setShowPiiWarning] = useState(false);
   const [piiAcknowledged, setPiiAcknowledged] = useState(false);
 
-  const imageUrls = images.map((image) => image.url);
-  const strippedImageCount = images.filter((image) => image.metadataDetected).length;
+  const imageUrls = useMemo(() => images.map((image) => image.url), [images]);
+  const strippedImageCount = useMemo(
+    () => images.filter((image) => image.metadataDetected).length,
+    [images]
+  );
 
   async function handleFiles(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
@@ -213,10 +217,9 @@ export function PostComposer({
           {images.map((image) => (
             <div
               key={image.url}
-              className="relative h-20 w-20 overflow-hidden rounded-lg border border-border/60"
+              className="relative h-20 w-20 overflow-hidden rounded-lg border border-border/60 bg-secondary"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image.url} alt="" className="h-full w-full object-cover" />
+              <NextImage src={image.url} alt="" fill sizes="5rem" className="object-cover" />
               <button
                 type="button"
                 aria-label="Remove image"

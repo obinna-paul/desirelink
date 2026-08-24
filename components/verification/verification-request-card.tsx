@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { BadgeCheck, Clock, Loader2, ShieldAlert, Upload, X } from "lucide-react";
 
@@ -13,7 +14,7 @@ const LABELS: Record<VerificationRequestType, string> = {
   host: "host",
 };
 
-function FileSlot({
+const FileSlot = memo(function FileSlot({
   label,
   url,
   uploading,
@@ -31,9 +32,8 @@ function FileSlot({
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <div className="flex items-center gap-3">
         {url ? (
-          <div className="relative h-16 w-24 overflow-hidden rounded-lg border border-border/60">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="" className="h-full w-full object-cover" />
+          <div className="relative h-16 w-24 overflow-hidden rounded-lg border border-border/60 bg-secondary">
+            <Image src={url} alt="" fill sizes="6rem" className="object-cover" />
             <button
               type="button"
               aria-label={`Remove ${label.toLowerCase()}`}
@@ -64,7 +64,7 @@ function FileSlot({
       </div>
     </div>
   );
-}
+});
 
 export function VerificationRequestCard({
   requestType,

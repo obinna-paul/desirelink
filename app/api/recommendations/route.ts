@@ -18,5 +18,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ recommendations }, { status: 200 });
+  const res = NextResponse.json({ recommendations }, { status: 200 });
+  res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=90");
+  return res;
 }

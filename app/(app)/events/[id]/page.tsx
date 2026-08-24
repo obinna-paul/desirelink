@@ -1,4 +1,6 @@
 import Link from "next/link";
+import nextDynamic from "next/dynamic";
+import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { CalendarDays, Lock, MapPin, Pencil, Users, UserPlus } from "lucide-react";
@@ -13,7 +15,6 @@ import { SectionTab } from "@/components/layout/section-tab";
 import { ProfileGrid } from "@/components/home/profile-grid";
 import { EventGrid } from "@/components/events/event-grid";
 import { RsvpButtons } from "@/components/events/rsvp-buttons";
-import { GroupChat } from "@/components/chat/group-chat";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { formatCents } from "@/lib/creator";
 import { getEventDetail, getSimilarEvents } from "@/lib/events";
@@ -23,6 +24,10 @@ import { getGroupMessages, getMutedUserIds } from "@/lib/group-chat";
 export const dynamic = "force-dynamic";
 
 type EventSection = "details" | "chat";
+
+const GroupChat = nextDynamic(() =>
+  import("@/components/chat/group-chat").then((mod) => mod.GroupChat)
+);
 
 export default async function EventDetailPage({
   params,
@@ -71,10 +76,16 @@ export default async function EventDetailPage({
       <PageHeader title={event.title} description={event.eventType} />
 
       <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
-        <div className="flex h-56 w-full items-center justify-center overflow-hidden bg-secondary">
+        <div className="relative flex h-56 w-full items-center justify-center overflow-hidden bg-secondary">
           {event.coverImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={event.coverImageUrl} alt="" className="h-full w-full object-cover" />
+            <Image
+              src={event.coverImageUrl}
+              alt=""
+              fill
+              priority
+              sizes="(min-width: 1024px) 56rem, 100vw"
+              className="object-cover"
+            />
           ) : (
             <CalendarDays className="h-10 w-10 text-muted-foreground" aria-hidden="true" />
           )}

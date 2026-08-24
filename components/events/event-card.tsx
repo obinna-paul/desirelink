@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { CalendarDays, MapPin, Users } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -21,10 +22,15 @@ export function EventCard({
       href={`/events/${event.id}`}
       className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card transition-colors hover:border-neon-pink/60"
     >
-      <div className="flex h-32 w-full items-center justify-center overflow-hidden bg-secondary">
+      <div className="relative flex h-32 w-full items-center justify-center overflow-hidden bg-secondary">
         {event.coverImageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={event.coverImageUrl} alt="" className="h-full w-full object-cover" />
+          <Image
+            src={event.coverImageUrl}
+            alt=""
+            fill
+            sizes="(min-width: 1536px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover"
+          />
         ) : (
           <CalendarDays className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
         )}

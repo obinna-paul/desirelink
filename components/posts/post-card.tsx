@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { formatDistanceToNow } from "date-fns";
 import { Lock } from "lucide-react";
 
@@ -70,13 +71,22 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
               )}
             >
               {post.mediaUrls.map((url) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <div
                   key={url}
-                  src={url}
-                  alt=""
-                  className="aspect-square w-full rounded-lg border border-border/60 object-cover"
-                />
+                  className="relative aspect-square overflow-hidden rounded-lg border border-border/60 bg-secondary"
+                >
+                  <Image
+                    src={url}
+                    alt=""
+                    fill
+                    sizes={
+                      post.mediaUrls.length === 1
+                        ? "(min-width: 1536px) 48rem, (min-width: 640px) 40rem, 100vw"
+                        : "(min-width: 1536px) 24rem, (min-width: 640px) 20rem, 50vw"
+                    }
+                    className="object-cover"
+                  />
+                </div>
               ))}
             </div>
           )}

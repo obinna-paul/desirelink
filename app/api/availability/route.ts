@@ -30,7 +30,9 @@ export async function GET() {
   }
 
   const status = await getActiveAvailability(profile.id);
-  return NextResponse.json({ status }, { status: 200 });
+  const res = NextResponse.json({ status }, { status: 200 });
+  res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=45");
+  return res;
 }
 
 export async function PUT(req: Request) {
