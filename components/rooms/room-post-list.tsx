@@ -7,6 +7,7 @@ import { Trash2 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ReportDialog } from "@/components/safety/report-dialog";
 import { RoomPostComposer } from "@/components/rooms/room-post-composer";
 import type { RoomPostData } from "@/lib/rooms";
 
@@ -67,19 +68,22 @@ export function RoomPostList({
                       </p>
                     </div>
                   </div>
-                  {canModerate && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Delete post"
-                      disabled={deletingId === post.id}
-                      onClick={() => handleDelete(post.id)}
-                      className="shrink-0 text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    </Button>
-                  )}
+                  <div className="flex shrink-0 items-center gap-2">
+                    <ReportDialog targetType="room_post" targetId={post.id} label="Report post" variant="icon" />
+                    {canModerate && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Delete post"
+                        disabled={deletingId === post.id}
+                        onClick={() => handleDelete(post.id)}
+                        className="shrink-0 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <p className="mt-3 whitespace-pre-wrap text-sm">{post.content}</p>
               </li>

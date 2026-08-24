@@ -8,6 +8,7 @@ import {
   USER_UNMUTED_EVENT,
   type ChannelType,
 } from "@/lib/group-chat-channels";
+import { flagContentIfNeeded } from "@/lib/moderation";
 
 export type { ChannelType } from "@/lib/group-chat-channels";
 
@@ -68,6 +69,11 @@ export async function sendGroupMessage(
     return { ok: false, status: 400, error: `Message is too long (max ${MAX_MESSAGE_LENGTH} characters)` };
   }
 
+  const sender = await prisma.profile.findUnique({ where: { id: senderId }, select: { isSuspended: true } });
+  if (!sender || sender.isSuspended) {
+    return { ok: false, status: 403, error: "Your account is suspended from chatting" };
+  }
+
   if (await isUserMuted(channelType, channelId, senderId)) {
     return { ok: false, status: 403, error: "You've been muted in this chat" };
   }
@@ -75,6 +81,12 @@ export async function sendGroupMessage(
   const message = await prisma.groupMessage.create({
     data: { channelType, channelId, senderId, content: trimmed },
     include: { sender: { select: senderSelect } },
+  });
+  await flagContentIfNeeded({
+    contentType: "group_message",
+    contentId: message.id,
+    contentOwnerId: senderId,
+    content: message.content,
   });
 
   await triggerEvent(chatChannelName(channelType, channelId), NEW_GROUP_MESSAGE_EVENT, message);

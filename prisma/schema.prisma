@@ -77,7 +77,9 @@ enum ModerationStatus {
 enum ReportTargetType {
   profile
   message
+  group_message
   post
+  room_post
   event
 }
 
@@ -193,6 +195,9 @@ model Profile {
   isVerifiedCreator Boolean @default(false)
   isVerifiedHost    Boolean @default(false)
   isTrustedMember   Boolean @default(false)
+  isSuspended       Boolean @default(false)
+  suspendedAt       DateTime?
+  warningCount      Int     @default(0)
   communityStanding Int     @default(0)
   profileViews      Int     @default(0)
 
@@ -479,15 +484,22 @@ model Report {
 }
 
 model ModerationQueue {
-  id          String           @id @default(cuid())
-  contentType String
-  contentId   String
-  reason      String
-  details     String
-  status      ModerationStatus
-  createdAt   DateTime         @default(now())
+  id             String           @id @default(cuid())
+  contentType    String
+  contentId      String
+  contentOwnerId String?
+  reporterId     String?
+  reason         String
+  details        String
+  status         ModerationStatus
+  action         String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime         @default(now())
 
   @@index([contentType, contentId])
+  @@index([contentOwnerId])
+  @@index([reporterId])
   @@index([status])
 }
 

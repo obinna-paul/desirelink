@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { flagContentIfNeeded } from "@/lib/moderation";
 import { createPostSchema } from "@/lib/validations/post";
 
 export async function POST(req: Request) {
@@ -13,11 +14,14 @@ export async function POST(req: Request) {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, username: true, displayName: true, avatarUrl: true, isCreator: true },
+    select: { id: true, username: true, displayName: true, avatarUrl: true, isCreator: true, isSuspended: true },
   });
 
   if (!profile?.isCreator) {
     return NextResponse.json({ error: "Creator access required" }, { status: 403 });
+  }
+  if (profile.isSuspended) {
+    return NextResponse.json({ error: "Your account is suspended from posting" }, { status: 403 });
   }
 
   const body = await req.json();
@@ -38,6 +42,12 @@ export async function POST(req: Request) {
       mediaUrls,
       isSubscriberOnly,
     },
+  });
+  await flagContentIfNeeded({
+    contentType: "post",
+    contentId: post.id,
+    contentOwnerId: profile.id,
+    content: post.content,
   });
 
   return NextResponse.json(

@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { flagContentIfNeeded } from "@/lib/moderation";
 
 const memberProfileSelect = {
   id: true,
@@ -218,9 +219,20 @@ export async function createRoomPost(
     return { ok: false, status: 403, error: "Join this room to post" };
   }
 
+  const author = await prisma.profile.findUnique({ where: { id: authorId }, select: { isSuspended: true } });
+  if (!author || author.isSuspended) {
+    return { ok: false, status: 403, error: "Your account is suspended from posting" };
+  }
+
   const post = await prisma.roomPost.create({
     data: { roomId, authorId, content: trimmed, mediaUrls: [] },
     include: { author: { select: memberProfileSelect } },
+  });
+  await flagContentIfNeeded({
+    contentType: "room_post",
+    contentId: post.id,
+    contentOwnerId: authorId,
+    content: post.content,
   });
 
   return { ok: true, post };

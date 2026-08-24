@@ -9,6 +9,7 @@ import { ShieldOff, Trash2, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { ReportDialog } from "@/components/safety/report-dialog";
 import { cn } from "@/lib/utils";
 import { getPusherClient } from "@/lib/pusher-client";
 import {
@@ -261,6 +262,16 @@ export function GroupChat({
                       >
                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
+                    )}
+                    {!isMine && (
+                      <span className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                        <ReportDialog
+                          targetType="group_message"
+                          targetId={message.id}
+                          label="Report message"
+                          variant="icon"
+                        />
+                      </span>
                     )}
                   </div>
                 </div>

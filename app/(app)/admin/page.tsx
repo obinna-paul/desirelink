@@ -1,11 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
+import Link from "next/link";
 
 import { authOptions } from "@/lib/auth";
 import { isAdminUser } from "@/lib/admin";
 import { getPendingVerificationRequests } from "@/lib/verification";
 import { PageHeader } from "@/components/layout/page-header";
 import { VerificationQueue } from "@/components/admin/verification-queue";
+import { Button } from "@/components/ui/button";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -22,6 +24,11 @@ export default async function AdminPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Admin" description="Review pending creator and host verification requests." />
+      <div>
+        <Button asChild variant="outline">
+          <Link href="/admin/moderation">Open moderation queue</Link>
+        </Button>
+      </div>
       <VerificationQueue initialRequests={requests} />
     </div>
   );

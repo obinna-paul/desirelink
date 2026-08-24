@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { queueModerationFlag } from "@/lib/moderation";
 import { recalculateReputation } from "@/lib/reputation";
 
-export const REPORT_TARGET_TYPES = ["profile", "message", "post", "event"] as const;
+export const REPORT_TARGET_TYPES = ["profile", "message", "group_message", "post", "room_post", "event"] as const;
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
 
 export function isReportTargetType(value: unknown): value is ReportTargetType {
@@ -31,8 +32,16 @@ async function resolveReportedUserId(targetType: ReportTargetType, targetId: str
       const message = await prisma.message.findUnique({ where: { id: targetId }, select: { senderId: true } });
       return message?.senderId ?? null;
     }
+    case "group_message": {
+      const message = await prisma.groupMessage.findUnique({ where: { id: targetId }, select: { senderId: true } });
+      return message?.senderId ?? null;
+    }
     case "post": {
       const post = await prisma.post.findUnique({ where: { id: targetId }, select: { authorId: true } });
+      return post?.authorId ?? null;
+    }
+    case "room_post": {
+      const post = await prisma.roomPost.findUnique({ where: { id: targetId }, select: { authorId: true } });
       return post?.authorId ?? null;
     }
     case "event": {
@@ -84,6 +93,14 @@ export async function submitReport(
   });
 
   await recalculateReputation(reportedUserId);
+  await queueModerationFlag({
+    contentType: targetType,
+    contentId: targetId,
+    contentOwnerId: reportedUserId,
+    reporterId,
+    reason: `User report: ${trimmedReason}`,
+    details: trimmedDetails || "No additional details provided.",
+  });
 
   return { ok: true, reportId: report.id };
 }
