@@ -262,9 +262,10 @@ model Event {
   endTime          DateTime
   venueName        String
   address          String
+  city             String   @default("")
   lat              Float
   lng              Float
-  maxAttendees     Int
+  maxAttendees     Int?
   currentAttendees Int      @default(0)
   priceCents       Int      @default(0)
   isPrivate        Boolean  @default(false)

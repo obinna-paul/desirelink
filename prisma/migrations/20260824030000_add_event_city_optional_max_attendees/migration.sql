@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Event" ADD COLUMN     "city" TEXT NOT NULL DEFAULT '',
+ALTER COLUMN "maxAttendees" DROP NOT NULL;
