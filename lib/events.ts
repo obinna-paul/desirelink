@@ -71,6 +71,48 @@ export async function getEventDetail(eventId: string, viewerProfileId: string | 
   return event;
 }
 
+const SIMILAR_EVENTS_LIMIT = 6;
+const SIMILAR_EVENTS_CANDIDATE_LIMIT = 40;
+
+/**
+ * "More like this": events by the same host, of the same type, or in the
+ * same city — ranked by how many of those three match, then by soonest.
+ */
+export async function getSimilarEvents(
+  event: { id: string; hostId: string; eventType: string; city: string },
+  viewerProfileId: string | null,
+  limit = SIMILAR_EVENTS_LIMIT
+): Promise<UpcomingEvent[]> {
+  const orConditions: Prisma.EventWhereInput[] = [{ hostId: event.hostId }, { eventType: event.eventType }];
+  if (event.city.trim()) {
+    orConditions.push({ city: event.city });
+  }
+
+  const candidates = await prisma.event.findMany({
+    where: {
+      ...visibilityWhere(viewerProfileId),
+      id: { not: event.id },
+      endTime: { gt: new Date() },
+      OR: orConditions,
+    },
+    orderBy: { startTime: "asc" },
+    take: SIMILAR_EVENTS_CANDIDATE_LIMIT,
+    include: eventCardInclude,
+  });
+
+  return candidates
+    .map((candidate) => {
+      let score = 0;
+      if (candidate.hostId === event.hostId) score += 3;
+      if (candidate.eventType === event.eventType) score += 2;
+      if (event.city.trim() && candidate.city === event.city) score += 1;
+      return { candidate, score };
+    })
+    .sort((a, b) => b.score - a.score || a.candidate.startTime.getTime() - b.candidate.startTime.getTime())
+    .slice(0, limit)
+    .map(({ candidate }) => candidate);
+}
+
 export async function getUpcomingEvents(limit = 30) {
   return prisma.event.findMany({
     where: { isPrivate: false, endTime: { gt: new Date() } },

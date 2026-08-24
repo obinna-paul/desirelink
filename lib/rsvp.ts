@@ -20,36 +20,42 @@ export async function getViewerRsvpStatus(eventId: string, viewerProfileId: stri
 
 export type EventAttendees = {
   profiles: ProfileCardData[];
-  counts: { total: number; couples: number; singles: number; creators: number };
-  hiddenByPrivacy: number;
-  truncated: boolean;
+  counts: { total: number; couples: number; singles: number; creators: number; newMembers: number };
+  hasHiddenAttendees: boolean;
 };
 
 const ATTENDEE_DISPLAY_LIMIT = 60;
+const NEW_MEMBER_WINDOW_DAYS = 30;
 
-/** Attendees visible to any viewer: "going" RSVPs from non-incognito profiles only. */
-export async function getEventAttendees(eventId: string): Promise<EventAttendees> {
+/**
+ * Attendee counts are aggregate social proof and always reflect every "going"
+ * RSVP, incognito or not — same as the currentAttendees badge everyone
+ * already sees. The avatar+name list is the privacy-sensitive part: it's
+ * limited to non-incognito profiles unless the viewer can see the full guest
+ * list (they're the host, or they're going themselves).
+ */
+export async function getEventAttendees(eventId: string, canSeeFullList: boolean): Promise<EventAttendees> {
   const goingAny = { eventRsvps: { some: { eventId, status: "going" as const } } };
-  const goingVisible = { ...goingAny, isIncognito: false };
+  const listWhere = canSeeFullList ? goingAny : { ...goingAny, isIncognito: false };
+  const newMemberSince = new Date(Date.now() - NEW_MEMBER_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-  const [profiles, total, totalIncludingHidden, couples, creators] = await Promise.all([
+  const [profiles, total, couples, creators, newMembers] = await Promise.all([
     prisma.profile.findMany({
-      where: goingVisible,
+      where: listWhere,
       select: profileCardSelect(),
       orderBy: { displayName: "asc" },
       take: ATTENDEE_DISPLAY_LIMIT,
     }),
-    prisma.profile.count({ where: goingVisible }),
     prisma.profile.count({ where: goingAny }),
-    prisma.profile.count({ where: { ...goingVisible, isCouple: true } }),
-    prisma.profile.count({ where: { ...goingVisible, isCreator: true } }),
+    prisma.profile.count({ where: { ...goingAny, isCouple: true } }),
+    prisma.profile.count({ where: { ...goingAny, isCreator: true } }),
+    prisma.profile.count({ where: { ...goingAny, createdAt: { gte: newMemberSince } } }),
   ]);
 
   return {
     profiles,
-    counts: { total, couples, singles: total - couples, creators },
-    hiddenByPrivacy: totalIncludingHidden - total,
-    truncated: total > profiles.length,
+    counts: { total, couples, singles: total - couples, creators, newMembers },
+    hasHiddenAttendees: profiles.length < total,
   };
 }
 

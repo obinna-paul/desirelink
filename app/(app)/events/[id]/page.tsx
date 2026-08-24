@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { CalendarDays, Lock, MapPin, Pencil, Users } from "lucide-react";
+import { CalendarDays, Lock, MapPin, Pencil, Users, UserPlus } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -10,9 +10,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProfileGrid } from "@/components/home/profile-grid";
+import { EventGrid } from "@/components/events/event-grid";
 import { RsvpButtons } from "@/components/events/rsvp-buttons";
 import { formatCents } from "@/lib/creator";
-import { getEventDetail } from "@/lib/events";
+import { getEventDetail, getSimilarEvents } from "@/lib/events";
 import { getEventAttendees, getViewerRsvpStatus } from "@/lib/rsvp";
 
 export const dynamic = "force-dynamic";
@@ -37,9 +38,12 @@ export default async function EventDetailPage({ params }: { params: { id: string
   }
 
   const isHost = event.hostId === viewerProfile.id;
-  const [viewerRsvp, attendees] = await Promise.all([
-    isHost ? Promise.resolve(null) : getViewerRsvpStatus(event.id, viewerProfile.id),
-    getEventAttendees(event.id),
+  const viewerRsvp = isHost ? null : await getViewerRsvpStatus(event.id, viewerProfile.id);
+  const canSeeFullGuestList = isHost || viewerRsvp === "going";
+
+  const [attendees, similarEvents] = await Promise.all([
+    getEventAttendees(event.id, canSeeFullGuestList),
+    getSimilarEvents(event, viewerProfile.id),
   ]);
 
   const location = [event.venueName, event.address, event.city].filter(Boolean).join(", ");
@@ -129,24 +133,27 @@ export default async function EventDetailPage({ params }: { params: { id: string
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">Who&apos;s going</h2>
-          <p className="text-xs text-muted-foreground">
-            {attendees.counts.couples} couples, {attendees.counts.singles} singles,{" "}
-            {attendees.counts.creators} creators
-          </p>
+        <h2 className="text-sm font-semibold">Who&apos;s going?</h2>
+
+        <div className="flex flex-wrap gap-1.5">
+          <Badge variant="neon">{attendees.counts.total} going</Badge>
+          <Badge variant="outline">{attendees.counts.couples} couples</Badge>
+          <Badge variant="outline">{attendees.counts.singles} singles</Badge>
+          <Badge variant="outline">{attendees.counts.creators} creators</Badge>
+          <Badge variant="outline">{attendees.counts.newMembers} new members</Badge>
         </div>
 
-        {attendees.hiddenByPrivacy > 0 && (
+        <p className="flex items-center gap-1.5 text-xs italic text-muted-foreground">
+          <UserPlus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          See who you follow is attending — coming soon.
+        </p>
+
+        {attendees.hasHiddenAttendees && (
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Lock className="h-3 w-3" aria-hidden="true" />
-            {attendees.hiddenByPrivacy} more {attendees.hiddenByPrivacy === 1 ? "attendee is" : "attendees are"}{" "}
-            going but hidden by their privacy settings.
-          </p>
-        )}
-        {attendees.truncated && (
-          <p className="text-xs text-muted-foreground">
-            Showing the first {attendees.profiles.length} of {attendees.counts.total} attendees.
+            <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+            {canSeeFullGuestList
+              ? `Showing the first ${attendees.profiles.length} of ${attendees.counts.total} attendees.`
+              : "Some attendees are private. RSVP as Going to see the full guest list."}
           </p>
         )}
 
@@ -155,6 +162,13 @@ export default async function EventDetailPage({ params }: { params: { id: string
           emptyMessage="No one's RSVP'd going yet. Be the first!"
         />
       </div>
+
+      {similarEvents.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold">Similar Events</h2>
+          <EventGrid events={similarEvents} emptyMessage="" />
+        </div>
+      )}
     </div>
   );
 }
