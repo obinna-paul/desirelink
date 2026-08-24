@@ -12,7 +12,7 @@ export function EventCard({ event }: { event: UpcomingEvent }) {
 
   return (
     <Link
-      href={`/profile/${event.host.username}`}
+      href={`/events/${event.id}`}
       className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card transition-colors hover:border-neon-pink/60"
     >
       <div className="flex h-32 w-full items-center justify-center overflow-hidden bg-secondary">

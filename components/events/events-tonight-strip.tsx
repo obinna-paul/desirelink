@@ -24,7 +24,7 @@ export function EventsTonightStrip({ events }: { events: UpcomingEvent[] }) {
             return (
               <li key={event.id} className="w-56 shrink-0">
                 <Link
-                  href={`/profile/${event.host.username}`}
+                  href={`/events/${event.id}`}
                   className="flex h-full flex-col gap-1.5 rounded-lg border border-border/60 bg-card p-3 transition-colors hover:border-neon-pink/60"
                 >
                   <p className="truncate text-sm font-medium">{event.title}</p>

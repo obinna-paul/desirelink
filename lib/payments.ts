@@ -61,12 +61,53 @@ export async function createCheckoutSession(userId: string, tierId: string): Pro
   return { ok: true, checkoutUrl: `/checkout/${transaction.id}`, transactionId: transaction.id };
 }
 
+/**
+ * Creates a mock checkout session for a user paying for a priced event's
+ * "Going" RSVP. Mirrors createCheckoutSession: re-validates eligibility and
+ * capacity server-side and records a pending Transaction against the event
+ * instead of a tier.
+ */
+export async function createEventCheckoutSession(userId: string, eventId: string): Promise<CheckoutResult> {
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) {
+    return { ok: false, status: 404, error: "Event not found" };
+  }
+
+  if (event.hostId === userId) {
+    return { ok: false, status: 400, error: "You can't RSVP to your own event" };
+  }
+
+  const existingRsvp = await prisma.eventRsvp.findUnique({
+    where: { eventId_userId: { eventId, userId } },
+  });
+  if (existingRsvp?.status === "going") {
+    return { ok: false, status: 400, error: "You're already going to this event" };
+  }
+
+  if (event.maxAttendees !== null && event.currentAttendees >= event.maxAttendees) {
+    return { ok: false, status: 409, error: "This event is full." };
+  }
+
+  const transaction = await prisma.transaction.create({
+    data: {
+      userId,
+      eventId: event.id,
+      amountCents: event.priceCents,
+      status: "pending",
+      provider: "mock",
+    },
+  });
+
+  return { ok: true, checkoutUrl: `/checkout/${transaction.id}`, transactionId: transaction.id };
+}
+
 export type WebhookEvent =
   | { type: "checkout.completed"; transactionId: string }
   | { type: "checkout.failed"; transactionId: string };
 
 export type WebhookResult =
-  | { ok: true; status: "succeeded"; subscriptionId: string }
+  | { ok: true; status: "succeeded"; kind: "subscription"; subscriptionId: string }
+  | { ok: true; status: "succeeded"; kind: "event"; eventId: string }
   | { ok: true; status: "failed" }
   | { ok: false; error: string };
 
@@ -83,7 +124,10 @@ export async function handleWebhook(event: WebhookEvent): Promise<WebhookResult>
 
   if (transaction.status !== "pending") {
     if (transaction.status === "succeeded" && transaction.subscriptionId) {
-      return { ok: true, status: "succeeded", subscriptionId: transaction.subscriptionId };
+      return { ok: true, status: "succeeded", kind: "subscription", subscriptionId: transaction.subscriptionId };
+    }
+    if (transaction.status === "succeeded" && transaction.eventId) {
+      return { ok: true, status: "succeeded", kind: "event", eventId: transaction.eventId };
     }
     return { ok: true, status: "failed" };
   }
@@ -91,6 +135,10 @@ export async function handleWebhook(event: WebhookEvent): Promise<WebhookResult>
   if (event.type === "checkout.failed") {
     await prisma.transaction.update({ where: { id: transaction.id }, data: { status: "failed" } });
     return { ok: true, status: "failed" };
+  }
+
+  if (transaction.eventId) {
+    return resolveEventCheckout(transaction.id, transaction.userId, transaction.eventId);
   }
 
   const tier = transaction.tierId
@@ -122,7 +170,50 @@ export async function handleWebhook(event: WebhookEvent): Promise<WebhookResult>
     data: { status: "succeeded", subscriptionId: subscription.id },
   });
 
-  return { ok: true, status: "succeeded", subscriptionId: subscription.id };
+  return { ok: true, status: "succeeded", kind: "subscription", subscriptionId: subscription.id };
+}
+
+/** Marks a priced event's Transaction as paid, sets the RSVP to "going", and increments the attendee count. */
+async function resolveEventCheckout(
+  transactionId: string,
+  userId: string,
+  eventId: string
+): Promise<WebhookResult> {
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) {
+    await prisma.transaction.update({ where: { id: transactionId }, data: { status: "failed" } });
+    return { ok: true, status: "failed" };
+  }
+
+  if (event.maxAttendees !== null && event.currentAttendees >= event.maxAttendees) {
+    const existingRsvp = await prisma.eventRsvp.findUnique({
+      where: { eventId_userId: { eventId, userId } },
+    });
+    if (existingRsvp?.status !== "going") {
+      await prisma.transaction.update({ where: { id: transactionId }, data: { status: "failed" } });
+      return { ok: true, status: "failed" };
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const existingRsvp = await tx.eventRsvp.findUnique({
+      where: { eventId_userId: { eventId, userId } },
+    });
+
+    await tx.eventRsvp.upsert({
+      where: { eventId_userId: { eventId, userId } },
+      create: { eventId, userId, status: "going" },
+      update: { status: "going" },
+    });
+
+    if (existingRsvp?.status !== "going") {
+      await tx.event.update({ where: { id: eventId }, data: { currentAttendees: { increment: 1 } } });
+    }
+
+    await tx.transaction.update({ where: { id: transactionId }, data: { status: "succeeded" } });
+  });
+
+  return { ok: true, status: "succeeded", kind: "event", eventId };
 }
 
 export async function getMySubscriptions(subscriberId: string) {

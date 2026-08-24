@@ -34,6 +34,7 @@ enum RsvpStatus {
   going
   interested
   waitlist
+  not_going
 }
 
 enum RoomRole {
@@ -273,7 +274,8 @@ model Event {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  rsvps EventRsvp[]
+  rsvps        EventRsvp[]
+  transactions Transaction[]
 
   @@index([hostId])
   @@index([startTime])
@@ -287,7 +289,9 @@ model EventRsvp {
   profile   Profile    @relation(fields: [userId], references: [id], onDelete: Cascade)
   status    RsvpStatus
   createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
+  @@unique([eventId, userId])
   @@index([eventId])
   @@index([userId])
 }
@@ -487,6 +491,8 @@ model Transaction {
   subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
   tierId         String?
   tier           CreatorTier?  @relation(fields: [tierId], references: [id], onDelete: SetNull)
+  eventId        String?
+  event          Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
   amountCents    Int
   status         String
   provider       String
@@ -495,6 +501,7 @@ model Transaction {
   @@index([userId])
   @@index([subscriptionId])
   @@index([tierId])
+  @@index([eventId])
 }
 
 model Review {

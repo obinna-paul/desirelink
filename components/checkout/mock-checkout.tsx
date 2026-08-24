@@ -19,6 +19,9 @@ export function MockCheckout({
   creatorName,
   creatorUsername,
   amountCents,
+  kind = "subscription",
+  backHref,
+  backLabel = "Back to profile",
 }: {
   transactionId: string;
   status: string;
@@ -26,6 +29,9 @@ export function MockCheckout({
   creatorName: string;
   creatorUsername: string | null;
   amountCents: number;
+  kind?: "subscription" | "event";
+  backHref?: string;
+  backLabel?: string;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<Status>(
@@ -109,18 +115,28 @@ export function MockCheckout({
           <div>
             <p className="text-sm font-medium">Payment complete</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              You&apos;re now subscribed to {tierName}.
+              {kind === "event"
+                ? `You're going to ${tierName}.`
+                : `You're now subscribed to ${tierName}.`}
             </p>
           </div>
           <div className="flex flex-wrap justify-center gap-2">
-            {creatorUsername && (
+            {backHref ? (
               <Button asChild size="sm">
-                <Link href={`/profile/${creatorUsername}?section=membership`}>Back to profile</Link>
+                <Link href={backHref}>{backLabel}</Link>
+              </Button>
+            ) : (
+              creatorUsername && (
+                <Button asChild size="sm">
+                  <Link href={`/profile/${creatorUsername}?section=membership`}>{backLabel}</Link>
+                </Button>
+              )
+            )}
+            {kind === "subscription" && (
+              <Button asChild size="sm" variant="outline">
+                <Link href="/settings/subscriptions">View subscriptions</Link>
               </Button>
             )}
-            <Button asChild size="sm" variant="outline">
-              <Link href="/settings/subscriptions">View subscriptions</Link>
-            </Button>
           </div>
         </div>
       )}
@@ -132,10 +148,16 @@ export function MockCheckout({
             <p className="text-sm font-medium">Payment failed</p>
             <p className="mt-1 text-xs text-muted-foreground">No charge was made.</p>
           </div>
-          {creatorUsername && (
+          {backHref ? (
             <Button asChild size="sm" variant="outline">
-              <Link href={`/profile/${creatorUsername}?section=membership`}>Try again</Link>
+              <Link href={backHref}>Try again</Link>
             </Button>
+          ) : (
+            creatorUsername && (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/profile/${creatorUsername}?section=membership`}>Try again</Link>
+              </Button>
+            )
           )}
         </div>
       )}

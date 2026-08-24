@@ -33,11 +33,33 @@ export default async function CheckoutPage({
           creator: { select: { username: true, displayName: true } },
         },
       },
+      event: {
+        select: { id: true, title: true, host: { select: { displayName: true } } },
+      },
     },
   });
 
   if (!transaction || transaction.userId !== profile.id) {
     notFound();
+  }
+
+  if (transaction.event) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Checkout" description="Mock payment — no real charge is made." />
+        <MockCheckout
+          transactionId={transaction.id}
+          status={transaction.status}
+          kind="event"
+          tierName={transaction.event.title}
+          creatorName={transaction.event.host.displayName}
+          creatorUsername={null}
+          amountCents={transaction.amountCents}
+          backHref={`/events/${transaction.event.id}`}
+          backLabel="Back to event"
+        />
+      </div>
+    );
   }
 
   return (
@@ -50,6 +72,11 @@ export default async function CheckoutPage({
         creatorName={transaction.tier?.creator.displayName ?? "Creator"}
         creatorUsername={transaction.tier?.creator.username ?? null}
         amountCents={transaction.amountCents}
+        backHref={
+          transaction.tier?.creator.username
+            ? `/profile/${transaction.tier.creator.username}?section=membership`
+            : undefined
+        }
       />
     </div>
   );

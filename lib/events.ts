@@ -53,6 +53,24 @@ function visibilityWhere(viewerProfileId: string | null): Prisma.EventWhereInput
   return { OR: [{ isPrivate: false }, { isPrivate: true, hostId: viewerProfileId }] };
 }
 
+/** True if the viewer is allowed to see this event: it's public, or it's their own private event. */
+export function canViewEvent(
+  event: { isPrivate: boolean; hostId: string },
+  viewerProfileId: string | null
+): boolean {
+  if (!event.isPrivate) return true;
+  return viewerProfileId === event.hostId;
+}
+
+export async function getEventDetail(eventId: string, viewerProfileId: string | null) {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    include: eventCardInclude,
+  });
+  if (!event || !canViewEvent(event, viewerProfileId)) return null;
+  return event;
+}
+
 export async function getUpcomingEvents(limit = 30) {
   return prisma.event.findMany({
     where: { isPrivate: false, endTime: { gt: new Date() } },
