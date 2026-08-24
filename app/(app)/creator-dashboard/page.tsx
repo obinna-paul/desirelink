@@ -70,7 +70,7 @@ export default async function CreatorDashboardPage({
       {tab === "overview" && <OverviewTab profileId={profile.id} />}
       {tab === "assistant" && <AssistantTab profileId={profile.id} />}
       {tab === "audience" && <AudienceTab profileId={profile.id} />}
-      {tab === "content" && <ContentTab profileId={profile.id} />}
+      {tab === "content" && <ContentTab profileId={profile.id} displayName={profile.displayName} />}
       {tab === "tiers" && <TiersTab profileId={profile.id} />}
       {tab === "applications" && <ApplicationsTab profileId={profile.id} />}
       {tab === "analytics" && <AnalyticsTab profileId={profile.id} />}
@@ -103,9 +103,9 @@ async function AudienceTab({ profileId }: { profileId: string }) {
   return <AudienceList subscribers={subscribers} />;
 }
 
-async function ContentTab({ profileId }: { profileId: string }) {
+async function ContentTab({ profileId, displayName }: { profileId: string; displayName: string }) {
   const posts = await getCreatorProfilePosts(profileId, profileId);
-  return <ContentList initialPosts={posts} />;
+  return <ContentList initialPosts={posts} creatorDisplayName={displayName} />;
 }
 
 async function TiersTab({ profileId }: { profileId: string }) {

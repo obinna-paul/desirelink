@@ -6,12 +6,21 @@ import { PostComposer } from "@/components/creator/post-composer";
 import { PostList } from "@/components/posts/post-list";
 import type { PostView } from "@/lib/posts";
 
-export function ContentList({ initialPosts }: { initialPosts: PostView[] }) {
+export function ContentList({
+  initialPosts,
+  creatorDisplayName,
+}: {
+  initialPosts: PostView[];
+  creatorDisplayName: string;
+}) {
   const [posts, setPosts] = useState(initialPosts);
 
   return (
     <div className="flex flex-col gap-4">
-      <PostComposer onCreated={(post) => setPosts((prev) => [post, ...prev])} />
+      <PostComposer
+        creatorDisplayName={creatorDisplayName}
+        onCreated={(post) => setPosts((prev) => [post, ...prev])}
+      />
       <PostList
         posts={posts}
         showAuthor={false}

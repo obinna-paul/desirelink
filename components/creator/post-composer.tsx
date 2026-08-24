@@ -1,23 +1,76 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Image as ImageIcon, Loader2, X } from "lucide-react";
+import { AlertTriangle, Image as ImageIcon, Loader2, ShieldCheck, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { MAX_POST_IMAGES, type PostView } from "@/lib/posts";
+import { detectTextPii, hasImageMetadataSignature, type PiiFinding } from "@/lib/pii";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-export function PostComposer({ onCreated }: { onCreated: (post: PostView) => void }) {
+type SanitizedImage = {
+  url: string;
+  metadataDetected: boolean;
+};
+
+function imageHasUsableCanvasType(file: File) {
+  return file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/webp";
+}
+
+async function stripImageMetadata(file: File): Promise<File> {
+  if (!imageHasUsableCanvasType(file)) return file;
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Image could not be read"));
+      img.src = objectUrl;
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d");
+    if (!context) return file;
+
+    context.drawImage(image, 0, 0);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, file.type, 0.92);
+    });
+    if (!blob) return file;
+
+    return new File([blob], file.name, { type: file.type, lastModified: Date.now() });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+export function PostComposer({
+  creatorDisplayName,
+  onCreated,
+}: {
+  creatorDisplayName: string;
+  onCreated: (post: PostView) => void;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [content, setContent] = useState("");
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<SanitizedImage[]>([]);
   const [isSubscriberOnly, setIsSubscriberOnly] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingFindings, setPendingFindings] = useState<PiiFinding[]>([]);
+  const [showPiiWarning, setShowPiiWarning] = useState(false);
+  const [piiAcknowledged, setPiiAcknowledged] = useState(false);
+
+  const imageUrls = images.map((image) => image.url);
+  const strippedImageCount = images.filter((image) => image.metadataDetected).length;
 
   async function handleFiles(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
@@ -42,17 +95,24 @@ export function PostComposer({ onCreated }: { onCreated: (post: PostView) => voi
         continue;
       }
 
-      const formData = new FormData();
-      formData.append("file", file);
-
       try {
+        const metadataDetected = hasImageMetadataSignature(await file.arrayBuffer());
+        // Future vision-based PII scanning can run here before upload.
+        const sanitizedFile = await stripImageMetadata(file);
+        if (sanitizedFile.size > MAX_FILE_SIZE) {
+          setError("Each image must be under 5MB after metadata stripping.");
+          continue;
+        }
+        const formData = new FormData();
+        formData.append("file", sanitizedFile);
+
         const res = await fetch("/api/upload/post-image", { method: "POST", body: formData });
         const body = await res.json().catch(() => null);
         if (!res.ok) {
           setError(body?.error ?? "Upload failed. Please try again.");
           continue;
         }
-        setImages((prev) => [...prev, body.url]);
+        setImages((prev) => [...prev, { url: body.url, metadataDetected }]);
       } catch {
         setError("Upload failed. Please try again.");
       }
@@ -63,24 +123,17 @@ export function PostComposer({ onCreated }: { onCreated: (post: PostView) => voi
   }
 
   function removeImage(url: string) {
-    setImages((prev) => prev.filter((existing) => existing !== url));
+    setImages((prev) => prev.filter((existing) => existing.url !== url));
   }
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-
-    if (!content.trim() && images.length === 0) {
-      setError("Write something or add an image.");
-      return;
-    }
-
+  async function publishPost() {
     setSubmitting(true);
     setError(null);
 
     const res = await fetch("/api/posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: content.trim(), mediaUrls: images, isSubscriberOnly }),
+      body: JSON.stringify({ content: content.trim(), mediaUrls: imageUrls, isSubscriberOnly }),
     });
 
     setSubmitting(false);
@@ -96,6 +149,32 @@ export function PostComposer({ onCreated }: { onCreated: (post: PostView) => voi
     setContent("");
     setImages([]);
     setIsSubscriberOnly(false);
+    setPiiAcknowledged(false);
+    setPendingFindings([]);
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+
+    if (!content.trim() && imageUrls.length === 0) {
+      setError("Write something or add an image.");
+      return;
+    }
+
+    const findings = detectTextPii(content, [creatorDisplayName]);
+    if (findings.length > 0 && !piiAcknowledged) {
+      setPendingFindings(findings);
+      setShowPiiWarning(true);
+      return;
+    }
+
+    await publishPost();
+  }
+
+  async function continueAfterWarning() {
+    setPiiAcknowledged(true);
+    setShowPiiWarning(false);
+    await publishPost();
   }
 
   return (
@@ -112,22 +191,36 @@ export function PostComposer({ onCreated }: { onCreated: (post: PostView) => voi
         maxLength={2000}
         placeholder="Share something with your subscribers..."
         value={content}
-        onChange={(event) => setContent(event.target.value)}
+        onChange={(event) => {
+          setContent(event.target.value);
+          setPiiAcknowledged(false);
+        }}
       />
+
+      {(strippedImageCount > 0 || images.length > 0) && (
+        <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-secondary/40 p-3 text-xs text-muted-foreground">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-neon-cyan" aria-hidden="true" />
+          <p>
+            {strippedImageCount > 0
+              ? `${strippedImageCount} uploaded ${strippedImageCount === 1 ? "image had" : "images had"} metadata markers and ${strippedImageCount === 1 ? "was" : "were"} re-encoded before upload.`
+              : "Images are re-encoded before upload to remove common metadata."}
+          </p>
+        </div>
+      )}
 
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {images.map((url) => (
+          {images.map((image) => (
             <div
-              key={url}
+              key={image.url}
               className="relative h-20 w-20 overflow-hidden rounded-lg border border-border/60"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" className="h-full w-full object-cover" />
+              <img src={image.url} alt="" className="h-full w-full object-cover" />
               <button
                 type="button"
                 aria-label="Remove image"
-                onClick={() => removeImage(url)}
+                onClick={() => removeImage(image.url)}
                 className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-background/80 text-foreground transition-colors hover:bg-background"
               >
                 <X className="h-3 w-3" />
@@ -174,6 +267,62 @@ export function PostComposer({ onCreated }: { onCreated: (post: PostView) => voi
         <p role="alert" className="text-xs text-destructive">
           {error}
         </p>
+      )}
+
+      {showPiiWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pii-warning-title"
+            aria-describedby="pii-warning-description"
+            className="w-full max-w-md rounded-xl border border-border/60 bg-card p-5 shadow-lg"
+          >
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">
+                <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <h2 id="pii-warning-title" className="text-base font-semibold">
+                  Review possible personal info
+                </h2>
+                <p id="pii-warning-description" className="mt-1 text-sm text-muted-foreground">
+                  This post may include identifying details. Remove anything you do not want shared publicly or with subscribers.
+                </p>
+              </div>
+            </div>
+
+            <ul className="mt-4 flex flex-col gap-2">
+              {pendingFindings.map((finding) => (
+                <li
+                  key={finding.type}
+                  className="flex items-center justify-between rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm"
+                >
+                  <span>{finding.label}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {finding.count} {finding.count === 1 ? "match" : "matches"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowPiiWarning(false);
+                  setPiiAcknowledged(false);
+                }}
+              >
+                Edit post
+              </Button>
+              <Button type="button" onClick={continueAfterWarning} disabled={submitting}>
+                {submitting ? "Publishing..." : "Publish anyway"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </form>
   );
