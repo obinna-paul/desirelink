@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProfileView } from "@/components/profile/profile-view";
 import { getCreatorProfilePosts } from "@/lib/posts";
+import { getPublicTiers } from "@/lib/tiers";
 
 export default async function ProfilePage({
   searchParams,
@@ -34,6 +35,7 @@ export default async function ProfilePage({
   }
 
   const posts = profile.isCreator ? await getCreatorProfilePosts(profile.id, profile.id) : [];
+  const tiers = profile.isCreator ? await getPublicTiers(profile.id, profile.id) : [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,9 +44,16 @@ export default async function ProfilePage({
         profile={profile}
         desires={profile.desires}
         posts={posts}
+        tiers={tiers}
         isOwner
         profileHref="/profile"
-        activeSection={searchParams.section === "posts" ? "posts" : "about"}
+        activeSection={
+          searchParams.section === "posts"
+            ? "posts"
+            : searchParams.section === "membership"
+              ? "membership"
+              : "about"
+        }
       />
     </div>
   );

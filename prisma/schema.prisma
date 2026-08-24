@@ -472,6 +472,7 @@ model AccessApplication {
   status    AccessApplicationStatus
   createdAt DateTime                @default(now())
 
+  @@unique([tierId, userId])
   @@index([tierId])
   @@index([userId])
 }

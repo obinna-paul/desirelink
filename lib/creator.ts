@@ -5,6 +5,7 @@ export const CREATOR_DASHBOARD_TABS = [
   { value: "audience", label: "Audience" },
   { value: "content", label: "Content" },
   { value: "tiers", label: "Tiers" },
+  { value: "applications", label: "Applications" },
   { value: "analytics", label: "Analytics" },
 ] as const;
 
@@ -66,6 +67,23 @@ export async function getCreatorTiers(profileId: string) {
 }
 
 export type CreatorTierWithCount = Awaited<ReturnType<typeof getCreatorTiers>>[number];
+
+export async function getCreatorApplications(profileId: string) {
+  return prisma.accessApplication.findMany({
+    where: { tier: { creatorId: profileId } },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+      tier: { select: { id: true, name: true } },
+      profile: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+    },
+  });
+}
+
+export type CreatorApplication = Awaited<ReturnType<typeof getCreatorApplications>>[number];
 
 function monthBuckets(monthsBack: number) {
   const now = new Date();

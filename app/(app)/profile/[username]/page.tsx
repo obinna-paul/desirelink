@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProfileView } from "@/components/profile/profile-view";
 import { getCreatorProfilePosts } from "@/lib/posts";
+import { getPublicTiers } from "@/lib/tiers";
 
 export default async function PublicProfilePage({
   params,
@@ -60,9 +61,10 @@ export default async function PublicProfilePage({
     orderBy: { createdAt: "asc" },
   });
 
-  const posts = profile.isCreator
-    ? await getCreatorProfilePosts(profile.id, isOwner ? profile.id : (viewerProfile?.id ?? null))
-    : [];
+  const viewerOrOwnerId = isOwner ? profile.id : (viewerProfile?.id ?? null);
+
+  const posts = profile.isCreator ? await getCreatorProfilePosts(profile.id, viewerOrOwnerId) : [];
+  const tiers = profile.isCreator ? await getPublicTiers(profile.id, viewerOrOwnerId) : [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -71,9 +73,16 @@ export default async function PublicProfilePage({
         profile={profile}
         desires={desires}
         posts={posts}
+        tiers={tiers}
         isOwner={isOwner}
         profileHref={`/profile/${profile.username}`}
-        activeSection={searchParams.section === "posts" ? "posts" : "about"}
+        activeSection={
+          searchParams.section === "posts"
+            ? "posts"
+            : searchParams.section === "membership"
+              ? "membership"
+              : "about"
+        }
       />
     </div>
   );

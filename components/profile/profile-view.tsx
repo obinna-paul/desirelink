@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DesireMapSummary } from "@/components/profile/desire-map-summary";
 import { PostList } from "@/components/posts/post-list";
+import { TierSubscribeCard } from "@/components/profile/tier-subscribe-card";
 import type { PostView } from "@/lib/posts";
+import type { PublicTierView } from "@/lib/tiers";
 
 function ProfileSectionTab({
   href,
@@ -39,6 +41,7 @@ export function ProfileView({
   profile,
   desires,
   posts,
+  tiers,
   isOwner,
   profileHref,
   activeSection = "about",
@@ -46,13 +49,19 @@ export function ProfileView({
   profile: Profile;
   desires: Desire[];
   posts: PostView[];
+  tiers: PublicTierView[];
   isOwner: boolean;
   profileHref: string;
-  activeSection?: "about" | "posts";
+  activeSection?: "about" | "posts" | "membership";
 }) {
   const initials = profile.displayName.slice(0, 2).toUpperCase();
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
-  const section = profile.isCreator ? activeSection : "about";
+  const showMembershipTab = profile.isCreator && (tiers.length > 0 || isOwner);
+  const section = profile.isCreator
+    ? activeSection === "membership" && !showMembershipTab
+      ? "about"
+      : activeSection
+    : "about";
 
   return (
     <div className="flex flex-col gap-6">
@@ -102,6 +111,13 @@ export function ProfileView({
             label="Posts"
             isActive={section === "posts"}
           />
+          {showMembershipTab && (
+            <ProfileSectionTab
+              href={`${profileHref}?section=membership`}
+              label="Membership"
+              isActive={section === "membership"}
+            />
+          )}
         </div>
       )}
 
@@ -111,6 +127,25 @@ export function ProfileView({
           showAuthor={false}
           emptyMessage={isOwner ? "You haven't published anything yet." : "No posts yet."}
         />
+      ) : section === "membership" ? (
+        <div className="flex flex-col gap-3">
+          {isOwner && (
+            <p className="text-sm text-muted-foreground">
+              Manage pricing, capacity, and applications from your{" "}
+              <Link href="/creator-dashboard?tab=tiers" className="text-neon-pink hover:underline">
+                creator dashboard
+              </Link>
+              .
+            </p>
+          )}
+          {tiers.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+              No membership tiers yet.
+            </div>
+          ) : (
+            tiers.map((tier) => <TierSubscribeCard key={tier.id} tier={tier} />)
+          )}
+        </div>
       ) : (
         <>
           <div>
