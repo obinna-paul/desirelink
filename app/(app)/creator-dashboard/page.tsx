@@ -16,6 +16,7 @@ import { ApplicationsList } from "@/components/creator/applications-list";
 import { CreatorAssistantPanel } from "@/components/creator/assistant-panel";
 import { ChartSkeleton } from "@/components/ui/skeleton";
 import {
+  CREATOR_DASHBOARD_TABS,
   DEFAULT_CREATOR_DASHBOARD_TAB,
   formatCents,
   getCreatorApplications,
@@ -30,6 +31,11 @@ import {
 import { getCreatorProfilePosts } from "@/lib/posts";
 import { getMyVerificationRequests } from "@/lib/verification";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
+import { isProviderProfileType } from "@/lib/providers";
+
+const PROVIDER_ONLY_TABS = CREATOR_DASHBOARD_TABS.filter(
+  (tab) => tab.value === "tiers" || tab.value === "applications"
+);
 
 const SubscriberGrowthChart = dynamic(
   () => import("@/components/creator/analytics-charts").then((mod) => mod.SubscriberGrowthChart),
@@ -56,27 +62,30 @@ export default async function CreatorDashboardPage({
     redirect("/login");
   }
 
-  if (profile.profileType !== "CREATOR") {
+  if (!isProviderProfileType(profile.profileType)) {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="Creator dashboard"
-          description="Subscribers, revenue, and analytics for your creator profile."
+          title="Provider dashboard"
+          description="Subscribers, revenue, and analytics for your provider profile."
         />
         <BecomeCreatorPrompt />
       </div>
     );
   }
 
-  const tab = isCreatorDashboardTab(searchParams.tab) ? searchParams.tab : DEFAULT_CREATOR_DASHBOARD_TAB;
+  const isCreator = profile.profileType === "CREATOR";
+  const availableTabs = isCreator ? CREATOR_DASHBOARD_TABS : PROVIDER_ONLY_TABS;
+  const requestedTab = isCreatorDashboardTab(searchParams.tab) ? searchParams.tab : DEFAULT_CREATOR_DASHBOARD_TAB;
+  const tab = availableTabs.some((available) => available.value === requestedTab) ? requestedTab : "tiers";
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Creator dashboard"
-        description="Subscribers, revenue, and analytics for your creator profile."
+        title="Provider dashboard"
+        description="Subscribers, revenue, and tiers for your provider profile."
       />
-      <DashboardTabs activeTab={tab} />
+      <DashboardTabs activeTab={tab} tabs={availableTabs} />
 
       {tab === "overview" && <OverviewTab profileId={profile.id} />}
       {tab === "assistant" && <AssistantTab profileId={profile.id} />}

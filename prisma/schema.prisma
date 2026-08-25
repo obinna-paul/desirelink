@@ -188,6 +188,7 @@ model Profile {
 
   profileType       ProfileType @default(EXPLORER)
   serviceCategories String[]    @default([])
+  stripeCustomerId  String?     @unique
 
   partnerId String?
   partner   Profile?  @relation("ProfilePartner", fields: [partnerId], references: [id])
@@ -204,20 +205,20 @@ model Profile {
   city        String
   country     String
 
-  openToChat        Boolean @default(false)
-  openToMeet        Boolean @default(false)
-  isIncognito       Boolean @default(false)
-  showInSearch      Boolean @default(true)
-  showExactLocation Boolean @default(false)
-  isVerified        Boolean @default(false)
-  isVerifiedCreator Boolean @default(false)
-  isVerifiedHost    Boolean @default(false)
-  isTrustedMember   Boolean @default(false)
-  isSuspended       Boolean @default(false)
+  openToChat        Boolean   @default(false)
+  openToMeet        Boolean   @default(false)
+  isIncognito       Boolean   @default(false)
+  showInSearch      Boolean   @default(true)
+  showExactLocation Boolean   @default(false)
+  isVerified        Boolean   @default(false)
+  isVerifiedCreator Boolean   @default(false)
+  isVerifiedHost    Boolean   @default(false)
+  isTrustedMember   Boolean   @default(false)
+  isSuspended       Boolean   @default(false)
   suspendedAt       DateTime?
-  warningCount      Int     @default(0)
-  communityStanding Int     @default(0)
-  profileViews      Int     @default(0)
+  warningCount      Int       @default(0)
+  communityStanding Int       @default(0)
+  profileViews      Int       @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -250,13 +251,14 @@ model Profile {
   chatMutesIssued        GroupChatMute[]       @relation("GroupChatMuteIssuer")
   verificationRequests   VerificationRequest[]
 
-  premiumSubscription           PremiumSubscription?
-  creatorSubscriptionsAsSub     CreatorSubscription[] @relation("CreatorSubscriptionSubscriber")
-  creatorSubscriptionsAsCreator CreatorSubscription[] @relation("CreatorSubscriptionCreator")
-  creatorEarnings               CreatorEarning[]
-  engagementMetricsAsCreator    EngagementMetric[]    @relation("EngagementMetricCreator")
-  engagementMetricsAsUser       EngagementMetric[]    @relation("EngagementMetricUser")
-  paymentMethods                PaymentMethod[]
+  premiumSubscription             PremiumSubscription?
+  providerSubscriptionsAsSub      ProviderSubscription[] @relation("ProviderSubscriptionSubscriber")
+  providerSubscriptionsAsProvider ProviderSubscription[] @relation("ProviderSubscriptionProvider")
+  creatorEarnings                 CreatorEarning[]
+  engagementMetricsAsCreator      EngagementMetric[]     @relation("EngagementMetricCreator")
+  engagementMetricsAsUser         EngagementMetric[]     @relation("EngagementMetricUser")
+  paymentMethods                  PaymentMethod[]
+  serviceListings                 ServiceListing[]
 
   @@index([city, country])
   @@index([profileType])
@@ -312,10 +314,10 @@ model CreatorTier {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  subscriptions        Subscription[]
-  creatorSubscriptions CreatorSubscription[]
-  accessApplications   AccessApplication[]
-  transactions         Transaction[]
+  subscriptions         Subscription[]
+  providerSubscriptions ProviderSubscription[]
+  accessApplications    AccessApplication[]
+  transactions          Transaction[]
 
   @@index([creatorId])
 }
@@ -356,23 +358,39 @@ model PremiumSubscription {
   @@index([status])
 }
 
-model CreatorSubscription {
+model ProviderSubscription {
   id                   String      @id @default(cuid())
   subscriberId         String
-  subscriber           Profile     @relation("CreatorSubscriptionSubscriber", fields: [subscriberId], references: [id], onDelete: Cascade)
-  creatorId            String
-  creator              Profile     @relation("CreatorSubscriptionCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  subscriber           Profile     @relation("ProviderSubscriptionSubscriber", fields: [subscriberId], references: [id], onDelete: Cascade)
+  providerId           String
+  provider             Profile     @relation("ProviderSubscriptionProvider", fields: [providerId], references: [id], onDelete: Cascade)
   tierId               String
   tier                 CreatorTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
   status               String
   stripeSubscriptionId String?
+  cancelAtPeriodEnd    Boolean     @default(false)
   startsAt             DateTime
   endsAt               DateTime
   createdAt            DateTime    @default(now())
 
   @@index([subscriberId])
-  @@index([creatorId])
+  @@index([providerId])
   @@index([status])
+}
+
+model ServiceListing {
+  id              String   @id @default(cuid())
+  providerId      String
+  provider        Profile  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  title           String
+  description     String
+  category        String
+  durationMinutes Int
+  priceCents      Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([providerId])
 }
 
 model CreatorEarning {

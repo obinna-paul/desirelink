@@ -19,14 +19,17 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DesireMapSummary } from "@/components/profile/desire-map-summary";
 import { PostList } from "@/components/posts/post-list";
-import { TierSubscribeCard } from "@/components/profile/tier-subscribe-card";
 import { BlockButton } from "@/components/safety/block-button";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { ReviewDialog } from "@/components/reviews/review-dialog";
 import { ReviewsSection } from "@/components/reviews/reviews-section";
+import { TierMenu } from "@/components/provider/TierMenu";
+import { ServiceListingMenu } from "@/components/provider/ServiceListingMenu";
 import { ALL_PROFILE_FIELD_NAMES, type ProfileFieldName } from "@/lib/circles";
 import type { PostView } from "@/lib/posts";
 import type { PublicTierView } from "@/lib/tiers";
+import type { ServiceListingView } from "@/lib/service-listings";
+import { isProviderProfileType } from "@/lib/providers";
 import type { ReviewableContext, ReviewData, ReviewSummary } from "@/lib/reviews";
 
 function ProfileSectionTab({
@@ -59,6 +62,7 @@ export function ProfileView({
   desires,
   posts,
   tiers,
+  serviceListings = [],
   isOwner,
   profileHref,
   activeSection = "about",
@@ -75,9 +79,10 @@ export function ProfileView({
   desires: Desire[];
   posts: PostView[];
   tiers: PublicTierView[];
+  serviceListings?: ServiceListingView[];
   isOwner: boolean;
   profileHref: string;
-  activeSection?: "about" | "posts" | "membership";
+  activeSection?: "about" | "posts";
   canMessage?: boolean;
   canModerate?: boolean;
   reviewSummary?: ReviewSummary;
@@ -89,12 +94,8 @@ export function ProfileView({
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
   const visibleFieldSet = new Set<ProfileFieldName>(visibleProfileFields);
   const isCreatorProfile = profile.profileType === "CREATOR";
-  const showMembershipTab = isCreatorProfile && (tiers.length > 0 || isOwner);
-  const section = isCreatorProfile
-    ? activeSection === "membership" && !showMembershipTab
-      ? "about"
-      : activeSection
-    : "about";
+  const isProvider = isProviderProfileType(profile.profileType);
+  const section = isCreatorProfile ? activeSection : "about";
 
   return (
     <div className="flex flex-col gap-6">
@@ -195,6 +196,28 @@ export function ProfileView({
         )}
       </div>
 
+      {isProvider && (tiers.length > 0 || isOwner) && (
+        <div className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            {profile.displayName}&apos;s tiers
+          </h2>
+          <TierMenu providerId={profile.id} tiers={tiers} isOwner={isOwner} />
+        </div>
+      )}
+
+      {profile.profileType === "SERVICE_PROVIDER" && (serviceListings.length > 0 || isOwner) && (
+        <div className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Services</h2>
+          {serviceListings.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+              No services listed yet.
+            </div>
+          ) : (
+            <ServiceListingMenu listings={serviceListings} />
+          )}
+        </div>
+      )}
+
       {isCreatorProfile && (
         <div className="flex gap-6 border-b border-border/60">
           <ProfileSectionTab href={profileHref} label="About" isActive={section === "about"} />
@@ -203,13 +226,6 @@ export function ProfileView({
             label="Posts"
             isActive={section === "posts"}
           />
-          {showMembershipTab && (
-            <ProfileSectionTab
-              href={`${profileHref}?section=membership`}
-              label="Membership"
-              isActive={section === "membership"}
-            />
-          )}
         </div>
       )}
 
@@ -219,25 +235,6 @@ export function ProfileView({
           showAuthor={false}
           emptyMessage={isOwner ? "You haven't published anything yet." : "No posts yet."}
         />
-      ) : section === "membership" ? (
-        <div className="flex flex-col gap-3">
-          {isOwner && (
-            <p className="text-sm text-muted-foreground">
-              Manage pricing, capacity, and applications from your{" "}
-              <Link href="/creator-dashboard?tab=tiers" className="text-neon-pink underline underline-offset-2">
-                creator dashboard
-              </Link>
-              .
-            </p>
-          )}
-          {tiers.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
-              No membership tiers yet.
-            </div>
-          ) : (
-            tiers.map((tier) => <TierSubscribeCard key={tier.id} tier={tier} />)
-          )}
-        </div>
       ) : (
         <>
           {visibleFieldSet.has("bio") && (

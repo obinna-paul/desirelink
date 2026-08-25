@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubscriptionsList } from "@/components/settings/subscriptions-list";
-import { getMySubscriptions } from "@/lib/payments";
+import { getMySubscriptions } from "@/lib/legacy-checkout";
 
 export default async function SubscriptionsSettingsPage() {
   const session = await getServerSession(authOptions);

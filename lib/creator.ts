@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isProviderProfileType } from "@/lib/provider-types";
 
 export const CREATOR_DASHBOARD_TABS = [
   { value: "overview", label: "Overview" },
@@ -21,9 +22,15 @@ export function isCreatorDashboardTab(value: string | undefined): value is Creat
 
 const GROWTH_MONTHS_BACK = 6;
 
+/**
+ * Tier management (creation, pricing, applications) is a capability of any
+ * "provider" profile — Creator, Pair, or Service Provider — not just
+ * Creators. Named for its original creator-only scope; still used
+ * specifically by the tier/application API routes.
+ */
 export async function getCreatorProfileByUserId(userId: string) {
   const profile = await prisma.profile.findUnique({ where: { userId } });
-  if (profile?.profileType !== "CREATOR") return null;
+  if (!profile || !isProviderProfileType(profile.profileType)) return null;
   return profile;
 }
 

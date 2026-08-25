@@ -1,3 +1,5 @@
+import "server-only";
+
 import { MockPaymentProvider } from "./mock-provider";
 import { StripeProvider } from "./stripe-provider";
 import type { PaymentProvider } from "./types";

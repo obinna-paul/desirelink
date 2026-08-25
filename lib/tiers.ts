@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { createCheckoutSession } from "@/lib/payments";
+import { createCheckoutSession } from "@/lib/legacy-checkout";
 
 export type TierViewerState =
   | "owner"
@@ -29,16 +29,32 @@ export async function getPublicTiers(
   const tiers = await prisma.creatorTier.findMany({
     where: { creatorId: creatorProfileId },
     orderBy: { createdAt: "asc" },
-    include: { _count: { select: { subscriptions: { where: { status: "active" } } } } },
+    include: {
+      _count: {
+        select: {
+          subscriptions: { where: { status: "active" } },
+          providerSubscriptions: { where: { status: "active", endsAt: { gt: new Date() } } },
+        },
+      },
+    },
   });
 
   const isOwner = viewerProfileId === creatorProfileId;
   const tierIds = tiers.map((tier) => tier.id);
 
-  const [subscriptions, applications] =
+  const [subscriptions, providerSubscriptions, applications] =
     !isOwner && viewerProfileId
       ? await Promise.all([
           prisma.subscription.findMany({
+            where: {
+              subscriberId: viewerProfileId,
+              tierId: { in: tierIds },
+              status: "active",
+              endsAt: { gt: new Date() },
+            },
+            select: { tierId: true },
+          }),
+          prisma.providerSubscription.findMany({
             where: {
               subscriberId: viewerProfileId,
               tierId: { in: tierIds },
@@ -52,13 +68,16 @@ export async function getPublicTiers(
             select: { tierId: true, status: true },
           }),
         ])
-      : [[], []];
+      : [[], [], []];
 
-  const subscribedTierIds = new Set(subscriptions.map((sub) => sub.tierId));
+  const subscribedTierIds = new Set([
+    ...subscriptions.map((sub) => sub.tierId),
+    ...providerSubscriptions.map((sub) => sub.tierId),
+  ]);
   const applicationByTier = new Map(applications.map((app) => [app.tierId, app.status]));
 
   return tiers.map((tier) => {
-    const subscriberCount = tier._count.subscriptions;
+    const subscriberCount = tier._count.subscriptions + tier._count.providerSubscriptions;
     const isFull = Boolean(tier.maxSubscribers && subscriberCount >= tier.maxSubscribers);
 
     let viewerState: TierViewerState;

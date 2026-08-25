@@ -10,13 +10,15 @@ import { getPublicTiers } from "@/lib/tiers";
 import { getBlockRelationship } from "@/lib/block";
 import { getProfileVisibility, getVisibleDesires } from "@/lib/circles";
 import { getReviewableContexts, getReviewsForProfile, getReviewSummary } from "@/lib/reviews";
+import { confirmPendingProviderSubscription, isProviderProfileType } from "@/lib/providers";
+import { getProviderServiceListings } from "@/lib/service-listings";
 
 export default async function PublicProfilePage({
   params,
   searchParams,
 }: {
   params: { username: string };
-  searchParams: { section?: string };
+  searchParams: { section?: string; subscription?: string };
 }) {
   const session = await getServerSession(authOptions);
 
@@ -53,13 +55,20 @@ export default async function PublicProfilePage({
     });
   }
 
+  if (searchParams.subscription && viewerProfile) {
+    await confirmPendingProviderSubscription(searchParams.subscription, viewerProfile.id);
+  }
+
   const visibility = await getProfileVisibility(profile.id, viewerProfile?.id ?? null, isOwner);
   const desires = await getVisibleDesires(profile.id, visibility);
 
   const viewerOrOwnerId = isOwner ? profile.id : (viewerProfile?.id ?? null);
+  const isProvider = isProviderProfileType(profile.profileType);
 
   const posts = profile.profileType === "CREATOR" ? await getCreatorProfilePosts(profile.id, viewerOrOwnerId) : [];
-  const tiers = profile.profileType === "CREATOR" ? await getPublicTiers(profile.id, viewerOrOwnerId) : [];
+  const tiers = isProvider ? await getPublicTiers(profile.id, viewerOrOwnerId) : [];
+  const serviceListings =
+    profile.profileType === "SERVICE_PROVIDER" ? await getProviderServiceListings(profile.id) : [];
 
   const [reviewSummary, reviews, reviewableContexts] = await Promise.all([
     getReviewSummary(profile.id),
@@ -75,6 +84,7 @@ export default async function PublicProfilePage({
         desires={desires}
         posts={posts}
         tiers={tiers}
+        serviceListings={serviceListings}
         isOwner={isOwner}
         canMessage={!isOwner && Boolean(viewerProfile)}
         canModerate={!isOwner && Boolean(viewerProfile)}
@@ -83,13 +93,7 @@ export default async function PublicProfilePage({
         reviewableContexts={reviewableContexts}
         visibleProfileFields={visibility.profileFields}
         profileHref={`/profile/${profile.username}`}
-        activeSection={
-          searchParams.section === "posts"
-            ? "posts"
-            : searchParams.section === "membership"
-              ? "membership"
-              : "about"
-        }
+        activeSection={searchParams.section === "posts" ? "posts" : "about"}
       />
     </div>
   );

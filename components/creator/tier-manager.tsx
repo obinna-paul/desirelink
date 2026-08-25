@@ -10,7 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { formatCents, type CreatorTierWithCount } from "@/lib/creator";
-import { MAX_TIER_PRICE_CENTS, TIER_TYPE_VALUES, type CreatorTierInput } from "@/lib/validations/creator-tier";
+import {
+  DEFAULT_TIER_PRICE_CENTS,
+  MAX_TIER_PRICE_CENTS,
+  MIN_TIER_PRICE_CENTS,
+  TIER_TYPE_VALUES,
+  type CreatorTierInput,
+} from "@/lib/validations/creator-tier";
 
 type FormState = {
   name: string;
@@ -25,7 +31,7 @@ type FormState = {
 const EMPTY_FORM: FormState = {
   name: "",
   description: "",
-  priceDollars: "",
+  priceDollars: (DEFAULT_TIER_PRICE_CENTS / 100).toString(),
   tierType: "basic",
   maxSubscribers: "",
   isLimited: false,
@@ -64,9 +70,14 @@ function TierForm({
     setError(null);
 
     const priceDollars = Number(form.priceDollars);
+    const minPriceDollars = MIN_TIER_PRICE_CENTS / 100;
     const maxPriceDollars = MAX_TIER_PRICE_CENTS / 100;
-    if (!form.name.trim() || Number.isNaN(priceDollars) || priceDollars < 0) {
+    if (!form.name.trim() || Number.isNaN(priceDollars)) {
       setError("Enter a tier name and a valid price.");
+      return;
+    }
+    if (priceDollars < minPriceDollars) {
+      setError(`Tier price must be at least $${minPriceDollars.toFixed(2)}.`);
       return;
     }
     if (priceDollars > maxPriceDollars) {
@@ -110,17 +121,17 @@ function TierForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="tier-price" className="text-xs font-medium text-muted-foreground">
-            Price per month (USD, max ${(MAX_TIER_PRICE_CENTS / 100).toFixed(2)})
+            Price per month (USD, ${(MIN_TIER_PRICE_CENTS / 100).toFixed(2)}–${(MAX_TIER_PRICE_CENTS / 100).toFixed(2)})
           </label>
           <Input
             id="tier-price"
             type="number"
-            min={0}
+            min={MIN_TIER_PRICE_CENTS / 100}
             max={MAX_TIER_PRICE_CENTS / 100}
             step="0.01"
             value={form.priceDollars}
             onChange={(event) => setForm((prev) => ({ ...prev, priceDollars: event.target.value }))}
-            placeholder="9.99"
+            placeholder="7.00"
           />
         </div>
       </div>

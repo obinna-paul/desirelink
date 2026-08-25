@@ -14,7 +14,7 @@ async function notifyPaymentFailed(userId: string): Promise<void> {
 /**
  * Applies a webhook event to our own subscription records. Both
  * PremiumSubscription (the platform "Udala Premium" plan) and
- * CreatorSubscription (a per-creator tier subscription) can share the same
+ * ProviderSubscription (a per-provider tier subscription) can share the same
  * underlying Stripe customer/subscription IDs, so we look up and update
  * whichever one the event actually belongs to.
  */
@@ -22,7 +22,7 @@ export async function processWebhookEvent(event: WebhookEvent): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed":
     case "invoice.payment_succeeded": {
-      await Promise.all([markPremiumActive(event), markCreatorSubscriptionActive(event)]);
+      await Promise.all([markPremiumActive(event), markProviderSubscriptionActive(event)]);
       return;
     }
 
@@ -32,7 +32,7 @@ export async function processWebhookEvent(event: WebhookEvent): Promise<void> {
     }
 
     case "customer.subscription.deleted": {
-      await Promise.all([markPremiumCancelled(event), markCreatorSubscriptionCancelled(event)]);
+      await Promise.all([markPremiumCancelled(event), markProviderSubscriptionCancelled(event)]);
       return;
     }
 
@@ -59,17 +59,17 @@ async function markPremiumCancelled(event: WebhookEvent): Promise<void> {
   });
 }
 
-async function markCreatorSubscriptionActive(event: WebhookEvent): Promise<void> {
+async function markProviderSubscriptionActive(event: WebhookEvent): Promise<void> {
   if (!event.subscriptionId) return;
-  await prisma.creatorSubscription.updateMany({
+  await prisma.providerSubscription.updateMany({
     where: { stripeSubscriptionId: event.subscriptionId },
     data: { status: "active" },
   });
 }
 
-async function markCreatorSubscriptionCancelled(event: WebhookEvent): Promise<void> {
+async function markProviderSubscriptionCancelled(event: WebhookEvent): Promise<void> {
   if (!event.subscriptionId) return;
-  await prisma.creatorSubscription.updateMany({
+  await prisma.providerSubscription.updateMany({
     where: { stripeSubscriptionId: event.subscriptionId },
     data: { status: "cancelled" },
   });
@@ -93,9 +93,9 @@ async function handlePaymentFailed(event: WebhookEvent): Promise<void> {
     await notifyPaymentFailed(subscription.userId);
   }
 
-  // CreatorSubscription only tracks active/cancelled/expired (no past_due),
+  // ProviderSubscription only tracks active/cancelled/expired (no past_due),
   // so it only moves once the dunning retries above are exhausted.
   if (retriesExhausted) {
-    await markCreatorSubscriptionCancelled(event);
+    await markProviderSubscriptionCancelled(event);
   }
 }

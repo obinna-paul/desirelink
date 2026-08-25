@@ -10,14 +10,14 @@ export function BecomeCreatorPrompt() {
         <Sparkles className="h-6 w-6 text-primary-foreground" aria-hidden="true" />
       </span>
       <div>
-        <h2 className="text-lg font-semibold">Become a creator</h2>
+        <h2 className="text-lg font-semibold">Become a provider</h2>
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          Turn on Creator on your profile to unlock subscription tiers, paid posts, and the
-          creator dashboard — subscribers, revenue, and analytics all in one place.
+          Switch your account type to Creator, Pair, or Service Provider to unlock subscription
+          tiers and the provider dashboard — subscribers, revenue, and tiers all in one place.
         </p>
       </div>
       <Button asChild>
-        <Link href="/profile/edit">Turn on Creator</Link>
+        <Link href="/profile/edit">Update account type</Link>
       </Button>
     </div>
   );

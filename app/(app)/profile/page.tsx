@@ -7,6 +7,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ProfileView } from "@/components/profile/profile-view";
 import { getCreatorProfilePosts } from "@/lib/posts";
 import { getPublicTiers } from "@/lib/tiers";
+import { isProviderProfileType } from "@/lib/providers";
+import { getProviderServiceListings } from "@/lib/service-listings";
 
 export default async function ProfilePage({
   searchParams,
@@ -38,7 +40,9 @@ export default async function ProfilePage({
   }
 
   const posts = profile.profileType === "CREATOR" ? await getCreatorProfilePosts(profile.id, profile.id) : [];
-  const tiers = profile.profileType === "CREATOR" ? await getPublicTiers(profile.id, profile.id) : [];
+  const tiers = isProviderProfileType(profile.profileType) ? await getPublicTiers(profile.id, profile.id) : [];
+  const serviceListings =
+    profile.profileType === "SERVICE_PROVIDER" ? await getProviderServiceListings(profile.id) : [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,15 +52,10 @@ export default async function ProfilePage({
         desires={profile.desires}
         posts={posts}
         tiers={tiers}
+        serviceListings={serviceListings}
         isOwner
         profileHref="/profile"
-        activeSection={
-          searchParams.section === "posts"
-            ? "posts"
-            : searchParams.section === "membership"
-              ? "membership"
-              : "about"
-        }
+        activeSection={searchParams.section === "posts" ? "posts" : "about"}
       />
     </div>
   );

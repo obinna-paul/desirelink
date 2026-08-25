@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { handleWebhook } from "@/lib/payments";
+import { handleWebhook } from "@/lib/legacy-checkout";
 
 const eventSchema = z.object({
   type: z.enum(["checkout.completed", "checkout.failed"]),

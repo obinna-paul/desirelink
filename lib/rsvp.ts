@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { createEventCheckoutSession } from "@/lib/payments";
+import { createEventCheckoutSession } from "@/lib/legacy-checkout";
 import { profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
 
 export const RSVP_ACTIONS = ["going", "interested", "not_going"] as const;
