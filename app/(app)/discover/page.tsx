@@ -34,11 +34,10 @@ export default async function DiscoverPage({
   const activeFilterCount =
     filters.genders.length +
     filters.orientations.length +
-    filters.relationship.length +
+    filters.accountTypes.length +
     filters.desireCategories.length +
     (filters.desireLevel ? 1 : 0) +
     (filters.radiusKm !== DEFAULT_RADIUS_KM ? 1 : 0) +
-    (filters.creator !== "any" ? 1 : 0) +
     (filters.availability !== "any" ? 1 : 0) +
     (filters.sort !== "newest" ? 1 : 0);
 

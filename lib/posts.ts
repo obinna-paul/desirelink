@@ -94,7 +94,7 @@ export async function getFeedPosts(viewerProfileId: string | null): Promise<Post
   const where =
     subscribedCreatorIds.size > 0
       ? { authorId: { in: Array.from(subscribedCreatorIds) } }
-      : { author: { isCreator: true, isIncognito: false } };
+      : { author: { profileType: "CREATOR" as const, isIncognito: false } };
 
   const posts = await prisma.post.findMany({
     where,

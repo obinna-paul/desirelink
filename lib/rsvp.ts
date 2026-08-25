@@ -59,8 +59,8 @@ export async function getEventAttendees(eventId: string, canSeeFullList: boolean
       take: ATTENDEE_DISPLAY_LIMIT,
     }),
     prisma.profile.count({ where: goingAny }),
-    prisma.profile.count({ where: { ...goingAny, isCouple: true } }),
-    prisma.profile.count({ where: { ...goingAny, isCreator: true } }),
+    prisma.profile.count({ where: { ...goingAny, profileType: "PAIR" } }),
+    prisma.profile.count({ where: { ...goingAny, profileType: "CREATOR" } }),
     prisma.profile.count({ where: { ...goingAny, createdAt: { gte: newMemberSince } } }),
   ]);
 

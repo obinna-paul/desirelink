@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import type { AccountType, DesireLevel } from "@prisma/client";
+import type { DesireLevel, ProfileType } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -14,17 +14,13 @@ import { DESIRE_CATEGORIES } from "@/lib/desire-options";
 import {
   ACCOUNT_TYPE_FILTER_OPTIONS,
   AVAILABILITY_FILTER_OPTIONS,
-  CREATOR_FILTER_OPTIONS,
   DEFAULT_RADIUS_KM,
   DESIRE_LEVEL_FILTER_OPTIONS,
   DISCOVER_SORT_OPTIONS,
   RADIUS_OPTIONS,
-  RELATIONSHIP_OPTIONS,
   type AvailabilityFilterValue,
-  type CreatorFilterValue,
   type DiscoverFilters,
   type DiscoverSortValue,
-  type RelationshipValue,
 } from "@/lib/discover";
 
 type DropdownOption = { value: string; label: string };
@@ -140,14 +136,12 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
   const router = useRouter();
   const [genders, setGenders] = useState<string[]>(initialFilters.genders);
   const [orientations, setOrientations] = useState<string[]>(initialFilters.orientations);
-  const [relationship, setRelationship] = useState<RelationshipValue[]>(initialFilters.relationship);
-  const [accountTypes, setAccountTypes] = useState<AccountType[]>(initialFilters.accountTypes);
+  const [accountTypes, setAccountTypes] = useState<ProfileType[]>(initialFilters.accountTypes);
   const [desireCategories, setDesireCategories] = useState<string[]>(initialFilters.desireCategories);
   const [desireLevel, setDesireLevel] = useState<DesireLevel | "">(initialFilters.desireLevel ?? "");
   const [radiusKm, setRadiusKm] = useState<string>(
     initialFilters.radiusKm === null ? "any" : String(initialFilters.radiusKm)
   );
-  const [creator, setCreator] = useState<CreatorFilterValue>(initialFilters.creator);
   const [availability, setAvailability] = useState<AvailabilityFilterValue>(
     initialFilters.availability
   );
@@ -157,12 +151,10 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
     const params = new URLSearchParams();
     genders.forEach((value) => params.append("gender", value));
     orientations.forEach((value) => params.append("orientation", value));
-    relationship.forEach((value) => params.append("relationship", value));
     accountTypes.forEach((value) => params.append("accountType", value));
     desireCategories.forEach((value) => params.append("desire", value));
     if (desireLevel) params.set("desireLevel", desireLevel);
     params.set("radius", radiusKm);
-    params.set("creator", creator);
     params.set("availability", availability);
     params.set("sort", sort);
     router.push(`/discover?${params.toString()}`);
@@ -171,12 +163,10 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
   function clearFilters() {
     setGenders([]);
     setOrientations([]);
-    setRelationship([]);
     setAccountTypes([]);
     setDesireCategories([]);
     setDesireLevel("");
     setRadiusKm(String(DEFAULT_RADIUS_KM));
-    setCreator("any");
     setAvailability("any");
     setSort("newest");
     router.push("/discover");
@@ -189,12 +179,12 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
       </summary>
 
       <div className="flex flex-col gap-4 border-t border-border/60 p-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MultiSelectDropdown
             label="Account type"
             options={ACCOUNT_TYPE_FILTER_OPTIONS}
             selected={accountTypes}
-            onChange={(next) => setAccountTypes(next as AccountType[])}
+            onChange={(next) => setAccountTypes(next as ProfileType[])}
           />
           <MultiSelectDropdown
             label="Gender"
@@ -207,12 +197,6 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
             options={toDropdownOptions(ORIENTATION_OPTIONS)}
             selected={orientations}
             onChange={setOrientations}
-          />
-          <MultiSelectDropdown
-            label="Relationship type"
-            options={RELATIONSHIP_OPTIONS}
-            selected={relationship}
-            onChange={(next) => setRelationship(next as RelationshipValue[])}
           />
           <MultiSelectDropdown
             label="Desires"
@@ -237,7 +221,7 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <FilterSection title="Location radius">
             <Select
               aria-label="Location radius"
@@ -251,21 +235,6 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
                 </option>
               ))}
               <option value="any">Any distance</option>
-            </Select>
-          </FilterSection>
-
-          <FilterSection title="Creator status">
-            <Select
-              aria-label="Creator status"
-              value={creator}
-              onChange={(event) => setCreator(event.target.value as CreatorFilterValue)}
-              className="h-11 text-sm"
-            >
-              {CREATOR_FILTER_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
             </Select>
           </FilterSection>
 

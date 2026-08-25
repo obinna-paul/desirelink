@@ -31,7 +31,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     );
   }
 
-  const { name, description, priceDollars, maxSubscribers, isLimited, requiresApproval } =
+  const { name, description, priceDollars, tierType, maxSubscribers, isLimited, requiresApproval } =
     parsed.data;
 
   const tier = await prisma.creatorTier.update({
@@ -40,6 +40,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       name,
       description,
       priceCents: Math.round(priceDollars * 100),
+      tierType,
       maxSubscribers,
       isLimited,
       requiresApproval,

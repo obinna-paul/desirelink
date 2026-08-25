@@ -104,11 +104,11 @@ enum VerificationRequestStatus {
   denied
 }
 
-enum AccountType {
-  creator
-  pair
-  explorer
-  service_provider
+enum ProfileType {
+  EXPLORER
+  CREATOR
+  PAIR
+  SERVICE_PROVIDER
 }
 
 enum PartnerInviteStatus {
@@ -186,11 +186,9 @@ model Profile {
   bio         String
   avatarUrl   String
 
-  accountType       AccountType @default(explorer)
+  profileType       ProfileType @default(EXPLORER)
   serviceCategories String[]    @default([])
 
-  isCreator Boolean   @default(false)
-  isCouple  Boolean   @default(false)
   partnerId String?
   partner   Profile?  @relation("ProfilePartner", fields: [partnerId], references: [id])
   partnerOf Profile[] @relation("ProfilePartner")
@@ -252,9 +250,16 @@ model Profile {
   chatMutesIssued        GroupChatMute[]       @relation("GroupChatMuteIssuer")
   verificationRequests   VerificationRequest[]
 
+  premiumSubscription           PremiumSubscription?
+  creatorSubscriptionsAsSub     CreatorSubscription[] @relation("CreatorSubscriptionSubscriber")
+  creatorSubscriptionsAsCreator CreatorSubscription[] @relation("CreatorSubscriptionCreator")
+  creatorEarnings               CreatorEarning[]
+  engagementMetricsAsCreator    EngagementMetric[]    @relation("EngagementMetricCreator")
+  engagementMetricsAsUser       EngagementMetric[]    @relation("EngagementMetricUser")
+  paymentMethods                PaymentMethod[]
+
   @@index([city, country])
-  @@index([isCreator])
-  @@index([accountType])
+  @@index([profileType])
   @@index([locationLat, locationLng])
 }
 
@@ -299,6 +304,7 @@ model CreatorTier {
   creator          Profile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   name             String
   priceCents       Int
+  tierType         String   @default("basic")
   description      String
   maxSubscribers   Int?
   isLimited        Boolean  @default(false)
@@ -306,9 +312,10 @@ model CreatorTier {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  subscriptions      Subscription[]
-  accessApplications AccessApplication[]
-  transactions       Transaction[]
+  subscriptions        Subscription[]
+  creatorSubscriptions CreatorSubscription[]
+  accessApplications   AccessApplication[]
+  transactions         Transaction[]
 
   @@index([creatorId])
 }
@@ -331,6 +338,84 @@ model Subscription {
   @@index([subscriberId])
   @@index([creatorId])
   @@index([status])
+}
+
+model PremiumSubscription {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status               String
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([status])
+}
+
+model CreatorSubscription {
+  id                   String      @id @default(cuid())
+  subscriberId         String
+  subscriber           Profile     @relation("CreatorSubscriptionSubscriber", fields: [subscriberId], references: [id], onDelete: Cascade)
+  creatorId            String
+  creator              Profile     @relation("CreatorSubscriptionCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  tierId               String
+  tier                 CreatorTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+  status               String
+  stripeSubscriptionId String?
+  startsAt             DateTime
+  endsAt               DateTime
+  createdAt            DateTime    @default(now())
+
+  @@index([subscriberId])
+  @@index([creatorId])
+  @@index([status])
+}
+
+model CreatorEarning {
+  id          String   @id @default(cuid())
+  creatorId   String
+  creator     Profile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  month       String
+  points      Int      @default(0)
+  amountCents Int      @default(0)
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+
+  @@index([creatorId])
+  @@index([month])
+  @@index([status])
+}
+
+model EngagementMetric {
+  id         String   @id @default(cuid())
+  creatorId  String
+  creator    Profile  @relation("EngagementMetricCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       Profile? @relation("EngagementMetricUser", fields: [userId], references: [id], onDelete: SetNull)
+  metricType String
+  value      Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  @@index([creatorId])
+  @@index([metricType])
+}
+
+model PaymentMethod {
+  id                    String   @id @default(cuid())
+  userId                String
+  user                  Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripePaymentMethodId String
+  last4                 String
+  brand                 String
+  country               String
+  isDefault             Boolean  @default(true)
+  createdAt             DateTime @default(now())
+
+  @@index([userId])
 }
 
 // --- Events ------------------------------------------------------------------

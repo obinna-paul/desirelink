@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { name, email, password, accountType } = parsed.data;
+  const { name, email, password, profileType } = parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -46,9 +46,7 @@ export async function POST(req: Request) {
           locationLng: 0,
           city: "",
           country: "",
-          accountType,
-          isCreator: accountType === "creator",
-          isCouple: accountType === "pair",
+          profileType,
         },
       },
     },

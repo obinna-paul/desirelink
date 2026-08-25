@@ -23,15 +23,15 @@ export async function submitVerificationRequest(
 
   const profile = await prisma.profile.findUnique({
     where: { id: profileId },
-    select: { isCreator: true, isVerifiedCreator: true, isVerifiedHost: true },
+    select: { profileType: true, isVerifiedCreator: true, isVerifiedHost: true },
   });
   if (!profile) {
     return { ok: false, status: 404, error: "Profile not found" };
   }
 
   if (requestType === "creator") {
-    if (!profile.isCreator) {
-      return { ok: false, status: 403, error: "Turn on Creator mode in your profile before requesting creator verification" };
+    if (profile.profileType !== "CREATOR") {
+      return { ok: false, status: 403, error: "Switch to a Creator account before requesting creator verification" };
     }
     if (profile.isVerifiedCreator) {
       return { ok: false, status: 400, error: "You're already a verified creator" };

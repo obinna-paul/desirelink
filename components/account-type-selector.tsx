@@ -1,6 +1,6 @@
 "use client";
 
-import type { AccountType } from "@prisma/client";
+import type { ProfileType } from "@prisma/client";
 
 import { cn } from "@/lib/utils";
 import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
@@ -8,11 +8,11 @@ import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
 export function AccountTypeSelector({
   value,
   onChange,
-  name = "accountType",
+  name = "profileType",
   className,
 }: {
-  value: AccountType;
-  onChange: (value: AccountType) => void;
+  value: ProfileType;
+  onChange: (value: ProfileType) => void;
   name?: string;
   className?: string;
 }) {

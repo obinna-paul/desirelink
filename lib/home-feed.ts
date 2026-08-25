@@ -32,10 +32,8 @@ export function profileCardSelect() {
     avatarUrl: true,
     city: true,
     country: true,
-    accountType: true,
+    profileType: true,
     serviceCategories: true,
-    isCreator: true,
-    isCouple: true,
     isVerified: true,
     isVerifiedCreator: true,
     isVerifiedHost: true,
@@ -167,7 +165,7 @@ export async function getHomeFeed(
 
     case "creators": {
       const profiles = await prisma.profile.findMany({
-        where: { ...visible, ...notSelf, isCreator: true },
+        where: { ...visible, ...notSelf, profileType: "CREATOR" },
         select: profileCardSelect(),
         orderBy: { updatedAt: "desc" },
         take: 24,
@@ -177,7 +175,7 @@ export async function getHomeFeed(
 
     case "couples": {
       const profiles = await prisma.profile.findMany({
-        where: { ...visible, ...notSelf, isCouple: true },
+        where: { ...visible, ...notSelf, profileType: "PAIR" },
         select: profileCardSelect(),
         orderBy: { updatedAt: "desc" },
         take: 24,

@@ -1,4 +1,4 @@
-import type { AccountType, AvailabilityStatusType, DesireLevel, Prisma } from "@prisma/client";
+import type { AvailabilityStatusType, DesireLevel, Prisma, ProfileType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
@@ -8,21 +8,6 @@ export const ACCOUNT_TYPE_FILTER_OPTIONS = ACCOUNT_TYPE_OPTIONS.map(({ value, la
   value,
   label,
 }));
-
-export const RELATIONSHIP_OPTIONS = [
-  { value: "single", label: "Single" },
-  { value: "couple", label: "Couple" },
-] as const;
-
-export type RelationshipValue = (typeof RELATIONSHIP_OPTIONS)[number]["value"];
-
-export const CREATOR_FILTER_OPTIONS = [
-  { value: "any", label: "Everyone" },
-  { value: "yes", label: "Creators only" },
-  { value: "no", label: "Non-creators only" },
-] as const;
-
-export type CreatorFilterValue = (typeof CREATOR_FILTER_OPTIONS)[number]["value"];
 
 export const AVAILABILITY_FILTER_OPTIONS = [
   { value: "any", label: "Any" },
@@ -59,12 +44,10 @@ export type DiscoverSortValue = (typeof DISCOVER_SORT_OPTIONS)[number]["value"];
 export type DiscoverFilters = {
   genders: string[];
   orientations: string[];
-  relationship: RelationshipValue[];
-  accountTypes: AccountType[];
+  accountTypes: ProfileType[];
   desireCategories: string[];
   desireLevel: DesireLevel | null;
   radiusKm: number | null;
-  creator: CreatorFilterValue;
   availability: AvailabilityFilterValue;
   sort: DiscoverSortValue;
 };
@@ -84,17 +67,13 @@ function toSingle(value: SearchParamValue): string | undefined {
 export function parseDiscoverFilters(searchParams: DiscoverSearchParams): DiscoverFilters {
   const radiusParam = toSingle(searchParams.radius);
   const desireLevelParam = toSingle(searchParams.desireLevel);
-  const creatorParam = toSingle(searchParams.creator);
   const availabilityParam = toSingle(searchParams.availability);
   const sortParam = toSingle(searchParams.sort);
 
   return {
     genders: toArray(searchParams.gender),
     orientations: toArray(searchParams.orientation),
-    relationship: toArray(searchParams.relationship).filter((value): value is RelationshipValue =>
-      RELATIONSHIP_OPTIONS.some((option) => option.value === value)
-    ),
-    accountTypes: toArray(searchParams.accountType).filter((value): value is AccountType =>
+    accountTypes: toArray(searchParams.accountType).filter((value): value is ProfileType =>
       ACCOUNT_TYPE_FILTER_OPTIONS.some((option) => option.value === value)
     ),
     desireCategories: toArray(searchParams.desire),
@@ -102,9 +81,6 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
       ? (desireLevelParam as DesireLevel)
       : null,
     radiusKm: radiusParam === "any" ? null : Number(radiusParam) || DEFAULT_RADIUS_KM,
-    creator: CREATOR_FILTER_OPTIONS.some((option) => option.value === creatorParam)
-      ? (creatorParam as CreatorFilterValue)
-      : "any",
     availability: AVAILABILITY_FILTER_OPTIONS.some((option) => option.value === availabilityParam)
       ? (availabilityParam as AvailabilityFilterValue)
       : "any",
@@ -144,18 +120,8 @@ function buildWhere(
     where.orientation = { in: filters.orientations };
   }
 
-  if (filters.relationship.length === 1) {
-    where.isCouple = filters.relationship[0] === "couple";
-  }
-
   if (filters.accountTypes.length > 0) {
-    where.accountType = { in: filters.accountTypes };
-  }
-
-  if (filters.creator === "yes") {
-    where.isCreator = true;
-  } else if (filters.creator === "no") {
-    where.isCreator = false;
+    where.profileType = { in: filters.accountTypes };
   }
 
   if (filters.desireCategories.length > 0) {

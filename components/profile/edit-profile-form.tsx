@@ -18,7 +18,6 @@ import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
 import { SERVICE_CATEGORY_OPTIONS } from "@/lib/account-types";
 
 type BooleanFieldName =
-  | "isCreator"
   | "isVerified"
   | "openToChat"
   | "openToMeet"
@@ -101,9 +100,8 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       orientation: profile.orientation,
       city: profile.city,
       country: profile.country,
-      accountType: profile.accountType,
+      profileType: profile.profileType,
       serviceCategories: profile.serviceCategories,
-      isCreator: profile.isCreator,
       isVerified: profile.isVerified,
       openToChat: profile.openToChat,
       openToMeet: profile.openToMeet,
@@ -114,7 +112,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
   });
 
   const avatarUrl = watch("avatarUrl");
-  const accountType = watch("accountType");
+  const profileType = watch("profileType");
   const serviceCategories = watch("serviceCategories");
 
   function toggleServiceCategory(category: string) {
@@ -205,7 +203,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
         </h2>
         <Controller
           control={control}
-          name="accountType"
+          name="profileType"
           render={({ field }) => (
             <AccountTypeSelector
               value={field.value}
@@ -215,7 +213,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
           )}
         />
 
-        {accountType === "service_provider" && (
+        {profileType === "SERVICE_PROVIDER" && (
           <div className="flex flex-col gap-2">
             <p className="text-sm font-medium">Services you offer</p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -235,15 +233,6 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
               ))}
             </div>
           </div>
-        )}
-
-        {accountType !== "creator" && (
-          <ToggleRow
-            label="Also enable creator tools"
-            description="Unlock subscriptions, tiers, and paid posts alongside your account type."
-            control={control}
-            name="isCreator"
-          />
         )}
       </section>
 

@@ -23,7 +23,7 @@ const GROWTH_MONTHS_BACK = 6;
 
 export async function getCreatorProfileByUserId(userId: string) {
   const profile = await prisma.profile.findUnique({ where: { userId } });
-  if (!profile?.isCreator) return null;
+  if (profile?.profileType !== "CREATOR") return null;
   return profile;
 }
 

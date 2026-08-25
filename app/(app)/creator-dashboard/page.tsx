@@ -56,7 +56,7 @@ export default async function CreatorDashboardPage({
     redirect("/login");
   }
 
-  if (!profile.isCreator) {
+  if (profile.profileType !== "CREATOR") {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader

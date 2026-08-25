@@ -40,17 +40,17 @@ export function ProfileCard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
             <p className="truncate text-sm font-semibold">{profile.displayName}</p>
-            {profile.isCreator && (
+            {profile.profileType === "CREATOR" && (
               <Sparkles
                 role="img"
                 aria-label="Creator"
                 className="h-3.5 w-3.5 shrink-0 text-neon-pink"
               />
             )}
-            {profile.isCouple && (
+            {profile.profileType === "PAIR" && (
               <Heart role="img" aria-label="Pair" className="h-3.5 w-3.5 shrink-0 text-neon-cyan" />
             )}
-            {profile.accountType === "service_provider" && (
+            {profile.profileType === "SERVICE_PROVIDER" && (
               <Briefcase
                 role="img"
                 aria-label="Service provider"

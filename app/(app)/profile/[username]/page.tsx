@@ -58,8 +58,8 @@ export default async function PublicProfilePage({
 
   const viewerOrOwnerId = isOwner ? profile.id : (viewerProfile?.id ?? null);
 
-  const posts = profile.isCreator ? await getCreatorProfilePosts(profile.id, viewerOrOwnerId) : [];
-  const tiers = profile.isCreator ? await getPublicTiers(profile.id, viewerOrOwnerId) : [];
+  const posts = profile.profileType === "CREATOR" ? await getCreatorProfilePosts(profile.id, viewerOrOwnerId) : [];
+  const tiers = profile.profileType === "CREATOR" ? await getPublicTiers(profile.id, viewerOrOwnerId) : [];
 
   const [reviewSummary, reviews, reviewableContexts] = await Promise.all([
     getReviewSummary(profile.id),

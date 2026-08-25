@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const ACCOUNT_TYPE_VALUES = ["creator", "pair", "explorer", "service_provider"] as const;
+export const ACCOUNT_TYPE_VALUES = ["EXPLORER", "CREATOR", "PAIR", "SERVICE_PROVIDER"] as const;
 
 export const signupSchema = z
   .object({
@@ -8,7 +8,7 @@ export const signupSchema = z
     email: z.string().email("Enter a valid email address"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
-    accountType: z.enum(ACCOUNT_TYPE_VALUES),
+    profileType: z.enum(ACCOUNT_TYPE_VALUES),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",

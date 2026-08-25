@@ -88,8 +88,9 @@ export function ProfileView({
   const initials = profile.displayName.slice(0, 2).toUpperCase();
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
   const visibleFieldSet = new Set<ProfileFieldName>(visibleProfileFields);
-  const showMembershipTab = profile.isCreator && (tiers.length > 0 || isOwner);
-  const section = profile.isCreator
+  const isCreatorProfile = profile.profileType === "CREATOR";
+  const showMembershipTab = isCreatorProfile && (tiers.length > 0 || isOwner);
+  const section = isCreatorProfile
     ? activeSection === "membership" && !showMembershipTab
       ? "about"
       : activeSection
@@ -106,17 +107,17 @@ export function ProfileView({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold tracking-tight">{profile.displayName}</h1>
-              {profile.isCreator && (
+              {isCreatorProfile && (
                 <Badge variant="neon" className="gap-1">
                   <Sparkles className="h-3 w-3" /> Creator
                 </Badge>
               )}
-              {profile.isCouple && (
+              {profile.profileType === "PAIR" && (
                 <Badge variant="secondary" className="gap-1">
                   <Heart className="h-3 w-3" /> Pair
                 </Badge>
               )}
-              {profile.accountType === "service_provider" && (
+              {profile.profileType === "SERVICE_PROVIDER" && (
                 <Badge variant="secondary" className="gap-1">
                   <Briefcase className="h-3 w-3" /> Service provider
                 </Badge>
@@ -194,7 +195,7 @@ export function ProfileView({
         )}
       </div>
 
-      {profile.isCreator && (
+      {isCreatorProfile && (
         <div className="flex gap-6 border-b border-border/60">
           <ProfileSectionTab href={profileHref} label="About" isActive={section === "about"} />
           <ProfileSectionTab
@@ -288,7 +289,7 @@ export function ProfileView({
             </div>
           )}
 
-          {profile.accountType === "service_provider" && profile.serviceCategories.length > 0 && (
+          {profile.profileType === "SERVICE_PROVIDER" && profile.serviceCategories.length > 0 && (
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Services offered

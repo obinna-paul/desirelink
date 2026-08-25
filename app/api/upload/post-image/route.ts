@@ -15,10 +15,10 @@ export async function POST(req: Request) {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { isCreator: true },
+    select: { profileType: true },
   });
 
-  if (!profile?.isCreator) {
+  if (profile?.profileType !== "CREATOR") {
     return NextResponse.json({ error: "Creator access required" }, { status: 403 });
   }
 

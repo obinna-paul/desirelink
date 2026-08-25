@@ -22,7 +22,7 @@ export default async function EditProfilePage() {
     redirect("/profile");
   }
 
-  const showPartnerPanel = profile.accountType === "pair" || profile.partnerId !== null;
+  const showPartnerPanel = profile.profileType === "PAIR" || profile.partnerId !== null;
   const partnerState = showPartnerPanel ? await getPartnerState(profile.id) : null;
 
   return (

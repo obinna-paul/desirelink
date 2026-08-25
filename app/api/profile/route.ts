@@ -22,16 +22,14 @@ export async function PATCH(req: Request) {
     );
   }
 
-  const { accountType, isCreator, serviceCategories, ...rest } = parsed.data;
+  const { profileType, serviceCategories, ...rest } = parsed.data;
 
   const profile = await prisma.profile.update({
     where: { userId: session.user.id },
     data: {
       ...rest,
-      accountType,
-      isCreator: accountType === "creator" ? true : isCreator,
-      isCouple: accountType === "pair",
-      serviceCategories: accountType === "service_provider" ? serviceCategories : [],
+      profileType,
+      serviceCategories: profileType === "SERVICE_PROVIDER" ? serviceCategories : [],
     },
   });
 

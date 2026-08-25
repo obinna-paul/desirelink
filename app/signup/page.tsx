@@ -26,7 +26,7 @@ export default function SignupPage() {
     formState: { errors },
   } = useForm<SignupInput>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { accountType: "explorer" },
+    defaultValues: { profileType: "EXPLORER" },
   });
 
   async function onSubmit(data: SignupInput) {
@@ -97,7 +97,7 @@ export default function SignupPage() {
           <span className="text-sm font-medium">I&apos;m signing up as...</span>
           <Controller
             control={control}
-            name="accountType"
+            name="profileType"
             render={({ field }) => (
               <AccountTypeSelector value={field.value} onChange={field.onChange} />
             )}

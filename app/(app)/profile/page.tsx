@@ -37,8 +37,8 @@ export default async function ProfilePage({
     );
   }
 
-  const posts = profile.isCreator ? await getCreatorProfilePosts(profile.id, profile.id) : [];
-  const tiers = profile.isCreator ? await getPublicTiers(profile.id, profile.id) : [];
+  const posts = profile.profileType === "CREATOR" ? await getCreatorProfilePosts(profile.id, profile.id) : [];
+  const tiers = profile.profileType === "CREATOR" ? await getPublicTiers(profile.id, profile.id) : [];
 
   return (
     <div className="flex flex-col gap-6">

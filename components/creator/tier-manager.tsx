@@ -7,14 +7,16 @@ import { Pencil, Plus, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { formatCents, type CreatorTierWithCount } from "@/lib/creator";
-import type { CreatorTierInput } from "@/lib/validations/creator-tier";
+import { MAX_TIER_PRICE_CENTS, TIER_TYPE_VALUES, type CreatorTierInput } from "@/lib/validations/creator-tier";
 
 type FormState = {
   name: string;
   description: string;
   priceDollars: string;
+  tierType: (typeof TIER_TYPE_VALUES)[number];
   maxSubscribers: string;
   isLimited: boolean;
   requiresApproval: boolean;
@@ -24,6 +26,7 @@ const EMPTY_FORM: FormState = {
   name: "",
   description: "",
   priceDollars: "",
+  tierType: "basic",
   maxSubscribers: "",
   isLimited: false,
   requiresApproval: false,
@@ -34,6 +37,7 @@ function tierToForm(tier: CreatorTierWithCount): FormState {
     name: tier.name,
     description: tier.description,
     priceDollars: (tier.priceCents / 100).toString(),
+    tierType: tier.tierType as FormState["tierType"],
     maxSubscribers: tier.maxSubscribers ? String(tier.maxSubscribers) : "",
     isLimited: tier.isLimited,
     requiresApproval: tier.requiresApproval,
@@ -60,8 +64,13 @@ function TierForm({
     setError(null);
 
     const priceDollars = Number(form.priceDollars);
+    const maxPriceDollars = MAX_TIER_PRICE_CENTS / 100;
     if (!form.name.trim() || Number.isNaN(priceDollars) || priceDollars < 0) {
       setError("Enter a tier name and a valid price.");
+      return;
+    }
+    if (priceDollars > maxPriceDollars) {
+      setError(`Tier price can't exceed $${maxPriceDollars.toFixed(2)}.`);
       return;
     }
 
@@ -70,6 +79,7 @@ function TierForm({
       name: form.name.trim(),
       description: form.description.trim(),
       priceDollars,
+      tierType: form.tierType,
       maxSubscribers: form.maxSubscribers ? Number(form.maxSubscribers) : null,
       isLimited: form.isLimited,
       requiresApproval: form.requiresApproval,
@@ -100,18 +110,38 @@ function TierForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="tier-price" className="text-xs font-medium text-muted-foreground">
-            Price per month (USD)
+            Price per month (USD, max ${(MAX_TIER_PRICE_CENTS / 100).toFixed(2)})
           </label>
           <Input
             id="tier-price"
             type="number"
             min={0}
+            max={MAX_TIER_PRICE_CENTS / 100}
             step="0.01"
             value={form.priceDollars}
             onChange={(event) => setForm((prev) => ({ ...prev, priceDollars: event.target.value }))}
             placeholder="9.99"
           />
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5 sm:w-56">
+        <label htmlFor="tier-type" className="text-xs font-medium text-muted-foreground">
+          Tier type
+        </label>
+        <Select
+          id="tier-type"
+          value={form.tierType}
+          onChange={(event) =>
+            setForm((prev) => ({ ...prev, tierType: event.target.value as FormState["tierType"] }))
+          }
+        >
+          {TIER_TYPE_VALUES.map((value) => (
+            <option key={value} value={value}>
+              {value.charAt(0).toUpperCase() + value.slice(1)}
+            </option>
+          ))}
+        </Select>
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -264,6 +294,9 @@ export function TierManager({ initialTiers }: { initialTiers: CreatorTierWithCou
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold">{tier.name}</p>
                   <span className="text-sm text-neon-cyan">{formatCents(tier.priceCents)}/mo</span>
+                  <span className="rounded-full border border-border/60 px-2 py-0.5 text-xs capitalize text-muted-foreground">
+                    {tier.tierType}
+                  </span>
                 </div>
                 {tier.description && (
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">{tier.description}</p>

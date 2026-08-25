@@ -1,24 +1,24 @@
-import type { AccountType } from "@prisma/client";
+import type { ProfileType } from "@prisma/client";
 
-export const ACCOUNT_TYPE_OPTIONS: { value: AccountType; label: string; description: string }[] = [
+export const ACCOUNT_TYPE_OPTIONS: { value: ProfileType; label: string; description: string }[] = [
   {
-    value: "creator",
+    value: "CREATOR",
     label: "Creator",
     description: "Create exclusive photos, videos, and posts. Choose what's free and what's paid.",
   },
   {
-    value: "pair",
+    value: "PAIR",
     label: "Pair",
     description:
       "Two people exploring together — swinging, threesomes, parties, and more. You can create content too.",
   },
   {
-    value: "explorer",
+    value: "EXPLORER",
     label: "Explorer",
     description: "Browse, match, and connect. No pressure to create or provide anything.",
   },
   {
-    value: "service_provider",
+    value: "SERVICE_PROVIDER",
     label: "Service provider",
     description: "Offer sex-oriented or sensual services — escort, private chef, massage, and more.",
   },
