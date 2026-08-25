@@ -9,6 +9,7 @@ import { getCreatorProfilePosts } from "@/lib/posts";
 import { getPublicTiers } from "@/lib/tiers";
 import { isProviderProfileType } from "@/lib/providers";
 import { getProviderServiceListings } from "@/lib/service-listings";
+import { isPremiumUser } from "@/lib/premium";
 
 export default async function ProfilePage({
   searchParams,
@@ -39,10 +40,12 @@ export default async function ProfilePage({
     );
   }
 
-  const posts = profile.profileType === "CREATOR" ? await getCreatorProfilePosts(profile.id, profile.id) : [];
-  const tiers = isProviderProfileType(profile.profileType) ? await getPublicTiers(profile.id, profile.id) : [];
-  const serviceListings =
-    profile.profileType === "SERVICE_PROVIDER" ? await getProviderServiceListings(profile.id) : [];
+  const [posts, tiers, serviceListings, profileIsPremium] = await Promise.all([
+    profile.profileType === "CREATOR" ? getCreatorProfilePosts(profile.id, profile.id) : Promise.resolve([]),
+    isProviderProfileType(profile.profileType) ? getPublicTiers(profile.id, profile.id) : Promise.resolve([]),
+    profile.profileType === "SERVICE_PROVIDER" ? getProviderServiceListings(profile.id) : Promise.resolve([]),
+    isPremiumUser(profile.id),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -54,6 +57,7 @@ export default async function ProfilePage({
         tiers={tiers}
         serviceListings={serviceListings}
         isOwner
+        isPremium={profileIsPremium}
         profileHref="/profile"
         activeSection={searchParams.section === "posts" ? "posts" : "about"}
       />

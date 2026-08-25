@@ -8,7 +8,9 @@ import { getBillingOverview } from "@/lib/billing";
 import { confirmProviderPayment } from "@/lib/providers";
 import { formatCents } from "@/lib/creator";
 import { PaymentMethodManager } from "@/components/billing/PaymentMethodManager";
-import { CancelPremiumButton, CancelProviderSubButton, SubscribePremiumButton } from "@/components/billing/BillingActions";
+import { CancelPremiumButton, CancelProviderSubButton } from "@/components/billing/BillingActions";
+import { PremiumUpsell } from "@/components/premium/premium-upsell";
+import { PREMIUM_REWARDS_BENEFIT } from "@/lib/premium";
 
 export default async function BillingSettingsPage({
   searchParams,
@@ -33,10 +35,10 @@ export default async function BillingSettingsPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Billing" description="Payment methods, Premium status, subscriptions, and billing history." />
+      <PageHeader title="Billing" description="Payment methods, premium status, subscriptions, and billing history." />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">Udala Premium</h2>
+        <h2 className="text-sm font-semibold">udala premium</h2>
         {overview.premium ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card p-4">
             <div>
@@ -47,14 +49,12 @@ export default async function BillingSettingsPage({
               <p className="text-xs text-muted-foreground">
                 {overview.premium.active ? "Renews" : "Ends"} {overview.premium.currentPeriodEnd.toLocaleDateString()}
               </p>
+              <p className="mt-2 text-xs text-muted-foreground">{PREMIUM_REWARDS_BENEFIT}</p>
             </div>
             {overview.premium.active && !overview.premium.cancelAtPeriodEnd && <CancelPremiumButton />}
           </div>
         ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border/60 p-4">
-            <p className="text-sm text-muted-foreground">Not subscribed to Udala Premium.</p>
-            <SubscribePremiumButton />
-          </div>
+          <PremiumUpsell description="Upgrade to udala premium for unlimited access, privacy controls, and priority features." />
         )}
       </section>
 

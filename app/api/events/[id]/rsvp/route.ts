@@ -32,5 +32,5 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (result.state === "checkout") {
     return NextResponse.json({ state: result.state, checkoutUrl: result.checkoutUrl }, { status: 200 });
   }
-  return NextResponse.json({ state: result.state, status: result.status }, { status: 200 });
+  return NextResponse.json({ state: result.state, status: result.status, message: result.message }, { status: 200 });
 }

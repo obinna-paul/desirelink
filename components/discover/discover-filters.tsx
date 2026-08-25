@@ -7,20 +7,26 @@ import type { DesireLevel, ProfileType } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { PremiumUpsell } from "@/components/premium/premium-upsell";
 import { cn } from "@/lib/utils";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
 import { DESIRE_CATEGORIES } from "@/lib/desire-options";
 import {
-  ACCOUNT_TYPE_FILTER_OPTIONS,
   AVAILABILITY_FILTER_OPTIONS,
+  BODY_TYPE_FILTER_OPTIONS,
   DEFAULT_RADIUS_KM,
   DESIRE_LEVEL_FILTER_OPTIONS,
   DISCOVER_SORT_OPTIONS,
+  LAST_ACTIVE_FILTER_OPTIONS,
+  PROVIDER_TYPE_FILTER_OPTIONS,
   RADIUS_OPTIONS,
+  VERIFICATION_FILTER_OPTIONS,
   type AvailabilityFilterValue,
   type DiscoverFilters,
   type DiscoverSortValue,
+  type LastActiveFilterValue,
+  type VerificationFilterValue,
 } from "@/lib/discover";
 
 type DropdownOption = { value: string; label: string };
@@ -31,12 +37,14 @@ function MultiSelectDropdown({
   selected,
   onChange,
   footer,
+  disabled = false,
 }: {
   label: string;
   options: readonly DropdownOption[];
   selected: string[];
   onChange: (next: string[]) => void;
   footer?: React.ReactNode;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -73,9 +81,11 @@ function MultiSelectDropdown({
         type="button"
         aria-haspopup="true"
         aria-expanded={open}
+        disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
           "flex h-11 w-full items-center justify-between gap-2 rounded-md border px-3 text-left text-sm transition-colors",
+          disabled && "cursor-not-allowed opacity-55",
           selected.length > 0
             ? "border-primary/60 bg-secondary text-foreground"
             : "border-input bg-background text-muted-foreground hover:text-foreground"
@@ -132,13 +142,22 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
 const toDropdownOptions = (values: readonly string[]): DropdownOption[] =>
   values.map((value) => ({ value, label: value }));
 
-export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: DiscoverFilters }) {
+export function DiscoverFiltersPanel({
+  initialFilters,
+  isPremium,
+}: {
+  initialFilters: DiscoverFilters;
+  isPremium: boolean;
+}) {
   const router = useRouter();
   const [genders, setGenders] = useState<string[]>(initialFilters.genders);
   const [orientations, setOrientations] = useState<string[]>(initialFilters.orientations);
   const [accountTypes, setAccountTypes] = useState<ProfileType[]>(initialFilters.accountTypes);
   const [desireCategories, setDesireCategories] = useState<string[]>(initialFilters.desireCategories);
   const [desireLevel, setDesireLevel] = useState<DesireLevel | "">(initialFilters.desireLevel ?? "");
+  const [bodyTypes, setBodyTypes] = useState<string[]>(initialFilters.bodyTypes);
+  const [lastActive, setLastActive] = useState<LastActiveFilterValue>(initialFilters.lastActive);
+  const [verification, setVerification] = useState<VerificationFilterValue>(initialFilters.verification);
   const [radiusKm, setRadiusKm] = useState<string>(
     initialFilters.radiusKm === null ? "any" : String(initialFilters.radiusKm)
   );
@@ -151,9 +170,14 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
     const params = new URLSearchParams();
     genders.forEach((value) => params.append("gender", value));
     orientations.forEach((value) => params.append("orientation", value));
-    accountTypes.forEach((value) => params.append("accountType", value));
-    desireCategories.forEach((value) => params.append("desire", value));
-    if (desireLevel) params.set("desireLevel", desireLevel);
+    if (isPremium) {
+      accountTypes.forEach((value) => params.append("accountType", value));
+      desireCategories.forEach((value) => params.append("desire", value));
+      bodyTypes.forEach((value) => params.append("bodyType", value));
+      if (desireLevel) params.set("desireLevel", desireLevel);
+      if (lastActive !== "any") params.set("lastActive", lastActive);
+      if (verification !== "any") params.set("verification", verification);
+    }
     params.set("radius", radiusKm);
     params.set("availability", availability);
     params.set("sort", sort);
@@ -166,6 +190,9 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
     setAccountTypes([]);
     setDesireCategories([]);
     setDesireLevel("");
+    setBodyTypes([]);
+    setLastActive("any");
+    setVerification("any");
     setRadiusKm(String(DEFAULT_RADIUS_KM));
     setAvailability("any");
     setSort("newest");
@@ -181,12 +208,6 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
       <div className="flex flex-col gap-4 border-t border-border/60 p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MultiSelectDropdown
-            label="Account type"
-            options={ACCOUNT_TYPE_FILTER_OPTIONS}
-            selected={accountTypes}
-            onChange={(next) => setAccountTypes(next as ProfileType[])}
-          />
-          <MultiSelectDropdown
             label="Gender"
             options={toDropdownOptions(GENDER_OPTIONS)}
             selected={genders}
@@ -198,30 +219,6 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
             selected={orientations}
             onChange={setOrientations}
           />
-          <MultiSelectDropdown
-            label="Desires"
-            options={toDropdownOptions(DESIRE_CATEGORIES)}
-            selected={desireCategories}
-            onChange={setDesireCategories}
-            footer={
-              <Select
-                aria-label="Desire level"
-                value={desireLevel}
-                onChange={(event) => setDesireLevel(event.target.value as DesireLevel | "")}
-                className="h-10 w-full text-xs"
-              >
-                <option value="">Any level</option>
-                {DESIRE_LEVEL_FILTER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            }
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <FilterSection title="Location radius">
             <Select
               aria-label="Location radius"
@@ -252,7 +249,9 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
               ))}
             </Select>
           </FilterSection>
+        </div>
 
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <FilterSection title="Sort by">
             <Select
               aria-label="Sort by"
@@ -267,6 +266,95 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
               ))}
             </Select>
           </FilterSection>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-border/60 pt-4">
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Premium filters
+            </h2>
+            {!isPremium && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Upgrade to use interests, last active, body type, verification, and provider type filters.
+              </p>
+            )}
+          </div>
+          {!isPremium && (
+            <PremiumUpsell
+              compact
+              title="Advanced search is premium"
+              description="Upgrade to udala premium to refine discovery with deeper filters."
+            />
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <MultiSelectDropdown
+              label="Provider type"
+              options={PROVIDER_TYPE_FILTER_OPTIONS}
+              selected={accountTypes}
+              onChange={(next) => setAccountTypes(next as ProfileType[])}
+              disabled={!isPremium}
+            />
+            <MultiSelectDropdown
+              label="Desires"
+              options={toDropdownOptions(DESIRE_CATEGORIES)}
+              selected={desireCategories}
+              onChange={setDesireCategories}
+              disabled={!isPremium}
+              footer={
+                <Select
+                  aria-label="Desire level"
+                  value={desireLevel}
+                  onChange={(event) => setDesireLevel(event.target.value as DesireLevel | "")}
+                  className="h-10 w-full text-xs"
+                  disabled={!isPremium}
+                >
+                  <option value="">Any level</option>
+                  {DESIRE_LEVEL_FILTER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              }
+            />
+            <MultiSelectDropdown
+              label="Body type"
+              options={toDropdownOptions(BODY_TYPE_FILTER_OPTIONS)}
+              selected={bodyTypes}
+              onChange={setBodyTypes}
+              disabled={!isPremium}
+            />
+            <FilterSection title="Last active">
+              <Select
+                aria-label="Last active"
+                value={lastActive}
+                onChange={(event) => setLastActive(event.target.value as LastActiveFilterValue)}
+                className="h-11 text-sm"
+                disabled={!isPremium}
+              >
+                {LAST_ACTIVE_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </FilterSection>
+            <FilterSection title="Verification">
+              <Select
+                aria-label="Verification status"
+                value={verification}
+                onChange={(event) => setVerification(event.target.value as VerificationFilterValue)}
+                className="h-11 text-sm"
+                disabled={!isPremium}
+              >
+                {VERIFICATION_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </FilterSection>
+          </div>
         </div>
 
         <div className="flex gap-3">

@@ -5,11 +5,14 @@ import { Lock } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { cn } from "@/lib/utils";
 import type { PostView } from "@/lib/posts";
 
-function LockedPostBody() {
+function LockedPostBody({ reason }: { reason: PostView["lockReason"] }) {
+  const isPremiumLimit = reason === "premium_provider_limit";
+
   return (
     <div className="relative overflow-hidden rounded-lg border border-border/60">
       <div aria-hidden="true" className="select-none space-y-2 p-4 blur-sm">
@@ -20,8 +23,17 @@ function LockedPostBody() {
       </div>
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-background/70 px-4 text-center">
         <Lock className="h-6 w-6 text-neon-pink" aria-hidden="true" />
-        <p className="text-sm font-medium">Fans only</p>
-        <p className="text-xs text-muted-foreground">Subscribe to this creator to see this post.</p>
+        <p className="text-sm font-medium">{isPremiumLimit ? "Premium access" : "Fans only"}</p>
+        <p className="max-w-xs text-xs text-muted-foreground">
+          {isPremiumLimit
+            ? "Free accounts can view 5 free provider posts per day. Upgrade for unlimited provider content."
+            : "Subscribe to this creator to see this post."}
+        </p>
+        {isPremiumLimit && (
+          <Button asChild size="sm" className="mt-1">
+            <Link href="/settings/billing">Upgrade</Link>
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -54,12 +66,17 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
               <Lock className="h-3 w-3" aria-hidden="true" /> Fans only
             </Badge>
           )}
+          {post.lockReason === "premium_provider_limit" && (
+            <Badge variant="outline" className="gap-1 text-muted-foreground">
+              <Lock className="h-3 w-3" aria-hidden="true" /> premium
+            </Badge>
+          )}
           <ReportDialog targetType="post" targetId={post.id} label="Report post" variant="icon" />
         </div>
       </div>
 
       {post.locked ? (
-        <LockedPostBody />
+        <LockedPostBody reason={post.lockReason} />
       ) : (
         <>
           {post.content && <p className="whitespace-pre-wrap text-sm">{post.content}</p>}

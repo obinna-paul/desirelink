@@ -25,6 +25,8 @@ import { ReviewDialog } from "@/components/reviews/review-dialog";
 import { ReviewsSection } from "@/components/reviews/reviews-section";
 import { TierMenu } from "@/components/provider/TierMenu";
 import { ServiceListingMenu } from "@/components/provider/ServiceListingMenu";
+import { PremiumBadge } from "@/components/premium/premium-badge";
+import { ProfileViewersPanel } from "@/components/premium/profile-viewers-panel";
 import { ALL_PROFILE_FIELD_NAMES, type ProfileFieldName } from "@/lib/circles";
 import type { PostView } from "@/lib/posts";
 import type { PublicTierView } from "@/lib/tiers";
@@ -64,6 +66,7 @@ export function ProfileView({
   tiers,
   serviceListings = [],
   isOwner,
+  isPremium = false,
   profileHref,
   activeSection = "about",
   canMessage = false,
@@ -81,6 +84,7 @@ export function ProfileView({
   tiers: PublicTierView[];
   serviceListings?: ServiceListingView[];
   isOwner: boolean;
+  isPremium?: boolean;
   profileHref: string;
   activeSection?: "about" | "posts";
   canMessage?: boolean;
@@ -108,6 +112,7 @@ export function ProfileView({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold tracking-tight">{profile.displayName}</h1>
+              {isPremium && <PremiumBadge />}
               {isCreatorProfile && (
                 <Badge variant="neon" className="gap-1">
                   <Sparkles className="h-3 w-3" /> Creator
@@ -306,6 +311,8 @@ export function ProfileView({
           {reviewSummary && reviews && (
             <ReviewsSection summary={reviewSummary} reviews={reviews} />
           )}
+
+          {isOwner && <ProfileViewersPanel isPremium={isPremium} />}
         </>
       )}
     </div>

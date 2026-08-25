@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { createEventCheckoutSession } from "@/lib/legacy-checkout";
 import { profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
 import { trackEventRsvp } from "@/lib/rewards/tracking";
+import { isPremiumUser } from "@/lib/premium";
 
 export const RSVP_ACTIONS = ["going", "interested", "not_going"] as const;
 export type RsvpAction = (typeof RSVP_ACTIONS)[number];
@@ -73,7 +74,7 @@ export async function getEventAttendees(eventId: string, canSeeFullList: boolean
 }
 
 export type RsvpResult =
-  | { ok: true; state: "updated"; status: RsvpAction }
+  | { ok: true; state: "updated"; status: RsvpAction | "waitlist"; message?: string }
   | { ok: true; state: "checkout"; checkoutUrl: string }
   | { ok: false; status: number; error: string };
 
@@ -101,6 +102,7 @@ export async function setRsvp(profileId: string, eventId: string, action: RsvpAc
     where: { eventId_userId: { eventId, userId: profileId } },
   });
   const previousStatus = existing?.status ?? null;
+  const viewerIsPremium = action === "going" && previousStatus !== "going" ? await isPremiumUser(profileId) : false;
 
   if (action === "going" && previousStatus !== "going" && event.priceCents > 0) {
     const checkout = await createEventCheckoutSession(profileId, eventId);
@@ -110,13 +112,55 @@ export async function setRsvp(profileId: string, eventId: string, action: RsvpAc
     return { ok: true, state: "checkout", checkoutUrl: checkout.checkoutUrl };
   }
 
-  if (action === "going" && previousStatus !== "going") {
-    if (event.maxAttendees !== null && event.currentAttendees >= event.maxAttendees) {
-      return { ok: false, status: 409, error: "This event is full." };
-    }
-  }
+  let savedStatus: RsvpAction | "waitlist" = action;
+  let message: string | undefined;
 
   await prisma.$transaction(async (tx) => {
+    if (action === "going" && previousStatus !== "going" && event.maxAttendees !== null && event.currentAttendees >= event.maxAttendees) {
+      if (viewerIsPremium) {
+        const confirmed = await tx.eventRsvp.findMany({
+          where: { eventId, status: "going", userId: { not: profileId } },
+          orderBy: { updatedAt: "asc" },
+          take: 100,
+          include: {
+            profile: {
+              select: {
+                premiumSubscription: { select: { status: true, currentPeriodEnd: true } },
+              },
+            },
+          },
+        });
+        const now = new Date();
+        const freeAttendee = confirmed.find((rsvp) => {
+          const premium = rsvp.profile.premiumSubscription;
+          return !(premium && premium.status === "active" && premium.currentPeriodEnd > now);
+        });
+
+        if (freeAttendee) {
+          await tx.eventRsvp.update({ where: { id: freeAttendee.id }, data: { status: "waitlist" } });
+          await tx.eventRsvp.upsert({
+            where: { eventId_userId: { eventId, userId: profileId } },
+            create: { eventId, userId: profileId, status: "going" },
+            update: { status: "going" },
+          });
+          savedStatus = "going";
+          message = "Your premium RSVP was prioritized for this limited event.";
+          return;
+        }
+      }
+
+      await tx.eventRsvp.upsert({
+        where: { eventId_userId: { eventId, userId: profileId } },
+        create: { eventId, userId: profileId, status: "waitlist" },
+        update: { status: "waitlist" },
+      });
+      savedStatus = "waitlist";
+      message = viewerIsPremium
+        ? "This event is full of premium attendees, so you're on the waitlist."
+        : "This event is full, so you're on the waitlist. Premium members get priority for limited spots.";
+      return;
+    }
+
     await tx.eventRsvp.upsert({
       where: { eventId_userId: { eventId, userId: profileId } },
       create: { eventId, userId: profileId, status: action },
@@ -130,9 +174,9 @@ export async function setRsvp(profileId: string, eventId: string, action: RsvpAc
     }
   });
 
-  if (action === "going" && previousStatus !== "going") {
+  if (savedStatus === "going" && previousStatus !== "going") {
     await trackEventRsvp(event.hostId, profileId);
   }
 
-  return { ok: true, state: "updated", status: action };
+  return { ok: true, state: "updated", status: savedStatus, message };
 }

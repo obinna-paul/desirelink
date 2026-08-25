@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, HelpCircle, X } from "lucide-react";
 
+import { PremiumUpsell } from "@/components/premium/premium-upsell";
 import { cn } from "@/lib/utils";
 import type { RsvpAction } from "@/lib/rsvp";
 
@@ -26,11 +27,15 @@ export function RsvpButtons({
   const [status, setStatus] = useState<RsvpAction | null>(initialStatus);
   const [pending, setPending] = useState<RsvpAction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [premiumUpsell, setPremiumUpsell] = useState<string | null>(null);
 
   async function handleClick(action: RsvpAction) {
     if (pending) return;
     setPending(action);
     setError(null);
+    setNotice(null);
+    setPremiumUpsell(null);
 
     const res = await fetch(`/api/events/${eventId}/rsvp`, {
       method: "POST",
@@ -51,7 +56,11 @@ export function RsvpButtons({
     }
 
     setPending(null);
-    setStatus(action);
+    setStatus(body.status === "waitlist" ? null : action);
+    if (body.message) setNotice(body.message);
+    if (body.status === "waitlist" && body.message?.includes("Premium")) {
+      setPremiumUpsell(body.message);
+    }
     router.refresh();
   }
 
@@ -89,6 +98,18 @@ export function RsvpButtons({
         <p role="alert" className="text-xs text-destructive">
           {error}
         </p>
+      )}
+      {notice && (
+        <p role="status" className="text-xs text-muted-foreground">
+          {notice}
+        </p>
+      )}
+      {premiumUpsell && (
+        <PremiumUpsell
+          compact
+          title="Premium RSVP priority"
+          description={premiumUpsell}
+        />
       )}
     </div>
   );

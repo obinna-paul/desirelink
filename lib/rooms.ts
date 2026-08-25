@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { flagContentIfNeeded } from "@/lib/moderation";
+import { canJoinPublicRoomWithPremium, type PremiumLimitPayload } from "@/lib/premium";
 
 const memberProfileSelect = {
   id: true,
@@ -101,7 +102,7 @@ export type RoomMemberData = Awaited<ReturnType<typeof getApprovedMembers>>[numb
 
 export type JoinResult =
   | { ok: true; state: "joined" | "pending" }
-  | { ok: false; status: number; error: string };
+  | { ok: false; status: number; error: string; payload?: PremiumLimitPayload };
 
 /** Public rooms join immediately; private rooms create a pending request for the admin to approve. */
 export async function joinRoom(roomId: string, profileId: string): Promise<JoinResult> {
@@ -118,6 +119,18 @@ export async function joinRoom(roomId: string, profileId: string): Promise<JoinR
   });
   if (existing) {
     return { ok: true, state: existing.status === "pending" ? "pending" : "joined" };
+  }
+
+  if (!room.isPrivate) {
+    const premiumGate = await canJoinPublicRoomWithPremium(profileId);
+    if (!premiumGate.ok) {
+      return {
+        ok: false,
+        status: premiumGate.status,
+        error: premiumGate.payload.error,
+        payload: premiumGate.payload,
+      };
+    }
   }
 
   const status = room.isPrivate ? "pending" : "approved";

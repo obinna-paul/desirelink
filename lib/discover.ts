@@ -9,6 +9,10 @@ export const ACCOUNT_TYPE_FILTER_OPTIONS = ACCOUNT_TYPE_OPTIONS.map(({ value, la
   label,
 }));
 
+export const PROVIDER_TYPE_FILTER_OPTIONS = ACCOUNT_TYPE_FILTER_OPTIONS.filter(
+  (option) => option.value !== "EXPLORER"
+);
+
 export const AVAILABILITY_FILTER_OPTIONS = [
   { value: "any", label: "Any" },
   { value: "active", label: "Currently active (any status)" },
@@ -41,12 +45,42 @@ export const DISCOVER_SORT_OPTIONS = [
 
 export type DiscoverSortValue = (typeof DISCOVER_SORT_OPTIONS)[number]["value"];
 
+export const LAST_ACTIVE_FILTER_OPTIONS = [
+  { value: "any", label: "Any time" },
+  { value: "day", label: "Past 24 hours" },
+  { value: "week", label: "Past 7 days" },
+  { value: "month", label: "Past 30 days" },
+] as const;
+
+export type LastActiveFilterValue = (typeof LAST_ACTIVE_FILTER_OPTIONS)[number]["value"];
+
+export const BODY_TYPE_FILTER_OPTIONS = [
+  "Slim",
+  "Athletic",
+  "Average",
+  "Curvy",
+  "Plus-size",
+] as const;
+
+export const VERIFICATION_FILTER_OPTIONS = [
+  { value: "any", label: "Any status" },
+  { value: "verified", label: "Verified" },
+  { value: "trusted", label: "Trusted member" },
+  { value: "verified_creator", label: "Verified creator" },
+  { value: "verified_host", label: "Verified host" },
+] as const;
+
+export type VerificationFilterValue = (typeof VERIFICATION_FILTER_OPTIONS)[number]["value"];
+
 export type DiscoverFilters = {
   genders: string[];
   orientations: string[];
   accountTypes: ProfileType[];
   desireCategories: string[];
   desireLevel: DesireLevel | null;
+  bodyTypes: string[];
+  lastActive: LastActiveFilterValue;
+  verification: VerificationFilterValue;
   radiusKm: number | null;
   availability: AvailabilityFilterValue;
   sort: DiscoverSortValue;
@@ -69,6 +103,8 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
   const desireLevelParam = toSingle(searchParams.desireLevel);
   const availabilityParam = toSingle(searchParams.availability);
   const sortParam = toSingle(searchParams.sort);
+  const lastActiveParam = toSingle(searchParams.lastActive);
+  const verificationParam = toSingle(searchParams.verification);
 
   return {
     genders: toArray(searchParams.gender),
@@ -80,6 +116,13 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
     desireLevel: DESIRE_LEVEL_FILTER_OPTIONS.some((option) => option.value === desireLevelParam)
       ? (desireLevelParam as DesireLevel)
       : null,
+    bodyTypes: toArray(searchParams.bodyType),
+    lastActive: LAST_ACTIVE_FILTER_OPTIONS.some((option) => option.value === lastActiveParam)
+      ? (lastActiveParam as LastActiveFilterValue)
+      : "any",
+    verification: VERIFICATION_FILTER_OPTIONS.some((option) => option.value === verificationParam)
+      ? (verificationParam as VerificationFilterValue)
+      : "any",
     radiusKm: radiusParam === "any" ? null : Number(radiusParam) || DEFAULT_RADIUS_KM,
     availability: AVAILABILITY_FILTER_OPTIONS.some((option) => option.value === availabilityParam)
       ? (availabilityParam as AvailabilityFilterValue)
@@ -87,6 +130,29 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
     sort: DISCOVER_SORT_OPTIONS.some((option) => option.value === sortParam)
       ? (sortParam as DiscoverSortValue)
       : "newest",
+  };
+}
+
+export function hasAdvancedDiscoverFilters(filters: DiscoverFilters): boolean {
+  return Boolean(
+    filters.accountTypes.length > 0 ||
+      filters.desireCategories.length > 0 ||
+      filters.desireLevel ||
+      filters.bodyTypes.length > 0 ||
+      filters.lastActive !== "any" ||
+      filters.verification !== "any"
+  );
+}
+
+export function withoutAdvancedDiscoverFilters(filters: DiscoverFilters): DiscoverFilters {
+  return {
+    ...filters,
+    accountTypes: [],
+    desireCategories: [],
+    desireLevel: null,
+    bodyTypes: [],
+    lastActive: "any",
+    verification: "any",
   };
 }
 
@@ -107,6 +173,7 @@ function buildWhere(
   viewerProfile: ViewerProfile | null
 ): Prisma.ProfileWhereInput {
   const where: Prisma.ProfileWhereInput = { isIncognito: false };
+  const and: Prisma.ProfileWhereInput[] = [];
 
   if (viewerProfile) {
     where.NOT = { id: viewerProfile.id };
@@ -133,6 +200,36 @@ function buildWhere(
     };
   }
 
+  if (filters.bodyTypes.length > 0) {
+    and.push({
+      OR: filters.bodyTypes.map((bodyType) => ({
+        bio: { contains: bodyType, mode: "insensitive" },
+      })),
+    });
+  }
+
+  if (filters.lastActive !== "any") {
+    const days = filters.lastActive === "day" ? 1 : filters.lastActive === "week" ? 7 : 30;
+    where.updatedAt = { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) };
+  }
+
+  if (filters.verification === "verified") {
+    and.push({
+      OR: [
+        { isVerified: true },
+        { isVerifiedCreator: true },
+        { isVerifiedHost: true },
+        { isTrustedMember: true },
+      ],
+    });
+  } else if (filters.verification === "trusted") {
+    where.isTrustedMember = true;
+  } else if (filters.verification === "verified_creator") {
+    where.isVerifiedCreator = true;
+  } else if (filters.verification === "verified_host") {
+    where.isVerifiedHost = true;
+  }
+
   if (filters.availability === "active") {
     where.availabilityStatuses = { some: { expiresAt: { gt: new Date() } } };
   } else if (filters.availability !== "any") {
@@ -142,6 +239,10 @@ function buildWhere(
         expiresAt: { gt: new Date() },
       },
     };
+  }
+
+  if (and.length > 0) {
+    where.AND = and;
   }
 
   return where;
@@ -157,15 +258,22 @@ export type DiscoverResult = {
 
 export async function searchDiscoverProfiles(
   filters: DiscoverFilters,
-  viewerProfile: ViewerProfile | null
+  viewerProfile: ViewerProfile | null,
+  isPremium = false
 ): Promise<DiscoverResult> {
-  const where = buildWhere(filters, viewerProfile);
+  const advancedFiltersIgnored = !isPremium && hasAdvancedDiscoverFilters(filters);
+  const effectiveFilters = advancedFiltersIgnored ? withoutAdvancedDiscoverFilters(filters) : filters;
+  const where = buildWhere(effectiveFilters, viewerProfile);
   const viewerHasLocation = hasUsableLocation(viewerProfile);
-  const needsDistance = viewerHasLocation && (filters.radiusKm !== null || filters.sort === "distance");
+  const needsDistance =
+    viewerHasLocation && (effectiveFilters.radiusKm !== null || effectiveFilters.sort === "distance");
+  const advancedNote = advancedFiltersIgnored
+    ? "Advanced filters are available with udala premium."
+    : undefined;
 
   if (!needsDistance) {
     const orderBy: Prisma.ProfileOrderByWithRelationInput =
-      filters.sort === "active" ? { updatedAt: "desc" } : { createdAt: "desc" };
+      effectiveFilters.sort === "active" ? { updatedAt: "desc" } : { createdAt: "desc" };
 
     const profiles = await prisma.profile.findMany({
       where,
@@ -175,11 +283,12 @@ export async function searchDiscoverProfiles(
     });
 
     const note =
-      filters.sort === "distance" && !viewerHasLocation
+      advancedNote ??
+      (effectiveFilters.sort === "distance" && !viewerHasLocation
         ? "Set your location on your profile to sort by distance."
-        : filters.radiusKm !== null && !viewerHasLocation
+        : effectiveFilters.radiusKm !== null && !viewerHasLocation
           ? "Set your location on your profile to filter by radius."
-          : undefined;
+          : undefined);
 
     return { profiles, note };
   }
@@ -206,17 +315,17 @@ export async function searchDiscoverProfiles(
     ),
   }));
 
-  if (filters.radiusKm !== null) {
-    withDistance = withDistance.filter((candidate) => candidate.distanceKm <= filters.radiusKm!);
+  if (effectiveFilters.radiusKm !== null) {
+    withDistance = withDistance.filter((candidate) => candidate.distanceKm <= effectiveFilters.radiusKm!);
   }
 
-  if (filters.sort === "distance") {
+  if (effectiveFilters.sort === "distance") {
     withDistance.sort((a, b) => a.distanceKm - b.distanceKm);
-  } else if (filters.sort === "active") {
+  } else if (effectiveFilters.sort === "active") {
     withDistance.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   } else {
     withDistance.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  return { profiles: withDistance.slice(0, RESULTS_LIMIT) };
+  return { profiles: withDistance.slice(0, RESULTS_LIMIT), note: advancedNote };
 }

@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
 import { AccountTypeSelector } from "@/components/account-type-selector";
+import { PremiumUpsell } from "@/components/premium/premium-upsell";
 import { updateProfileSchema, type UpdateProfileInput } from "@/lib/validations/profile";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
 import { SERVICE_CATEGORY_OPTIONS } from "@/lib/account-types";
@@ -82,6 +83,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
   const router = useRouter();
   const [status, setStatus] = useState<"idle" | "saving" | "success">("idle");
   const [serverError, setServerError] = useState<string | null>(null);
+  const [premiumUpsell, setPremiumUpsell] = useState<string | null>(null);
 
   const {
     register,
@@ -124,6 +126,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
 
   async function onSubmit(data: UpdateProfileInput) {
     setServerError(null);
+    setPremiumUpsell(null);
     setStatus("saving");
 
     const res = await fetch("/api/profile", {
@@ -135,7 +138,11 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
     if (!res.ok) {
       const body = await res.json().catch(() => null);
       setStatus("idle");
-      setServerError(body?.error ?? "Something went wrong. Please try again.");
+      if (body?.code === "PREMIUM_REQUIRED") {
+        setPremiumUpsell(body.error);
+      } else {
+        setServerError(body?.error ?? "Something went wrong. Please try again.");
+      }
       return;
     }
 
@@ -288,6 +295,13 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
           control={control}
           name="isIncognito"
         />
+        {premiumUpsell && (
+          <PremiumUpsell
+            compact
+            title="Incognito is premium"
+            description={premiumUpsell}
+          />
+        )}
       </section>
 
       {serverError && (

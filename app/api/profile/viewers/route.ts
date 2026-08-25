@@ -3,9 +3,9 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { joinRoom } from "@/lib/rooms";
+import { getProfileViewerList, isPremiumUser, premiumLimitPayload } from "@/lib/premium";
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -19,10 +19,16 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  const result = await joinRoom(params.id, profile.id);
-  if (!result.ok) {
-    return NextResponse.json(result.payload ?? { error: result.error }, { status: result.status });
+  if (!(await isPremiumUser(profile.id))) {
+    return NextResponse.json(
+      premiumLimitPayload(
+        "profile_viewers",
+        "Upgrade to udala premium to see who viewed your profile."
+      ),
+      { status: 402 }
+    );
   }
 
-  return NextResponse.json({ state: result.state }, { status: 200 });
+  const viewers = await getProfileViewerList(profile.id);
+  return NextResponse.json({ viewers }, { status: 200 });
 }

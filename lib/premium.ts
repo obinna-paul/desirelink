@@ -5,8 +5,20 @@ import { paymentProvider } from "@/lib/payments";
 
 /** Fixed at $5/month regardless of the subscriber's country or card currency. */
 export const PREMIUM_SUBSCRIPTION_PRICE_CENTS = 500;
+export const FREE_DAILY_MESSAGE_LIMIT = 10;
+export const FREE_DAILY_PROVIDER_POST_LIMIT = 5;
+export const FREE_PUBLIC_ROOM_LIMIT = 3;
+
+export const PROVIDER_POST_VIEW_METRIC_PREFIX = "provider_post_view:";
+export const PROFILE_VISITOR_METRIC_TYPE = "visitor_profile_view";
 
 const PREMIUM_LENGTH_MONTHS = 1;
+
+function startOfToday() {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
 
 export async function isPremiumUser(profileId: string): Promise<boolean> {
   const premium = await prisma.premiumSubscription.findUnique({
@@ -14,6 +26,249 @@ export async function isPremiumUser(profileId: string): Promise<boolean> {
     select: { status: true, currentPeriodEnd: true },
   });
   return Boolean(premium && premium.status === "active" && premium.currentPeriodEnd > new Date());
+}
+
+export type PremiumEntitlement = {
+  isPremium: boolean;
+  adFree: boolean;
+  benefits: string[];
+};
+
+export const PREMIUM_REWARDS_BENEFIT =
+  "Your subscription supports Creators, Pairs, and Service Providers — 70% goes to them";
+
+export async function getPremiumEntitlement(profileId: string): Promise<PremiumEntitlement> {
+  const isPremium = await isPremiumUser(profileId);
+  return {
+    isPremium,
+    adFree: isPremium,
+    benefits: [
+      "Unlimited messages",
+      "Unlimited free provider content",
+      "Unlimited public rooms",
+      "Priority event RSVPs",
+      "Incognito mode",
+      "Advanced search filters",
+      "See who viewed your profile",
+      "Ad-free experience",
+      PREMIUM_REWARDS_BENEFIT,
+    ],
+  };
+}
+
+export type PremiumLimitFeature =
+  | "messaging"
+  | "provider_content"
+  | "public_rooms"
+  | "incognito"
+  | "advanced_search"
+  | "profile_viewers";
+
+export type PremiumLimitPayload = {
+  error: string;
+  code: "PREMIUM_REQUIRED";
+  feature: PremiumLimitFeature;
+  limit?: number;
+  used?: number;
+  remaining?: number;
+};
+
+export function premiumLimitPayload(
+  feature: PremiumLimitFeature,
+  error: string,
+  usage?: { limit: number; used: number }
+): PremiumLimitPayload {
+  return {
+    error,
+    code: "PREMIUM_REQUIRED",
+    feature,
+    ...(usage
+      ? {
+          limit: usage.limit,
+          used: usage.used,
+          remaining: Math.max(0, usage.limit - usage.used),
+        }
+      : {}),
+  };
+}
+
+export async function getDailyMessageUsage(profileId: string) {
+  const since = startOfToday();
+  const [directMessages, groupMessages] = await Promise.all([
+    prisma.message.count({ where: { senderId: profileId, createdAt: { gte: since } } }),
+    prisma.groupMessage.count({ where: { senderId: profileId, createdAt: { gte: since } } }),
+  ]);
+  const used = directMessages + groupMessages;
+  return {
+    used,
+    limit: FREE_DAILY_MESSAGE_LIMIT,
+    remaining: Math.max(0, FREE_DAILY_MESSAGE_LIMIT - used),
+  };
+}
+
+export async function canSendMessageWithPremium(profileId: string) {
+  if (await isPremiumUser(profileId)) {
+    return { ok: true as const, isPremium: true as const };
+  }
+
+  const usage = await getDailyMessageUsage(profileId);
+  if (usage.used >= usage.limit) {
+    return {
+      ok: false as const,
+      status: 402,
+      payload: premiumLimitPayload(
+        "messaging",
+        "Free accounts can send 10 messages per day. Upgrade to udala premium for unlimited messaging.",
+        usage
+      ),
+    };
+  }
+
+  return { ok: true as const, isPremium: false as const, usage };
+}
+
+export async function getPublicRoomUsage(profileId: string) {
+  const used = await prisma.roomMember.count({
+    where: {
+      userId: profileId,
+      status: "approved",
+      room: { isPrivate: false },
+    },
+  });
+
+  return {
+    used,
+    limit: FREE_PUBLIC_ROOM_LIMIT,
+    remaining: Math.max(0, FREE_PUBLIC_ROOM_LIMIT - used),
+  };
+}
+
+export async function canJoinPublicRoomWithPremium(profileId: string) {
+  if (await isPremiumUser(profileId)) {
+    return { ok: true as const, isPremium: true as const };
+  }
+
+  const usage = await getPublicRoomUsage(profileId);
+  if (usage.used >= usage.limit) {
+    return {
+      ok: false as const,
+      status: 402,
+      payload: premiumLimitPayload(
+        "public_rooms",
+        "Free accounts can join up to 3 public rooms. Upgrade to udala premium to join any public room.",
+        usage
+      ),
+    };
+  }
+
+  return { ok: true as const, isPremium: false as const, usage };
+}
+
+export async function getDailyProviderPostUsage(profileId: string) {
+  const metrics = await prisma.engagementMetric.findMany({
+    where: {
+      userId: profileId,
+      metricType: { startsWith: PROVIDER_POST_VIEW_METRIC_PREFIX },
+      createdAt: { gte: startOfToday() },
+    },
+    select: { metricType: true },
+  });
+
+  const viewedPostIds = new Set(
+    metrics
+      .map((metric) => metric.metricType.slice(PROVIDER_POST_VIEW_METRIC_PREFIX.length))
+      .filter(Boolean)
+  );
+
+  return {
+    viewedPostIds,
+    used: viewedPostIds.size,
+    limit: FREE_DAILY_PROVIDER_POST_LIMIT,
+    remaining: Math.max(0, FREE_DAILY_PROVIDER_POST_LIMIT - viewedPostIds.size),
+  };
+}
+
+export async function recordProviderPostView(providerId: string, viewerProfileId: string, postId: string) {
+  if (providerId === viewerProfileId) return;
+
+  const metricType = `${PROVIDER_POST_VIEW_METRIC_PREFIX}${postId}`;
+  const existing = await prisma.engagementMetric.findFirst({
+    where: {
+      providerId,
+      userId: viewerProfileId,
+      metricType,
+      createdAt: { gte: startOfToday() },
+    },
+    select: { id: true },
+  });
+
+  if (!existing) {
+    await prisma.engagementMetric.create({
+      data: { providerId, userId: viewerProfileId, metricType, value: 1 },
+    });
+  }
+}
+
+export async function recordProfileVisit(
+  profileId: string,
+  viewer: { id: string; isIncognito: boolean } | null
+) {
+  await prisma.profile.update({
+    where: { id: profileId },
+    data: { profileViews: { increment: 1 } },
+  });
+
+  if (!viewer || viewer.id === profileId) return;
+
+  const hideViewer = viewer.isIncognito && (await isPremiumUser(viewer.id));
+  await prisma.engagementMetric.create({
+    data: {
+      providerId: profileId,
+      userId: hideViewer ? null : viewer.id,
+      metricType: PROFILE_VISITOR_METRIC_TYPE,
+      value: 1,
+    },
+  });
+}
+
+export async function getProfileViewerList(profileId: string) {
+  const visits = await prisma.engagementMetric.findMany({
+    where: {
+      providerId: profileId,
+      metricType: PROFILE_VISITOR_METRIC_TYPE,
+      userId: { not: null },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+          city: true,
+          country: true,
+          profileType: true,
+          isVerified: true,
+          isTrustedMember: true,
+        },
+      },
+    },
+  });
+
+  const seen = new Set<string>();
+  return visits
+    .filter((visit) => {
+      if (!visit.user || seen.has(visit.user.id)) return false;
+      seen.add(visit.user.id);
+      return true;
+    })
+    .map((visit) => ({
+      id: visit.id,
+      viewedAt: visit.createdAt.toISOString(),
+      viewer: visit.user!,
+    }));
 }
 
 /** Count of premium subscriptions active at any point during [start, end). */

@@ -1,4 +1,13 @@
+import type { ProfileType } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
+import {
+  FREE_DAILY_PROVIDER_POST_LIMIT,
+  getDailyProviderPostUsage,
+  isPremiumUser,
+  recordProviderPostView,
+} from "@/lib/premium";
+import { isProviderProfileType } from "@/lib/provider-types";
 
 export const MAX_POST_IMAGES = 4;
 const FEED_LIMIT = 30;
@@ -9,6 +18,7 @@ const postAuthorSelect = {
   username: true,
   displayName: true,
   avatarUrl: true,
+  profileType: true,
 } as const;
 
 type RawPost = {
@@ -17,8 +27,10 @@ type RawPost = {
   mediaUrls: unknown;
   isSubscriberOnly: boolean;
   createdAt: Date;
-  author: { id: string; username: string; displayName: string; avatarUrl: string };
+  author: { id: string; username: string; displayName: string; avatarUrl: string; profileType: ProfileType };
 };
+
+type PostLockReason = "subscriber_only" | "premium_provider_limit";
 
 export type PostView = {
   id: string;
@@ -26,26 +38,106 @@ export type PostView = {
   mediaUrls: string[];
   isSubscriberOnly: boolean;
   locked: boolean;
+  lockReason: PostLockReason | null;
   createdAt: string;
-  author: { id: string; username: string; displayName: string; avatarUrl: string };
+  author: { id: string; username: string; displayName: string; avatarUrl: string; profileType: ProfileType };
 };
 
 function toMediaUrls(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
-function toPostView(post: RawPost, hasSubscriberAccess: boolean): PostView {
-  const locked = post.isSubscriberOnly && !hasSubscriberAccess;
+function toPostView(
+  post: RawPost,
+  hasSubscriberAccess: boolean,
+  premiumProviderLocked = false
+): PostView {
+  const lockReason = post.isSubscriberOnly && !hasSubscriberAccess
+    ? "subscriber_only"
+    : premiumProviderLocked
+      ? "premium_provider_limit"
+      : null;
+  const locked = lockReason !== null;
 
   return {
     id: post.id,
     isSubscriberOnly: post.isSubscriberOnly,
     createdAt: post.createdAt.toISOString(),
     locked,
+    lockReason,
     content: locked ? null : post.content,
     mediaUrls: locked ? [] : toMediaUrls(post.mediaUrls),
     author: post.author,
   };
+}
+
+type ProviderContentContext =
+  | { viewerProfileId: string | null; isPremium: true }
+  | {
+      viewerProfileId: string | null;
+      isPremium: false;
+      viewedPostIds: Set<string>;
+      limit: number;
+    };
+
+async function getProviderContentContext(viewerProfileId: string | null): Promise<ProviderContentContext> {
+  if (!viewerProfileId) {
+    return {
+      viewerProfileId,
+      isPremium: false,
+      viewedPostIds: new Set<string>(),
+      limit: FREE_DAILY_PROVIDER_POST_LIMIT,
+    };
+  }
+
+  if (await isPremiumUser(viewerProfileId)) {
+    return { viewerProfileId, isPremium: true };
+  }
+
+  const usage = await getDailyProviderPostUsage(viewerProfileId);
+  return {
+    viewerProfileId,
+    isPremium: false,
+    viewedPostIds: usage.viewedPostIds,
+    limit: usage.limit,
+  };
+}
+
+async function applyProviderContentLimits(
+  posts: RawPost[],
+  viewerProfileId: string | null,
+  hasSubscriberAccess: (post: RawPost) => boolean
+): Promise<PostView[]> {
+  const context = await getProviderContentContext(viewerProfileId);
+  const recordTasks: Promise<void>[] = [];
+  let anonymousFreeViews = 0;
+
+  const views = posts.map((post) => {
+    let premiumProviderLocked = false;
+    const isOwnPost = post.author.id === viewerProfileId;
+    const isFreeProviderPost =
+      !post.isSubscriberOnly && !isOwnPost && isProviderProfileType(post.author.profileType);
+
+    if (isFreeProviderPost && !context.isPremium) {
+      const alreadyViewed = context.viewedPostIds.has(post.id);
+      if (!alreadyViewed && context.viewedPostIds.size >= context.limit) {
+        premiumProviderLocked = true;
+      } else if (!alreadyViewed) {
+        context.viewedPostIds.add(post.id);
+        if (context.viewerProfileId) {
+          recordTasks.push(recordProviderPostView(post.author.id, context.viewerProfileId, post.id));
+        } else {
+          anonymousFreeViews += 1;
+          if (anonymousFreeViews > context.limit) premiumProviderLocked = true;
+        }
+      }
+    }
+
+    return toPostView(post, hasSubscriberAccess(post), premiumProviderLocked);
+  });
+
+  await Promise.allSettled(recordTasks);
+  return views;
 }
 
 export async function isActiveSubscriber(subscriberId: string, creatorId: string): Promise<boolean> {
@@ -78,7 +170,7 @@ export async function getCreatorProfilePosts(
     },
   });
 
-  return posts.map((post) => toPostView(post, hasSubscriberAccess));
+  return applyProviderContentLimits(posts, viewerProfileId, () => hasSubscriberAccess);
 }
 
 export async function getFeedPosts(viewerProfileId: string | null): Promise<PostView[]> {
@@ -110,7 +202,9 @@ export async function getFeedPosts(viewerProfileId: string | null): Promise<Post
     },
   });
 
-  return posts.map((post) =>
-    toPostView(post, post.author.id === viewerProfileId || subscribedCreatorIds.has(post.author.id))
+  return applyProviderContentLimits(
+    posts,
+    viewerProfileId,
+    (post) => post.author.id === viewerProfileId || subscribedCreatorIds.has(post.author.id)
   );
 }

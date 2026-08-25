@@ -8,10 +8,12 @@ import { ProfileGrid } from "@/components/home/profile-grid";
 import { DiscoverFiltersPanel } from "@/components/discover/discover-filters";
 import {
   DEFAULT_RADIUS_KM,
+  hasAdvancedDiscoverFilters,
   parseDiscoverFilters,
   searchDiscoverProfiles,
   type DiscoverSearchParams,
 } from "@/lib/discover";
+import { isPremiumUser } from "@/lib/premium";
 
 export default async function DiscoverPage({
   searchParams,
@@ -29,26 +31,32 @@ export default async function DiscoverPage({
   });
 
   const filters = parseDiscoverFilters(searchParams);
-  const { profiles, note } = await searchDiscoverProfiles(filters, viewerProfile);
+  const viewerIsPremium = viewerProfile ? await isPremiumUser(viewerProfile.id) : false;
+  const { profiles, note } = await searchDiscoverProfiles(filters, viewerProfile, viewerIsPremium);
 
   const activeFilterCount =
     filters.genders.length +
     filters.orientations.length +
-    filters.accountTypes.length +
-    filters.desireCategories.length +
-    (filters.desireLevel ? 1 : 0) +
     (filters.radiusKm !== DEFAULT_RADIUS_KM ? 1 : 0) +
     (filters.availability !== "any" ? 1 : 0) +
-    (filters.sort !== "newest" ? 1 : 0);
+    (filters.sort !== "newest" ? 1 : 0) +
+    (viewerIsPremium && hasAdvancedDiscoverFilters(filters)
+      ? filters.accountTypes.length +
+        filters.desireCategories.length +
+        (filters.desireLevel ? 1 : 0) +
+        filters.bodyTypes.length +
+        (filters.lastActive !== "any" ? 1 : 0) +
+        (filters.verification !== "any" ? 1 : 0)
+      : 0);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Discover"
-        description="Search everyone on udala with advanced filters."
+        description="Search udala with basic filters, or unlock premium filters for finer matches."
       />
 
-      <DiscoverFiltersPanel initialFilters={filters} />
+      <DiscoverFiltersPanel initialFilters={filters} isPremium={viewerIsPremium} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">

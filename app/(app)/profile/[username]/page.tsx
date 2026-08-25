@@ -12,7 +12,8 @@ import { getProfileVisibility, getVisibleDesires } from "@/lib/circles";
 import { getReviewableContexts, getReviewsForProfile, getReviewSummary } from "@/lib/reviews";
 import { confirmProviderPayment, isProviderProfileType } from "@/lib/providers";
 import { getProviderServiceListings } from "@/lib/service-listings";
-import { trackContentView, trackProfileView, trackServiceView } from "@/lib/rewards/tracking";
+import { trackContentView, trackProfileView as trackPremiumProfileView, trackServiceView } from "@/lib/rewards/tracking";
+import { isPremiumUser, recordProfileVisit } from "@/lib/premium";
 
 export default async function PublicProfilePage({
   params,
@@ -38,7 +39,10 @@ export default async function PublicProfilePage({
 
   const viewerProfile =
     !isOwner && session?.user?.id
-      ? await prisma.profile.findUnique({ where: { userId: session.user.id }, select: { id: true } })
+      ? await prisma.profile.findUnique({
+          where: { userId: session.user.id },
+          select: { id: true, isIncognito: true },
+        })
       : null;
 
   const blockRelationship = viewerProfile
@@ -50,10 +54,7 @@ export default async function PublicProfilePage({
   }
 
   if (!isOwner) {
-    await prisma.profile.update({
-      where: { id: profile.id },
-      data: { profileViews: { increment: 1 } },
-    });
+    await recordProfileVisit(profile.id, viewerProfile);
   }
 
   if (searchParams.reference && viewerProfile) {
@@ -72,7 +73,7 @@ export default async function PublicProfilePage({
     profile.profileType === "SERVICE_PROVIDER" ? await getProviderServiceListings(profile.id) : [];
 
   if (viewerProfile && isProvider) {
-    await trackProfileView(profile.id, viewerProfile.id);
+    await trackPremiumProfileView(profile.id, viewerProfile.id);
     if (profile.profileType === "CREATOR" && posts.length > 0) {
       await trackContentView(profile.id, viewerProfile.id);
     }
@@ -86,6 +87,7 @@ export default async function PublicProfilePage({
     getReviewsForProfile(profile.id),
     viewerProfile ? getReviewableContexts(viewerProfile.id, profile.id) : Promise.resolve([]),
   ]);
+  const profileIsPremium = await isPremiumUser(profile.id);
 
   return (
     <div className="flex flex-col gap-6">
@@ -97,6 +99,7 @@ export default async function PublicProfilePage({
         tiers={tiers}
         serviceListings={serviceListings}
         isOwner={isOwner}
+        isPremium={profileIsPremium}
         canMessage={!isOwner && Boolean(viewerProfile)}
         canModerate={!isOwner && Boolean(viewerProfile)}
         reviewSummary={reviewSummary}

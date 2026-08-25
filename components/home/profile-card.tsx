@@ -3,6 +3,7 @@ import { Award, BadgeCheck, Briefcase, CalendarCheck, Heart, ShieldCheck, Sparkl
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { PremiumBadge } from "@/components/premium/premium-badge";
 import type { ProfileCardData } from "@/lib/home-feed";
 import { AVAILABILITY_STATUS_LABELS } from "@/lib/availability-options";
 
@@ -18,6 +19,8 @@ export function ProfileCard({
   const visibleDesires = profile.desires.slice(0, 3);
   const extraDesireCount = profile.desires.length - visibleDesires.length;
   const activeStatus = profile.availabilityStatuses[0];
+  const premium = profile.premiumSubscription;
+  const isPremium = Boolean(premium && premium.status === "active" && premium.currentPeriodEnd > new Date());
 
   return (
     <Link
@@ -40,6 +43,7 @@ export function ProfileCard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
             <p className="truncate text-sm font-semibold">{profile.displayName}</p>
+            {isPremium && <PremiumBadge className="px-1.5 py-0.5 text-[10px]" />}
             {profile.profileType === "CREATOR" && (
               <Sparkles
                 role="img"

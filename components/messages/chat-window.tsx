@@ -243,11 +243,11 @@ export function ChatWindow({
             {error}
           </p>
         )}
-        {premiumUpsell && (
+        {(premiumUpsell || (messageLimit && !messageLimit.allowed)) && (
           <PremiumUpsell
             compact
             title="Message limit reached"
-            description={premiumUpsell}
+            description={premiumUpsell ?? "Upgrade to Udala Premium for unlimited messaging."}
             className="mb-3"
           />
         )}

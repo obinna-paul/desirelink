@@ -315,11 +315,11 @@ export function GroupChat({
               {error}
             </p>
           )}
-          {premiumUpsell && (
+          {(premiumUpsell || (messageLimit && !messageLimit.allowed)) && (
             <PremiumUpsell
               compact
               title="Message limit reached"
-              description={premiumUpsell}
+              description={premiumUpsell ?? "Upgrade to Udala Premium for unlimited messaging."}
             />
           )}
           {messageLimit && (
