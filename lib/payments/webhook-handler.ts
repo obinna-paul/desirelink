@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { MAX_PAYMENT_RETRY_ATTEMPTS } from "./stripe-provider";
-import type { WebhookEvent } from "./types";
+import type { WebhookEvent, WebhookPaymentMethod } from "./types";
+
+function activeProviderName(): string {
+  if (process.env.USE_MOCK_PAYMENTS === "true") return "mock";
+  return process.env.PAYMENT_PROVIDER === "stripe" ? "stripe" : "paystack";
+}
 
 /**
  * Placeholder for the payment-failed notification. This app doesn't have a
@@ -11,91 +15,108 @@ async function notifyPaymentFailed(userId: string): Promise<void> {
   console.warn(`[payments] Payment failed for profile ${userId} — email notification not yet wired up.`);
 }
 
+/** Creates or refreshes the saved-card record for a profile from whatever the provider just returned. New cards become the default automatically. */
+export async function upsertPaymentMethod(profileId: string, method: WebhookPaymentMethod): Promise<void> {
+  const existing = await prisma.paymentMethod.findFirst({ where: { userId: profileId, externalId: method.id } });
+
+  if (existing) {
+    await prisma.paymentMethod.update({
+      where: { id: existing.id },
+      data: { last4: method.last4, brand: method.brand, expMonth: method.expMonth, expYear: method.expYear, country: method.country },
+    });
+    return;
+  }
+
+  const existingCardCount = await prisma.paymentMethod.count({ where: { userId: profileId } });
+  await prisma.paymentMethod.create({
+    data: {
+      userId: profileId,
+      externalId: method.id,
+      last4: method.last4,
+      brand: method.brand,
+      expMonth: method.expMonth,
+      expYear: method.expYear,
+      country: method.country,
+      isDefault: existingCardCount === 0,
+    },
+  });
+}
+
+async function recordTransaction(
+  profileId: string,
+  event: WebhookEvent,
+  extra: { status: "succeeded" | "failed"; providerSubscriptionId?: string; isPremium?: boolean }
+): Promise<void> {
+  await prisma.transaction.create({
+    data: {
+      userId: profileId,
+      amountCents: event.amountCents ?? 0,
+      status: extra.status,
+      provider: activeProviderName(),
+      providerSubscriptionId: extra.providerSubscriptionId,
+      isPremium: extra.isPremium ?? false,
+    },
+  });
+}
+
+async function handleProviderTierEvent(event: WebhookEvent): Promise<void> {
+  const pendingId = event.metadata.pendingId;
+  if (!pendingId) return;
+
+  const pending = await prisma.providerSubscription.findUnique({ where: { id: pendingId } });
+  if (!pending || pending.status !== "pending") return;
+
+  if (event.type === "charge.succeeded") {
+    await prisma.providerSubscription.update({
+      where: { id: pendingId },
+      data: { status: "active", paymentSubscriptionId: event.reference, pastDueSince: null, paymentRetryCount: 0 },
+    });
+    if (event.paymentMethod) await upsertPaymentMethod(pending.subscriberId, event.paymentMethod);
+    await recordTransaction(pending.subscriberId, event, { status: "succeeded", providerSubscriptionId: pendingId });
+  } else {
+    await prisma.providerSubscription.update({ where: { id: pendingId }, data: { status: "failed" } });
+    await recordTransaction(pending.subscriberId, event, { status: "failed", providerSubscriptionId: pendingId });
+    await notifyPaymentFailed(pending.subscriberId);
+  }
+}
+
+async function handlePremiumEvent(event: WebhookEvent): Promise<void> {
+  const pendingId = event.metadata.pendingId;
+  if (!pendingId) return;
+
+  const pending = await prisma.premiumSubscription.findUnique({ where: { id: pendingId } });
+  if (!pending || pending.status !== "pending") return;
+
+  if (event.type === "charge.succeeded") {
+    await prisma.premiumSubscription.update({
+      where: { id: pendingId },
+      data: { status: "active", paymentSubscriptionId: event.reference, pastDueSince: null, paymentRetryCount: 0 },
+    });
+    if (event.paymentMethod) await upsertPaymentMethod(pending.userId, event.paymentMethod);
+    await recordTransaction(pending.userId, event, { status: "succeeded", isPremium: true });
+  } else {
+    await prisma.premiumSubscription.update({ where: { id: pendingId }, data: { status: "failed" } });
+    await recordTransaction(pending.userId, event, { status: "failed", isPremium: true });
+    await notifyPaymentFailed(pending.userId);
+  }
+}
+
 /**
- * Applies a webhook event to our own subscription records. Both
- * PremiumSubscription (the platform "Udala Premium" plan) and
- * ProviderSubscription (a per-provider tier subscription) can share the same
- * underlying Stripe customer/subscription IDs, so we look up and update
- * whichever one the event actually belongs to.
+ * Processes a normalized payment event from either the async webhook route
+ * or a synchronous post-redirect verifyTransaction() call (see
+ * lib/billing.ts's confirmPendingPayment) — both produce the same
+ * WebhookEvent shape, so this one function handles either path. `metadata`
+ * carries which pending row this event confirms or fails: {kind, pendingId}.
  */
-export async function processWebhookEvent(event: WebhookEvent): Promise<void> {
-  switch (event.type) {
-    case "checkout.session.completed":
-    case "invoice.payment_succeeded": {
-      await Promise.all([markPremiumActive(event), markProviderSubscriptionActive(event)]);
-      return;
-    }
+export async function processPaymentEvent(event: WebhookEvent): Promise<void> {
+  if (event.type === "unknown") return;
 
-    case "invoice.payment_failed": {
-      await handlePaymentFailed(event);
-      return;
-    }
-
-    case "customer.subscription.deleted": {
-      await Promise.all([markPremiumCancelled(event), markProviderSubscriptionCancelled(event)]);
-      return;
-    }
-
-    case "customer.subscription.updated":
-    case "unknown":
+  switch (event.metadata.kind) {
+    case "provider_tier":
+      return handleProviderTierEvent(event);
+    case "premium":
+      return handlePremiumEvent(event);
     default:
       return;
-  }
-}
-
-async function markPremiumActive(event: WebhookEvent): Promise<void> {
-  if (!event.customerId) return;
-  await prisma.premiumSubscription.updateMany({
-    where: { stripeCustomerId: event.customerId },
-    data: { status: "active" },
-  });
-}
-
-async function markPremiumCancelled(event: WebhookEvent): Promise<void> {
-  if (!event.customerId) return;
-  await prisma.premiumSubscription.updateMany({
-    where: { stripeCustomerId: event.customerId },
-    data: { status: "cancelled", cancelAtPeriodEnd: false },
-  });
-}
-
-async function markProviderSubscriptionActive(event: WebhookEvent): Promise<void> {
-  if (!event.subscriptionId) return;
-  await prisma.providerSubscription.updateMany({
-    where: { stripeSubscriptionId: event.subscriptionId },
-    data: { status: "active" },
-  });
-}
-
-async function markProviderSubscriptionCancelled(event: WebhookEvent): Promise<void> {
-  if (!event.subscriptionId) return;
-  await prisma.providerSubscription.updateMany({
-    where: { stripeSubscriptionId: event.subscriptionId },
-    data: { status: "cancelled" },
-  });
-}
-
-async function handlePaymentFailed(event: WebhookEvent): Promise<void> {
-  if (!event.customerId) return;
-
-  const subscription = await prisma.premiumSubscription.findFirst({
-    where: { stripeCustomerId: event.customerId },
-  });
-
-  const retriesExhausted =
-    event.attemptCount !== null && event.attemptCount >= MAX_PAYMENT_RETRY_ATTEMPTS;
-
-  if (subscription) {
-    await prisma.premiumSubscription.update({
-      where: { id: subscription.id },
-      data: { status: retriesExhausted ? "expired" : "past_due" },
-    });
-    await notifyPaymentFailed(subscription.userId);
-  }
-
-  // ProviderSubscription only tracks active/cancelled/expired (no past_due),
-  // so it only moves once the dunning retries above are exhausted.
-  if (retriesExhausted) {
-    await markProviderSubscriptionCancelled(event);
   }
 }

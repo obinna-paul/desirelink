@@ -11,6 +11,12 @@ const SETTINGS_LINKS = [
     icon: UsersRound,
   },
   {
+    href: "/settings/billing",
+    label: "Billing",
+    description: "Payment methods, Premium status, provider subscriptions, and billing history.",
+    icon: CreditCard,
+  },
+  {
     href: "/settings/subscriptions",
     label: "Subscriptions",
     description: "Manage the creators you're subscribed to and cancel anytime.",

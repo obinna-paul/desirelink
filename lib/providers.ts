@@ -2,14 +2,15 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
+import { processPaymentEvent } from "@/lib/payments/webhook-handler";
 import { getProviderProfile } from "@/lib/provider-types";
 
 export { PROVIDER_PROFILE_TYPES, isProviderProfileType, getProviderProfile } from "@/lib/provider-types";
 
 const SUBSCRIPTION_LENGTH_MONTHS = 1;
 
-/** Reuses an existing Stripe customer for this profile, creating one on first use. */
-async function getOrCreateStripeCustomerId(profileId: string, existingCustomerId: string | null): Promise<string> {
+/** Reuses an existing payment-provider customer for this profile, creating one on first use. */
+async function getOrCreatePaymentCustomerId(profileId: string, existingCustomerId: string | null): Promise<string> {
   if (existingCustomerId) return existingCustomerId;
 
   const profile = await prisma.profile.findUniqueOrThrow({
@@ -18,7 +19,7 @@ async function getOrCreateStripeCustomerId(profileId: string, existingCustomerId
   });
 
   const customerId = await paymentProvider.createCustomer(profileId, profile.user.email);
-  await prisma.profile.update({ where: { id: profileId }, data: { stripeCustomerId: customerId } });
+  await prisma.profile.update({ where: { id: profileId }, data: { paymentCustomerId: customerId } });
   return customerId;
 }
 
@@ -30,18 +31,17 @@ export type ProviderSubscribeResult =
 
 /**
  * Subscribes `subscriberId` to one of `providerId`'s tiers. If the subscriber
- * already has a saved payment method, this bills them directly (Stripe
- * Billing) and the ProviderSubscription is active immediately. Otherwise it
- * starts a Stripe Checkout session to collect payment details first — the
- * pending ProviderSubscription row is created up front and confirmed by
- * confirmPendingProviderSubscription() once the customer lands back on
- * successUrl (see app/api/providers/[providerId]/subscribe/route.ts).
+ * already has a saved card, this charges it directly and the
+ * ProviderSubscription is active immediately. Otherwise it starts a hosted
+ * checkout to collect a card first — the pending ProviderSubscription row is
+ * created up front and confirmed by confirmProviderPayment() once the
+ * customer redirects back (see app/api/providers/[providerId]/subscribe/route.ts).
  */
 export async function subscribeToProvider(
   subscriberId: string,
   providerId: string,
   tierId: string,
-  urls: { successUrl: (pendingSubscriptionId: string) => string; cancelUrl: string }
+  urls: { successUrl: string; cancelUrl: string }
 ): Promise<ProviderSubscribeResult> {
   if (subscriberId === providerId) {
     return { ok: false, status: 400, error: "You can't subscribe to your own tier" };
@@ -103,27 +103,30 @@ export async function subscribeToProvider(
 
   const subscriber = await prisma.profile.findUniqueOrThrow({
     where: { id: subscriberId },
-    select: { stripeCustomerId: true },
+    select: { paymentCustomerId: true },
   });
-  const customerId = await getOrCreateStripeCustomerId(subscriberId, subscriber.stripeCustomerId);
-  const paymentMethods = await paymentProvider.listPaymentMethods(customerId);
+  const customerId = await getOrCreatePaymentCustomerId(subscriberId, subscriber.paymentCustomerId);
+  const defaultCard = await prisma.paymentMethod.findFirst({ where: { userId: subscriberId, isDefault: true } });
 
   const startsAt = new Date();
   const endsAt = new Date(startsAt);
   endsAt.setMonth(endsAt.getMonth() + SUBSCRIPTION_LENGTH_MONTHS);
 
-  if (paymentMethods.length > 0) {
-    const { subscriptionId } = await paymentProvider.createSubscription(customerId, tier.id);
+  if (defaultCard) {
+    const { reference, success } = await paymentProvider.chargeSavedPaymentMethod(
+      customerId,
+      defaultCard.externalId,
+      tier.priceCents,
+      { kind: "provider_tier", providerId, tierId }
+    );
+    if (!success) {
+      return { ok: false, status: 402, error: "Your saved card was declined. Try updating your payment method." };
+    }
     await prisma.providerSubscription.create({
-      data: {
-        subscriberId,
-        providerId,
-        tierId,
-        status: "active",
-        stripeSubscriptionId: subscriptionId,
-        startsAt,
-        endsAt,
-      },
+      data: { subscriberId, providerId, tierId, status: "active", paymentSubscriptionId: reference, startsAt, endsAt },
+    });
+    await prisma.transaction.create({
+      data: { userId: subscriberId, tierId, amountCents: tier.priceCents, status: "succeeded", provider: "card" },
     });
     return { ok: true, state: "subscribed" };
   }
@@ -134,30 +137,26 @@ export async function subscribeToProvider(
 
   const checkoutUrl = await paymentProvider.createCheckoutSession(
     customerId,
-    tier.id,
-    urls.successUrl(pending.id),
-    urls.cancelUrl
+    tier.priceCents,
+    urls.successUrl,
+    urls.cancelUrl,
+    { kind: "provider_tier", pendingId: pending.id }
   );
 
   return { ok: true, state: "checkout", checkoutUrl };
 }
 
 /**
- * Confirms a pending ProviderSubscription after the subscriber returns from
- * Stripe Checkout. In production this should ideally be corroborated by a
- * Stripe webhook rather than trusting the redirect alone; that requires
- * threading a client reference through PaymentProvider.createCheckoutSession,
- * which the current interface doesn't expose. Safe for the mock provider,
- * where there's no real payment to misattribute.
+ * Confirms a pending ProviderSubscription (or Premium subscription — see
+ * lib/premium.ts) after the subscriber returns from checkout, by verifying
+ * the transaction reference directly with the payment provider rather than
+ * trusting the redirect alone (Paystack's recommended pattern). Safe to call
+ * more than once — processPaymentEvent no-ops once the pending row is no
+ * longer "pending".
  */
-export async function confirmPendingProviderSubscription(
-  pendingSubscriptionId: string,
-  viewerProfileId: string
-): Promise<void> {
-  await prisma.providerSubscription.updateMany({
-    where: { id: pendingSubscriptionId, subscriberId: viewerProfileId, status: "pending" },
-    data: { status: "active" },
-  });
+export async function confirmProviderPayment(reference: string): Promise<void> {
+  const event = await paymentProvider.verifyTransaction(reference);
+  await processPaymentEvent(event);
 }
 
 export type ProviderUnsubscribeResult = { ok: true } | { ok: false; status: number; error: string };

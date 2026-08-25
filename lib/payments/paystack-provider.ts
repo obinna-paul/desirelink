@@ -1,0 +1,177 @@
+import { createHmac } from "crypto";
+
+import type { PaymentProvider, WebhookEvent, WebhookPaymentMethod } from "./types";
+
+const PAYSTACK_API_BASE = "https://api.paystack.co";
+
+type PaystackResponse<T> = { status: boolean; message: string; data: T };
+
+type PaystackAuthorization = {
+  authorization_code: string;
+  card_type: string;
+  last4: string;
+  exp_month: string;
+  exp_year: string;
+  country_code: string;
+  reusable: boolean;
+};
+
+type PaystackCustomer = { customer_code: string; email: string; authorizations?: PaystackAuthorization[] };
+
+type PaystackTransactionData = {
+  status: string;
+  reference: string;
+  amount: number;
+  customer: { customer_code: string; email: string };
+  authorization?: PaystackAuthorization;
+  metadata?: Record<string, string> | string;
+};
+
+function toWebhookPaymentMethod(authorization: PaystackAuthorization | undefined): WebhookPaymentMethod | null {
+  if (!authorization) return null;
+  return {
+    id: authorization.authorization_code,
+    brand: authorization.card_type,
+    last4: authorization.last4,
+    expMonth: Number(authorization.exp_month),
+    expYear: Number(authorization.exp_year),
+    country: authorization.country_code,
+  };
+}
+
+/** Paystack's transaction currency for this account — see .env.example. Paystack does not convert currencies the way Stripe does; the merchant account must itself support whatever currency is charged. */
+function currency(): string {
+  return process.env.PAYSTACK_CURRENCY ?? "USD";
+}
+
+export class PaystackProvider implements PaymentProvider {
+  private secretKey: string;
+
+  constructor(secretKey: string) {
+    this.secretKey = secretKey;
+  }
+
+  private async request<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+    const res = await fetch(`${PAYSTACK_API_BASE}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${this.secretKey}`,
+        "Content-Type": "application/json",
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    const json = (await res.json()) as PaystackResponse<T>;
+    if (!res.ok || !json.status) {
+      throw new Error(`Paystack API error: ${json.message ?? res.statusText}`);
+    }
+    return json.data;
+  }
+
+  async createCustomer(userId: string, email: string): Promise<string> {
+    const customer = await this.request<PaystackCustomer>("POST", "/customer", {
+      email,
+      metadata: { userId },
+    });
+    return customer.customer_code;
+  }
+
+  private async getCustomerEmail(customerId: string): Promise<string> {
+    const customer = await this.request<PaystackCustomer>("GET", `/customer/${customerId}`);
+    return customer.email;
+  }
+
+  async createCheckoutSession(
+    customerId: string,
+    amountCents: number,
+    successUrl: string,
+    cancelUrl: string,
+    metadata: Record<string, string> = {}
+  ): Promise<string> {
+    void cancelUrl; // Paystack's hosted checkout has no separate cancel URL — an abandoned checkout simply never returns.
+    const email = await this.getCustomerEmail(customerId);
+
+    const transaction = await this.request<{ authorization_url: string }>("POST", "/transaction/initialize", {
+      email,
+      amount: amountCents,
+      currency: currency(),
+      callback_url: successUrl,
+      metadata: { ...metadata, customerId },
+    });
+
+    return transaction.authorization_url;
+  }
+
+  async chargeSavedPaymentMethod(
+    customerId: string,
+    paymentMethodId: string,
+    amountCents: number,
+    metadata: Record<string, string> = {}
+  ): Promise<{ reference: string; success: boolean }> {
+    const email = await this.getCustomerEmail(customerId);
+
+    const transaction = await this.request<PaystackTransactionData>("POST", "/transaction/charge_authorization", {
+      authorization_code: paymentMethodId,
+      email,
+      amount: amountCents,
+      currency: currency(),
+      metadata: { ...metadata, customerId },
+    });
+
+    return { reference: transaction.reference, success: transaction.status === "success" };
+  }
+
+  async detachPaymentMethod(customerId: string, paymentMethodId: string): Promise<void> {
+    void customerId; // Paystack's deactivate endpoint is keyed on the authorization code alone.
+    await this.request("POST", "/customer/deactivate_authorization", { authorization_code: paymentMethodId });
+  }
+
+  async verifyTransaction(reference: string): Promise<WebhookEvent> {
+    const data = await this.request<PaystackTransactionData>("GET", `/transaction/verify/${reference}`);
+    const metadata =
+      data.metadata && typeof data.metadata === "object" ? (data.metadata as Record<string, string>) : {};
+
+    return {
+      type: data.status === "success" ? "charge.succeeded" : "charge.failed",
+      customerId: data.customer.customer_code,
+      paymentMethod: toWebhookPaymentMethod(data.authorization),
+      amountCents: data.amount,
+      reference: data.reference,
+      metadata,
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- interface-mandated; Paystack requires the raw request body here for signature verification.
+  async handleWebhook(payload: any, signature: string): Promise<WebhookEvent> {
+    const raw = Buffer.isBuffer(payload) ? payload : Buffer.from(String(payload), "utf8");
+    const expectedSignature = createHmac("sha512", this.secretKey).update(raw).digest("hex");
+    if (expectedSignature !== signature) {
+      throw new Error("Invalid Paystack webhook signature");
+    }
+
+    const body = JSON.parse(raw.toString("utf8")) as { event: string; data: PaystackTransactionData };
+    const data = body.data;
+    const metadata =
+      data.metadata && typeof data.metadata === "object" ? (data.metadata as Record<string, string>) : {};
+
+    if (body.event !== "charge.success") {
+      return {
+        type: "unknown",
+        customerId: data.customer?.customer_code ?? null,
+        paymentMethod: toWebhookPaymentMethod(data.authorization),
+        amountCents: data.amount ?? null,
+        reference: data.reference ?? null,
+        metadata,
+      };
+    }
+
+    return {
+      type: data.status === "success" ? "charge.succeeded" : "charge.failed",
+      customerId: data.customer.customer_code,
+      paymentMethod: toWebhookPaymentMethod(data.authorization),
+      amountCents: data.amount,
+      reference: data.reference,
+      metadata,
+    };
+  }
+}

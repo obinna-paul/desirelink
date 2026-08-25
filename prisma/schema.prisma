@@ -188,7 +188,7 @@ model Profile {
 
   profileType       ProfileType @default(EXPLORER)
   serviceCategories String[]    @default([])
-  stripeCustomerId  String?     @unique
+  paymentCustomerId String?     @unique
 
   partnerId String?
   partner   Profile?  @relation("ProfilePartner", fields: [partnerId], references: [id])
@@ -349,35 +349,41 @@ model Subscription {
 }
 
 model PremiumSubscription {
-  id                   String   @id @default(cuid())
-  userId               String   @unique
-  user                 Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  user                 Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
   status               String
-  stripeCustomerId     String?
-  stripeSubscriptionId String?
+  paymentCustomerId    String?
+  paymentSubscriptionId String?
   currentPeriodStart   DateTime
   currentPeriodEnd     DateTime
-  cancelAtPeriodEnd    Boolean  @default(false)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  cancelAtPeriodEnd    Boolean   @default(false)
+  pastDueSince         DateTime?
+  paymentRetryCount    Int       @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@index([status])
 }
 
 model ProviderSubscription {
-  id                   String      @id @default(cuid())
-  subscriberId         String
-  subscriber           Profile     @relation("ProviderSubscriptionSubscriber", fields: [subscriberId], references: [id], onDelete: Cascade)
-  providerId           String
-  provider             Profile     @relation("ProviderSubscriptionProvider", fields: [providerId], references: [id], onDelete: Cascade)
-  tierId               String
-  tier                 CreatorTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
-  status               String
-  stripeSubscriptionId String?
-  cancelAtPeriodEnd    Boolean     @default(false)
-  startsAt             DateTime
-  endsAt               DateTime
-  createdAt            DateTime    @default(now())
+  id                    String      @id @default(cuid())
+  subscriberId          String
+  subscriber            Profile     @relation("ProviderSubscriptionSubscriber", fields: [subscriberId], references: [id], onDelete: Cascade)
+  providerId            String
+  provider              Profile     @relation("ProviderSubscriptionProvider", fields: [providerId], references: [id], onDelete: Cascade)
+  tierId                String
+  tier                  CreatorTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+  status                String
+  paymentSubscriptionId String?
+  cancelAtPeriodEnd     Boolean     @default(false)
+  pastDueSince          DateTime?
+  paymentRetryCount     Int         @default(0)
+  startsAt              DateTime
+  endsAt                DateTime
+  createdAt             DateTime    @default(now())
+
+  transactions Transaction[]
 
   @@index([subscriberId])
   @@index([providerId])
@@ -431,15 +437,17 @@ model EngagementMetric {
 }
 
 model PaymentMethod {
-  id                    String   @id @default(cuid())
-  userId                String
-  user                  Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stripePaymentMethodId String
-  last4                 String
-  brand                 String
-  country               String
-  isDefault             Boolean  @default(true)
-  createdAt             DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  user       Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  externalId String
+  last4      String
+  brand      String
+  expMonth   Int
+  expYear    Int
+  country    String
+  isDefault  Boolean  @default(true)
+  createdAt  DateTime @default(now())
 
   @@index([userId])
 }
@@ -727,22 +735,26 @@ model AccessApplication {
 model Transaction {
   id             String        @id @default(cuid())
   userId         String
-  profile        Profile       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile        Profile               @relation(fields: [userId], references: [id], onDelete: Cascade)
   subscriptionId String?
-  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  subscription   Subscription?         @relation(fields: [subscriptionId], references: [id])
   tierId         String?
-  tier           CreatorTier?  @relation(fields: [tierId], references: [id], onDelete: SetNull)
+  tier           CreatorTier?          @relation(fields: [tierId], references: [id], onDelete: SetNull)
   eventId        String?
-  event          Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  event          Event?                @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  providerSubscriptionId String?
+  providerSubscription   ProviderSubscription? @relation(fields: [providerSubscriptionId], references: [id], onDelete: SetNull)
+  isPremium      Boolean               @default(false)
   amountCents    Int
   status         String
   provider       String
-  createdAt      DateTime      @default(now())
+  createdAt      DateTime              @default(now())
 
   @@index([userId])
   @@index([subscriptionId])
   @@index([tierId])
   @@index([eventId])
+  @@index([providerSubscriptionId])
 }
 
 model Review {

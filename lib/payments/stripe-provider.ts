@@ -1,29 +1,18 @@
 import Stripe from "stripe";
 
-import type { PaymentMethod, PaymentProvider, WebhookEvent, WebhookEventType } from "./types";
+import type { PaymentProvider, WebhookEvent, WebhookPaymentMethod } from "./types";
 
-const KNOWN_WEBHOOK_EVENT_TYPES: readonly WebhookEventType[] = [
-  "checkout.session.completed",
-  "invoice.payment_succeeded",
-  "invoice.payment_failed",
-  "customer.subscription.deleted",
-  "customer.subscription.updated",
-];
-
-function isKnownWebhookEventType(type: string): type is WebhookEventType {
-  return (KNOWN_WEBHOOK_EVENT_TYPES as readonly string[]).includes(type);
+function toWebhookPaymentMethod(method: Stripe.PaymentMethod | null | undefined): WebhookPaymentMethod | null {
+  if (!method?.card) return null;
+  return {
+    id: method.id,
+    brand: method.card.brand,
+    last4: method.card.last4,
+    expMonth: method.card.exp_month,
+    expYear: method.card.exp_year,
+    country: method.card.country ?? "",
+  };
 }
-
-/**
- * Dunning policy for failed recurring payments. Stripe's own Smart Retries
- * (Dashboard > Billing > Subscriptions and emails) must be configured to
- * match this schedule — the API has no per-subscription "retry N times over
- * M days" parameter. webhook-handler.ts uses these constants, together with
- * the `attemptCount` Stripe reports on each `invoice.payment_failed` event,
- * to decide when a subscription has exhausted its retries.
- */
-export const MAX_PAYMENT_RETRY_ATTEMPTS = 3;
-export const PAYMENT_RETRY_WINDOW_DAYS = 7;
 
 export class StripeProvider implements PaymentProvider {
   private stripe: Stripe;
@@ -40,18 +29,27 @@ export class StripeProvider implements PaymentProvider {
     return customer.id;
   }
 
+  /** Uses Stripe's inline `price_data` rather than a pre-created Price object, since our tiers/plans price dynamically (CreatorTier.priceCents, the $5 Premium price) rather than through fixed catalog prices. */
   async createCheckoutSession(
     customerId: string,
-    priceId: string,
+    amountCents: number,
     successUrl: string,
-    cancelUrl: string
+    cancelUrl: string,
+    metadata: Record<string, string> = {}
   ): Promise<string> {
     const session = await this.stripe.checkout.sessions.create({
       customer: customerId,
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
+      mode: "payment",
+      line_items: [
+        {
+          price_data: { currency: "usd", unit_amount: amountCents, product_data: { name: "Udala" } },
+          quantity: 1,
+        },
+      ],
+      payment_intent_data: { setup_future_usage: "off_session" },
       success_url: successUrl,
       cancel_url: cancelUrl,
+      metadata,
     });
 
     if (!session.url) {
@@ -61,58 +59,43 @@ export class StripeProvider implements PaymentProvider {
     return session.url;
   }
 
-  /**
-   * Creates a subscription for a customer with no active one, using Stripe
-   * Billing directly (no Checkout redirect — the customer must already have
-   * a default payment method attached). If the customer already has an
-   * active subscription, this instead swaps its price on the existing
-   * subscription with proration, which is how mid-cycle tier changes
-   * (upgrade/downgrade) are supported.
-   */
-  async createSubscription(customerId: string, priceId: string): Promise<{ subscriptionId: string }> {
-    const existing = await this.stripe.subscriptions.list({
+  async chargeSavedPaymentMethod(
+    customerId: string,
+    paymentMethodId: string,
+    amountCents: number,
+    metadata: Record<string, string> = {}
+  ): Promise<{ reference: string; success: boolean }> {
+    const intent = await this.stripe.paymentIntents.create({
       customer: customerId,
-      status: "active",
-      limit: 1,
+      payment_method: paymentMethodId,
+      amount: amountCents,
+      currency: "usd",
+      off_session: true,
+      confirm: true,
+      metadata,
     });
 
-    const currentSubscription = existing.data[0];
-    if (currentSubscription) {
-      const currentItem = currentSubscription.items.data[0];
-      const updated = await this.stripe.subscriptions.update(currentSubscription.id, {
-        items: currentItem ? [{ id: currentItem.id, price: priceId }] : [{ price: priceId }],
-        proration_behavior: "create_prorations",
-      });
-      return { subscriptionId: updated.id };
-    }
-
-    const subscription = await this.stripe.subscriptions.create({
-      customer: customerId,
-      items: [{ price: priceId }],
-      payment_behavior: "default_incomplete",
-      payment_settings: { save_default_payment_method: "on_subscription" },
-      proration_behavior: "create_prorations",
-      expand: ["latest_invoice.payment_intent"],
-    });
-
-    return { subscriptionId: subscription.id };
+    return { reference: intent.id, success: intent.status === "succeeded" };
   }
 
-  async cancelSubscription(subscriptionId: string): Promise<void> {
-    await this.stripe.subscriptions.cancel(subscriptionId);
+  async detachPaymentMethod(customerId: string, paymentMethodId: string): Promise<void> {
+    void customerId;
+    await this.stripe.paymentMethods.detach(paymentMethodId);
   }
 
-  /** Pays the subscription's latest open invoice now — a manual, on-demand retry (e.g. after the customer updates their card). */
-  async retryPayment(subscriptionId: string): Promise<void> {
-    const subscription = await this.stripe.subscriptions.retrieve(subscriptionId, {
-      expand: ["latest_invoice"],
-    });
+  async verifyTransaction(reference: string): Promise<WebhookEvent> {
+    const intent = await this.stripe.paymentIntents.retrieve(reference, { expand: ["payment_method"] });
+    const paymentMethod =
+      typeof intent.payment_method === "string" ? null : (intent.payment_method ?? null);
 
-    const invoice = subscription.latest_invoice;
-    const invoiceId = typeof invoice === "string" ? invoice : invoice?.id;
-    if (!invoiceId) return;
-
-    await this.stripe.invoices.pay(invoiceId);
+    return {
+      type: intent.status === "succeeded" ? "charge.succeeded" : "charge.failed",
+      customerId: typeof intent.customer === "string" ? intent.customer : (intent.customer?.id ?? null),
+      paymentMethod: toWebhookPaymentMethod(paymentMethod),
+      amountCents: intent.amount,
+      reference: intent.id,
+      metadata: intent.metadata as Record<string, string>,
+    };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- interface-mandated; Stripe requires the raw request body here, not a parsed type.
@@ -123,66 +106,24 @@ export class StripeProvider implements PaymentProvider {
     }
 
     const event = this.stripe.webhooks.constructEvent(payload, signature, webhookSecret);
-    const type = isKnownWebhookEventType(event.type) ? event.type : "unknown";
-    const data = event.data.object as StripeEventObject;
+
+    if (event.type !== "payment_intent.succeeded" && event.type !== "payment_intent.payment_failed") {
+      return { type: "unknown", customerId: null, paymentMethod: null, amountCents: null, reference: null, metadata: {} };
+    }
+
+    const intent = event.data.object as Stripe.PaymentIntent;
+    const paymentMethod =
+      typeof intent.payment_method === "string"
+        ? await this.stripe.paymentMethods.retrieve(intent.payment_method)
+        : intent.payment_method;
 
     return {
-      type,
-      subscriptionId: extractSubscriptionId(data),
-      customerId: extractCustomerId(data),
-      invoiceId: data.object === "invoice" ? (data.id ?? null) : null,
-      attemptCount: data.object === "invoice" ? (data.attempt_count ?? null) : null,
-      metadata: (data.metadata as Record<string, string> | null) ?? {},
+      type: event.type === "payment_intent.succeeded" ? "charge.succeeded" : "charge.failed",
+      customerId: typeof intent.customer === "string" ? intent.customer : (intent.customer?.id ?? null),
+      paymentMethod: toWebhookPaymentMethod(paymentMethod),
+      amountCents: intent.amount,
+      reference: intent.id,
+      metadata: intent.metadata as Record<string, string>,
     };
   }
-
-  async listPaymentMethods(customerId: string): Promise<PaymentMethod[]> {
-    const customer = await this.stripe.customers.retrieve(customerId);
-    const defaultPaymentMethodId =
-      !customer.deleted && typeof customer.invoice_settings?.default_payment_method === "string"
-        ? customer.invoice_settings.default_payment_method
-        : null;
-
-    const methods = await this.stripe.paymentMethods.list({ customer: customerId, type: "card" });
-
-    return methods.data.map((method) => ({
-      id: method.id,
-      brand: method.card?.brand ?? "unknown",
-      last4: method.card?.last4 ?? "0000",
-      country: method.card?.country ?? "",
-      isDefault: method.id === defaultPaymentMethodId,
-    }));
-  }
-
-  async attachPaymentMethod(customerId: string, paymentMethodId: string): Promise<void> {
-    await this.stripe.paymentMethods.attach(paymentMethodId, { customer: customerId });
-  }
-
-  async setDefaultPaymentMethod(customerId: string, paymentMethodId: string): Promise<void> {
-    await this.stripe.customers.update(customerId, {
-      invoice_settings: { default_payment_method: paymentMethodId },
-    });
-  }
-}
-
-type StripeEventObject = {
-  object?: string;
-  id?: string;
-  customer?: string | { id: string } | null;
-  subscription?: string | { id: string } | null;
-  attempt_count?: number;
-  metadata?: Record<string, string> | null;
-};
-
-function extractSubscriptionId(data: StripeEventObject): string | null {
-  if (typeof data.subscription === "string") return data.subscription;
-  if (data.subscription?.id) return data.subscription.id;
-  if (data.object === "subscription" && typeof data.id === "string") return data.id;
-  return null;
-}
-
-function extractCustomerId(data: StripeEventObject): string | null {
-  if (typeof data.customer === "string") return data.customer;
-  if (data.customer?.id) return data.customer.id;
-  return null;
 }

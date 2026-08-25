@@ -1,4 +1,4 @@
-import type { PaymentMethod, PaymentProvider, WebhookEvent, WebhookEventType } from "./types";
+import type { PaymentProvider, WebhookEvent, WebhookPaymentMethod } from "./types";
 
 const SIMULATED_DELAY_MS = 1000;
 
@@ -10,17 +10,27 @@ function fakeId(prefix: string): string {
   return `${prefix}_mock_${Math.random().toString(36).slice(2, 12)}`;
 }
 
-type MockSubscription = { customerId: string; priceId: string; status: "active" | "cancelled" };
+const FAKE_CARD: Omit<WebhookPaymentMethod, "id"> = {
+  brand: "visa",
+  last4: "4242",
+  expMonth: 12,
+  expYear: 2099,
+  country: "US",
+};
+
+type MockTransaction = { customerId: string; amountCents: number; metadata: Record<string, string> };
 
 /**
  * In-memory provider for local development and tests. Every call resolves
  * successfully after a 1s delay to mimic real network latency, and every ID
- * is fake — nothing here talks to a real payment network.
+ * is fake — nothing here talks to a real payment network. A "saved card" is
+ * just an id created the first time createCheckoutSession or
+ * chargeSavedPaymentMethod is called for a customer that doesn't have one yet.
  */
 export class MockPaymentProvider implements PaymentProvider {
   private customers = new Map<string, { userId: string; email: string }>();
-  private subscriptions = new Map<string, MockSubscription>();
-  private paymentMethods = new Map<string, PaymentMethod[]>();
+  private cardsByCustomer = new Map<string, string>();
+  private transactions = new Map<string, MockTransaction>();
 
   async createCustomer(userId: string, email: string): Promise<string> {
     await delay(SIMULATED_DELAY_MS);
@@ -31,76 +41,70 @@ export class MockPaymentProvider implements PaymentProvider {
 
   async createCheckoutSession(
     customerId: string,
-    priceId: string,
+    amountCents: number,
     successUrl: string,
-    cancelUrl: string
+    cancelUrl: string,
+    metadata: Record<string, string> = {}
   ): Promise<string> {
     await delay(SIMULATED_DELAY_MS);
     void cancelUrl;
-    const { subscriptionId } = await this.createSubscription(customerId, priceId);
+    const reference = fakeId("txn");
+    this.transactions.set(reference, { customerId, amountCents, metadata });
     const separator = successUrl.includes("?") ? "&" : "?";
-    return `${successUrl}${separator}mock_subscription_id=${subscriptionId}`;
+    return `${successUrl}${separator}mock_reference=${reference}`;
   }
 
-  async createSubscription(customerId: string, priceId: string): Promise<{ subscriptionId: string }> {
+  async chargeSavedPaymentMethod(
+    customerId: string,
+    paymentMethodId: string,
+    amountCents: number,
+    metadata: Record<string, string> = {}
+  ): Promise<{ reference: string; success: boolean }> {
     await delay(SIMULATED_DELAY_MS);
-    const subscriptionId = fakeId("sub");
-    this.subscriptions.set(subscriptionId, { customerId, priceId, status: "active" });
-    return { subscriptionId };
+    const reference = fakeId("txn");
+    this.transactions.set(reference, { customerId, amountCents, metadata });
+    // Lets tests exercise the failed-payment/retry path without a real declined card.
+    return { reference, success: paymentMethodId !== "mock_fail" };
   }
 
-  async cancelSubscription(subscriptionId: string): Promise<void> {
+  async detachPaymentMethod(customerId: string, paymentMethodId: string): Promise<void> {
     await delay(SIMULATED_DELAY_MS);
-    const subscription = this.subscriptions.get(subscriptionId);
-    if (subscription) subscription.status = "cancelled";
+    void paymentMethodId;
+    this.cardsByCustomer.delete(customerId);
   }
 
-  async retryPayment(subscriptionId: string): Promise<void> {
+  async verifyTransaction(reference: string): Promise<WebhookEvent> {
     await delay(SIMULATED_DELAY_MS);
-    const subscription = this.subscriptions.get(subscriptionId);
-    if (subscription) subscription.status = "active";
+    const transaction = this.transactions.get(reference);
+    if (!transaction) {
+      return { type: "unknown", customerId: null, paymentMethod: null, amountCents: null, reference, metadata: {} };
+    }
+    return {
+      type: "charge.succeeded",
+      customerId: transaction.customerId,
+      paymentMethod: { id: this.mockCardId(transaction.customerId), ...FAKE_CARD },
+      amountCents: transaction.amountCents,
+      reference,
+      metadata: transaction.metadata,
+    };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- interface-mandated; mirrors the real provider's raw-payload shape.
   async handleWebhook(payload: any, signature: string): Promise<WebhookEvent> {
     void signature;
     const body = typeof payload === "string" || Buffer.isBuffer(payload) ? JSON.parse(payload.toString()) : payload;
-    const type: WebhookEventType = body?.type ?? "unknown";
-    const data = body?.data ?? {};
-
-    return {
-      type,
-      subscriptionId: data.subscriptionId ?? null,
-      customerId: data.customerId ?? null,
-      invoiceId: data.invoiceId ?? null,
-      attemptCount: data.attemptCount ?? null,
-      metadata: data.metadata ?? {},
-    };
-  }
-
-  async listPaymentMethods(customerId: string): Promise<PaymentMethod[]> {
-    await delay(SIMULATED_DELAY_MS);
-    return this.paymentMethods.get(customerId) ?? [];
-  }
-
-  async attachPaymentMethod(customerId: string, paymentMethodId: string): Promise<void> {
-    await delay(SIMULATED_DELAY_MS);
-    const methods = this.paymentMethods.get(customerId) ?? [];
-    methods.push({
-      id: paymentMethodId,
-      brand: "visa",
-      last4: "4242",
-      country: "US",
-      isDefault: methods.length === 0,
-    });
-    this.paymentMethods.set(customerId, methods);
-  }
-
-  async setDefaultPaymentMethod(customerId: string, paymentMethodId: string): Promise<void> {
-    await delay(SIMULATED_DELAY_MS);
-    const methods = this.paymentMethods.get(customerId) ?? [];
-    for (const method of methods) {
-      method.isDefault = method.id === paymentMethodId;
+    const reference = body?.reference;
+    if (typeof reference === "string") {
+      return this.verifyTransaction(reference);
     }
+    return { type: "unknown", customerId: null, paymentMethod: null, amountCents: null, reference: null, metadata: {} };
+  }
+
+  private mockCardId(customerId: string): string {
+    const existing = this.cardsByCustomer.get(customerId);
+    if (existing) return existing;
+    const cardId = fakeId("card");
+    this.cardsByCustomer.set(customerId, cardId);
+    return cardId;
   }
 }

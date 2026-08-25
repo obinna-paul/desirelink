@@ -10,7 +10,7 @@ import { getPublicTiers } from "@/lib/tiers";
 import { getBlockRelationship } from "@/lib/block";
 import { getProfileVisibility, getVisibleDesires } from "@/lib/circles";
 import { getReviewableContexts, getReviewsForProfile, getReviewSummary } from "@/lib/reviews";
-import { confirmPendingProviderSubscription, isProviderProfileType } from "@/lib/providers";
+import { confirmProviderPayment, isProviderProfileType } from "@/lib/providers";
 import { getProviderServiceListings } from "@/lib/service-listings";
 import { trackContentView, trackProfileView, trackServiceView } from "@/lib/rewards/tracking";
 
@@ -19,7 +19,7 @@ export default async function PublicProfilePage({
   searchParams,
 }: {
   params: { username: string };
-  searchParams: { section?: string; subscription?: string };
+  searchParams: { section?: string; reference?: string };
 }) {
   const session = await getServerSession(authOptions);
 
@@ -56,8 +56,8 @@ export default async function PublicProfilePage({
     });
   }
 
-  if (searchParams.subscription && viewerProfile) {
-    await confirmPendingProviderSubscription(searchParams.subscription, viewerProfile.id);
+  if (searchParams.reference && viewerProfile) {
+    await confirmProviderPayment(searchParams.reference);
   }
 
   const visibility = await getProfileVisibility(profile.id, viewerProfile?.id ?? null, isOwner);

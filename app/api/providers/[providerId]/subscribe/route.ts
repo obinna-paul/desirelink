@@ -37,7 +37,7 @@ export async function POST(req: Request, { params }: { params: { providerId: str
   const cancelUrl = `${origin}/profile/${provider?.username ?? params.providerId}`;
 
   const result = await subscribeToProvider(subscriberProfile.id, params.providerId, parsed.data.tierId, {
-    successUrl: (pendingSubscriptionId) => `${cancelUrl}?subscription=${pendingSubscriptionId}`,
+    successUrl: cancelUrl,
     cancelUrl,
   });
 
