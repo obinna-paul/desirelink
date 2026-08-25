@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMessage } from "@/lib/messages";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { trackMessageReply } from "@/lib/rewards/tracking";
+import { checkMessageLimit, incrementMessageCount } from "@/lib/messaging/limits";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -29,9 +30,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "recipientId and content are required" }, { status: 400 });
   }
 
+  const limit = await checkMessageLimit(profile.id);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      {
+        error: "You've reached your 10 message limit for the last 24 hours.",
+        code: "MESSAGE_LIMIT_REACHED",
+        upsell: "Upgrade to udala premium for unlimited messaging.",
+        remaining: limit.remaining,
+        limit: limit.limit,
+      },
+      { status: 402 }
+    );
+  }
+
   const result = await sendMessage(profile.id, recipientId, content);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+
+  if (!limit.unlimited) {
+    await incrementMessageCount(profile.id);
   }
 
   if (isProviderProfileType(profile.profileType)) {
