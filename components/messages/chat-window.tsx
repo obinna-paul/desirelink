@@ -197,7 +197,7 @@ export function ChatWindow({
                 aria-pressed={reason === option.value}
                 onClick={() => pickReason(option.value, option.template)}
                 className={cn(
-                  "rounded-full border px-3 py-1.5 text-xs transition-colors",
+                  "inline-flex min-h-11 items-center rounded-full border px-3 text-xs transition-colors",
                   reason === option.value
                     ? "border-transparent bg-gradient-to-r from-neon-pink to-neon-cyan text-background"
                     : "border-border/60 bg-card text-muted-foreground hover:border-neon-pink/60 hover:text-foreground"

@@ -177,7 +177,7 @@ export function GroupChat({
 
       {isAdmin && moderationTargets.length > 0 && (
         <details className="rounded-xl border border-border/60 bg-card">
-          <summary className="cursor-pointer list-none px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground [&::-webkit-details-marker]:hidden">
             Manage members ({moderationTargets.length})
           </summary>
           <ul className="flex flex-col gap-2 border-t border-border/60 p-3">

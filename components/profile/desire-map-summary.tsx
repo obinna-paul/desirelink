@@ -28,7 +28,7 @@ export function DesireMapSummary({
           Desire Map
         </h2>
         {isOwner && (
-          <Button asChild variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs">
+          <Button asChild variant="ghost" size="sm" className="min-h-11 gap-1 px-2 text-xs">
             <Link href="/onboarding/desires">
               <Pencil className="h-3 w-3" /> Edit
             </Link>

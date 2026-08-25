@@ -139,7 +139,7 @@ export function DesireMapEditor({
                     size="sm"
                     variant={value.level === option.value ? "default" : "outline"}
                     aria-pressed={value.level === option.value}
-                    className="h-7 px-2.5 text-xs"
+                    className="min-h-11 px-2.5 text-xs"
                     onClick={() => setLevel(category, option.value)}
                   >
                     {option.label}

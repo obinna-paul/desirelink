@@ -147,7 +147,7 @@ function AvailabilityQuickActionComponent({ initialStatus }: { initialStatus: Ac
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-7 px-2.5 text-xs"
+                className="min-h-11 px-2.5 text-xs"
                 onClick={handleClear}
                 disabled={pending}
               >
@@ -186,7 +186,7 @@ function AvailabilityQuickActionComponent({ initialStatus }: { initialStatus: Ac
               id="availability-duration"
               value={durationHours}
               onChange={(event) => setDurationHours(Number(event.target.value))}
-              className="h-9 text-sm"
+              className="h-11 text-sm"
             >
               {AVAILABILITY_DURATION_OPTIONS.map((option) => (
                 <option key={option.hours} value={option.hours}>

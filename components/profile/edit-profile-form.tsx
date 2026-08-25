@@ -59,7 +59,10 @@ function ToggleRow({
   name: BooleanFieldName;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-card px-4 py-3">
+    <label
+      htmlFor={name}
+      className="flex min-h-[44px] cursor-pointer items-center justify-between gap-4 rounded-lg border border-border/60 bg-card px-4 py-3"
+    >
       <div>
         <p className="text-sm font-medium">{label}</p>
         <p className="text-xs text-muted-foreground">{description}</p>
@@ -68,10 +71,10 @@ function ToggleRow({
         control={control}
         name={name}
         render={({ field }) => (
-          <Switch checked={field.value} onCheckedChange={field.onChange} />
+          <Switch id={name} checked={field.value} onCheckedChange={field.onChange} />
         )}
       />
-    </div>
+    </label>
   );
 }
 

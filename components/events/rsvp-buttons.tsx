@@ -69,7 +69,7 @@ export function RsvpButtons({
               disabled={pending !== null}
               onClick={() => handleClick(option.value)}
               className={cn(
-                "flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60",
+                "flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors disabled:opacity-60",
                 pressed
                   ? "border-transparent bg-gradient-to-r from-neon-pink to-neon-cyan text-background"
                   : "border-border/60 bg-card text-muted-foreground hover:border-neon-pink/60 hover:text-foreground"

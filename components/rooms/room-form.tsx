@@ -140,7 +140,7 @@ export function RoomForm() {
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
-            className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
           >
             {uploading ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -176,12 +176,12 @@ export function RoomForm() {
           />
         </FieldWrapper>
         <FieldWrapper label="Private room" htmlFor="isPrivate">
-          <div className="flex h-10 items-center gap-2">
+          <label htmlFor="isPrivate" className="flex min-h-11 cursor-pointer items-center gap-2">
             <Switch id="isPrivate" checked={isPrivate} onCheckedChange={setIsPrivate} />
             <span className="text-sm text-muted-foreground">
               {isPrivate ? "Join requests require your approval" : "Anyone can join instantly"}
             </span>
-          </div>
+          </label>
         </FieldWrapper>
       </section>
 

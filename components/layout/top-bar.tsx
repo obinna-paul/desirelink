@@ -28,7 +28,10 @@ export async function TopBar() {
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border/60 bg-background/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:px-7">
-      <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight">
+      <Link
+        href="/"
+        className="flex min-h-11 min-w-0 items-center gap-2 text-xl font-bold tracking-tight"
+      >
         <span className="hidden h-9 w-9 shrink-0 overflow-hidden rounded-lg sm:block">
           <BrandLogo className="h-full w-full" priority />
         </span>
@@ -46,7 +49,7 @@ export async function TopBar() {
           <Bell className="h-5 w-5" aria-hidden="true" />
         </Button>
         <SignOutButton />
-        <Link href="/profile">
+        <Link href="/profile" className="flex h-11 w-11 items-center justify-center">
           <Avatar className="h-9 w-9 border border-border">
             <AvatarImage src={profile?.avatarUrl} alt="Your avatar" />
             <AvatarFallback>{initials}</AvatarFallback>

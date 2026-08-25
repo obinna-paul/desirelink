@@ -29,7 +29,7 @@ export function TopBarSearch() {
         onChange={(event) => setValue(event.target.value)}
         placeholder="Search people"
         aria-label="Search by username or display name"
-        className="h-9 w-full rounded-full border border-input bg-background pl-8 pr-8 text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:text-sm"
+        className="h-11 w-full rounded-full border border-input bg-background pl-8 pr-8 text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:text-sm"
       />
       {value && (
         <button

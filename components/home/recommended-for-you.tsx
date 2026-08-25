@@ -25,7 +25,7 @@ export function RecommendedForYou({
         </div>
         <Link
           href="/discover?sort=active"
-          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-border/60 px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-neon-cyan/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md border border-border/60 px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-neon-cyan/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           More
           <ArrowRight className="h-4 w-4" aria-hidden="true" />

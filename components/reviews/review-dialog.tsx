@@ -167,7 +167,7 @@ export function ReviewDialog({
                         onClick={() => setRating(value)}
                         onMouseEnter={() => setHoverRating(value)}
                         onMouseLeave={() => setHoverRating(0)}
-                        className="p-0.5"
+                        className="flex h-11 w-11 items-center justify-center"
                       >
                         <Star
                           className={cn(

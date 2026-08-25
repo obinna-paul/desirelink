@@ -15,7 +15,7 @@ export function HomeTabs({ activeTab }: { activeTab: HomeTabValue }) {
                 href={`/?tab=${tab.value}`}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "inline-flex h-10 items-center whitespace-nowrap border-b-2 px-1 text-sm font-semibold transition-colors",
+                  "inline-flex h-11 items-center whitespace-nowrap border-b-2 px-2.5 text-sm font-semibold transition-colors",
                   isActive
                     ? "border-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground"

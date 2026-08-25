@@ -231,7 +231,7 @@ export function EventForm({ event, eventId }: { event?: Event; eventId?: string 
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
-            className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
           >
             {uploading ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -286,7 +286,7 @@ export function EventForm({ event, eventId }: { event?: Event; eventId?: string 
             </Select>
           </FieldWrapper>
           <FieldWrapper label="Private event" htmlFor="isPrivate">
-            <div className="flex h-10 items-center gap-2">
+            <label htmlFor="isPrivate" className="flex min-h-11 cursor-pointer items-center gap-2">
               <Switch
                 id="isPrivate"
                 checked={form.isPrivate}
@@ -295,7 +295,7 @@ export function EventForm({ event, eventId }: { event?: Event; eventId?: string 
               <span className="text-sm text-muted-foreground">
                 {form.isPrivate ? "Invite-only" : "Visible to everyone"}
               </span>
-            </div>
+            </label>
           </FieldWrapper>
         </div>
       </section>

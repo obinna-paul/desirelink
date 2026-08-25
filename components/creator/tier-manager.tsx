@@ -142,14 +142,14 @@ function TierForm({
       </div>
 
       <div className="flex flex-wrap gap-4">
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
           <Switch
             checked={form.isLimited}
             onCheckedChange={(checked) => setForm((prev) => ({ ...prev, isLimited: checked }))}
           />
           Limited availability
         </label>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
           <Switch
             checked={form.requiresApproval}
             onCheckedChange={(checked) =>

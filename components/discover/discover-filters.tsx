@@ -39,7 +39,7 @@ function ToggleChip({
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        "rounded-full border px-3 py-1.5 text-sm transition-colors",
+        "inline-flex min-h-11 items-center rounded-full border px-3 text-sm transition-colors",
         pressed
           ? "border-transparent bg-gradient-to-r from-neon-pink to-neon-cyan text-background"
           : "border-border/60 bg-card text-muted-foreground hover:border-neon-pink/60 hover:text-foreground"
@@ -169,7 +169,7 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
             aria-label="Desire level"
             value={desireLevel}
             onChange={(event) => setDesireLevel(event.target.value as DesireLevel | "")}
-            className="mt-1 h-9 w-full text-sm sm:w-64"
+            className="mt-1 h-11 w-full text-sm sm:w-64"
           >
             <option value="">Any level</option>
             {DESIRE_LEVEL_FILTER_OPTIONS.map((option) => (
@@ -186,7 +186,7 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
               aria-label="Location radius"
               value={radiusKm}
               onChange={(event) => setRadiusKm(event.target.value)}
-              className="h-9 text-sm"
+              className="h-11 text-sm"
             >
               {RADIUS_OPTIONS.map((km) => (
                 <option key={km} value={km}>
@@ -202,7 +202,7 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
               aria-label="Creator status"
               value={creator}
               onChange={(event) => setCreator(event.target.value as CreatorFilterValue)}
-              className="h-9 text-sm"
+              className="h-11 text-sm"
             >
               {CREATOR_FILTER_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -217,7 +217,7 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
               aria-label="Availability status"
               value={availability}
               onChange={(event) => setAvailability(event.target.value as AvailabilityFilterValue)}
-              className="h-9 text-sm"
+              className="h-11 text-sm"
             >
               {AVAILABILITY_FILTER_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -232,7 +232,7 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
               aria-label="Sort by"
               value={sort}
               onChange={(event) => setSort(event.target.value as DiscoverSortValue)}
-              className="h-9 text-sm"
+              className="h-11 text-sm"
             >
               {DISCOVER_SORT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>

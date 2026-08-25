@@ -32,7 +32,7 @@ function ToggleChip({
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        "rounded-full border px-3 py-1.5 text-sm transition-colors",
+        "inline-flex min-h-11 items-center rounded-full border px-3 text-sm transition-colors",
         pressed
           ? "border-transparent bg-gradient-to-r from-neon-pink to-neon-cyan text-background"
           : "border-border/60 bg-card text-muted-foreground hover:border-neon-pink/60 hover:text-foreground"
@@ -121,7 +121,7 @@ export function EventFiltersPanel({ initialFilters }: { initialFilters: EventFil
               aria-label="Date"
               value={datePreset}
               onChange={(e) => setDatePreset(e.target.value as EventDatePreset)}
-              className="h-9 text-sm"
+              className="h-11 text-sm"
             >
               {EVENT_DATE_PRESETS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -137,7 +137,7 @@ export function EventFiltersPanel({ initialFilters }: { initialFilters: EventFil
               placeholder="Any city"
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              className="h-9 text-sm"
+              className="h-11 text-sm"
             />
           </FilterSection>
 
@@ -146,7 +146,7 @@ export function EventFiltersPanel({ initialFilters }: { initialFilters: EventFil
               aria-label="Radius"
               value={radiusKm}
               onChange={(e) => setRadiusKm(e.target.value)}
-              className="h-9 text-sm"
+              className="h-11 text-sm"
             >
               <option value="any">Any distance</option>
               {EVENT_RADIUS_OPTIONS.map((km) => (
@@ -162,7 +162,7 @@ export function EventFiltersPanel({ initialFilters }: { initialFilters: EventFil
               aria-label="Visibility"
               value={privacy}
               onChange={(e) => setPrivacy(e.target.value as EventPrivacyFilter)}
-              className="h-9 text-sm"
+              className="h-11 text-sm"
             >
               {EVENT_PRIVACY_FILTER_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -181,14 +181,14 @@ export function EventFiltersPanel({ initialFilters }: { initialFilters: EventFil
                 type="date"
                 value={customFrom}
                 onChange={(e) => setCustomFrom(e.target.value)}
-                className="h-9 text-sm"
+                className="h-11 text-sm"
               />
               <Input
                 aria-label="To date"
                 type="date"
                 value={customTo}
                 onChange={(e) => setCustomTo(e.target.value)}
-                className="h-9 text-sm"
+                className="h-11 text-sm"
               />
             </div>
           </FilterSection>

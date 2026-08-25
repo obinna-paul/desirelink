@@ -44,7 +44,7 @@ function ChartCard({
       </div>
       <div className="h-64 w-full">{children}</div>
       <details className="text-xs text-muted-foreground">
-        <summary className="cursor-pointer select-none">View as table</summary>
+        <summary className="flex min-h-11 cursor-pointer select-none items-center">View as table</summary>
         <table className="mt-2 w-full border-collapse text-left">
           <caption className="sr-only">{tableCaption}</caption>
           <thead>
