@@ -22,7 +22,7 @@ export async function RightRail() {
     BASE_NEARBY_MIN + Math.floor(Math.random() * (BASE_NEARBY_MAX - BASE_NEARBY_MIN + 1));
 
   return (
-    <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border/60 px-4 py-6 xl:flex">
+    <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border/60 px-5 py-6 xl:flex">
       <AvailableNowSidebar
         initialItems={items}
         baseNearbyCount={baseNearbyCount}

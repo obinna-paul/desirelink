@@ -22,17 +22,17 @@ export function ProfileCard({
   return (
     <Link
       href={`/profile/${profile.username}`}
-      className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4 transition-colors hover:border-neon-pink/60"
+      className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4 transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-primary/80 hover:shadow-lift"
     >
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">
-          <Avatar className="h-12 w-12 border border-border">
+          <Avatar className="h-12 w-12 border border-border bg-media-placeholder">
             <AvatarImage src={profile.avatarUrl} alt={profile.displayName} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           {activeStatus && (
             <span
-              className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card bg-neon-cyan motion-safe:animate-pulse"
+              className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card bg-neon-cyan shadow-[0_0_8px_hsl(var(--neon-cyan)/0.6)] motion-safe:animate-pulse"
               aria-hidden="true"
             />
           )}
@@ -86,7 +86,7 @@ export function ProfileCard({
       </div>
 
       {typeof matchScore === "number" && (
-        <Badge variant="secondary" className="w-fit">
+        <Badge variant="neon" className="w-fit">
           {matchScore}% match
         </Badge>
       )}

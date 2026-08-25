@@ -20,9 +20,9 @@ export function EventCard({
   return (
     <Link
       href={`/events/${event.id}`}
-      className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card transition-colors hover:border-neon-pink/60"
+      className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-primary/80 hover:shadow-lift"
     >
-      <div className="relative flex h-32 w-full items-center justify-center overflow-hidden bg-secondary">
+      <div className="relative flex h-32 w-full items-center justify-center overflow-hidden bg-media-placeholder">
         {event.coverImageUrl ? (
           <Image
             src={event.coverImageUrl}
@@ -34,6 +34,14 @@ export function EventCard({
         ) : (
           <CalendarDays className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
         )}
+        <div className="absolute left-3 top-3 overflow-hidden rounded-lg bg-white text-center shadow-card">
+          <div className="bg-white px-2 py-0.5 text-[9px] font-bold uppercase leading-none text-primary">
+            {new Date(event.startTime).toLocaleString(undefined, { month: "short" })}
+          </div>
+          <div className="px-2 pb-1 text-sm font-extrabold leading-none text-background">
+            {new Date(event.startTime).getDate()}
+          </div>
+        </div>
       </div>
       <div className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-center gap-1.5">

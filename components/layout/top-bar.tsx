@@ -27,12 +27,12 @@ export async function TopBar() {
   const initials = profile?.displayName ? profile.displayName.slice(0, 2).toUpperCase() : "YOU";
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border/60 bg-background/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-6">
+    <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border/60 bg-background/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:px-7">
       <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight">
         <span className="hidden h-9 w-9 shrink-0 overflow-hidden rounded-lg sm:block">
           <BrandLogo className="h-full w-full" priority />
         </span>
-        <span className="bg-gradient-to-r from-neon-pink to-neon-cyan bg-clip-text text-transparent">
+        <span className="font-heading bg-brand-gradient bg-clip-text text-transparent">
           Udala
         </span>
       </Link>
@@ -43,11 +43,11 @@ export async function TopBar() {
         </Suspense>
         {profile && <AvailabilityQuickAction initialStatus={activeStatus} />}
         <Button variant="ghost" size="icon" aria-label="Notifications">
-          <Bell className="h-5 w-5" />
+          <Bell className="h-5 w-5" aria-hidden="true" />
         </Button>
         <SignOutButton />
         <Link href="/profile">
-          <Avatar className="h-8 w-8 border border-border">
+          <Avatar className="h-9 w-9 border border-border">
             <AvatarImage src={profile?.avatarUrl} alt="Your avatar" />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>

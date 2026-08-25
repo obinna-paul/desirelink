@@ -42,10 +42,10 @@ function ProfileSectionTab({
       href={href}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "inline-flex h-9 items-center rounded-full border px-4 text-sm font-medium transition-colors",
+        "inline-flex h-10 items-center border-b-2 px-1 text-sm font-semibold transition-colors",
         isActive
-          ? "border-transparent bg-gradient-to-r from-neon-pink to-neon-cyan text-background"
-          : "border-border/60 bg-card text-muted-foreground hover:text-foreground"
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground"
       )}
     >
       {label}
@@ -176,7 +176,7 @@ export function ProfileView({
       </div>
 
       {profile.isCreator && (
-        <div className="flex gap-2">
+        <div className="flex gap-6 border-b border-border/60">
           <ProfileSectionTab href={profileHref} label="About" isActive={section === "about"} />
           <ProfileSectionTab
             href={`${profileHref}?section=posts`}

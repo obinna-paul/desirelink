@@ -10,6 +10,7 @@ const config: Config = {
   theme: {
     fontFamily: {
       sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+      heading: ["var(--font-heading)", "var(--font-sans)", "system-ui", "sans-serif"],
     },
     container: {
       center: true,
@@ -53,15 +54,26 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        sidebar: "hsl(var(--sidebar))",
         neon: {
           pink: "hsl(var(--neon-pink))",
           cyan: "hsl(var(--neon-cyan))",
         },
       },
+      boxShadow: {
+        card: "var(--shadow-card)",
+        lift: "var(--shadow-lift)",
+      },
+      backgroundImage: {
+        "brand-gradient": "var(--brand-gradient)",
+        "media-placeholder": "var(--media-placeholder)",
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "0.875rem",
+        "2xl": "1rem",
       },
     },
   },

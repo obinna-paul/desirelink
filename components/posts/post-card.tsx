@@ -32,7 +32,7 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
   const initials = post.author.displayName.slice(0, 2).toUpperCase();
 
   return (
-    <article className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4">
+    <article className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-card">
       <div className="flex items-center justify-between gap-2">
         {showAuthor ? (
           <Link href={`/profile/${post.author.username}`} className="flex min-w-0 items-center gap-2">
@@ -73,7 +73,7 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
               {post.mediaUrls.map((url) => (
                 <div
                   key={url}
-                  className="relative aspect-square overflow-hidden rounded-lg border border-border/60 bg-secondary"
+                  className="relative aspect-square overflow-hidden rounded-lg border border-border/60 bg-media-placeholder transition-opacity hover:opacity-90"
                 >
                   <Image
                     src={url}

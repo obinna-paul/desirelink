@@ -1,0 +1,7 @@
+interface:
+  display_name: "Udala Style Guide"
+  short_description: "Apply Udala's visual system to app pages."
+  brand_color: "#9D4EDD"
+  default_prompt: "Use $udala-style-guide to design or restyle this Udala page with the platform visual system."
+policy:
+  allow_implicit_invocation: true
