@@ -2,18 +2,13 @@ import type { AvailabilityStatusType, DesireLevel, Prisma } from "@prisma/client
 
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect } from "@/lib/home-feed";
+import { DESIRE_LEVEL_WEIGHT, scoreDesireOverlap, type DesireScoreInput } from "@/lib/recommendation-scoring";
 
 const DEFAULT_RECOMMENDATION_LIMIT = 6;
 const MAX_RECOMMENDATION_LIMIT = 50;
 const CANDIDATE_LIMIT = 250;
 
-export const DESIRE_LEVEL_WEIGHT: Record<DesireLevel, number> = {
-  curious: 3,
-  interested: 6,
-  looking: 14,
-  regular: 12,
-  hard_limit: 0,
-};
+export { DESIRE_LEVEL_WEIGHT, scoreDesireOverlap, type DesireScoreInput };
 
 const ACTIVE_MEETING_STATUSES = new Set<AvailabilityStatusType>([
   "available_tonight",
@@ -78,6 +73,7 @@ export type ProfileRecommendation = {
   reasons: string[];
 };
 
+
 function clampLimit(limit?: number) {
   if (!limit || Number.isNaN(limit)) return DEFAULT_RECOMMENDATION_LIMIT;
   return Math.max(1, Math.min(Math.floor(limit), MAX_RECOMMENDATION_LIMIT));
@@ -94,58 +90,7 @@ function scoreDesires(
   viewer: ViewerRecommendationProfile,
   candidate: RecommendationProfileData
 ): { score: number; reasons: string[] } {
-  const viewerDesiresByCategory = new Map(
-    viewer.desires.map((desire) => [desire.category, desire.level])
-  );
-  const viewerHardLimits = new Set(
-    viewer.desires
-      .filter((desire) => desire.level === "hard_limit")
-      .map((desire) => desire.category)
-  );
-
-  let rawScore = 0;
-  let highIntentOverlap = 0;
-  const matchedCategories: string[] = [];
-
-  for (const desire of candidate.desires) {
-    const viewerLevel = viewerDesiresByCategory.get(desire.category);
-    if (!viewerLevel) continue;
-
-    if (viewerLevel === "hard_limit" || desire.level === "hard_limit") {
-      rawScore -= 10;
-      continue;
-    }
-
-    rawScore += DESIRE_LEVEL_WEIGHT[viewerLevel] + DESIRE_LEVEL_WEIGHT[desire.level];
-    matchedCategories.push(desire.category);
-
-    if (
-      viewerLevel === "looking" ||
-      viewerLevel === "regular" ||
-      desire.level === "looking" ||
-      desire.level === "regular"
-    ) {
-      highIntentOverlap += 1;
-    }
-  }
-
-  for (const desire of candidate.desires) {
-    if (viewerHardLimits.has(desire.category) && desire.level !== "hard_limit") {
-      rawScore -= 8;
-    }
-  }
-
-  const score = Math.max(0, Math.min(55, rawScore));
-  const reasons =
-    matchedCategories.length > 0
-      ? [
-          `${matchedCategories.slice(0, 2).join(", ")} ${
-            highIntentOverlap > 0 ? "aligns strongly" : "overlaps"
-          } in your Desire Maps`,
-        ]
-      : [];
-
-  return { score, reasons };
+  return scoreDesireOverlap(viewer.desires, candidate.desires);
 }
 
 function scoreProximity(
