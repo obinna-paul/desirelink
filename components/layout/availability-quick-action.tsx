@@ -9,6 +9,7 @@ import type { AvailabilityStatusType } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import {
   AVAILABILITY_DURATION_OPTIONS,
   AVAILABILITY_STATUS_LABELS,
@@ -36,6 +37,7 @@ async function fetchAvailability(url: string): Promise<AvailabilityResponse> {
 function AvailabilityQuickActionComponent({ initialStatus }: { initialStatus: ActiveStatus }) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<AvailabilityStatusType>(
     initialStatus?.status ?? "available_tonight"
@@ -59,6 +61,8 @@ function AvailabilityQuickActionComponent({ initialStatus }: { initialStatus: Ac
     [activeStatus]
   );
 
+  useFocusTrap(open, popoverRef);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -68,6 +72,15 @@ function AvailabilityQuickActionComponent({ initialStatus }: { initialStatus: Ac
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
 
   async function handleSet() {
     setPending(true);
@@ -128,9 +141,11 @@ function AvailabilityQuickActionComponent({ initialStatus }: { initialStatus: Ac
 
       {open && (
         <div
+          ref={popoverRef}
+          tabIndex={-1}
           role="dialog"
           aria-label="Set availability status"
-          className="absolute right-0 top-11 z-50 w-72 rounded-xl border border-border/60 bg-card p-4 shadow-lg"
+          className="absolute right-0 top-11 z-50 w-72 rounded-xl border border-border/60 bg-card p-4 shadow-lg focus:outline-none"
         >
           {activeStatus && (
             <div className="mb-3 flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">

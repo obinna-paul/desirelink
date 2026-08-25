@@ -84,7 +84,7 @@ export default function LandingPage() {
       <header className="flex items-center justify-between px-4 py-5 sm:px-8">
         <Link href="/landing" className="flex min-h-11 items-center gap-2">
           <span className="h-8 w-8 shrink-0 overflow-hidden rounded-lg">
-            <BrandLogo className="h-full w-full" priority />
+            <BrandLogo className="h-full w-full" priority alt="" />
           </span>
           <span className="font-heading text-lg font-bold bg-brand-gradient bg-clip-text text-transparent">
             Udala
@@ -100,6 +100,7 @@ export default function LandingPage() {
         </nav>
       </header>
 
+      <main className="flex flex-col">
       {/* Hero */}
       <section className="flex flex-col items-center gap-6 px-4 pb-20 pt-10 text-center sm:pb-28 sm:pt-16">
         <h1 className="font-heading max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-6xl">
@@ -205,6 +206,7 @@ export default function LandingPage() {
           </Button>
         </div>
       </section>
+      </main>
 
       <footer className="flex flex-col items-center gap-2 border-t border-border/60 px-4 py-8 text-center text-xs text-muted-foreground sm:flex-row sm:justify-between sm:px-8">
         <span>&copy; {new Date().getFullYear()} Udala. All rights reserved.</span>

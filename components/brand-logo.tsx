@@ -5,14 +5,16 @@ import { cn } from "@/lib/utils";
 export function BrandLogo({
   className,
   priority = false,
+  alt = "Udala",
 }: {
   className?: string;
   priority?: boolean;
+  alt?: string;
 }) {
   return (
     <Image
       src="/udala-logo.png"
-      alt="Udala"
+      alt={alt}
       width={1280}
       height={1280}
       priority={priority}

@@ -11,7 +11,10 @@ export function SidebarNav() {
   const items = [...primaryNavItems, ...secondaryNavItems];
 
   return (
-    <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-[232px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border/60 bg-sidebar px-3 py-6 md:flex">
+    <aside
+      aria-label="Primary navigation"
+      className="sticky top-16 hidden h-[calc(100vh-4rem)] w-[232px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border/60 bg-sidebar px-3 py-6 md:flex"
+    >
       {items.map((item) => {
         const active = pathname === item.href;
         const Icon = item.icon;

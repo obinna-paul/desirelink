@@ -104,7 +104,7 @@ export default function SignupPage() {
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/login" className="text-neon-pink hover:underline">
+        <Link href="/login" className="text-neon-pink underline underline-offset-2">
           Log in
         </Link>
       </p>

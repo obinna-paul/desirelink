@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Star, X } from "lucide-react";
 
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import type { ReviewableContext } from "@/lib/reviews";
 
 function contextKey(context: ReviewableContext) {
@@ -32,6 +33,9 @@ export function ReviewDialog({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(open, dialogRef);
 
   useEffect(() => {
     if (!open) return;
@@ -108,7 +112,9 @@ export function ReviewDialog({
           onClick={closeDialog}
         >
           <div
-            className="w-full max-w-sm rounded-xl border border-border/60 bg-card p-5"
+            ref={dialogRef}
+            tabIndex={-1}
+            className="w-full max-w-sm rounded-xl border border-border/60 bg-card p-5 focus:outline-none"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">

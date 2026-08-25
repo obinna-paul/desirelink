@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import NextImage from "next/image";
 import { AlertTriangle, Image as ImageIcon, Loader2, ShieldCheck, X } from "lucide-react";
 
@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { MAX_POST_IMAGES, type PostView } from "@/lib/posts";
 import { detectTextPii, hasImageMetadataSignature, type PiiFinding } from "@/lib/pii";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
@@ -69,6 +70,20 @@ export function PostComposer({
   const [pendingFindings, setPendingFindings] = useState<PiiFinding[]>([]);
   const [showPiiWarning, setShowPiiWarning] = useState(false);
   const [piiAcknowledged, setPiiAcknowledged] = useState(false);
+  const piiDialogRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(showPiiWarning, piiDialogRef);
+
+  useEffect(() => {
+    if (!showPiiWarning) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setShowPiiWarning(false);
+      setPiiAcknowledged(false);
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showPiiWarning]);
 
   const imageUrls = useMemo(() => images.map((image) => image.url), [images]);
   const strippedImageCount = useMemo(
@@ -275,11 +290,13 @@ export function PostComposer({
       {showPiiWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
           <div
+            ref={piiDialogRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-labelledby="pii-warning-title"
             aria-describedby="pii-warning-description"
-            className="w-full max-w-md rounded-xl border border-border/60 bg-card p-5 shadow-lg"
+            className="w-full max-w-md rounded-xl border border-border/60 bg-card p-5 shadow-lg focus:outline-none"
           >
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">

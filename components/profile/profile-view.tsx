@@ -204,7 +204,7 @@ export function ProfileView({
           {isOwner && (
             <p className="text-sm text-muted-foreground">
               Manage pricing, capacity, and applications from your{" "}
-              <Link href="/creator-dashboard?tab=tiers" className="text-neon-pink hover:underline">
+              <Link href="/creator-dashboard?tab=tiers" className="text-neon-pink underline underline-offset-2">
                 creator dashboard
               </Link>
               .

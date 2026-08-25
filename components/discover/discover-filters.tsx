@@ -53,9 +53,9 @@ function ToggleChip({
 function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
-      </h3>
+      </h2>
       {children}
     </div>
   );

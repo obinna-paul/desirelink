@@ -33,7 +33,7 @@ export async function TopBar() {
         className="flex min-h-11 min-w-0 items-center gap-2 text-xl font-bold tracking-tight"
       >
         <span className="hidden h-9 w-9 shrink-0 overflow-hidden rounded-lg sm:block">
-          <BrandLogo className="h-full w-full" priority />
+          <BrandLogo className="h-full w-full" priority alt="" />
         </span>
         <span className="font-heading bg-brand-gradient bg-clip-text text-transparent">
           Udala

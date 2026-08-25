@@ -12,14 +12,14 @@ export function AuthCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-12">
+    <main className="flex min-h-screen items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         <Link
           href="/landing"
           className="mx-auto mb-8 block h-28 w-28 overflow-hidden rounded-2xl"
           aria-label="Udala"
         >
-          <BrandLogo className="h-full w-full" priority />
+          <BrandLogo className="h-full w-full" priority alt="" />
         </Link>
         <div className="rounded-xl border border-border/60 bg-card p-6 shadow-lg">
           <div className="mb-6">
@@ -29,6 +29,6 @@ export function AuthCard({
           <div className="flex flex-col gap-6">{children}</div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -41,7 +41,7 @@ export function DesireMapSummary({
           {isOwner ? (
             <>
               You haven&apos;t built your desire map yet.{" "}
-              <Link href="/onboarding/desires" className="text-neon-pink hover:underline">
+              <Link href="/onboarding/desires" className="text-neon-pink underline underline-offset-2">
                 Get started
               </Link>
               .
