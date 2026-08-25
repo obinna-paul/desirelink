@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CreditCard, ChevronRight, ShieldCheck, UsersRound } from "lucide-react";
+import { CreditCard, ChevronRight, HelpCircle, ShieldCheck, UsersRound } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -21,6 +21,12 @@ const SETTINGS_LINKS = [
     label: "Safety Center",
     description: "Blocked users, report history, and safety tools.",
     icon: ShieldCheck,
+  },
+  {
+    href: "/help",
+    label: "Help Center",
+    description: "FAQs on your account, payments, events, creator tools, and safety.",
+    icon: HelpCircle,
   },
 ];
 

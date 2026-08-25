@@ -8,6 +8,9 @@ export function PublicFooter() {
         <Link href="/blog" className="flex min-h-11 items-center hover:text-foreground">
           Blog
         </Link>
+        <Link href="/help" className="flex min-h-11 items-center hover:text-foreground">
+          Help Center
+        </Link>
         <Link href="/login" className="flex min-h-11 items-center hover:text-foreground">
           Log in
         </Link>
