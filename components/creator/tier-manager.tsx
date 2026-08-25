@@ -164,13 +164,13 @@ function TierForm({
           rows={2}
           value={form.description}
           onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-          placeholder="What subscribers get at this tier"
+          placeholder="What Fans get at this tier"
         />
       </div>
 
       <div className="flex flex-col gap-1.5 sm:w-56">
         <label htmlFor="tier-max" className="text-xs font-medium text-muted-foreground">
-          Max subscribers (optional)
+          Max Fans (optional)
         </label>
         <Input
           id="tier-max"
@@ -315,7 +315,7 @@ export function TierManager({ initialTiers }: { initialTiers: CreatorTierWithCou
                 <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                   <Users className="h-3 w-3" aria-hidden="true" />
                   {tier._count.subscriptions}
-                  {tier.maxSubscribers ? ` / ${tier.maxSubscribers}` : ""} subscribers
+                  {tier.maxSubscribers ? ` / ${tier.maxSubscribers}` : ""} Fans
                 </p>
               </div>
               <div className="flex shrink-0 gap-2">

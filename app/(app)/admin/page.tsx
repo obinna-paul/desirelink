@@ -24,9 +24,12 @@ export default async function AdminPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Admin" description="Review pending creator and host verification requests." />
-      <div>
+      <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline">
           <Link href="/admin/moderation">Open moderation queue</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/admin/monetization">Manage monetization</Link>
         </Button>
       </div>
       <VerificationQueue initialRequests={requests} />

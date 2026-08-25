@@ -32,12 +32,12 @@ export type ProviderEarningsHistory = Awaited<ReturnType<typeof getProviderEarni
  * app/api/cron/monthly-rewards runs, at which point it appears in
  * getProviderEarningsHistory() instead.
  */
-export async function getCurrentMonthEstimate(providerId: string, providerType: ProfileType) {
+export async function getCurrentMonthEstimate(providerId: string, providerType: ProfileType, isMonetized: boolean) {
   const { start, end } = currentMonthRange();
 
   const [providers, premiumSubscriberCount, ownMetrics] = await Promise.all([
     prisma.profile.findMany({
-      where: { profileType: { in: [...PROVIDER_PROFILE_TYPES] } },
+      where: { profileType: { in: [...PROVIDER_PROFILE_TYPES] }, isMonetized: true },
       select: { id: true, profileType: true },
     }),
     countActivePremiumSubscriptionsInRange(start, end),
@@ -62,9 +62,12 @@ export async function getCurrentMonthEstimate(providerId: string, providerType: 
     metricsByProviderId.set(row.providerId, list);
   }
 
+  // Own points are always shown (so a not-yet-monetized provider can see what
+  // they're accumulating), but only enter the pool cohort — and therefore the
+  // payout/percent math below — once isMonetized is true.
   const pointsByProvider = new Map<string, number>();
   const ownPoints = calculatePoints(ownMetrics, providerType);
-  if (ownPoints > 0) pointsByProvider.set(providerId, ownPoints);
+  if (isMonetized && ownPoints > 0) pointsByProvider.set(providerId, ownPoints);
   for (const [otherId, metrics] of Array.from(metricsByProviderId.entries())) {
     const otherType = providerTypeById.get(otherId);
     if (!otherType) continue;
@@ -78,11 +81,12 @@ export async function getCurrentMonthEstimate(providerId: string, providerType: 
   const totalPoints = Array.from(pointsByProvider.values()).reduce((sum, points) => sum + points, 0);
 
   return {
+    isMonetized,
     poolCents,
     totalPoints,
     ownPoints,
-    ownPointsPercent: totalPoints > 0 ? (ownPoints / totalPoints) * 100 : 0,
-    estimatedAmountCents: payouts.get(providerId) ?? 0,
+    ownPointsPercent: isMonetized && totalPoints > 0 ? (ownPoints / totalPoints) * 100 : 0,
+    estimatedAmountCents: isMonetized ? (payouts.get(providerId) ?? 0) : 0,
     pointsBreakdown: calculatePointsBreakdown(ownMetrics, providerType),
   };
 }

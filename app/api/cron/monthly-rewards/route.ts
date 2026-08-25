@@ -47,6 +47,11 @@ function isAuthorized(req: Request): boolean {
  * 2. Calculates and pays out the pool for the month that just ended, from
  *    EngagementMetric rows accumulated during it (including the retention
  *    snapshot recorded on its own 1st).
+ *
+ * Only providers with isMonetized (see lib/monetization.ts) are eligible —
+ * a non-monetized provider's engagement still gets tracked but never enters
+ * the points/payout math below. This doesn't touch a provider's own Fan
+ * revenue (ProviderSubscription/Subscription), which is unaffected either way.
  */
 async function runMonthlyRewards() {
   await recordMonthStartRetentionSnapshot();
@@ -56,7 +61,7 @@ async function runMonthlyRewards() {
   const [premiumSubscriberCount, providers] = await Promise.all([
     countActivePremiumSubscriptionsInRange(start, end),
     prisma.profile.findMany({
-      where: { profileType: { in: [...PROVIDER_PROFILE_TYPES] } },
+      where: { profileType: { in: [...PROVIDER_PROFILE_TYPES] }, isMonetized: true },
       select: { id: true, profileType: true },
     }),
   ]);

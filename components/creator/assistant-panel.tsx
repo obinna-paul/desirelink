@@ -56,7 +56,7 @@ export function CreatorAssistantPanel({ insights }: { insights: CreatorAssistant
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       <InsightSection icon={Crown} title="Top fans by spending">
         {insights.topFans.length === 0 ? (
-          <EmptyInsight>Subscriber purchases will appear here after successful payments.</EmptyInsight>
+          <EmptyInsight>Fan purchases will appear here after successful payments.</EmptyInsight>
         ) : (
           <ul className="divide-y divide-border/60">
             {insights.topFans.map((fan, index) => (
@@ -92,7 +92,7 @@ export function CreatorAssistantPanel({ insights }: { insights: CreatorAssistant
 
       <InsightSection icon={MessageCircle} title="Fans to re-engage">
         {insights.dormantFans.length === 0 ? (
-          <EmptyInsight>No active subscribers are past the 30-day quiet mark.</EmptyInsight>
+          <EmptyInsight>No active Fans are past the 30-day quiet mark.</EmptyInsight>
         ) : (
           <ul className="divide-y divide-border/60">
             {insights.dormantFans.map((fan) => (

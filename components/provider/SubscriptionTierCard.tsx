@@ -74,7 +74,7 @@ export function SubscriptionTierCard({ providerId, tier }: { providerId: string;
 
       <p className="flex items-center gap-1 text-xs text-muted-foreground">
         <Users className="h-3 w-3" aria-hidden="true" />
-        {tier.subscriberCount} subscriber{tier.subscriberCount === 1 ? "" : "s"}
+        {tier.subscriberCount} Fan{tier.subscriberCount === 1 ? "" : "s"}
       </p>
 
       {error && (

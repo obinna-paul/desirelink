@@ -174,8 +174,8 @@ export default function HelpCenterPage() {
           </FaqItem>
           <FaqItem question="What are the Limited and Requires approval tier settings for?">
             <p>
-              A <strong>Limited</strong> tier caps the number of subscribers — useful for VIP circles or
-              private-access tiers. <strong>Requires approval</strong> means new subscribers show up
+              A <strong>Limited</strong> tier caps the number of Fans — useful for VIP circles or
+              private-access tiers. <strong>Requires approval</strong> means new Fans show up
               under{" "}
               <Link href="/creator-dashboard?tab=applications">Creator Studio → Applications</Link>{" "}
               for you to accept or deny before they get access.
@@ -188,12 +188,21 @@ export default function HelpCenterPage() {
               the request.
             </p>
           </FaqItem>
-          <FaqItem question="Where can I see my subscriber growth and earnings?">
+          <FaqItem question="Where can I see my Fan growth and earnings?">
             <p>
               The <Link href="/creator-dashboard?tab=analytics">Analytics tab</Link> on your dashboard
               charts both over time, and the{" "}
               <Link href="/creator-dashboard?tab=assistant">Assistant tab</Link> surfaces your top fans,
-              subscribers who&apos;ve gone quiet, and suggested posting times.
+              Fans who&apos;ve gone quiet, and suggested posting times.
+            </p>
+          </FaqItem>
+          <FaqItem question="What does 'monetized' mean, and does it affect my Fans?">
+            <p>
+              Monetization only controls whether your engagement with Premium users (Udala&apos;s
+              platform-wide subscribers) counts toward the monthly rewards pool. It never affects your
+              own Fans — you keep earning from tier subscriptions whether you&apos;re monetized or not.
+              You can check your requirements and apply from{" "}
+              <Link href="/creator-dashboard?tab=earnings">Creator Studio → Earnings</Link>.
             </p>
           </FaqItem>
         </CategorySection>

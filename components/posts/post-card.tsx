@@ -20,7 +20,7 @@ function LockedPostBody() {
       </div>
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-background/70 px-4 text-center">
         <Lock className="h-6 w-6 text-neon-pink" aria-hidden="true" />
-        <p className="text-sm font-medium">Subscribers only</p>
+        <p className="text-sm font-medium">Fans only</p>
         <p className="text-xs text-muted-foreground">Subscribe to this creator to see this post.</p>
       </div>
     </div>
@@ -51,7 +51,7 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
         <div className="flex shrink-0 items-center gap-2">
           {post.isSubscriberOnly && (
             <Badge variant="outline" className="gap-1 text-muted-foreground">
-              <Lock className="h-3 w-3" aria-hidden="true" /> Subscribers only
+              <Lock className="h-3 w-3" aria-hidden="true" /> Fans only
             </Badge>
           )}
           <ReportDialog targetType="post" targetId={post.id} label="Report post" variant="icon" />

@@ -75,9 +75,9 @@ function ChartCard({
 export function SubscriberGrowthChart({ data }: { data: GrowthPoint[] }) {
   return (
     <ChartCard
-      title="Subscriber growth"
-      description="Cumulative subscribers over the last 6 months"
-      tableCaption="Cumulative subscriber count by month"
+      title="Fan growth"
+      description="Cumulative Fans over the last 6 months"
+      tableCaption="Cumulative Fan count by month"
       rows={data.map((point) => ({ label: point.month, value: String(point.subscribers) }))}
     >
       <ResponsiveContainer width="100%" height="100%">
@@ -95,7 +95,7 @@ export function SubscriberGrowthChart({ data }: { data: GrowthPoint[] }) {
             contentStyle={TOOLTIP_STYLE}
             labelStyle={{ color: "hsl(var(--muted-foreground))" }}
             itemStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
-            formatter={(value) => [value, "Subscribers"]}
+            formatter={(value) => [value, "Fans"]}
           />
           <Line
             type="monotone"

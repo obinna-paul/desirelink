@@ -17,7 +17,7 @@ export const METRIC_TYPE_LABELS: Record<MetricType, string> = {
   [METRIC_TYPES.CONTENT_VIEW]: "Content views",
   [METRIC_TYPES.MESSAGE_REPLY]: "Message replies",
   [METRIC_TYPES.PROFILE_VIEW]: "Profile views",
-  [METRIC_TYPES.SUBSCRIBER_RETENTION]: "Subscriber retention",
+  [METRIC_TYPES.SUBSCRIBER_RETENTION]: "Fan retention",
   [METRIC_TYPES.EVENT_RSVP]: "Event RSVPs",
   [METRIC_TYPES.SERVICE_VIEW]: "Service views",
   [METRIC_TYPES.SERVICE_BOOKING]: "Service bookings",

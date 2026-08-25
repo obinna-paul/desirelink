@@ -34,6 +34,8 @@ import { VerificationRequestCard } from "@/components/verification/verification-
 import { isProviderProfileType } from "@/lib/providers";
 import { EarningsPanel } from "@/components/creator/earnings-panel";
 import { getCurrentMonthEstimate, getProviderEarningsHistory } from "@/lib/rewards/earnings";
+import { MonetizationPanel } from "@/components/creator/monetization-panel";
+import { getMonetizationEligibility } from "@/lib/monetization";
 import type { ProfileType } from "@prisma/client";
 
 const PROVIDER_ONLY_TABS = CREATOR_DASHBOARD_TABS.filter(
@@ -75,7 +77,7 @@ export default async function CreatorDashboardPage({
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Provider dashboard"
-          description="Subscribers, revenue, and analytics for your provider profile."
+          description="Fans, revenue, and analytics for your provider profile."
         />
         <BecomeCreatorPrompt />
       </div>
@@ -91,7 +93,7 @@ export default async function CreatorDashboardPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Provider dashboard"
-        description="Subscribers, revenue, and tiers for your provider profile."
+        description="Fans, revenue, and tiers for your provider profile."
       />
       <DashboardTabs activeTab={tab} tabs={availableTabs} />
 
@@ -120,7 +122,7 @@ async function OverviewTab({ profileId }: { profileId: string }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <StatCard label="Active subscribers" value={String(stats.subscriberCount)} icon={Users} />
+      <StatCard label="Active Fans" value={String(stats.subscriberCount)} icon={Users} />
       <StatCard label="Total revenue" value={formatCents(stats.totalRevenueCents)} icon={DollarSign} />
       <StatCard label="Profile views" value={stats.profileViews.toLocaleString()} icon={Eye} />
     </div>
@@ -167,8 +169,11 @@ async function VerificationTab({
 }
 
 async function EarningsTab({ profileId, profileType }: { profileId: string; profileType: ProfileType }) {
+  const eligibility = await getMonetizationEligibility(profileId);
+  if (!eligibility) return null;
+
   const [estimate, history] = await Promise.all([
-    getCurrentMonthEstimate(profileId, profileType),
+    getCurrentMonthEstimate(profileId, profileType, eligibility.isMonetized),
     getProviderEarningsHistory(profileId),
   ]);
 
@@ -178,6 +183,7 @@ async function EarningsTab({ profileId, profileType }: { profileId: string; prof
 
   return (
     <div className="flex flex-col gap-4">
+      <MonetizationPanel providerId={profileId} eligibility={eligibility} />
       <EarningsPanel estimate={estimate} history={history} />
       {chartData.length > 0 && <RewardsEarningsChart data={chartData} />}
     </div>

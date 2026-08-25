@@ -208,7 +208,7 @@ export function PostComposer({
         id="post-content"
         rows={3}
         maxLength={2000}
-        placeholder="Share something with your subscribers..."
+        placeholder="Share something with your Fans..."
         value={content}
         onChange={(event) => {
           setContent(event.target.value);
@@ -273,7 +273,7 @@ export function PostComposer({
           />
           <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
             <Switch checked={isSubscriberOnly} onCheckedChange={setIsSubscriberOnly} />
-            Subscribers only
+            Fans only
           </label>
         </div>
         <Button type="submit" disabled={submitting || uploading}>
@@ -307,7 +307,7 @@ export function PostComposer({
                   Review possible personal info
                 </h2>
                 <p id="pii-warning-description" className="mt-1 text-sm text-muted-foreground">
-                  This post may include identifying details. Remove anything you do not want shared publicly or with subscribers.
+                  This post may include identifying details. Remove anything you do not want shared publicly or with Fans.
                 </p>
               </div>
             </div>
