@@ -17,7 +17,7 @@ export default function OfflinePage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">You are offline</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Udala saved the app shell, but this page needs a connection to refresh live content.
+            udala saved the app shell, but this page needs a connection to refresh live content.
           </p>
         </div>
         <Button asChild variant="outline">

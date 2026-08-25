@@ -21,7 +21,7 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               aria-label={item.label}
-              className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-brand-gradient text-white shadow-lift"
+              className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lift"
             >
               <Icon className="h-7 w-7" aria-hidden="true" />
             </Link>

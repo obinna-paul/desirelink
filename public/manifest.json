@@ -1,6 +1,6 @@
 {
-  "name": "Udala",
-  "short_name": "Udala",
+  "name": "udala",
+  "short_name": "udala",
   "description": "Real-time adult social marketplace",
   "start_url": "/",
   "scope": "/",

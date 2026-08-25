@@ -247,7 +247,7 @@ export function GroupChat({
                       className={cn(
                         "rounded-2xl px-3 py-1.5 text-sm",
                         isMine
-                          ? "bg-gradient-to-r from-neon-pink to-neon-cyan text-background"
+                          ? "bg-primary text-primary-foreground"
                           : "bg-secondary text-foreground"
                       )}
                     >

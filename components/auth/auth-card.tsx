@@ -17,7 +17,7 @@ export function AuthCard({
         <Link
           href="/landing"
           className="mx-auto mb-8 block h-28 w-28 overflow-hidden rounded-2xl"
-          aria-label="Udala"
+          aria-label="udala"
         >
           <BrandLogo className="h-full w-full" priority alt="" />
         </Link>

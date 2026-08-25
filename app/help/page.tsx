@@ -13,8 +13,8 @@ import { PublicFooter } from "@/components/layout/public-footer";
 import { FaqItem } from "@/components/help/faq-item";
 
 export const metadata: Metadata = {
-  title: "Help Center — Udala",
-  description: "Answers to common questions about your account, payments, events, creator tools, and safety on Udala.",
+  title: "Help Center — udala",
+  description: "Answers to common questions about your account, payments, events, creator tools, and safety on udala.",
 };
 
 const CATEGORIES = [
@@ -39,7 +39,7 @@ function CategorySection({
   return (
     <section id={id} className="flex scroll-mt-24 flex-col gap-3">
       <div className="flex items-center gap-2">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-gradient">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary">
           <Icon className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
         </span>
         <h2 className="font-heading text-xl font-semibold">{title}</h2>
@@ -112,7 +112,7 @@ export default function HelpCenterPage() {
         </CategorySection>
 
         <CategorySection id="payments-subscriptions" title="Payments & Subscriptions" icon={CreditCard}>
-          <FaqItem question="Is checkout on Udala a real charge?">
+          <FaqItem question="Is checkout on udala a real charge?">
             <p>
               In this build, checkout is simulated end to end — you&apos;ll see &ldquo;Mock payment, no
               real charge is made&rdquo; on the checkout screen itself, with buttons to simulate success

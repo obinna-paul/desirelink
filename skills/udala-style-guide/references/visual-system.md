@@ -1,4 +1,4 @@
-# Udala Visual System
+# udala Visual System
 
 ## Source Of Truth
 
@@ -6,11 +6,11 @@ This guide is distilled from `design_handoff_udala/README.md` and its `.dc.html`
 
 ## Brand
 
-- Name: Udala.
+- Name: udala (always lowercase, in copy and UI text alike).
 - Theme: dark only.
 - Personality: intimate, premium, social, creator-friendly, calm rather than loud.
 - Primary accent: purple. Secondary accent: pink. Status accent: teal.
-- Brand gradient: 135deg purple to pink.
+- Solid colors only — no gradients anywhere (buttons, backgrounds, text fills, or media placeholders).
 
 ## Color Targets
 
@@ -51,16 +51,16 @@ Use semantic tokens in code. Exact handoff references:
 - Cards: dark card surface, subtle border, 14-16px radius. Feed/event/profile cards lift on hover with `translateY(-3px)`, accent border, and soft shadow.
 - Badges: pill-shaped, compact, strong enough contrast over images. Status badges sit top-left on media.
 - Tabs: underline accent active state. Avoid filled pill tabs for profile/dashboard/community section tabs.
-- Buttons: primary CTA uses purple-to-pink gradient or purple fill. Secondary uses transparent/card surface with border.
+- Buttons: primary CTA uses a solid purple fill. Secondary uses transparent/card surface with border.
 - Switches: pill tracks, purple when checked, muted dark surface when unchecked.
-- Media: preserve aspect ratios. Use real photos when available; otherwise use diagonal stripe placeholders.
+- Media: preserve aspect ratios. Use real photos when available; otherwise use a solid muted (secondary-surface) placeholder.
 
 ## Screen Patterns
 
 - Onboarding: centered column, max width about 560px, 4 segmented progress bars, card choices, chip toggles, pinned back/continue controls.
 - Discover: desktop app shell with 232px sidebar, main feed, and right rail. Profile cards use responsive grid `minmax(220px, 1fr)`.
 - Creator profile: cover band, overlapping avatar, profile meta, stats row, underline tabs, tier cards, post grid with locked overlay.
-- Creator dashboard: KPI row, chart cards, payout gradient card, activity and content-performance panels.
+- Creator dashboard: KPI row, chart cards, payout card, activity and content-performance panels.
 - Messages: desktop three-column flow; mobile list-to-thread drill-in with back button.
 - Events: card grid with cover/date/price treatment; detail view with large cover, host row, metadata rows, description, attendee summary.
 - Communities: browse/detail route flow, banner plus overlapping icon, join controls, tabs, feed/about/members layout.

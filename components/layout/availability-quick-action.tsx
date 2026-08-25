@@ -184,7 +184,7 @@ function AvailabilityQuickActionComponent({ initialStatus }: { initialStatus: Ac
                 className={cn(
                   "rounded-md border px-3 py-1.5 text-left text-sm transition-colors",
                   selectedStatus === option.value
-                    ? "border-transparent bg-gradient-to-r from-neon-pink to-neon-cyan text-background"
+                    ? "border-transparent bg-primary text-primary-foreground"
                     : "border-border/60 bg-background text-foreground hover:border-neon-pink/60"
                 )}
               >

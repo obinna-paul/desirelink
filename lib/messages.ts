@@ -14,7 +14,7 @@ export const CONNECTION_REASONS = [
   {
     value: "shared_interest",
     label: "Shared interest",
-    template: "Hi! I noticed we're both into similar things on Udala.",
+    template: "Hi! I noticed we're both into similar things on udala.",
   },
   {
     value: "same_event",

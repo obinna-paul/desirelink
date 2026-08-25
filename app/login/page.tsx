@@ -46,7 +46,7 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthCard title="Welcome back" description="Log in to continue to Udala.">
+    <AuthCard title="Welcome back" description="Log in to continue to udala.">
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <FormField
           label="Email"

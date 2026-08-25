@@ -8,14 +8,14 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-heading" });
 
 export const metadata: Metadata = {
-  applicationName: "Udala",
-  title: "Udala",
+  applicationName: "udala",
+  title: "udala",
   description: "Real-time adult social marketplace",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Udala",
+    title: "udala",
   },
   icons: {
     icon: "/udala-logo.png",

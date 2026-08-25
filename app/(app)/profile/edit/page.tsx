@@ -22,7 +22,7 @@ export default async function EditProfilePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Edit Profile" description="Update how others see you on Udala." />
+      <PageHeader title="Edit Profile" description="Update how others see you on udala." />
       <EditProfileForm profile={profile} />
     </div>
   );

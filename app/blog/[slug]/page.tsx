@@ -17,7 +17,7 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   if (!post) return {};
 
   return {
-    title: `${post.title} — Udala Blog`,
+    title: `${post.title} — udala Blog`,
     description: post.description,
     authors: [{ name: post.author }],
     openGraph: {

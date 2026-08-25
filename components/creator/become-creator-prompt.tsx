@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 export function BecomeCreatorPrompt() {
   return (
     <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border/60 p-10 text-center">
-      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-neon-pink to-neon-cyan">
-        <Sparkles className="h-6 w-6 text-background" aria-hidden="true" />
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary">
+        <Sparkles className="h-6 w-6 text-primary-foreground" aria-hidden="true" />
       </span>
       <div>
         <h2 className="text-lg font-semibold">Become a creator</h2>

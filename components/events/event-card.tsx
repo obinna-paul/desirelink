@@ -22,7 +22,7 @@ export function EventCard({
       href={`/events/${event.id}`}
       className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-primary/80 hover:shadow-lift"
     >
-      <div className="relative flex h-32 w-full items-center justify-center overflow-hidden bg-media-placeholder">
+      <div className="relative flex h-32 w-full items-center justify-center overflow-hidden bg-secondary">
         {event.coverImageUrl ? (
           <Image
             src={event.coverImageUrl}

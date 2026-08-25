@@ -46,7 +46,7 @@ export default async function DiscoverPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Discover"
-        description="Search everyone on Udala with advanced filters."
+        description="Search everyone on udala with advanced filters."
       />
 
       <DiscoverFiltersPanel initialFilters={filters} />

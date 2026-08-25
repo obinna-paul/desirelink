@@ -64,10 +64,6 @@ const config: Config = {
         card: "var(--shadow-card)",
         lift: "var(--shadow-lift)",
       },
-      backgroundImage: {
-        "brand-gradient": "var(--brand-gradient)",
-        "media-placeholder": "var(--media-placeholder)",
-      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

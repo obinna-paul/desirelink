@@ -73,7 +73,7 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
               {post.mediaUrls.map((url) => (
                 <div
                   key={url}
-                  className="relative aspect-square overflow-hidden rounded-lg border border-border/60 bg-media-placeholder transition-opacity hover:opacity-90"
+                  className="relative aspect-square overflow-hidden rounded-lg border border-border/60 bg-secondary transition-opacity hover:opacity-90"
                 >
                   <Image
                     src={url}

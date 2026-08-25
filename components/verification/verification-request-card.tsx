@@ -248,7 +248,7 @@ export function VerificationRequestCard({
       <button
         type="submit"
         disabled={submitting || uploadingId || uploadingSelfie}
-        className="inline-flex min-h-11 w-fit items-center gap-1.5 rounded-md bg-gradient-to-r from-neon-pink to-neon-cyan px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex min-h-11 w-fit items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {submitting ? "Submitting..." : "Submit for review"}
       </button>

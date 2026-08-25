@@ -26,7 +26,7 @@ export function ProfileCard({
     >
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">
-          <Avatar className="h-12 w-12 border border-border bg-media-placeholder">
+          <Avatar className="h-12 w-12 border border-border bg-secondary">
             <AvatarImage src={profile.avatarUrl} alt={profile.displayName} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>

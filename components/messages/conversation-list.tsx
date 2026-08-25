@@ -88,7 +88,7 @@ export function ConversationList({
                 </p>
               </div>
               {unreadCount > 0 && (
-                <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-neon-pink to-neon-cyan px-1 text-[11px] font-semibold text-background">
+                <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-semibold text-primary-foreground">
                   {unreadCount}
                 </span>
               )}

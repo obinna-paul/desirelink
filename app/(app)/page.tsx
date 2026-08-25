@@ -78,7 +78,7 @@ export default async function HomePage({
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Home"
-          description="Browse profiles across Udala, filtered by what you're into right now."
+          description="Browse profiles across udala, filtered by what you're into right now."
         />
         <AvailableTonightStrip items={availableTonight} />
         <EventsTonightStrip events={tonightEvents} />
@@ -98,7 +98,7 @@ export default async function HomePage({
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Home"
-          description="Browse profiles across Udala, filtered by what you're into right now."
+          description="Browse profiles across udala, filtered by what you're into right now."
         />
         <AvailableTonightStrip items={availableTonight} />
         <EventsTonightStrip events={tonightEvents} />
@@ -118,7 +118,7 @@ export default async function HomePage({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Home"
-        description="Browse profiles across Udala, filtered by what you're into right now."
+        description="Browse profiles across udala, filtered by what you're into right now."
       />
       <AvailableTonightStrip items={availableTonight} />
       <EventsTonightStrip events={tonightEvents} />

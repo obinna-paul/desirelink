@@ -153,7 +153,7 @@ export function ChatWindow({
                     className={cn(
                       "max-w-[75%] rounded-2xl px-3.5 py-2 text-sm",
                       isMine
-                        ? "bg-gradient-to-r from-neon-pink to-neon-cyan text-background"
+                        ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-foreground"
                     )}
                   >
@@ -199,7 +199,7 @@ export function ChatWindow({
                 className={cn(
                   "inline-flex min-h-11 items-center rounded-full border px-3 text-xs transition-colors",
                   reason === option.value
-                    ? "border-transparent bg-gradient-to-r from-neon-pink to-neon-cyan text-background"
+                    ? "border-transparent bg-primary text-primary-foreground"
                     : "border-border/60 bg-card text-muted-foreground hover:border-neon-pink/60 hover:text-foreground"
                 )}
               >

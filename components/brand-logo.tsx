@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 export function BrandLogo({
   className,
   priority = false,
-  alt = "Udala",
+  alt = "udala",
 }: {
   className?: string;
   priority?: boolean;

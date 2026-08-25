@@ -8,9 +8,9 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 
 export const metadata: Metadata = {
-  title: "Udala — Meet people with intention",
+  title: "udala — Meet people with intention",
   description:
-    "Udala is the real-time social marketplace where your desires lead the way. Build a Desire Map, see who's available tonight, and unlock creator menus on your terms.",
+    "udala is the real-time social marketplace where your desires lead the way. Build a Desire Map, see who's available tonight, and unlock creator menus on your terms.",
 };
 
 const FEATURES = [
@@ -18,7 +18,7 @@ const FEATURES = [
     icon: Map,
     title: "Say exactly what you want",
     description:
-      "Build a private Desire Map of your interests — from casual chat to specific kinks — and choose exactly who can see each one. Udala matches you with people already into the same things, so there's no guessing and no awkward reveals.",
+      "Build a private Desire Map of your interests — from casual chat to specific kinks — and choose exactly who can see each one. udala matches you with people already into the same things, so there's no guessing and no awkward reveals.",
   },
   {
     icon: Zap,
@@ -90,10 +90,10 @@ export default function LandingPage() {
       <section className="flex flex-col items-center gap-6 px-4 pb-20 pt-10 text-center sm:pb-28 sm:pt-16">
         <h1 className="font-heading max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-6xl">
           Meet people with{" "}
-          <span className="bg-brand-gradient bg-clip-text text-transparent">intention</span>.
+          <span className="text-primary">intention</span>.
         </h1>
         <p className="max-w-xl text-balance text-base text-muted-foreground sm:text-lg">
-          Udala is the real-time social marketplace where your desires lead the way. Match by what you&apos;re
+          udala is the real-time social marketplace where your desires lead the way. Match by what you&apos;re
           actually into, see who&apos;s free tonight, and unlock exclusive content from creators who share your
           interests.
         </p>
@@ -113,7 +113,7 @@ export default function LandingPage() {
       {/* Features */}
       <section className="flex flex-col gap-12 px-4 py-16 sm:px-8 sm:py-24">
         <SectionHeading
-          eyebrow="Why Udala"
+          eyebrow="Why udala"
           title="Built around what you actually want"
           description="Three core tools work together so you spend less time guessing and more time connecting."
         />
@@ -125,7 +125,7 @@ export default function LandingPage() {
                 key={feature.title}
                 className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-6"
               >
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-gradient">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary">
                   <Icon className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
                 </span>
                 <h3 className="font-heading text-lg font-semibold">{feature.title}</h3>

@@ -59,7 +59,7 @@ export default function SignupPage() {
   }
 
   return (
-    <AuthCard title="Create your account" description="Join Udala in seconds.">
+    <AuthCard title="Create your account" description="Join udala in seconds.">
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <FormField
           label="Name"

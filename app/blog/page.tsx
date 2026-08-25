@@ -6,9 +6,9 @@ import { PublicFooter } from "@/components/layout/public-footer";
 import { getAllPosts } from "@/lib/blog";
 
 export const metadata: Metadata = {
-  title: "Udala Blog",
+  title: "udala Blog",
   description:
-    "Guides and updates from Udala: how the Desire Map works, safety and consent, hosting events, and growing as a creator.",
+    "Guides and updates from udala: how the Desire Map works, safety and consent, hosting events, and growing as a creator.",
 };
 
 function formatDate(dateString: string) {
@@ -28,9 +28,9 @@ export default function BlogIndexPage() {
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-12 sm:px-8">
         <div className="flex flex-col gap-2">
-          <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">Udala Blog</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">udala Blog</h1>
           <p className="text-muted-foreground">
-            Guides, safety notes, and tips from the team building Udala.
+            Guides, safety notes, and tips from the team building udala.
           </p>
         </div>
 

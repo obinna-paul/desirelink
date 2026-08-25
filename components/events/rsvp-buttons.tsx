@@ -71,7 +71,7 @@ export function RsvpButtons({
               className={cn(
                 "flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors disabled:opacity-60",
                 pressed
-                  ? "border-transparent bg-gradient-to-r from-neon-pink to-neon-cyan text-background"
+                  ? "border-transparent bg-primary text-primary-foreground"
                   : "border-border/60 bg-card text-muted-foreground hover:border-neon-pink/60 hover:text-foreground"
               )}
             >
