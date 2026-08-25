@@ -87,13 +87,33 @@ export function MonetizationPanel({
     );
   }
 
+  if (eligibility.monetizationStatus === "pending") {
+    return (
+      <div className="rounded-xl border border-border/60 bg-card p-4">
+        <Badge variant="outline">Application pending review</Badge>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {eligibility.pendingApplicationSince && (
+            <>Applied {new Date(eligibility.pendingApplicationSince).toLocaleDateString()}. </>
+          )}
+          An admin reviews monetization applications manually — your Fans and tier revenue are unaffected while you
+          wait.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-border/60 bg-card p-4">
       <h3 className="text-sm font-semibold">Enable monetization</h3>
       <p className="mt-1 text-sm text-muted-foreground">
-        Meet these requirements to start earning from the rewards pool. This never affects your own Fans — you can
-        keep earning from tier subscriptions either way.
+        Meet these requirements to apply — an admin reviews every application before it&apos;s approved. This never
+        affects your own Fans — you can keep earning from tier subscriptions either way.
       </p>
+      {eligibility.monetizationStatus === "denied" && (
+        <p className="mt-2 text-xs text-destructive">
+          Your last application was denied. You can apply again once you still meet the requirements below.
+        </p>
+      )}
       <ul className="mt-3 flex flex-col gap-2">
         {eligibility.requirements.map((requirement) => (
           <RequirementRow key={requirement.key} requirement={requirement} />

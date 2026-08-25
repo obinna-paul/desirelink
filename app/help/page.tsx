@@ -201,8 +201,9 @@ export default function HelpCenterPage() {
               Monetization only controls whether your engagement with Premium users (Udala&apos;s
               platform-wide subscribers) counts toward the monthly rewards pool. It never affects your
               own Fans — you keep earning from tier subscriptions whether you&apos;re monetized or not.
-              You can check your requirements and apply from{" "}
-              <Link href="/creator-dashboard?tab=earnings">Creator Studio → Earnings</Link>.
+              Once you meet the requirements shown in{" "}
+              <Link href="/creator-dashboard?tab=earnings">Creator Studio → Earnings</Link>, you can apply
+              — our team reviews each application manually before it&apos;s approved.
             </p>
           </FaqItem>
         </CategorySection>

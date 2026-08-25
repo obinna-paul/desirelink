@@ -41,5 +41,5 @@ export async function POST(req: Request, { params }: { params: { providerId: str
     return NextResponse.json({ error: result.error, requirements: result.requirements }, { status: result.status });
   }
 
-  return NextResponse.json({ eligibility: result.eligibility }, { status: 200 });
+  return NextResponse.json({ state: result.state, eligibility: result.eligibility }, { status: 200 });
 }

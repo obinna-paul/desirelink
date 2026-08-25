@@ -263,6 +263,7 @@ model Profile {
   engagementMetricsAsUser         EngagementMetric[]     @relation("EngagementMetricUser")
   paymentMethods                  PaymentMethod[]
   serviceListings                 ServiceListing[]
+  monetizationApplications        MonetizationApplication[]
 
   @@index([city, country])
   @@index([profileType])
@@ -780,4 +781,19 @@ model VerificationRequest {
   @@index([profileId])
   @@index([status])
   @@index([requestType, status])
+}
+
+// --- Provider monetization ---------------------------------------------------
+
+model MonetizationApplication {
+  id           String    @id @default(cuid())
+  providerId   String
+  provider     Profile   @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  status       String    @default("pending")
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([providerId])
+  @@index([status])
 }
