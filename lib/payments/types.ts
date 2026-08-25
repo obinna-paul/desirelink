@@ -29,6 +29,32 @@ export type PaymentMethod = {
   country: string;
 };
 
+export type PayoutRecipientInput = {
+  name: string;
+  recipientType?: string;
+  accountNumber: string;
+  bankCode: string;
+  bankName: string;
+  currency: string;
+  country?: string;
+};
+
+export type PayoutRecipient = {
+  provider: "paystack" | "mock";
+  recipientCode: string;
+  status: "verified" | "pending" | "failed";
+  bankName: string;
+  accountLast4: string;
+  accountName: string;
+  country: string;
+  currency: string;
+};
+
+export type PayoutTransferResult = {
+  reference: string;
+  status: "success" | "pending" | "failed";
+};
+
 /**
  * A payment provider's job, as this app uses it, has no need for
  * provider-side subscription objects: ProviderSubscription and
@@ -63,6 +89,20 @@ export interface PaymentProvider {
 
   /** Detaches/deactivates a saved card so it can no longer be charged. */
   detachPaymentMethod(customerId: string, paymentMethodId: string): Promise<void>;
+
+  /** Creates or refreshes a provider payout recipient. Paystack stores the actual bank details. */
+  createPayoutRecipient(input: PayoutRecipientInput): Promise<PayoutRecipient>;
+
+  /** Reads a normalized payout recipient status from the payment provider. */
+  getPayoutRecipient(recipientCode: string): Promise<PayoutRecipient>;
+
+  /** Sends money from the platform balance to a provider payout recipient. */
+  createPayoutTransfer(
+    recipientCode: string,
+    amountCents: number,
+    reason: string,
+    metadata?: Record<string, string>
+  ): Promise<PayoutTransferResult>;
 
   /**
    * Looks up a completed checkout transaction directly by reference —

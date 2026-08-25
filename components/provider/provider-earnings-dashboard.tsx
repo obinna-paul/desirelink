@@ -20,6 +20,8 @@ import { ArrowDownToLine, CircleDollarSign, PieChart as PieChartIcon, TrendingUp
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PayoutHistory } from "@/components/provider/PayoutHistory";
+import { PayoutSetup } from "@/components/provider/PayoutSetup";
 import type { ProviderEarningsDashboardData } from "@/lib/rewards/earnings";
 
 type EarningsData = NonNullable<ProviderEarningsDashboardData>;
@@ -171,6 +173,8 @@ export function ProviderEarningsDashboard({
         </div>
       </section>
 
+      <PayoutSetup providerId={providerId} />
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <ChartCard title="Monthly earnings" description="Last 12 months, stacked by source.">
           <ResponsiveContainer width="100%" height="100%">
@@ -299,37 +303,7 @@ export function ProviderEarningsDashboard({
         </section>
       </div>
 
-      <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
-        <h2 className="text-sm font-semibold">Payout history</h2>
-        {data.payoutHistory.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">No monthly payouts have been recorded yet.</p>
-        ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-border/60 text-xs uppercase tracking-wide text-muted-foreground">
-                  <th scope="col" className="py-2 pr-4 font-medium">Month</th>
-                  <th scope="col" className="py-2 pr-4 font-medium">Points</th>
-                  <th scope="col" className="py-2 pr-4 font-medium">Amount</th>
-                  <th scope="col" className="py-2 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.payoutHistory.map((payout) => (
-                  <tr key={payout.id} className="border-b border-border/40 last:border-0">
-                    <td className="py-2 pr-4">{payout.label}</td>
-                    <td className="py-2 pr-4 tabular-nums">{payout.points}</td>
-                    <td className="py-2 pr-4 tabular-nums">{formatCents(payout.amountCents)}</td>
-                    <td className="py-2">
-                      <Badge variant={payout.status === "paid" ? "neon" : "outline"}>{payout.status}</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <PayoutHistory providerId={providerId} payouts={data.payoutHistory} />
     </div>
   );
 }

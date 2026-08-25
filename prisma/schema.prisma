@@ -224,6 +224,16 @@ model Profile {
   monetizedAt        DateTime?
   monetizationStatus String    @default("none")
 
+  payoutProvider       String    @default("paystack")
+  payoutRecipientCode  String?
+  payoutSetupStatus    String    @default("not_started")
+  payoutBankName       String?
+  payoutAccountLast4   String?
+  payoutAccountName    String?
+  payoutCountry        String    @default("")
+  payoutCurrency       String    @default("USD")
+  payoutSetupUpdatedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -413,6 +423,8 @@ model ProviderEarning {
   points      Int      @default(0)
   amountCents Int      @default(0)
   status      String   @default("pending")
+  payoutReference String?
+  paidAt      DateTime?
   createdAt   DateTime @default(now())
 
   @@unique([providerId, month])

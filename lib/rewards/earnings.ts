@@ -67,7 +67,16 @@ export async function getProviderEarningsHistory(providerId: string) {
   return prisma.providerEarning.findMany({
     where: { providerId },
     orderBy: { month: "desc" },
-    select: { id: true, month: true, points: true, amountCents: true, status: true, createdAt: true },
+    select: {
+      id: true,
+      month: true,
+      points: true,
+      amountCents: true,
+      status: true,
+      payoutReference: true,
+      paidAt: true,
+      createdAt: true,
+    },
   });
 }
 
@@ -347,6 +356,8 @@ export async function getProviderEarningsDashboard(providerId: string) {
       points: entry.points,
       amountCents: entry.amountCents,
       status: entry.status,
+      payoutReference: entry.payoutReference,
+      paidAt: entry.paidAt?.toISOString() ?? null,
       createdAt: entry.createdAt.toISOString(),
     })),
   };

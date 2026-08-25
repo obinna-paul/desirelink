@@ -61,7 +61,7 @@ export async function removePaymentMethod(profileId: string, cardId: string): Pr
 
 export type SetDefaultCardResult = { ok: true } | { ok: false; status: number; error: string };
 
-/** Purely a record in our own database — neither Paystack nor Stripe has a server-side "default card" concept we rely on; every charge names its card explicitly. */
+/** Purely a record in our own database. Every charge names its saved Paystack authorization explicitly. */
 export async function setDefaultPaymentMethod(profileId: string, cardId: string): Promise<SetDefaultCardResult> {
   const card = await prisma.paymentMethod.findUnique({ where: { id: cardId } });
   if (!card || card.userId !== profileId) {

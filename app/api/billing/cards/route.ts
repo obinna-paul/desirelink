@@ -22,12 +22,10 @@ export async function GET() {
 }
 
 /**
- * Paystack has no zero-charge "save a card" primitive (unlike Stripe's
- * SetupIntent) — a card can only be saved as a byproduct of a real,
- * successful charge. So "Add Card" here starts a checkout for Udala Premium
- * ($5), the one product every account can subscribe to; the resulting card
- * gets saved once that payment completes (see confirmProviderPayment /
- * lib/payments/webhook-handler.ts).
+ * Paystack saves a reusable authorization after a successful real charge. So
+ * "Add Card" starts checkout for Udala Premium ($5), the one product every
+ * account can subscribe to; the resulting card gets saved once that payment
+ * completes (see confirmProviderPayment / lib/payments/webhook-handler.ts).
  */
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);

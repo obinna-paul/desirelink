@@ -3,7 +3,7 @@ import type { WebhookEvent, WebhookPaymentMethod } from "./types";
 
 function activeProviderName(): string {
   if (process.env.USE_MOCK_PAYMENTS === "true") return "mock";
-  return process.env.PAYMENT_PROVIDER === "stripe" ? "stripe" : "paystack";
+  return "paystack";
 }
 
 /**

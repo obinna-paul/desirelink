@@ -6,11 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { subscribeToPremium } from "@/lib/premium";
 
 /**
- * Paystack has no SetupIntent / client-secret concept (Stripe Elements is a
- * Stripe-specific pattern) — saving a card here means starting a real
- * checkout. This route exists for parity with the original spec; it does the
- * same thing as POST /api/billing/cards. The frontend redirects the browser
- * to `checkoutUrl` instead of mounting a card element.
+ * Paystack saves a reusable authorization after a successful real charge, so
+ * saving a card here starts checkout. The frontend redirects the browser to
+ * `checkoutUrl` instead of mounting an embedded card element.
  */
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);

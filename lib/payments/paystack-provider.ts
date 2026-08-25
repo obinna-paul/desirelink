@@ -1,6 +1,13 @@
 import { createHmac } from "crypto";
 
-import type { PaymentProvider, WebhookEvent, WebhookPaymentMethod } from "./types";
+import type {
+  PaymentProvider,
+  PayoutRecipient,
+  PayoutRecipientInput,
+  PayoutTransferResult,
+  WebhookEvent,
+  WebhookPaymentMethod,
+} from "./types";
 
 const PAYSTACK_API_BASE = "https://api.paystack.co";
 
@@ -27,6 +34,23 @@ type PaystackTransactionData = {
   metadata?: Record<string, string> | string;
 };
 
+type PaystackTransferRecipientData = {
+  recipient_code: string;
+  active?: boolean;
+  currency?: string;
+  details?: {
+    account_number?: string;
+    account_name?: string;
+    bank_name?: string;
+  };
+  metadata?: Record<string, string> | string;
+};
+
+type PaystackTransferData = {
+  reference: string;
+  status: string;
+};
+
 function toWebhookPaymentMethod(authorization: PaystackAuthorization | undefined): WebhookPaymentMethod | null {
   if (!authorization) return null;
   return {
@@ -39,9 +63,29 @@ function toWebhookPaymentMethod(authorization: PaystackAuthorization | undefined
   };
 }
 
-/** Paystack's transaction currency for this account — see .env.example. Paystack does not convert currencies the way Stripe does; the merchant account must itself support whatever currency is charged. */
+/** Paystack's transaction currency for this account. The merchant account must support whatever currency is charged. */
 function currency(): string {
   return process.env.PAYSTACK_CURRENCY ?? "USD";
+}
+
+function normalizeRecipient(data: PaystackTransferRecipientData): PayoutRecipient {
+  const metadata = data.metadata && typeof data.metadata === "object" ? data.metadata : {};
+  return {
+    provider: "paystack",
+    recipientCode: data.recipient_code,
+    status: data.active === false ? "pending" : "verified",
+    bankName: data.details?.bank_name ?? metadata.bankName ?? "",
+    accountLast4: data.details?.account_number?.slice(-4) ?? "",
+    accountName: data.details?.account_name ?? "",
+    country: metadata.country ?? "",
+    currency: data.currency ?? metadata.currency ?? currency(),
+  };
+}
+
+function normalizeTransferStatus(status: string): PayoutTransferResult["status"] {
+  if (status === "success") return "success";
+  if (status === "failed" || status === "reversed") return "failed";
+  return "pending";
 }
 
 export class PaystackProvider implements PaymentProvider {
@@ -124,6 +168,46 @@ export class PaystackProvider implements PaymentProvider {
   async detachPaymentMethod(customerId: string, paymentMethodId: string): Promise<void> {
     void customerId; // Paystack's deactivate endpoint is keyed on the authorization code alone.
     await this.request("POST", "/customer/deactivate_authorization", { authorization_code: paymentMethodId });
+  }
+
+  async createPayoutRecipient(input: PayoutRecipientInput): Promise<PayoutRecipient> {
+    const recipient = await this.request<PaystackTransferRecipientData>("POST", "/transferrecipient", {
+      type: input.recipientType ?? "nuban",
+      name: input.name,
+      account_number: input.accountNumber,
+      bank_code: input.bankCode,
+      currency: input.currency,
+      metadata: {
+        bankName: input.bankName,
+        country: input.country ?? "",
+        currency: input.currency,
+      },
+    });
+    return normalizeRecipient(recipient);
+  }
+
+  async getPayoutRecipient(recipientCode: string): Promise<PayoutRecipient> {
+    const recipient = await this.request<PaystackTransferRecipientData>("GET", `/transferrecipient/${recipientCode}`);
+    return normalizeRecipient(recipient);
+  }
+
+  async createPayoutTransfer(
+    recipientCode: string,
+    amountCents: number,
+    reason: string,
+    metadata: Record<string, string> = {}
+  ): Promise<PayoutTransferResult> {
+    const reference = `udala_payout_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const transfer = await this.request<PaystackTransferData>("POST", "/transfer", {
+      source: "balance",
+      amount: amountCents,
+      recipient: recipientCode,
+      reason,
+      reference,
+      metadata,
+    });
+
+    return { reference: transfer.reference, status: normalizeTransferStatus(transfer.status) };
   }
 
   async verifyTransaction(reference: string): Promise<WebhookEvent> {

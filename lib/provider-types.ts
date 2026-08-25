@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
  * Anyone who can sell paid tiers on Udala: Creators, Pairs, and Service
  * Providers. Kept separate from lib/providers.ts (which also imports
  * lib/payments) so client components can safely import this pure check —
- * e.g. via lib/creator.ts's formatCents — without pulling Stripe-dependent
+ * e.g. via lib/creator.ts's formatCents — without pulling payment-provider
  * server code into the browser bundle.
  */
 export const PROVIDER_PROFILE_TYPES: readonly ProfileType[] = ["CREATOR", "PAIR", "SERVICE_PROVIDER"];

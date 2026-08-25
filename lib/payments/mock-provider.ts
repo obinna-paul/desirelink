@@ -1,4 +1,11 @@
-import type { PaymentProvider, WebhookEvent, WebhookPaymentMethod } from "./types";
+import type {
+  PaymentProvider,
+  PayoutRecipient,
+  PayoutRecipientInput,
+  PayoutTransferResult,
+  WebhookEvent,
+  WebhookPaymentMethod,
+} from "./types";
 
 const SIMULATED_DELAY_MS = 1000;
 
@@ -31,6 +38,7 @@ export class MockPaymentProvider implements PaymentProvider {
   private customers = new Map<string, { userId: string; email: string }>();
   private cardsByCustomer = new Map<string, string>();
   private transactions = new Map<string, MockTransaction>();
+  private payoutRecipients = new Map<string, PayoutRecipient>();
 
   async createCustomer(userId: string, email: string): Promise<string> {
     await delay(SIMULATED_DELAY_MS);
@@ -71,6 +79,54 @@ export class MockPaymentProvider implements PaymentProvider {
     await delay(SIMULATED_DELAY_MS);
     void paymentMethodId;
     this.cardsByCustomer.delete(customerId);
+  }
+
+  async createPayoutRecipient(input: PayoutRecipientInput): Promise<PayoutRecipient> {
+    await delay(SIMULATED_DELAY_MS);
+    const recipient: PayoutRecipient = {
+      provider: "mock",
+      recipientCode: fakeId("rcpt"),
+      status: "verified",
+      bankName: input.bankName,
+      accountLast4: input.accountNumber.slice(-4),
+      accountName: input.name,
+      country: input.country ?? "US",
+      currency: input.currency,
+    };
+    this.payoutRecipients.set(recipient.recipientCode, recipient);
+    return recipient;
+  }
+
+  async getPayoutRecipient(recipientCode: string): Promise<PayoutRecipient> {
+    await delay(SIMULATED_DELAY_MS);
+    const recipient = this.payoutRecipients.get(recipientCode);
+    if (!recipient) {
+      return {
+        provider: "mock",
+        recipientCode,
+        status: "failed",
+        bankName: "",
+        accountLast4: "",
+        accountName: "",
+        country: "US",
+        currency: "USD",
+      };
+    }
+    return recipient;
+  }
+
+  async createPayoutTransfer(
+    recipientCode: string,
+    amountCents: number,
+    reason: string,
+    metadata: Record<string, string> = {}
+  ): Promise<PayoutTransferResult> {
+    await delay(SIMULATED_DELAY_MS);
+    void recipientCode;
+    void amountCents;
+    void reason;
+    void metadata;
+    return { reference: fakeId("trf"), status: "success" };
   }
 
   async verifyTransaction(reference: string): Promise<WebhookEvent> {
