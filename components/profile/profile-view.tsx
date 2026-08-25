@@ -3,6 +3,7 @@ import type { Desire, Profile } from "@prisma/client";
 import {
   Award,
   BadgeCheck,
+  Briefcase,
   CalendarCheck,
   Heart,
   MapPin,
@@ -110,7 +111,12 @@ export function ProfileView({
               )}
               {profile.isCouple && (
                 <Badge variant="secondary" className="gap-1">
-                  <Heart className="h-3 w-3" /> Couple
+                  <Heart className="h-3 w-3" /> Pair
+                </Badge>
+              )}
+              {profile.accountType === "service_provider" && (
+                <Badge variant="secondary" className="gap-1">
+                  <Briefcase className="h-3 w-3" /> Service provider
                 </Badge>
               )}
               {profile.isTrustedMember && (
@@ -265,6 +271,21 @@ export function ProfileView({
                     </div>
                   </>
                 )}
+              </div>
+            </div>
+          )}
+
+          {profile.accountType === "service_provider" && profile.serviceCategories.length > 0 && (
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Services offered
+              </h2>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {profile.serviceCategories.map((category) => (
+                  <Badge key={category} variant="outline">
+                    {category}
+                  </Badge>
+                ))}
               </div>
             </div>
           )}

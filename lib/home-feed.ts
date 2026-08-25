@@ -32,6 +32,8 @@ export function profileCardSelect() {
     avatarUrl: true,
     city: true,
     country: true,
+    accountType: true,
+    serviceCategories: true,
     isCreator: true,
     isCouple: true,
     isVerified: true,

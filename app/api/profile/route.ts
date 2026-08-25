@@ -22,9 +22,17 @@ export async function PATCH(req: Request) {
     );
   }
 
+  const { accountType, isCreator, serviceCategories, ...rest } = parsed.data;
+
   const profile = await prisma.profile.update({
     where: { userId: session.user.id },
-    data: parsed.data,
+    data: {
+      ...rest,
+      accountType,
+      isCreator: accountType === "creator" ? true : isCreator,
+      isCouple: accountType === "pair",
+      serviceCategories: accountType === "service_provider" ? serviceCategories : [],
+    },
   });
 
   const { score, isTrustedMember } = await recalculateReputation(profile.id);

@@ -12,12 +12,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
+import { AccountTypeSelector } from "@/components/account-type-selector";
 import { updateProfileSchema, type UpdateProfileInput } from "@/lib/validations/profile";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
+import { SERVICE_CATEGORY_OPTIONS } from "@/lib/account-types";
 
 type BooleanFieldName =
   | "isCreator"
-  | "isCouple"
   | "isVerified"
   | "openToChat"
   | "openToMeet"
@@ -100,8 +101,9 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       orientation: profile.orientation,
       city: profile.city,
       country: profile.country,
+      accountType: profile.accountType,
+      serviceCategories: profile.serviceCategories,
       isCreator: profile.isCreator,
-      isCouple: profile.isCouple,
       isVerified: profile.isVerified,
       openToChat: profile.openToChat,
       openToMeet: profile.openToMeet,
@@ -112,6 +114,15 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
   });
 
   const avatarUrl = watch("avatarUrl");
+  const accountType = watch("accountType");
+  const serviceCategories = watch("serviceCategories");
+
+  function toggleServiceCategory(category: string) {
+    const next = serviceCategories.includes(category)
+      ? serviceCategories.filter((value) => value !== category)
+      : [...serviceCategories, category];
+    setValue("serviceCategories", next, { shouldDirty: true });
+  }
 
   async function onSubmit(data: UpdateProfileInput) {
     setServerError(null);
@@ -190,20 +201,50 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
 
       <section className="flex flex-col gap-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Profile type
+          Account type
         </h2>
-        <ToggleRow
-          label="Creator"
-          description="Unlock subscriptions, tiers, and paid posts."
+        <Controller
           control={control}
-          name="isCreator"
+          name="accountType"
+          render={({ field }) => (
+            <AccountTypeSelector
+              value={field.value}
+              onChange={field.onChange}
+              className="sm:grid-cols-2"
+            />
+          )}
         />
-        <ToggleRow
-          label="Couple"
-          description="Show that this profile represents a couple."
-          control={control}
-          name="isCouple"
-        />
+
+        {accountType === "service_provider" && (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium">Services you offer</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {SERVICE_CATEGORY_OPTIONS.map((category) => (
+                <label
+                  key={category}
+                  className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-border/60 bg-card px-3 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={serviceCategories.includes(category)}
+                    onChange={() => toggleServiceCategory(category)}
+                    className="h-4 w-4 shrink-0 accent-primary"
+                  />
+                  {category}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {accountType !== "creator" && (
+          <ToggleRow
+            label="Also enable creator tools"
+            description="Unlock subscriptions, tiers, and paid posts alongside your account type."
+            control={control}
+            name="isCreator"
+          />
+        )}
       </section>
 
       <section className="flex flex-col gap-4">

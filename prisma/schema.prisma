@@ -104,6 +104,13 @@ enum VerificationRequestStatus {
   denied
 }
 
+enum AccountType {
+  creator
+  pair
+  explorer
+  service_provider
+}
+
 // --- Auth ------------------------------------------------------------------
 
 model User {
@@ -172,6 +179,9 @@ model Profile {
   bio         String
   avatarUrl   String
 
+  accountType       AccountType @default(explorer)
+  serviceCategories String[]    @default([])
+
   isCreator Boolean   @default(false)
   isCouple  Boolean   @default(false)
   partnerId String?
@@ -234,6 +244,7 @@ model Profile {
 
   @@index([city, country])
   @@index([isCreator])
+  @@index([accountType])
   @@index([locationLat, locationLng])
 }
 

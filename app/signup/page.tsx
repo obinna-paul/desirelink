@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { AuthCard } from "@/components/auth/auth-card";
 import { FormField } from "@/components/auth/form-field";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { AccountTypeSelector } from "@/components/account-type-selector";
 import { signupSchema, type SignupInput } from "@/lib/validations/auth";
 
 export default function SignupPage() {
@@ -21,8 +22,12 @@ export default function SignupPage() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
-  } = useForm<SignupInput>({ resolver: zodResolver(signupSchema) });
+  } = useForm<SignupInput>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: { accountType: "explorer" },
+  });
 
   async function onSubmit(data: SignupInput) {
     setServerError(null);
@@ -88,6 +93,16 @@ export default function SignupPage() {
           registration={register("confirmPassword")}
           error={errors.confirmPassword?.message}
         />
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">I&apos;m signing up as...</span>
+          <Controller
+            control={control}
+            name="accountType"
+            render={({ field }) => (
+              <AccountTypeSelector value={field.value} onChange={field.onChange} />
+            )}
+          />
+        </div>
         {serverError && (
           <p role="alert" className="text-sm text-destructive">
             {serverError}

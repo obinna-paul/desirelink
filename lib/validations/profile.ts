@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { ACCOUNT_TYPE_VALUES } from "@/lib/validations/auth";
+
 export const updateProfileSchema = z.object({
   displayName: z.string().min(2, "Display name must be at least 2 characters").max(50),
   bio: z.string().max(500, "Bio must be 500 characters or fewer"),
@@ -8,8 +10,9 @@ export const updateProfileSchema = z.object({
   orientation: z.string().min(1, "Select an orientation"),
   city: z.string().max(100),
   country: z.string().max(100),
+  accountType: z.enum(ACCOUNT_TYPE_VALUES),
+  serviceCategories: z.array(z.string()).max(10),
   isCreator: z.boolean(),
-  isCouple: z.boolean(),
   isVerified: z.boolean(),
   openToChat: z.boolean(),
   openToMeet: z.boolean(),

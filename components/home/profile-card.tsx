@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Award, BadgeCheck, CalendarCheck, Heart, ShieldCheck, Sparkles } from "lucide-react";
+import { Award, BadgeCheck, Briefcase, CalendarCheck, Heart, ShieldCheck, Sparkles } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +48,14 @@ export function ProfileCard({
               />
             )}
             {profile.isCouple && (
-              <Heart role="img" aria-label="Couple" className="h-3.5 w-3.5 shrink-0 text-neon-cyan" />
+              <Heart role="img" aria-label="Pair" className="h-3.5 w-3.5 shrink-0 text-neon-cyan" />
+            )}
+            {profile.accountType === "service_provider" && (
+              <Briefcase
+                role="img"
+                aria-label="Service provider"
+                className="h-3.5 w-3.5 shrink-0 text-neon-cyan"
+              />
             )}
             {profile.isTrustedMember ? (
               <ShieldCheck

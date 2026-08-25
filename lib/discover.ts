@@ -1,7 +1,13 @@
-import type { AvailabilityStatusType, DesireLevel, Prisma } from "@prisma/client";
+import type { AccountType, AvailabilityStatusType, DesireLevel, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
+import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
+
+export const ACCOUNT_TYPE_FILTER_OPTIONS = ACCOUNT_TYPE_OPTIONS.map(({ value, label }) => ({
+  value,
+  label,
+}));
 
 export const RELATIONSHIP_OPTIONS = [
   { value: "single", label: "Single" },
@@ -54,6 +60,7 @@ export type DiscoverFilters = {
   genders: string[];
   orientations: string[];
   relationship: RelationshipValue[];
+  accountTypes: AccountType[];
   desireCategories: string[];
   desireLevel: DesireLevel | null;
   radiusKm: number | null;
@@ -86,6 +93,9 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
     orientations: toArray(searchParams.orientation),
     relationship: toArray(searchParams.relationship).filter((value): value is RelationshipValue =>
       RELATIONSHIP_OPTIONS.some((option) => option.value === value)
+    ),
+    accountTypes: toArray(searchParams.accountType).filter((value): value is AccountType =>
+      ACCOUNT_TYPE_FILTER_OPTIONS.some((option) => option.value === value)
     ),
     desireCategories: toArray(searchParams.desire),
     desireLevel: DESIRE_LEVEL_FILTER_OPTIONS.some((option) => option.value === desireLevelParam)
@@ -136,6 +146,10 @@ function buildWhere(
 
   if (filters.relationship.length === 1) {
     where.isCouple = filters.relationship[0] === "couple";
+  }
+
+  if (filters.accountTypes.length > 0) {
+    where.accountType = { in: filters.accountTypes };
   }
 
   if (filters.creator === "yes") {

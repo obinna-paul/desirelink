@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import type { DesireLevel } from "@prisma/client";
+import type { AccountType, DesireLevel } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -12,6 +12,7 @@ import { useFocusTrap } from "@/lib/use-focus-trap";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
 import { DESIRE_CATEGORIES } from "@/lib/desire-options";
 import {
+  ACCOUNT_TYPE_FILTER_OPTIONS,
   AVAILABILITY_FILTER_OPTIONS,
   CREATOR_FILTER_OPTIONS,
   DEFAULT_RADIUS_KM,
@@ -140,6 +141,7 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
   const [genders, setGenders] = useState<string[]>(initialFilters.genders);
   const [orientations, setOrientations] = useState<string[]>(initialFilters.orientations);
   const [relationship, setRelationship] = useState<RelationshipValue[]>(initialFilters.relationship);
+  const [accountTypes, setAccountTypes] = useState<AccountType[]>(initialFilters.accountTypes);
   const [desireCategories, setDesireCategories] = useState<string[]>(initialFilters.desireCategories);
   const [desireLevel, setDesireLevel] = useState<DesireLevel | "">(initialFilters.desireLevel ?? "");
   const [radiusKm, setRadiusKm] = useState<string>(
@@ -156,6 +158,7 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
     genders.forEach((value) => params.append("gender", value));
     orientations.forEach((value) => params.append("orientation", value));
     relationship.forEach((value) => params.append("relationship", value));
+    accountTypes.forEach((value) => params.append("accountType", value));
     desireCategories.forEach((value) => params.append("desire", value));
     if (desireLevel) params.set("desireLevel", desireLevel);
     params.set("radius", radiusKm);
@@ -169,6 +172,7 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
     setGenders([]);
     setOrientations([]);
     setRelationship([]);
+    setAccountTypes([]);
     setDesireCategories([]);
     setDesireLevel("");
     setRadiusKm(String(DEFAULT_RADIUS_KM));
@@ -185,7 +189,13 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
       </summary>
 
       <div className="flex flex-col gap-4 border-t border-border/60 p-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <MultiSelectDropdown
+            label="Account type"
+            options={ACCOUNT_TYPE_FILTER_OPTIONS}
+            selected={accountTypes}
+            onChange={(next) => setAccountTypes(next as AccountType[])}
+          />
           <MultiSelectDropdown
             label="Gender"
             options={toDropdownOptions(GENDER_OPTIONS)}
