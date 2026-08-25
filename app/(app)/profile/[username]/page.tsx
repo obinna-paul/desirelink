@@ -12,6 +12,7 @@ import { getProfileVisibility, getVisibleDesires } from "@/lib/circles";
 import { getReviewableContexts, getReviewsForProfile, getReviewSummary } from "@/lib/reviews";
 import { confirmPendingProviderSubscription, isProviderProfileType } from "@/lib/providers";
 import { getProviderServiceListings } from "@/lib/service-listings";
+import { trackContentView, trackProfileView, trackServiceView } from "@/lib/rewards/tracking";
 
 export default async function PublicProfilePage({
   params,
@@ -69,6 +70,16 @@ export default async function PublicProfilePage({
   const tiers = isProvider ? await getPublicTiers(profile.id, viewerOrOwnerId) : [];
   const serviceListings =
     profile.profileType === "SERVICE_PROVIDER" ? await getProviderServiceListings(profile.id) : [];
+
+  if (viewerProfile && isProvider) {
+    await trackProfileView(profile.id, viewerProfile.id);
+    if (profile.profileType === "CREATOR" && posts.length > 0) {
+      await trackContentView(profile.id, viewerProfile.id);
+    }
+    if (profile.profileType === "SERVICE_PROVIDER" && serviceListings.length > 0) {
+      await trackServiceView(profile.id, viewerProfile.id);
+    }
+  }
 
   const [reviewSummary, reviews, reviewableContexts] = await Promise.all([
     getReviewSummary(profile.id),

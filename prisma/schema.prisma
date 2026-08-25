@@ -254,8 +254,8 @@ model Profile {
   premiumSubscription             PremiumSubscription?
   providerSubscriptionsAsSub      ProviderSubscription[] @relation("ProviderSubscriptionSubscriber")
   providerSubscriptionsAsProvider ProviderSubscription[] @relation("ProviderSubscriptionProvider")
-  creatorEarnings                 CreatorEarning[]
-  engagementMetricsAsCreator      EngagementMetric[]     @relation("EngagementMetricCreator")
+  providerEarnings                ProviderEarning[]
+  engagementMetricsAsProvider     EngagementMetric[]     @relation("EngagementMetricProvider")
   engagementMetricsAsUser         EngagementMetric[]     @relation("EngagementMetricUser")
   paymentMethods                  PaymentMethod[]
   serviceListings                 ServiceListing[]
@@ -393,33 +393,35 @@ model ServiceListing {
   @@index([providerId])
 }
 
-model CreatorEarning {
+model ProviderEarning {
   id          String   @id @default(cuid())
-  creatorId   String
-  creator     Profile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  providerId  String
+  provider    Profile  @relation(fields: [providerId], references: [id], onDelete: Cascade)
   month       String
   points      Int      @default(0)
   amountCents Int      @default(0)
   status      String   @default("pending")
   createdAt   DateTime @default(now())
 
-  @@index([creatorId])
+  @@unique([providerId, month])
+  @@index([providerId])
   @@index([month])
   @@index([status])
 }
 
 model EngagementMetric {
   id         String   @id @default(cuid())
-  creatorId  String
-  creator    Profile  @relation("EngagementMetricCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   Profile  @relation("EngagementMetricProvider", fields: [providerId], references: [id], onDelete: Cascade)
   userId     String?
   user       Profile? @relation("EngagementMetricUser", fields: [userId], references: [id], onDelete: SetNull)
   metricType String
   value      Int      @default(1)
   createdAt  DateTime @default(now())
 
-  @@index([creatorId])
+  @@index([providerId])
   @@index([metricType])
+  @@index([createdAt])
 }
 
 model PaymentMethod {

@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendMessage } from "@/lib/messages";
+import { isProviderProfileType } from "@/lib/provider-types";
+import { trackMessageReply } from "@/lib/rewards/tracking";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -13,7 +15,7 @@ export async function POST(req: Request) {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true },
+    select: { id: true, profileType: true },
   });
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
@@ -30,6 +32,16 @@ export async function POST(req: Request) {
   const result = await sendMessage(profile.id, recipientId, content);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+
+  if (isProviderProfileType(profile.profileType)) {
+    const priorMessageFromRecipient = await prisma.message.findFirst({
+      where: { senderId: recipientId, recipientId: profile.id },
+      select: { id: true },
+    });
+    if (priorMessageFromRecipient) {
+      await trackMessageReply(profile.id, recipientId);
+    }
   }
 
   return NextResponse.json({ message: result.message }, { status: 201 });

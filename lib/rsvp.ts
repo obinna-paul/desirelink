@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { createEventCheckoutSession } from "@/lib/legacy-checkout";
 import { profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
+import { trackEventRsvp } from "@/lib/rewards/tracking";
 
 export const RSVP_ACTIONS = ["going", "interested", "not_going"] as const;
 export type RsvpAction = (typeof RSVP_ACTIONS)[number];
@@ -128,6 +129,10 @@ export async function setRsvp(profileId: string, eventId: string, action: RsvpAc
       await tx.event.update({ where: { id: eventId }, data: { currentAttendees: { decrement: 1 } } });
     }
   });
+
+  if (action === "going" && previousStatus !== "going") {
+    await trackEventRsvp(event.hostId, profileId);
+  }
 
   return { ok: true, state: "updated", status: action };
 }

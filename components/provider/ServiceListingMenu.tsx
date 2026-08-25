@@ -18,6 +18,11 @@ function formatDuration(minutes: number): string {
 function ServiceListingCard({ listing }: { listing: ServiceListingView }) {
   const [bookClicked, setBookClicked] = useState(false);
 
+  async function handleBook() {
+    setBookClicked(true);
+    await fetch(`/api/service-listings/${listing.id}/book`, { method: "POST" }).catch(() => null);
+  }
+
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-border/60 bg-card p-4">
       <div className="flex items-start justify-between gap-2">
@@ -32,7 +37,7 @@ function ServiceListingCard({ listing }: { listing: ServiceListingView }) {
         </span>
         <span className="font-semibold text-primary">{formatCents(listing.priceCents)}</span>
       </div>
-      <Button type="button" variant="outline" onClick={() => setBookClicked(true)} disabled={bookClicked}>
+      <Button type="button" variant="outline" onClick={handleBook} disabled={bookClicked}>
         {bookClicked ? "Booking coming soon" : "Book"}
       </Button>
     </div>
