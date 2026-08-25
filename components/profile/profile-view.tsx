@@ -69,7 +69,9 @@ export function ProfileView({
   reviewableContexts = [],
   visibleProfileFields = ALL_PROFILE_FIELD_NAMES,
 }: {
-  profile: Profile;
+  profile: Profile & {
+    partner: { username: string; displayName: string; avatarUrl: string } | null;
+  };
   desires: Desire[];
   posts: PostView[];
   tiers: PublicTierView[];
@@ -144,6 +146,17 @@ export function ProfileView({
             {visibleFieldSet.has("location") && location && (
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                 <MapPin className="h-3 w-3" /> {location}
+              </p>
+            )}
+            {profile.partner && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                <Heart className="h-3 w-3" /> Partnered with{" "}
+                <Link
+                  href={`/profile/${profile.partner.username}`}
+                  className="font-medium text-foreground underline-offset-2 hover:underline"
+                >
+                  @{profile.partner.username}
+                </Link>
               </p>
             )}
           </div>

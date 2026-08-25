@@ -22,6 +22,9 @@ export default async function PublicProfilePage({
 
   const profile = await prisma.profile.findUnique({
     where: { username: params.username },
+    include: {
+      partner: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+    },
   });
 
   if (!profile) {

@@ -5,6 +5,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { EditProfileForm } from "@/components/profile/edit-profile-form";
+import { PartnerLinkPanel } from "@/components/profile/partner-link-panel";
+import { getPartnerState } from "@/lib/partners";
 
 export default async function EditProfilePage() {
   const session = await getServerSession(authOptions);
@@ -20,10 +22,14 @@ export default async function EditProfilePage() {
     redirect("/profile");
   }
 
+  const showPartnerPanel = profile.accountType === "pair" || profile.partnerId !== null;
+  const partnerState = showPartnerPanel ? await getPartnerState(profile.id) : null;
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Edit Profile" description="Update how others see you on udala." />
       <EditProfileForm profile={profile} />
+      {partnerState && <PartnerLinkPanel initialState={partnerState} />}
     </div>
   );
 }

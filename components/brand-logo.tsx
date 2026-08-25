@@ -1,4 +1,8 @@
+"use client";
+
 import Image from "next/image";
+import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
 
 import { cn } from "@/lib/utils";
 
@@ -11,9 +15,15 @@ export function BrandLogo({
   priority?: boolean;
   alt?: string;
 }) {
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const src = mounted && resolvedTheme === "dark" ? "/udala-logo.png" : "/udala-logo-light.png";
+
   return (
     <Image
-      src="/udala-logo.png"
+      src={src}
       alt={alt}
       width={1280}
       height={1280}

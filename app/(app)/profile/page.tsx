@@ -20,7 +20,10 @@ export default async function ProfilePage({
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    include: { desires: { orderBy: { createdAt: "asc" } } },
+    include: {
+      desires: { orderBy: { createdAt: "asc" } },
+      partner: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+    },
   });
 
   if (!profile) {

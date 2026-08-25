@@ -111,6 +111,13 @@ enum AccountType {
   service_provider
 }
 
+enum PartnerInviteStatus {
+  pending
+  accepted
+  declined
+  cancelled
+}
+
 // --- Auth ------------------------------------------------------------------
 
 model User {
@@ -188,6 +195,9 @@ model Profile {
   partner   Profile?  @relation("ProfilePartner", fields: [partnerId], references: [id])
   partnerOf Profile[] @relation("ProfilePartner")
 
+  partnerInvitesSent     PartnerInvite[] @relation("PartnerInviteSender")
+  partnerInvitesReceived PartnerInvite[] @relation("PartnerInviteRecipient")
+
   gender      String
   orientation String
 
@@ -262,6 +272,23 @@ model Desire {
   @@unique([userId, category])
   @@index([userId])
   @@index([category])
+}
+
+// --- Partner linking (Pair accounts) ----------------------------------------
+
+model PartnerInvite {
+  id            String              @id @default(cuid())
+  fromProfileId String
+  fromProfile   Profile             @relation("PartnerInviteSender", fields: [fromProfileId], references: [id], onDelete: Cascade)
+  toProfileId   String
+  toProfile     Profile             @relation("PartnerInviteRecipient", fields: [toProfileId], references: [id], onDelete: Cascade)
+  status        PartnerInviteStatus @default(pending)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@unique([fromProfileId, toProfileId])
+  @@index([toProfileId, status])
+  @@index([fromProfileId, status])
 }
 
 // --- Creator monetization ---------------------------------------------------
