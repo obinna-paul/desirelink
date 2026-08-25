@@ -5,6 +5,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { handleWebhook } from "@/lib/legacy-checkout";
+import { readJson } from "@/lib/security/request";
 
 const eventSchema = z.object({
   type: z.enum(["checkout.completed", "checkout.failed"]),
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json();
+  const body = await readJson(req);
   const parsed = eventSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid event" }, { status: 400 });

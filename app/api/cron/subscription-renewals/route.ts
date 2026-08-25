@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { runSubscriptionRenewals } from "@/lib/billing";
-
-function isAuthorized(req: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return process.env.NODE_ENV !== "production";
-  return req.headers.get("authorization") === `Bearer ${secret}`;
-}
+import { isCronAuthorized } from "@/lib/security/cron";
 
 /**
  * Meant to run daily (see vercel.json). Charges every subscription due for
@@ -14,7 +9,7 @@ function isAuthorized(req: Request): boolean {
  * window, and cancels anything past-due for 30+ days. See lib/billing.ts.
  */
 export async function GET(req: Request) {
-  if (!isAuthorized(req)) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const summary = await runSubscriptionRenewals();

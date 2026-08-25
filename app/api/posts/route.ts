@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { flagContentIfNeeded } from "@/lib/moderation";
 import { createPostSchema } from "@/lib/validations/post";
+import { readJson } from "@/lib/security/request";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Your account is suspended from posting" }, { status: 403 });
   }
 
-  const body = await req.json();
+  const body = await readJson(req);
   const parsed = createPostSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(

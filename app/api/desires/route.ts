@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { saveDesiresSchema } from "@/lib/validations/desire";
+import { readJson } from "@/lib/security/request";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -34,7 +35,7 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json();
+  const body = await readJson(req);
   const parsed = saveDesiresSchema.safeParse(body);
 
   if (!parsed.success) {

@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { cloudinary } from "@/lib/cloudinary";
+import { allowedImageTypesLabel, isAllowedImageFile } from "@/lib/security/uploads";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
@@ -29,8 +30,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  if (!file.type.startsWith("image/")) {
-    return NextResponse.json({ error: "File must be an image" }, { status: 400 });
+  if (!isAllowedImageFile(file)) {
+    return NextResponse.json(
+      { error: `File must be ${allowedImageTypesLabel()}` },
+      { status: 400 }
+    );
   }
 
   if (file.size > MAX_FILE_SIZE) {

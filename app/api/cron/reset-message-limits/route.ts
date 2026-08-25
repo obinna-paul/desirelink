@@ -2,14 +2,11 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { MESSAGE_LIMIT_METRIC_TYPE, messageLimitWindowStart } from "@/lib/messaging/limits";
+import { isCronAuthorized } from "@/lib/security/cron";
 
 export async function GET(req: Request) {
-  const expectedSecret = process.env.CRON_SECRET;
-  if (expectedSecret) {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader !== `Bearer ${expectedSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!isCronAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const result = await prisma.engagementMetric.deleteMany({

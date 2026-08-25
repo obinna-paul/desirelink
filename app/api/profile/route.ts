@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { updateProfileSchema } from "@/lib/validations/profile";
 import { recalculateReputation } from "@/lib/reputation";
 import { isPremiumUser, premiumLimitPayload } from "@/lib/premium";
+import { readJson } from "@/lib/security/request";
 
 export async function PATCH(req: Request) {
   const session = await getServerSession(authOptions);
@@ -13,7 +14,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json();
+  const body = await readJson(req);
   const parsed = updateProfileSchema.safeParse(body);
 
   if (!parsed.success) {

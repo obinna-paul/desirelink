@@ -5,6 +5,8 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import bcrypt from "bcrypt";
 
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/security/rate-limit";
+import { getClientIpFromHeaders } from "@/lib/security/request";
 
 const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
@@ -13,11 +15,19 @@ const providers: NextAuthOptions["providers"] = [
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
     },
-    async authorize(credentials) {
+    async authorize(credentials, req) {
       if (!credentials?.email || !credentials?.password) return null;
 
+      const email = credentials.email.toLowerCase();
+      const ip = getClientIpFromHeaders(req.headers);
+      const loginLimit = checkRateLimit(`login:${ip}:${email}`, {
+        limit: 10,
+        windowMs: 15 * 60 * 1000,
+      });
+      if (!loginLimit.allowed) return null;
+
       const user = await prisma.user.findUnique({
-        where: { email: credentials.email },
+        where: { email },
       });
 
       if (!user || !user.passwordHash) return null;

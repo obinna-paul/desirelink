@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCreatorProfileByUserId } from "@/lib/creator";
 import { creatorTierSchema } from "@/lib/validations/creator-tier";
+import { readJson } from "@/lib/security/request";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Creator access required" }, { status: 403 });
   }
 
-  const body = await req.json();
+  const body = await readJson(req);
   const parsed = creatorTierSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(

@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { processProviderPayouts } from "@/lib/payouts";
+import { isCronAuthorized } from "@/lib/security/cron";
 
 export async function GET(req: Request) {
-  const expectedSecret = process.env.CRON_SECRET;
-  if (expectedSecret) {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader !== `Bearer ${expectedSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!isCronAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const today = new Date();
@@ -22,4 +19,3 @@ export async function GET(req: Request) {
   const result = await processProviderPayouts(today);
   return NextResponse.json({ ok: true, ...result });
 }
-

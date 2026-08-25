@@ -10,6 +10,7 @@ import {
   AVAILABILITY_STATUS_UPDATED_EVENT,
   triggerAvailabilityEvent,
 } from "@/lib/pusher-server";
+import { readJson } from "@/lib/security/request";
 
 async function getViewerProfile(userId: string) {
   return prisma.profile.findUnique({
@@ -41,7 +42,7 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json();
+  const body = await readJson(req);
   const parsed = setAvailabilitySchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(

@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { eventFormSchema } from "@/lib/validations/event";
+import { readJson } from "@/lib/security/request";
 
 async function getOwnedEvent(userId: string, eventId: string) {
   const profile = await prisma.profile.findUnique({ where: { userId }, select: { id: true } });
@@ -26,7 +27,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  const body = await req.json();
+  const body = await readJson(req);
   const parsed = eventFormSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(

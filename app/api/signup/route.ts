@@ -4,9 +4,11 @@ import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
 import { signupSchema } from "@/lib/validations/auth";
 import { generateUniqueUsername } from "@/lib/username";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
+import { getClientIp, readJson } from "@/lib/security/request";
 
 export async function POST(req: Request) {
-  const body = await req.json();
+  const body = await readJson(req);
   const parsed = signupSchema.safeParse(body);
 
   if (!parsed.success) {
@@ -17,6 +19,20 @@ export async function POST(req: Request) {
   }
 
   const { name, email, password, profileType } = parsed.data;
+  const ip = getClientIp(req);
+  const ipLimit = checkRateLimit(`signup:ip:${ip}`, { limit: 10, windowMs: 60 * 60 * 1000 });
+  const emailLimit = checkRateLimit(`signup:email:${email.toLowerCase()}`, {
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  });
+
+  if (!ipLimit.allowed || !emailLimit.allowed) {
+    const limit = ipLimit.allowed ? emailLimit : ipLimit;
+    return NextResponse.json(
+      { error: "Too many signup attempts. Please try again later." },
+      { status: 429, headers: rateLimitHeaders(limit) }
+    );
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {

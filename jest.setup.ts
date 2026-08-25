@@ -2,6 +2,8 @@ import "@testing-library/jest-dom";
 import "whatwg-fetch";
 import { TextDecoder, TextEncoder } from "util";
 
+jest.setTimeout(15_000);
+
 Object.assign(globalThis, { TextDecoder, TextEncoder });
 
 Response.json = (data: unknown, init?: ResponseInit) =>

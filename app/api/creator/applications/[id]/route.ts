@@ -5,6 +5,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCreatorProfileByUserId } from "@/lib/creator";
+import { readJson } from "@/lib/security/request";
 
 const reviewSchema = z.object({ status: z.enum(["approved", "denied"]) });
 
@@ -32,7 +33,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "This application was already reviewed" }, { status: 400 });
   }
 
-  const body = await req.json();
+  const body = await readJson(req);
   const parsed = reviewSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });

@@ -5,6 +5,7 @@ import { PROVIDER_PROFILE_TYPES } from "@/lib/provider-types";
 import { countActivePremiumSubscriptionsInRange, PREMIUM_SUBSCRIPTION_PRICE_CENTS } from "@/lib/premium";
 import { calculatePoints, distributePool } from "@/lib/rewards/points";
 import { recordMonthStartRetentionSnapshot } from "@/lib/rewards/tracking";
+import { isCronAuthorized } from "@/lib/security/cron";
 
 const REWARDS_POOL_SHARE = 0.7;
 
@@ -32,12 +33,6 @@ async function notifyProviderEarnings(
   console.warn(
     `[rewards] Provider ${providerId} earned $${(amountCents / 100).toFixed(2)} (${points} points) for ${month} — email notification not yet wired up.`
   );
-}
-
-function isAuthorized(req: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return process.env.NODE_ENV !== "production";
-  return req.headers.get("authorization") === `Bearer ${secret}`;
 }
 
 /**
@@ -107,7 +102,7 @@ async function runMonthlyRewards() {
 }
 
 export async function GET(req: Request) {
-  if (!isAuthorized(req)) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const summary = await runMonthlyRewards();
