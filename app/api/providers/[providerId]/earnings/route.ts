@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getProviderEarningsHistory } from "@/lib/rewards/earnings";
+import { getProviderEarningsDashboard } from "@/lib/rewards/earnings";
 
 export async function GET(_req: Request, { params }: { params: { providerId: string } }) {
   const session = await getServerSession(authOptions);
@@ -20,6 +20,10 @@ export async function GET(_req: Request, { params }: { params: { providerId: str
     return NextResponse.json({ error: "You can only view your own earnings" }, { status: 403 });
   }
 
-  const earnings = await getProviderEarningsHistory(params.providerId);
+  const earnings = await getProviderEarningsDashboard(params.providerId);
+  if (!earnings) {
+    return NextResponse.json({ error: "Provider profile not found" }, { status: 404 });
+  }
+
   return NextResponse.json({ earnings }, { status: 200 });
 }

@@ -32,11 +32,10 @@ import { getCreatorProfilePosts } from "@/lib/posts";
 import { getMyVerificationRequests } from "@/lib/verification";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
 import { isProviderProfileType } from "@/lib/providers";
-import { EarningsPanel } from "@/components/creator/earnings-panel";
-import { getCurrentMonthEstimate, getProviderEarningsHistory } from "@/lib/rewards/earnings";
+import { ProviderEarningsDashboard } from "@/components/provider/provider-earnings-dashboard";
+import { getProviderEarningsDashboard } from "@/lib/rewards/earnings";
 import { MonetizationPanel } from "@/components/creator/monetization-panel";
 import { getMonetizationEligibility } from "@/lib/monetization";
-import type { ProfileType } from "@prisma/client";
 
 const PROVIDER_ONLY_TABS = CREATOR_DASHBOARD_TABS.filter(
   (tab) => tab.value === "tiers" || tab.value === "applications" || tab.value === "earnings"
@@ -49,11 +48,6 @@ const SubscriberGrowthChart = dynamic(
 
 const EarningsChart = dynamic(
   () => import("@/components/creator/analytics-charts").then((mod) => mod.EarningsChart),
-  { loading: () => <ChartSkeleton /> }
-);
-
-const RewardsEarningsChart = dynamic(
-  () => import("@/components/creator/analytics-charts").then((mod) => mod.RewardsEarningsChart),
   { loading: () => <ChartSkeleton /> }
 );
 
@@ -103,7 +97,7 @@ export default async function CreatorDashboardPage({
       {tab === "content" && <ContentTab profileId={profile.id} displayName={profile.displayName} />}
       {tab === "tiers" && <TiersTab profileId={profile.id} />}
       {tab === "applications" && <ApplicationsTab profileId={profile.id} />}
-      {tab === "earnings" && <EarningsTab profileId={profile.id} profileType={profile.profileType} />}
+      {tab === "earnings" && <EarningsTab profileId={profile.id} />}
       {tab === "analytics" && <AnalyticsTab profileId={profile.id} />}
       {tab === "verification" && (
         <VerificationTab profileId={profile.id} isVerifiedCreator={profile.isVerifiedCreator} />
@@ -168,24 +162,17 @@ async function VerificationTab({
   );
 }
 
-async function EarningsTab({ profileId, profileType }: { profileId: string; profileType: ProfileType }) {
+async function EarningsTab({ profileId }: { profileId: string }) {
   const eligibility = await getMonetizationEligibility(profileId);
   if (!eligibility) return null;
 
-  const [estimate, history] = await Promise.all([
-    getCurrentMonthEstimate(profileId, profileType, eligibility.isMonetized),
-    getProviderEarningsHistory(profileId),
-  ]);
-
-  const chartData = [...history]
-    .reverse()
-    .map((entry) => ({ month: entry.month, amount: entry.amountCents / 100 }));
+  const earnings = await getProviderEarningsDashboard(profileId);
+  if (!earnings) return null;
 
   return (
     <div className="flex flex-col gap-4">
       <MonetizationPanel providerId={profileId} eligibility={eligibility} />
-      <EarningsPanel estimate={estimate} history={history} />
-      {chartData.length > 0 && <RewardsEarningsChart data={chartData} />}
+      <ProviderEarningsDashboard data={earnings} providerId={profileId} />
     </div>
   );
 }
