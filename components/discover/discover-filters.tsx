@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import type { DesireLevel } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
 import { DESIRE_CATEGORIES } from "@/lib/desire-options";
 import {
@@ -24,29 +26,98 @@ import {
   type RelationshipValue,
 } from "@/lib/discover";
 
-function ToggleChip({
+type DropdownOption = { value: string; label: string };
+
+function MultiSelectDropdown({
   label,
-  pressed,
-  onClick,
+  options,
+  selected,
+  onChange,
+  footer,
 }: {
   label: string;
-  pressed: boolean;
-  onClick: () => void;
+  options: readonly DropdownOption[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+  footer?: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(open, panelRef);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
+
+  function toggle(value: string) {
+    onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
+  }
+
   return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={cn(
-        "inline-flex min-h-11 items-center rounded-full border px-3 text-sm transition-colors",
-        pressed
-          ? "border-transparent bg-primary text-primary-foreground"
-          : "border-border/60 bg-card text-muted-foreground hover:border-neon-pink/60 hover:text-foreground"
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+        className={cn(
+          "flex h-11 w-full items-center justify-between gap-2 rounded-md border px-3 text-left text-sm transition-colors",
+          selected.length > 0
+            ? "border-primary/60 bg-secondary text-foreground"
+            : "border-input bg-background text-muted-foreground hover:text-foreground"
+        )}
+      >
+        <span className="truncate">
+          {label}
+          {selected.length > 0 && <span className="text-foreground"> &middot; {selected.length}</span>}
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0" aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div
+          ref={panelRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-label={label}
+          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-border/60 bg-card p-2 shadow-lg focus:outline-none"
+        >
+          <ul className="flex flex-col">
+            {options.map((option) => (
+              <li key={option.value}>
+                <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm hover:bg-accent">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(option.value)}
+                    onChange={() => toggle(option.value)}
+                    className="h-4 w-4 shrink-0 accent-primary"
+                  />
+                  {option.label}
+                </label>
+              </li>
+            ))}
+          </ul>
+          {footer && <div className="mt-2 border-t border-border/60 pt-2">{footer}</div>}
+        </div>
       )}
-    >
-      {label}
-    </button>
+    </div>
   );
 }
 
@@ -61,9 +132,8 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
   );
 }
 
-function toggleValue<T>(list: T[], value: T): T[] {
-  return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
-}
+const toDropdownOptions = (values: readonly string[]): DropdownOption[] =>
+  values.map((value) => ({ value, label: value }));
 
 export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: DiscoverFilters }) {
   const router = useRouter();
@@ -114,73 +184,50 @@ export function DiscoverFiltersPanel({ initialFilters }: { initialFilters: Disco
         Filters
       </summary>
 
-      <div className="flex flex-col gap-5 border-t border-border/60 p-4">
-        <FilterSection title="Gender">
-          <div className="flex flex-wrap gap-2">
-            {GENDER_OPTIONS.map((option) => (
-              <ToggleChip
-                key={option}
-                label={option}
-                pressed={genders.includes(option)}
-                onClick={() => setGenders((prev) => toggleValue(prev, option))}
-              />
-            ))}
-          </div>
-        </FilterSection>
+      <div className="flex flex-col gap-4 border-t border-border/60 p-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <MultiSelectDropdown
+            label="Gender"
+            options={toDropdownOptions(GENDER_OPTIONS)}
+            selected={genders}
+            onChange={setGenders}
+          />
+          <MultiSelectDropdown
+            label="Orientation"
+            options={toDropdownOptions(ORIENTATION_OPTIONS)}
+            selected={orientations}
+            onChange={setOrientations}
+          />
+          <MultiSelectDropdown
+            label="Relationship type"
+            options={RELATIONSHIP_OPTIONS}
+            selected={relationship}
+            onChange={(next) => setRelationship(next as RelationshipValue[])}
+          />
+          <MultiSelectDropdown
+            label="Desires"
+            options={toDropdownOptions(DESIRE_CATEGORIES)}
+            selected={desireCategories}
+            onChange={setDesireCategories}
+            footer={
+              <Select
+                aria-label="Desire level"
+                value={desireLevel}
+                onChange={(event) => setDesireLevel(event.target.value as DesireLevel | "")}
+                className="h-10 w-full text-xs"
+              >
+                <option value="">Any level</option>
+                {DESIRE_LEVEL_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            }
+          />
+        </div>
 
-        <FilterSection title="Orientation">
-          <div className="flex flex-wrap gap-2">
-            {ORIENTATION_OPTIONS.map((option) => (
-              <ToggleChip
-                key={option}
-                label={option}
-                pressed={orientations.includes(option)}
-                onClick={() => setOrientations((prev) => toggleValue(prev, option))}
-              />
-            ))}
-          </div>
-        </FilterSection>
-
-        <FilterSection title="Relationship type">
-          <div className="flex flex-wrap gap-2">
-            {RELATIONSHIP_OPTIONS.map((option) => (
-              <ToggleChip
-                key={option.value}
-                label={option.label}
-                pressed={relationship.includes(option.value)}
-                onClick={() => setRelationship((prev) => toggleValue(prev, option.value))}
-              />
-            ))}
-          </div>
-        </FilterSection>
-
-        <FilterSection title="Desires">
-          <div className="flex flex-wrap gap-2">
-            {DESIRE_CATEGORIES.map((category) => (
-              <ToggleChip
-                key={category}
-                label={category}
-                pressed={desireCategories.includes(category)}
-                onClick={() => setDesireCategories((prev) => toggleValue(prev, category))}
-              />
-            ))}
-          </div>
-          <Select
-            aria-label="Desire level"
-            value={desireLevel}
-            onChange={(event) => setDesireLevel(event.target.value as DesireLevel | "")}
-            className="mt-1 h-11 w-full text-sm sm:w-64"
-          >
-            <option value="">Any level</option>
-            {DESIRE_LEVEL_FILTER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </FilterSection>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <FilterSection title="Location radius">
             <Select
               aria-label="Location radius"

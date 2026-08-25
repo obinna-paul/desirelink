@@ -9,6 +9,7 @@ import { SignOutButton } from "@/components/layout/sign-out-button";
 import { TopBarSearch } from "@/components/layout/top-bar-search";
 import { AvailabilityQuickAction } from "@/components/layout/availability-quick-action";
 import { BrandLogo } from "@/components/brand-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getActiveAvailability } from "@/lib/availability";
@@ -45,6 +46,7 @@ export async function TopBar() {
           <TopBarSearch />
         </Suspense>
         {profile && <AvailabilityQuickAction initialStatus={activeStatus} />}
+        <ThemeToggle />
         <Button variant="ghost" size="icon" aria-label="Notifications">
           <Bell className="h-5 w-5" aria-hidden="true" />
         </Button>

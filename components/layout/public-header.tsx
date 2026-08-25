@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function PublicHeader() {
   return (
@@ -15,6 +16,7 @@ export function PublicHeader() {
         </span>
       </Link>
       <nav className="flex items-center gap-2">
+        <ThemeToggle />
         <Button asChild variant="ghost">
           <Link href="/login">Log in</Link>
         </Button>
