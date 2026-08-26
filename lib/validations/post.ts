@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { MAX_POST_IMAGES } from "@/lib/posts";
+import { MAX_POST_IMAGES } from "@/lib/post-shared";
 
 export const createPostSchema = z
   .object({

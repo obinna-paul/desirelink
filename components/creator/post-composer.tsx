@@ -7,7 +7,8 @@ import { AlertTriangle, Image as ImageIcon, Loader2, ShieldCheck, X } from "luci
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { MAX_POST_IMAGES, type PostView } from "@/lib/posts";
+import { MAX_POST_IMAGES } from "@/lib/post-shared";
+import type { PostView } from "@/lib/posts";
 import { detectTextPii, hasImageMetadataSignature, type PiiFinding } from "@/lib/pii";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 
