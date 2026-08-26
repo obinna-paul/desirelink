@@ -44,7 +44,7 @@ export function ConversationList({
 
   if (conversations.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center p-6 text-center text-sm text-muted-foreground">
+      <div className="flex h-full items-center justify-center p-8 text-center text-sm leading-6 text-muted-foreground">
         No conversations yet. Message someone from their profile to get started.
       </div>
     );
@@ -62,24 +62,24 @@ export function ConversationList({
               href={`/messages?with=${counterpart.username}`}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 border-b border-border/60 px-4 py-3 transition-colors hover:bg-secondary/60",
+                "flex min-h-[72px] items-center gap-3 border-b border-border/60 px-3 py-3 transition-colors hover:bg-secondary/60 md:px-4",
                 isActive && "bg-secondary"
               )}
             >
-              <Avatar className="h-10 w-10 shrink-0 border border-border">
+              <Avatar className="h-12 w-12 shrink-0 border border-border md:h-10 md:w-10">
                 <AvatarImage src={counterpart.avatarUrl} alt={counterpart.displayName} />
                 <AvatarFallback className="text-xs">{initials}</AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-sm font-medium">{counterpart.displayName}</p>
+                  <p className="truncate text-sm font-semibold">{counterpart.displayName}</p>
                   <span className="shrink-0 text-[11px] text-muted-foreground">
                     {formatTimestamp(lastMessage.createdAt)}
                   </span>
                 </div>
                 <p
                   className={cn(
-                    "truncate text-xs",
+                    "mt-0.5 truncate text-sm md:text-xs",
                     unreadCount > 0 ? "font-medium text-foreground" : "text-muted-foreground"
                   )}
                 >

@@ -48,10 +48,10 @@ function ProfileSectionTab({
       href={href}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "inline-flex h-11 items-center border-b-2 px-2 text-sm font-semibold transition-colors",
+        "inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-colors md:h-11 md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-2",
         isActive
-          ? "border-primary text-foreground"
-          : "border-transparent text-muted-foreground hover:text-foreground"
+          ? "border-primary bg-primary text-primary-foreground md:bg-transparent md:text-foreground"
+          : "border-border/70 bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground md:border-transparent md:bg-transparent"
       )}
     >
       {label}
@@ -102,16 +102,16 @@ export function ProfileView({
   const section = isCreatorProfile ? activeSection : "about";
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
         <div className="flex items-center gap-4">
-          <Avatar className="h-20 w-20 border border-border">
+          <Avatar className="h-20 w-20 border border-border shadow-sm">
             <AvatarImage src={profile.avatarUrl} alt={profile.displayName} />
             <AvatarFallback className="text-lg">{initials}</AvatarFallback>
           </Avatar>
-          <div>
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold tracking-tight">{profile.displayName}</h1>
+              <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight">{profile.displayName}</h1>
               {isPremium && <PremiumBadge />}
               {isCreatorProfile && (
                 <Badge variant="neon" className="gap-1">
@@ -170,15 +170,15 @@ export function ProfileView({
         </div>
 
         {isOwner ? (
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" className="w-full md:w-auto">
             <Link href="/profile/edit">
               <Pencil className="h-4 w-4" /> Edit Profile
             </Link>
           </Button>
         ) : (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
             {canMessage && (
-              <Button asChild variant="outline" className="gap-1.5">
+              <Button asChild variant="outline" className="flex-1 gap-1.5 md:flex-none">
                 <Link href={`/messages?with=${profile.username}`}>
                   <MessageCircle className="h-4 w-4" aria-hidden="true" /> Message
                 </Link>
@@ -202,7 +202,7 @@ export function ProfileView({
       </div>
 
       {isProvider && (tiers.length > 0 || isOwner) && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             {profile.displayName}&apos;s tiers
           </h2>
@@ -211,10 +211,10 @@ export function ProfileView({
       )}
 
       {profile.profileType === "SERVICE_PROVIDER" && (serviceListings.length > 0 || isOwner) && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Services</h2>
           {serviceListings.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground md:rounded-xl">
               No services listed yet.
             </div>
           ) : (
@@ -224,7 +224,7 @@ export function ProfileView({
       )}
 
       {isCreatorProfile && (
-        <div className="flex gap-6 border-b border-border/60">
+        <div className="-mx-3 flex gap-2 overflow-x-auto px-3 md:mx-0 md:gap-6 md:border-b md:border-border/60 md:px-0">
           <ProfileSectionTab href={profileHref} label="About" isActive={section === "about"} />
           <ProfileSectionTab
             href={`${profileHref}?section=posts`}
@@ -243,29 +243,29 @@ export function ProfileView({
       ) : (
         <>
           {visibleFieldSet.has("bio") && (
-            <div>
+            <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Bio
               </h2>
-              <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
                 {profile.bio || "No bio yet."}
               </p>
             </div>
           )}
 
           {(visibleFieldSet.has("identity") || visibleFieldSet.has("availability")) && (
-            <div>
+            <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Details
               </h2>
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {visibleFieldSet.has("identity") && (
                   <>
-                    <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+                    <div className="rounded-xl border border-border/60 bg-background/45 px-3 py-2 md:rounded-lg md:bg-card">
                       <p className="text-xs text-muted-foreground">Gender</p>
                       <p className="text-sm font-medium">{profile.gender || "Unspecified"}</p>
                     </div>
-                    <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+                    <div className="rounded-xl border border-border/60 bg-background/45 px-3 py-2 md:rounded-lg md:bg-card">
                       <p className="text-xs text-muted-foreground">Orientation</p>
                       <p className="text-sm font-medium">{profile.orientation || "Unspecified"}</p>
                     </div>
@@ -273,13 +273,13 @@ export function ProfileView({
                 )}
                 {visibleFieldSet.has("availability") && (
                   <>
-                    <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+                    <div className="rounded-xl border border-border/60 bg-background/45 px-3 py-2 md:rounded-lg md:bg-card">
                       <p className="text-xs text-muted-foreground">Chat</p>
                       <p className="text-sm font-medium">
                         {profile.openToChat ? "Open to chat" : "Not open to chat"}
                       </p>
                     </div>
-                    <div className="rounded-lg border border-border/60 bg-card px-3 py-2">
+                    <div className="rounded-xl border border-border/60 bg-background/45 px-3 py-2 md:rounded-lg md:bg-card">
                       <p className="text-xs text-muted-foreground">Meet</p>
                       <p className="text-sm font-medium">
                         {profile.openToMeet ? "Open to meet" : "Not open to meet"}
@@ -292,7 +292,7 @@ export function ProfileView({
           )}
 
           {profile.profileType === "SERVICE_PROVIDER" && profile.serviceCategories.length > 0 && (
-            <div>
+            <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Services offered
               </h2>

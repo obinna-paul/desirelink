@@ -13,17 +13,17 @@ export function AvailableTonightStrip({ items }: { items: AvailabilityFeedItem[]
           className="h-2 w-2 rounded-full bg-neon-cyan shadow-[0_0_8px_hsl(var(--neon-cyan))] motion-safe:animate-pulse"
           aria-hidden="true"
         />
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="text-sm font-semibold text-foreground md:uppercase md:tracking-wide md:text-muted-foreground">
           Available Tonight
         </h2>
       </div>
-      <div className="-mx-4 overflow-x-auto px-4">
-        <ul className="flex w-max gap-4">
+      <div className="-mx-3 overflow-x-auto px-3 md:-mx-4 md:px-4">
+        <ul className="flex w-max gap-3 md:gap-4">
           {items.map((item) => (
             <li key={item.id}>
               <Link
                 href={`/profile/${item.username}`}
-                className="flex w-20 flex-col items-center gap-1.5 text-center"
+                className="flex w-[72px] flex-col items-center gap-1.5 text-center md:w-20"
               >
                 <div className="relative">
                   <Avatar className="h-14 w-14 border-2 border-neon-cyan/70">

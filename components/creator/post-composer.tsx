@@ -200,7 +200,7 @@ export function PostComposer({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4"
+      className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm md:rounded-xl md:p-4 md:shadow-none"
     >
       <label htmlFor="post-content" className="sr-only">
         Post content
@@ -215,10 +215,11 @@ export function PostComposer({
           setContent(event.target.value);
           setPiiAcknowledged(false);
         }}
+        className="min-h-28 resize-none rounded-2xl text-base md:rounded-md md:text-sm"
       />
 
       {(strippedImageCount > 0 || images.length > 0) && (
-        <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-secondary/40 p-3 text-xs text-muted-foreground">
+        <div className="flex items-start gap-2 rounded-2xl border border-border/60 bg-secondary/40 p-3 text-xs text-muted-foreground md:rounded-lg">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-neon-cyan" aria-hidden="true" />
           <p>
             {strippedImageCount > 0
@@ -229,11 +230,11 @@ export function PostComposer({
       )}
 
       {images.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
           {images.map((image) => (
             <div
               key={image.url}
-              className="relative h-20 w-20 overflow-hidden rounded-lg border border-border/60 bg-secondary"
+              className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border/60 bg-secondary sm:h-20 sm:w-20 sm:rounded-lg"
             >
               <NextImage src={image.url} alt="" fill sizes="5rem" className="object-cover" />
               <button
@@ -249,13 +250,13 @@ export function PostComposer({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={uploading || images.length >= MAX_POST_IMAGES}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:rounded-md"
           >
             {uploading ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -277,7 +278,7 @@ export function PostComposer({
             Fans only
           </label>
         </div>
-        <Button type="submit" disabled={submitting || uploading}>
+        <Button type="submit" disabled={submitting || uploading} className="w-full md:w-auto">
           {submitting ? "Publishing..." : "Publish"}
         </Button>
       </div>
@@ -297,7 +298,7 @@ export function PostComposer({
             aria-modal="true"
             aria-labelledby="pii-warning-title"
             aria-describedby="pii-warning-description"
-            className="w-full max-w-md rounded-xl border border-border/60 bg-card p-5 shadow-lg focus:outline-none"
+            className="w-full max-w-md rounded-2xl border border-border/60 bg-card p-5 shadow-lg focus:outline-none md:rounded-xl"
           >
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">
@@ -317,7 +318,7 @@ export function PostComposer({
               {pendingFindings.map((finding) => (
                 <li
                   key={finding.type}
-                  className="flex items-center justify-between rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm"
+                  className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/40 px-3 py-2 text-sm md:rounded-lg"
                 >
                   <span>{finding.label}</span>
                   <span className="text-xs text-muted-foreground">
@@ -327,10 +328,11 @@ export function PostComposer({
               ))}
             </ul>
 
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
+                className="w-full sm:w-auto"
                 onClick={() => {
                   setShowPiiWarning(false);
                   setPiiAcknowledged(false);
@@ -338,7 +340,7 @@ export function PostComposer({
               >
                 Edit post
               </Button>
-              <Button type="button" onClick={continueAfterWarning} disabled={submitting}>
+              <Button type="button" onClick={continueAfterWarning} disabled={submitting} className="w-full sm:w-auto">
                 {submitting ? "Publishing..." : "Publish anyway"}
               </Button>
             </div>

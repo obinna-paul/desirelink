@@ -61,7 +61,7 @@ export function AvatarUploader({
   }
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
       <div className="relative">
         <Avatar className="h-20 w-20 border border-border">
           <AvatarImage src={preview} alt="Avatar preview" />
@@ -73,13 +73,13 @@ export function AvatarUploader({
           </div>
         )}
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex w-full flex-col gap-1.5 sm:w-auto">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
           className={cn(
-            "inline-flex min-h-11 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            "inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:rounded-md"
           )}
         >
           <Camera className="h-4 w-4" />

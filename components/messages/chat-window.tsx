@@ -142,9 +142,9 @@ export function ChatWindow({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+      <div className="flex min-h-[64px] items-center justify-between gap-3 border-b border-border/60 px-3 py-3 md:px-4">
         <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9 border border-border">
+          <Avatar className="h-10 w-10 border border-border">
             <AvatarImage src={counterpart.avatarUrl} alt={counterpart.displayName} />
             <AvatarFallback className="text-xs">
               {counterpart.displayName.slice(0, 2).toUpperCase()}
@@ -165,10 +165,10 @@ export function ChatWindow({
         </p>
       )}
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-4 md:px-4">
         {messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-center text-sm text-muted-foreground">
-            Say hello to {counterpart.displayName} — pick a reason below to get started.
+          <div className="flex h-full items-center justify-center px-6 text-center text-sm leading-6 text-muted-foreground">
+            Say hello to {counterpart.displayName}. Pick a reason below to get started.
           </div>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -178,7 +178,7 @@ export function ChatWindow({
                 <li key={message.id} className={cn("group flex items-end gap-1.5", isMine ? "justify-end" : "justify-start")}>
                   <div
                     className={cn(
-                      "max-w-[75%] rounded-2xl px-3.5 py-2 text-sm",
+                      "max-w-[82%] rounded-[20px] px-3.5 py-2.5 text-sm leading-5 md:max-w-[75%]",
                       isMine
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-foreground"
@@ -212,7 +212,7 @@ export function ChatWindow({
       </div>
 
       {isNewConversation && !blocked && (
-        <div className="flex flex-col gap-2 border-t border-border/60 px-4 py-3">
+        <div className="flex flex-col gap-2 border-t border-border/60 px-3 py-3 md:px-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Why are you reaching out?
           </p>
@@ -237,7 +237,7 @@ export function ChatWindow({
         </div>
       )}
 
-      <div className="border-t border-border/60 p-4">
+      <div className="border-t border-border/60 p-3 md:p-4">
         {error && (
           <p role="alert" className="mb-2 text-xs text-destructive">
             {error}
@@ -286,7 +286,7 @@ export function ChatWindow({
                   : "Write a message..."
             }
             disabled={blocked || (isNewConversation && !reason)}
-            className="min-h-[44px] flex-1 resize-none"
+            className="min-h-[46px] flex-1 resize-none rounded-2xl"
             rows={1}
           />
           <Button

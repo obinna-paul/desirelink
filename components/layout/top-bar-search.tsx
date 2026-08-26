@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 
-export function TopBarSearch() {
+import { cn } from "@/lib/utils";
+
+export function TopBarSearch({ className }: { className?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [value, setValue] = useState(searchParams.get("q") ?? "");
@@ -21,7 +23,7 @@ export function TopBarSearch() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="relative w-28 sm:w-44 md:w-64">
+    <form onSubmit={handleSubmit} className={cn("relative w-28 sm:w-44 md:w-64", className)}>
       <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <input
         type="search"

@@ -15,7 +15,7 @@ const STATUS_VARIANT = {
 export function AudienceList({ subscribers }: { subscribers: Subscribers }) {
   if (subscribers.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+      <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
         No Fans yet. Once people subscribe to one of your tiers, they&apos;ll show up here.
       </div>
     );
@@ -29,10 +29,10 @@ export function AudienceList({ subscribers }: { subscribers: Subscribers }) {
           <li key={sub.id}>
             <Link
               href={`/profile/${sub.subscriber.username}`}
-              className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card px-4 py-3 transition-colors hover:border-neon-pink/60"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card px-3.5 py-3 shadow-sm transition-colors hover:border-neon-pink/60 md:rounded-lg md:px-4 md:shadow-none"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <Avatar className="h-10 w-10 border border-border">
+                <Avatar className="h-11 w-11 border border-border md:h-10 md:w-10">
                   <AvatarImage src={sub.subscriber.avatarUrl} alt={sub.subscriber.displayName} />
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
@@ -43,7 +43,7 @@ export function AudienceList({ subscribers }: { subscribers: Subscribers }) {
                   </p>
                 </div>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-1">
+              <div className="flex shrink-0 flex-col items-end gap-1 text-right">
                 <Badge variant={STATUS_VARIANT[sub.status]}>{sub.status}</Badge>
                 <span className="text-xs text-muted-foreground">
                   Since {sub.startsAt.toLocaleDateString()}

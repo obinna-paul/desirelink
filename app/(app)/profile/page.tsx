@@ -48,8 +48,10 @@ export default async function ProfilePage({
   ]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Profile" description="Manage your public profile and desires." />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader title="Profile" description="Manage your public profile and desires." />
+      </div>
       <ProfileView
         profile={profile}
         desires={profile.desires}

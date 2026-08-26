@@ -52,14 +52,19 @@ export default async function MessagesPage({
     : false;
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Messages" description="Direct conversations with your connections." />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader title="Messages" description="Direct conversations with your connections." />
+      </div>
+      <div className="md:hidden">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Messages</h1>
+      </div>
 
-      <div className="flex h-[calc(100vh-14rem)] min-h-[420px] overflow-hidden rounded-xl border border-border/60 bg-card">
+      <div className="flex h-[calc(100dvh-12rem)] min-h-[500px] overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm md:h-[calc(100vh-14rem)] md:min-h-[420px] md:rounded-xl md:shadow-none">
         <div
           className={cn(
-            "w-full shrink-0 border-r border-border/60 sm:w-80",
-            validCounterpart && "hidden sm:block"
+            "w-full shrink-0 border-r border-border/60 md:w-80",
+            validCounterpart && "hidden md:block"
           )}
         >
           <ConversationList
@@ -69,14 +74,14 @@ export default async function MessagesPage({
           />
         </div>
 
-        <div className={cn("flex min-w-0 flex-1 flex-col", !validCounterpart && "hidden sm:flex")}>
+        <div className={cn("flex min-w-0 flex-1 flex-col", !validCounterpart && "hidden md:flex")}>
           {validCounterpart ? (
             <>
               <Link
                 href="/messages"
-                className="flex items-center gap-1 border-b border-border/60 px-4 py-2 text-xs text-muted-foreground hover:text-foreground sm:hidden"
+                className="flex min-h-11 items-center gap-1 border-b border-border/60 px-3 text-sm font-medium text-muted-foreground hover:text-foreground md:hidden"
               >
-                <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" /> All conversations
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Inbox
               </Link>
               <div className="flex min-h-0 flex-1 flex-col">
                 <ChatWindow

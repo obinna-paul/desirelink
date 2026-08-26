@@ -75,7 +75,7 @@ export function PayoutSetup({ providerId }: { providerId: string }) {
   const meetsThreshold = payout ? payout.balanceCents >= payout.minimumPayoutCents : false;
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
+    <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:shadow-card">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold">Payout setup</h2>
@@ -159,7 +159,7 @@ export function PayoutSetup({ providerId }: { providerId: string }) {
         />
         <div className="md:col-span-2">
           {error && <p className="mb-2 text-xs text-destructive">{error}</p>}
-          <Button type="submit" className="gap-2" disabled={submitting}>
+          <Button type="submit" className="w-full gap-2 md:w-auto" disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
             Set up payouts
           </Button>

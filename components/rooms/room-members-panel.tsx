@@ -20,9 +20,9 @@ function MemberRow({
   const initials = member.profile.displayName.slice(0, 2).toUpperCase();
 
   return (
-    <li className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card p-3">
-      <Link href={`/profile/${member.profile.username}`} className="flex min-w-0 items-center gap-2">
-        <Avatar className="h-9 w-9 border border-border">
+    <li className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card p-3 shadow-sm md:rounded-lg md:shadow-none">
+      <Link href={`/profile/${member.profile.username}`} className="flex min-w-0 items-center gap-3">
+        <Avatar className="h-10 w-10 border border-border md:h-9 md:w-9">
           <AvatarImage src={member.profile.avatarUrl} alt={member.profile.displayName} />
           <AvatarFallback className="text-xs">{initials}</AvatarFallback>
         </Avatar>
@@ -93,17 +93,17 @@ export function RoomMembersPanel({
   return (
     <div className="flex flex-col gap-6">
       {isAdmin && pending.length > 0 && (
-        <div>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Pending requests ({pending.length})
-          </h3>
+      <div>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
+          Pending requests ({pending.length})
+        </h3>
           <ul className="flex flex-col gap-2">
             {pending.map((member) => (
               <MemberRow
                 key={member.id}
                 member={member}
                 action={
-                  <div className="flex shrink-0 gap-2">
+                  <div className="flex shrink-0 flex-col gap-2 min-[420px]:flex-row">
                     <Button
                       type="button"
                       size="sm"
@@ -131,7 +131,7 @@ export function RoomMembersPanel({
       )}
 
       <div>
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
           Members ({members.length})
         </h3>
         <ul className="flex flex-col gap-2">

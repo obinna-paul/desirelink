@@ -59,7 +59,7 @@ function StatTile({
   icon: typeof CircleDollarSign;
 }) {
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
+    <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -84,12 +84,12 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
+    <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:shadow-card">
       <div className="mb-4">
         <h2 className="text-sm font-semibold">{title}</h2>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
-      <div className="h-72 w-full">{children}</div>
+      <div className="h-64 w-full md:h-72">{children}</div>
     </section>
   );
 }
@@ -118,15 +118,15 @@ export function ProviderEarningsDashboard({
   const latestPayout = data.payoutHistory[0];
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Earnings</h1>
           <p className="text-sm text-muted-foreground">
             Income, rewards points, payout history, and current-month estimates.
           </p>
         </div>
-        <Button asChild variant="outline" className="gap-2">
+        <Button asChild variant="outline" className="w-full gap-2 md:w-auto">
           <Link href={`/api/providers/${providerId}/earnings/export`}>
             <ArrowDownToLine className="h-4 w-4" aria-hidden="true" />
             Export CSV
@@ -134,7 +134,7 @@ export function ProviderEarningsDashboard({
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-5">
         <StatTile label="This month" value={formatCents(data.totals.thisMonthCents)} icon={CircleDollarSign} />
         <StatTile label="Last month" value={formatCents(data.totals.lastMonthCents)} icon={TrendingUp} />
         <StatTile label="All time" value={formatCents(data.totals.allTimeCents)} icon={Wallet} />
@@ -152,7 +152,7 @@ export function ProviderEarningsDashboard({
         />
       </div>
 
-      <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
+      <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:shadow-card">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold">Revenue by source</h2>
@@ -175,7 +175,7 @@ export function ProviderEarningsDashboard({
 
       <PayoutSetup providerId={providerId} />
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:gap-4 xl:grid-cols-2">
         <ChartCard title="Monthly earnings" description="Last 12 months, stacked by source.">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={monthlyChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -237,12 +237,12 @@ export function ProviderEarningsDashboard({
         </ChartCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
+      <div className="grid grid-cols-1 gap-3 md:gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:shadow-card">
           <h2 className="text-sm font-semibold">Points breakdown</h2>
           <p className="text-xs text-muted-foreground">Current-month signals and their point weights.</p>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full border-collapse text-left text-sm">
+            <table className="min-w-[620px] border-collapse text-left text-sm md:w-full">
               <thead>
                 <tr className="border-b border-border/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <th scope="col" className="py-2 pr-4 font-medium">Metric</th>
@@ -273,7 +273,7 @@ export function ProviderEarningsDashboard({
           </div>
         </section>
 
-        <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
+        <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:shadow-card">
           <h2 className="text-sm font-semibold">Rewards pool</h2>
           <p className="text-xs text-muted-foreground">
             {data.rewardsPool.month}: 70% of premium revenue is allocated to providers by points.

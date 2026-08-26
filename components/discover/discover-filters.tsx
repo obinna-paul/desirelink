@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, SlidersHorizontal } from "lucide-react";
 import type { DesireLevel, ProfileType } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
@@ -165,6 +165,22 @@ export function DiscoverFiltersPanel({
     initialFilters.availability
   );
   const [sort, setSort] = useState<DiscoverSortValue>(initialFilters.sort);
+  const [open, setOpen] = useState(false);
+
+  const activeFilterCount =
+    genders.length +
+    orientations.length +
+    (radiusKm !== String(DEFAULT_RADIUS_KM) ? 1 : 0) +
+    (availability !== "any" ? 1 : 0) +
+    (sort !== "newest" ? 1 : 0) +
+    (isPremium
+      ? accountTypes.length +
+        desireCategories.length +
+        bodyTypes.length +
+        (desireLevel ? 1 : 0) +
+        (lastActive !== "any" ? 1 : 0) +
+        (verification !== "any" ? 1 : 0)
+      : 0);
 
   function applyFilters() {
     const params = new URLSearchParams();
@@ -182,6 +198,7 @@ export function DiscoverFiltersPanel({
     params.set("availability", availability);
     params.set("sort", sort);
     router.push(`/discover?${params.toString()}`);
+    setOpen(false);
   }
 
   function clearFilters() {
@@ -197,15 +214,36 @@ export function DiscoverFiltersPanel({
     setAvailability("any");
     setSort("newest");
     router.push("/discover");
+    setOpen(false);
   }
 
   return (
-    <details open className="rounded-xl border border-border/60 bg-card">
-      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
-        Filters
-      </summary>
+    <section className="rounded-2xl border border-border/60 bg-card shadow-sm md:rounded-xl md:shadow-none">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold md:hidden"
+      >
+        <span className="flex items-center gap-2">
+          <SlidersHorizontal className="h-4 w-4 text-primary" aria-hidden="true" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">
+              {activeFilterCount}
+            </span>
+          )}
+        </span>
+        <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} aria-hidden="true" />
+      </button>
 
-      <div className="flex flex-col gap-4 border-t border-border/60 p-4">
+      <div
+        className={cn(
+          "flex-col gap-4 border-t border-border/60 p-4 md:flex md:border-t-0",
+          open ? "flex" : "hidden"
+        )}
+      >
+        <div className="hidden px-0 text-sm font-semibold md:block">Filters</div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MultiSelectDropdown
             label="Gender"
@@ -358,14 +396,14 @@ export function DiscoverFiltersPanel({
         </div>
 
         <div className="flex gap-3">
-          <Button type="button" onClick={applyFilters}>
+          <Button type="button" onClick={applyFilters} className="flex-1 md:flex-none">
             Apply filters
           </Button>
-          <Button type="button" variant="outline" onClick={clearFilters}>
+          <Button type="button" variant="outline" onClick={clearFilters} className="flex-1 md:flex-none">
             Clear all
           </Button>
         </div>
       </div>
-    </details>
+    </section>
   );
 }

@@ -11,9 +11,9 @@ export function RoomCard({ room }: { room: RoomCardData }) {
   return (
     <Link
       href={`/rooms/${room.id}`}
-      className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-primary/80 hover:shadow-lift"
+      className="flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-[transform,border-color,box-shadow] hover:border-primary/80 md:rounded-xl md:shadow-none md:hover:-translate-y-0.5 md:hover:shadow-lift"
     >
-      <div className="relative flex h-32 w-full items-center justify-center overflow-hidden bg-secondary">
+      <div className="relative flex h-40 w-full items-center justify-center overflow-hidden bg-secondary md:h-32">
         {room.coverImageUrl ? (
           <Image
             src={room.coverImageUrl}
@@ -26,20 +26,22 @@ export function RoomCard({ room }: { room: RoomCardData }) {
           <Users2 className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
         )}
       </div>
-      <div className="flex flex-col gap-2 p-4">
-        <p className="truncate text-sm font-semibold">{room.name}</p>
+      <div className="flex flex-col gap-2 p-3.5 md:p-4">
+        <p className="truncate text-base font-semibold md:text-sm">{room.name}</p>
         {room.description && (
-          <p className="line-clamp-2 text-xs text-muted-foreground">{room.description}</p>
+          <p className="line-clamp-2 text-sm leading-6 text-muted-foreground md:text-xs md:leading-normal">
+            {room.description}
+          </p>
         )}
-        <div className="mt-1 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Avatar className="h-5 w-5 border border-border">
+        <div className="mt-1 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <Avatar className="h-7 w-7 border border-border md:h-5 md:w-5">
               <AvatarImage src={room.createdBy.avatarUrl} alt={room.createdBy.displayName} />
               <AvatarFallback className="text-[9px]">{hostInitials}</AvatarFallback>
             </Avatar>
             <span className="truncate text-xs text-muted-foreground">{room.createdBy.displayName}</span>
           </div>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <span className="flex shrink-0 items-center gap-1 rounded-full bg-secondary px-2 py-1 text-xs text-muted-foreground md:bg-transparent md:px-0 md:py-0">
             <Users2 className="h-3 w-3" aria-hidden="true" />
             {room._count.members}
           </span>

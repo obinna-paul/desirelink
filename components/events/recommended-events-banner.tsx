@@ -14,7 +14,7 @@ export function RecommendedEventsBanner({
   return (
     <section
       aria-labelledby="recommended-events-heading"
-      className="flex flex-col gap-4 border-y border-neon-cyan/30 bg-secondary/30 py-4"
+      className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:gap-4 md:rounded-none md:border-y md:border-x-0 md:border-neon-cyan/30 md:bg-secondary/30 md:p-0 md:py-4 md:shadow-none"
     >
       <div className="flex items-center gap-3">
         <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary">
@@ -25,24 +25,26 @@ export function RecommendedEventsBanner({
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {recommendations.map((recommendation) => (
-          <div key={recommendation.event.id} className="flex flex-col gap-2">
-            <EventCard
-              event={recommendation.event}
-              matchScore={recommendation.compatibilityScore}
-            />
-            {recommendation.reasons.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {recommendation.reasons.map((reason) => (
-                  <Badge key={reason} variant="outline" className="text-muted-foreground">
-                    {reason}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+      <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:overflow-visible md:px-0">
+        <div className="flex gap-3 lg:grid lg:grid-cols-3 lg:gap-4">
+          {recommendations.map((recommendation) => (
+            <div key={recommendation.event.id} className="flex w-[82vw] max-w-[340px] shrink-0 flex-col gap-2 lg:w-auto lg:max-w-none">
+              <EventCard
+                event={recommendation.event}
+                matchScore={recommendation.compatibilityScore}
+              />
+              {recommendation.reasons.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {recommendation.reasons.slice(0, 2).map((reason) => (
+                    <Badge key={reason} variant="outline" className="text-muted-foreground">
+                      {reason}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

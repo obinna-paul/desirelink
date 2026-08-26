@@ -68,11 +68,19 @@ export default async function CreatorDashboardPage({
 
   if (!isProviderProfileType(profile.profileType)) {
     return (
-      <div className="flex flex-col gap-6">
-        <PageHeader
-          title="Provider dashboard"
-          description="Fans, revenue, and analytics for your provider profile."
-        />
+      <div className="flex flex-col gap-4 md:gap-6">
+        <div className="hidden md:block">
+          <PageHeader
+            title="Provider dashboard"
+            description="Fans, revenue, and analytics for your provider profile."
+          />
+        </div>
+        <div className="md:hidden">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+            Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">Set up your provider profile.</p>
+        </div>
         <BecomeCreatorPrompt />
       </div>
     );
@@ -84,11 +92,19 @@ export default async function CreatorDashboardPage({
   const tab = availableTabs.some((available) => available.value === requestedTab) ? requestedTab : "tiers";
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Provider dashboard"
-        description="Fans, revenue, and tiers for your provider profile."
-      />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader
+          title="Provider dashboard"
+          description="Fans, revenue, and tiers for your provider profile."
+        />
+      </div>
+      <div className="md:hidden">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+          Dashboard
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Fans, revenue, tiers, and insights.</p>
+      </div>
       <DashboardTabs activeTab={tab} tabs={availableTabs} />
 
       {tab === "overview" && <OverviewTab profileId={profile.id} />}
@@ -115,7 +131,7 @@ async function OverviewTab({ profileId }: { profileId: string }) {
   const stats = await getCreatorStats(profileId);
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:gap-4">
       <StatCard label="Active Fans" value={String(stats.subscriberCount)} icon={Users} />
       <StatCard label="Total revenue" value={formatCents(stats.totalRevenueCents)} icon={DollarSign} />
       <StatCard label="Profile views" value={stats.profileViews.toLocaleString()} icon={Eye} />
@@ -170,7 +186,7 @@ async function EarningsTab({ profileId }: { profileId: string }) {
   if (!earnings) return null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3 md:gap-4">
       <MonetizationPanel providerId={profileId} eligibility={eligibility} />
       <ProviderEarningsDashboard data={earnings} providerId={profileId} />
     </div>
@@ -184,7 +200,7 @@ async function AnalyticsTab({ profileId }: { profileId: string }) {
   ]);
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-2">
       <SubscriberGrowthChart data={growth} />
       <EarningsChart data={earnings} />
     </div>

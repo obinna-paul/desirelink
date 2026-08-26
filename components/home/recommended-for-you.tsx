@@ -19,7 +19,7 @@ export function RecommendedForYou({
           <h2 id="recommended-heading" className="text-base font-semibold">
             Recommended for you
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="hidden text-sm text-muted-foreground md:block">
             Sorted by Desire Map overlap, distance, availability, and recent activity.
           </p>
         </div>
@@ -31,24 +31,29 @@ export function RecommendedForYou({
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-        {recommendations.map((recommendation) => (
-          <div key={recommendation.profile.id} className="flex flex-col gap-2">
-            <ProfileCard
-              profile={recommendation.profile}
-              matchScore={recommendation.compatibilityScore}
-            />
-            {recommendation.reasons.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {recommendation.reasons.map((reason) => (
-                  <Badge key={reason} variant="outline" className="text-muted-foreground">
-                    {reason}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+      <div className="-mx-3 overflow-x-auto px-3 md:mx-0 md:overflow-visible md:px-0">
+        <div className="flex gap-3 md:grid md:grid-cols-2 md:gap-4 2xl:grid-cols-3">
+          {recommendations.map((recommendation) => (
+            <div
+              key={recommendation.profile.id}
+              className="flex w-[82vw] max-w-[340px] shrink-0 flex-col gap-2 md:w-auto md:max-w-none"
+            >
+              <ProfileCard
+                profile={recommendation.profile}
+                matchScore={recommendation.compatibilityScore}
+              />
+              {recommendation.reasons.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {recommendation.reasons.slice(0, 2).map((reason) => (
+                    <Badge key={reason} variant="outline" className="text-muted-foreground">
+                      {reason}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

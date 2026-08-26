@@ -20,9 +20,9 @@ export function EventCard({
   return (
     <Link
       href={`/events/${event.id}`}
-      className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-primary/80 hover:shadow-lift"
+      className="flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-[transform,border-color,box-shadow] hover:border-primary/80 hover:shadow-lift md:rounded-xl md:hover:-translate-y-0.5"
     >
-      <div className="relative flex h-32 w-full items-center justify-center overflow-hidden bg-secondary">
+      <div className="relative flex h-40 w-full items-center justify-center overflow-hidden bg-secondary md:h-32">
         {event.coverImageUrl ? (
           <Image
             src={event.coverImageUrl}
@@ -34,7 +34,7 @@ export function EventCard({
         ) : (
           <CalendarDays className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
         )}
-        <div className="absolute left-3 top-3 overflow-hidden rounded-lg bg-white text-center shadow-card">
+        <div className="absolute left-3 top-3 overflow-hidden rounded-xl bg-white text-center shadow-card md:rounded-lg">
           <div className="bg-white px-2 py-0.5 text-[9px] font-bold uppercase leading-none text-primary">
             {new Date(event.startTime).toLocaleString(undefined, { month: "short" })}
           </div>
@@ -43,7 +43,7 @@ export function EventCard({
           </div>
         </div>
       </div>
-      <div className="flex flex-col gap-2 p-4">
+      <div className="flex flex-col gap-2 p-3 md:p-4">
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant="outline">{event.eventType}</Badge>
           {typeof matchScore === "number" && (
@@ -55,7 +55,7 @@ export function EventCard({
             <Badge variant="secondary">Free</Badge>
           )}
         </div>
-        <p className="truncate text-sm font-semibold">{event.title}</p>
+        <p className="line-clamp-2 text-base font-semibold leading-5 md:truncate md:text-sm">{event.title}</p>
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
           <CalendarDays className="h-3 w-3" aria-hidden="true" />
           {new Date(event.startTime).toLocaleString(undefined, {

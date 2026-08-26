@@ -31,7 +31,7 @@ export function EarningsPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4 lg:grid-cols-4">
         <StatCard label="Estimated earnings (this month)" value={formatCents(estimate.estimatedAmountCents)} icon={Coins} />
         <StatCard label="Current pool size" value={formatCents(estimate.poolCents)} icon={PiggyBank} />
         <StatCard label="Your share of points" value={`${estimate.ownPointsPercent.toFixed(1)}%`} icon={TrendingUp} />
@@ -42,7 +42,7 @@ export function EarningsPanel({
         />
       </div>
 
-      <div className="rounded-xl border border-border/60 bg-card p-4">
+      <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
         <h3 className="text-sm font-semibold">Points breakdown (this month)</h3>
         <p className="text-xs text-muted-foreground">
           {estimate.ownPoints} of {estimate.totalPoints} pool-wide points earned so far this month.
@@ -63,13 +63,13 @@ export function EarningsPanel({
         )}
       </div>
 
-      <div className="rounded-xl border border-border/60 bg-card p-4">
+      <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
         <h3 className="text-sm font-semibold">Payout history</h3>
         {history.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">No completed payouts yet — check back after the next monthly cycle.</p>
+          <p className="mt-2 text-sm text-muted-foreground">No completed payouts yet - check back after the next monthly cycle.</p>
         ) : (
           <div className="mt-2 overflow-x-auto">
-            <table className="w-full border-collapse text-left text-sm">
+            <table className="min-w-[520px] border-collapse text-left text-sm md:w-full">
               <thead>
                 <tr className="border-b border-border/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <th scope="col" className="py-2 pr-4 font-medium">Month</th>

@@ -25,11 +25,11 @@ export function ProfileCard({
   return (
     <Link
       href={`/profile/${profile.username}`}
-      className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4 transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-primary/80 hover:shadow-lift"
+      className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-3 shadow-sm transition-[transform,border-color,box-shadow] hover:border-primary/80 hover:shadow-lift md:rounded-xl md:p-4 md:hover:-translate-y-0.5"
     >
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">
-          <Avatar className="h-12 w-12 border border-border bg-secondary">
+          <Avatar className="h-[52px] w-[52px] border border-border bg-secondary md:h-12 md:w-12">
             <AvatarImage src={profile.avatarUrl} alt={profile.displayName} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
@@ -110,7 +110,7 @@ export function ProfileCard({
       )}
 
       {visibleDesires.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5 pt-1">
           {visibleDesires.map((desire) => (
             <Badge key={desire.id} variant="outline">
               {desire.category}

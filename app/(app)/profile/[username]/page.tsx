@@ -90,8 +90,10 @@ export default async function PublicProfilePage({
   const profileIsPremium = await isPremiumUser(profile.id);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title={profile.displayName} description={`@${profile.username}`} />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader title={profile.displayName} description={`@${profile.username}`} />
+      </div>
       <ProfileView
         profile={profile}
         desires={desires}

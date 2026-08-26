@@ -21,13 +21,13 @@ function formatCents(cents: number) {
 
 export function PayoutHistory({ providerId, payouts }: { providerId: string; payouts: PayoutRow[] }) {
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
+    <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:shadow-card">
       <h2 className="text-sm font-semibold">Payout history</h2>
       {payouts.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">No monthly payouts have been recorded yet.</p>
       ) : (
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full border-collapse text-left text-sm">
+          <table className="min-w-[640px] border-collapse text-left text-sm md:w-full">
             <thead>
               <tr className="border-b border-border/60 text-xs uppercase tracking-wide text-muted-foreground">
                 <th scope="col" className="py-2 pr-4 font-medium">Month</th>
@@ -63,4 +63,3 @@ export function PayoutHistory({ providerId, payouts }: { providerId: string; pay
     </section>
   );
 }
-

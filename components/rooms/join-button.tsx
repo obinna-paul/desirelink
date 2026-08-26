@@ -47,7 +47,7 @@ export function JoinButton({
 
   if (state === "admin") {
     return (
-      <Button variant="outline" disabled className="gap-1.5">
+      <Button variant="outline" disabled className="w-full gap-1.5 md:w-auto">
         <Sparkles className="h-4 w-4" aria-hidden="true" /> Admin
       </Button>
     );
@@ -55,7 +55,7 @@ export function JoinButton({
 
   if (state === "member") {
     return (
-      <Button variant="outline" disabled className="gap-1.5">
+      <Button variant="outline" disabled className="w-full gap-1.5 md:w-auto">
         <Check className="h-4 w-4" aria-hidden="true" /> Member
       </Button>
     );
@@ -63,14 +63,14 @@ export function JoinButton({
 
   if (state === "pending") {
     return (
-      <Button variant="outline" disabled className="gap-1.5">
+      <Button variant="outline" disabled className="w-full gap-1.5 md:w-auto">
         <Clock className="h-4 w-4" aria-hidden="true" /> Request pending
       </Button>
     );
   }
 
   return (
-    <div className="flex flex-col items-end gap-1.5">
+    <div className="flex w-full flex-col items-stretch gap-1.5 md:w-auto md:items-end">
       <Button type="button" onClick={handleJoin} disabled={pending}>
         {pending ? "..." : isPrivate ? "Request to join" : "Join"}
       </Button>

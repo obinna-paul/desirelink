@@ -16,10 +16,10 @@ export function SectionTab({
       href={href}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "inline-flex h-11 items-center border-b-2 px-2 text-sm font-semibold transition-colors",
+        "inline-flex h-10 shrink-0 items-center rounded-full border px-4 text-sm font-semibold transition-colors md:h-11 md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-2",
         isActive
-          ? "border-primary text-foreground"
-          : "border-transparent text-muted-foreground hover:text-foreground"
+          ? "border-primary bg-primary text-primary-foreground md:bg-transparent md:text-foreground"
+          : "border-border/60 bg-card text-muted-foreground hover:text-foreground md:border-transparent md:bg-transparent"
       )}
     >
       {label}

@@ -79,7 +79,7 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
   const progress = Math.round((completed / actions.length) * 100);
 
   return (
-    <section className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
+    <section className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm md:shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">Quick actions</p>

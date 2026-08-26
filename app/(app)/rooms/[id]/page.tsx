@@ -66,11 +66,13 @@ export default async function RoomDetailPage({
     : [[], [], [], [], []];
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title={room.name} description={room.isPrivate ? "Private room" : "Public room"} />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader title={room.name} description={room.isPrivate ? "Private room" : "Public room"} />
+      </div>
 
-      <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
-        <div className="relative flex h-40 w-full items-center justify-center overflow-hidden bg-secondary">
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm md:rounded-xl md:shadow-none">
+        <div className="relative flex h-44 w-full items-center justify-center overflow-hidden bg-secondary md:h-40">
           {room.coverImageUrl ? (
             <Image
               src={room.coverImageUrl}
@@ -85,8 +87,17 @@ export default async function RoomDetailPage({
           )}
         </div>
 
-        <div className="flex flex-col gap-4 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-4 p-4 md:p-5">
+          <div className="md:hidden">
+            <h1 className="font-heading text-2xl font-semibold leading-tight text-foreground">
+              {room.name}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {room.isPrivate ? "Private room" : "Public room"}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-start md:justify-between">
             <div className="flex flex-wrap items-center gap-1.5">
               {room.isPrivate ? (
                 <Badge variant="secondary" className="gap-1">
@@ -111,8 +122,8 @@ export default async function RoomDetailPage({
       </div>
 
       {canView ? (
-        <div className="flex flex-col gap-6">
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-4 md:gap-6">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             <SectionTab href={`/rooms/${room.id}`} label="Posts" isActive={section === "posts"} />
             <SectionTab
               href={`/rooms/${room.id}?section=members`}

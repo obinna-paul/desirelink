@@ -45,13 +45,14 @@ export function RoomPostComposer({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2 rounded-xl border border-border/60 bg-card p-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm md:rounded-xl md:p-4 md:shadow-none">
       <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Share something with the room..."
         rows={3}
         maxLength={3000}
+        className="min-h-24 resize-none rounded-2xl text-base md:text-sm"
       />
       {error && (
         <p role="alert" className="text-xs text-destructive">
@@ -59,7 +60,7 @@ export function RoomPostComposer({
         </p>
       )}
       <div className="flex justify-end">
-        <Button type="submit" size="sm" disabled={submitting || !content.trim()}>
+        <Button type="submit" size="sm" disabled={submitting || !content.trim()} className="w-full md:w-auto">
           {submitting ? "Posting..." : "Post"}
         </Button>
       </div>

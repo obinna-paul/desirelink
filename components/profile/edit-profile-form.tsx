@@ -62,11 +62,11 @@ function ToggleRow({
   return (
     <label
       htmlFor={name}
-      className="flex min-h-[44px] cursor-pointer items-center justify-between gap-4 rounded-lg border border-border/60 bg-card px-4 py-3"
+      className="flex min-h-[56px] cursor-pointer items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card px-3.5 py-3 shadow-sm md:rounded-lg md:px-4 md:shadow-none"
     >
-      <div>
+      <div className="min-w-0">
         <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{description}</p>
       </div>
       <Controller
         control={control}
@@ -152,9 +152,9 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8">
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 md:gap-8">
+      <section className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
           Photo
         </h2>
         <AvatarUploader
@@ -164,15 +164,15 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
         />
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
           About you
         </h2>
         <FieldWrapper label="Display name" htmlFor="displayName" error={errors.displayName?.message}>
           <Input id="displayName" {...register("displayName")} />
         </FieldWrapper>
         <FieldWrapper label="Bio" htmlFor="bio" error={errors.bio?.message}>
-          <Textarea id="bio" rows={4} {...register("bio")} />
+          <Textarea id="bio" rows={4} {...register("bio")} className="resize-none rounded-2xl text-base md:rounded-md md:text-sm" />
         </FieldWrapper>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FieldWrapper label="Gender" htmlFor="gender" error={errors.gender?.message}>
@@ -204,8 +204,8 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
         </div>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
           Account type
         </h2>
         <Controller
@@ -227,7 +227,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
               {SERVICE_CATEGORY_OPTIONS.map((category) => (
                 <label
                   key={category}
-                  className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-border/60 bg-card px-3 text-sm"
+                  className="flex min-h-11 cursor-pointer items-center gap-2 rounded-2xl border border-border/60 bg-background/60 px-3 text-sm md:rounded-lg"
                 >
                   <input
                     type="checkbox"
@@ -243,8 +243,8 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
         )}
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
           Verification
         </h2>
         <ToggleRow
@@ -255,8 +255,8 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
         />
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
           Availability
         </h2>
         <ToggleRow
@@ -273,8 +273,8 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
         />
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
           Privacy
         </h2>
         <ToggleRow
@@ -310,13 +310,13 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
         </p>
       )}
 
-      <div className="flex gap-3">
-        <Button type="submit" disabled={status !== "idle"}>
+      <div className="sticky bottom-3 z-10 flex flex-col gap-2 rounded-2xl border border-border/60 bg-card/95 p-3 shadow-lift backdrop-blur sm:static sm:flex-row sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+        <Button type="submit" disabled={status !== "idle"} className="h-12">
           {status === "saving" && "Saving..."}
           {status === "success" && "Saved!"}
           {status === "idle" && "Save changes"}
         </Button>
-        <Button type="button" variant="outline" onClick={() => router.push("/profile")}>
+        <Button type="button" variant="outline" onClick={() => router.push("/profile")} className="h-12">
           Cancel
         </Button>
       </div>

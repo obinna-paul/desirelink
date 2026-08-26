@@ -37,15 +37,23 @@ export default async function EditProfilePage() {
   ]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Edit Profile" description="Update how others see you on udala." />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader title="Edit Profile" description="Update how others see you on Udala." />
+      </div>
+      <div className="md:hidden">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+          Edit profile
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Basics, privacy, verification, and desires.</p>
+      </div>
       <div className="xl:hidden">
         <ProfileSetupActions profile={profile} />
       </div>
       <EditProfileForm profile={profile} />
       <section
         id="desire-map"
-        className="scroll-mt-24 rounded-2xl border border-border/70 bg-card p-4 shadow-card sm:p-6"
+        className="scroll-mt-24 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-6 md:shadow-card"
       >
         <div className="mb-5 flex flex-col gap-2">
           <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">

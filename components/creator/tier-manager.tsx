@@ -105,7 +105,7 @@ function TierForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-3 rounded-lg border border-border/60 bg-background p-4"
+      className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm md:rounded-lg md:bg-background md:p-4 md:shadow-none"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
@@ -121,7 +121,7 @@ function TierForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="tier-price" className="text-xs font-medium text-muted-foreground">
-            Price per month (USD, ${(MIN_TIER_PRICE_CENTS / 100).toFixed(2)}–${(MAX_TIER_PRICE_CENTS / 100).toFixed(2)})
+            Price per month (USD, ${(MIN_TIER_PRICE_CENTS / 100).toFixed(2)}-${(MAX_TIER_PRICE_CENTS / 100).toFixed(2)})
           </label>
           <Input
             id="tier-price"
@@ -165,6 +165,7 @@ function TierForm({
           value={form.description}
           onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
           placeholder="What Fans get at this tier"
+          className="resize-none rounded-2xl text-base md:rounded-md md:text-sm"
         />
       </div>
 
@@ -182,7 +183,7 @@ function TierForm({
         />
       </div>
 
-      <div className="flex flex-wrap gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
         <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
           <Switch
             checked={form.isLimited}
@@ -207,12 +208,12 @@ function TierForm({
         </p>
       )}
 
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={status === "saving"}>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button type="submit" size="sm" disabled={status === "saving"} className="w-full sm:w-auto">
           {status === "saving" ? "Saving..." : submitLabel}
         </Button>
         {onCancel && (
-          <Button type="button" size="sm" variant="outline" onClick={onCancel}>
+          <Button type="button" size="sm" variant="outline" onClick={onCancel} className="w-full sm:w-auto">
             Cancel
           </Button>
         )}
@@ -280,7 +281,7 @@ export function TierManager({ initialTiers }: { initialTiers: CreatorTierWithCou
   return (
     <div className="flex flex-col gap-4">
       {tiers.length === 0 && !creating && (
-        <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
           You don&apos;t have any subscription tiers yet.
         </div>
       )}
@@ -299,18 +300,18 @@ export function TierManager({ initialTiers }: { initialTiers: CreatorTierWithCou
           ) : (
             <li
               key={tier.id}
-              className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm sm:flex-row sm:items-center sm:justify-between md:rounded-lg md:p-4 md:shadow-none"
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold">{tier.name}</p>
+                  <p className="text-base font-semibold md:text-sm">{tier.name}</p>
                   <span className="text-sm text-neon-cyan">{formatCents(tier.priceCents)}/mo</span>
                   <span className="rounded-full border border-border/60 px-2 py-0.5 text-xs capitalize text-muted-foreground">
                     {tier.tierType}
                   </span>
                 </div>
                 {tier.description && (
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{tier.description}</p>
+                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground md:mt-0.5 md:truncate md:text-xs">{tier.description}</p>
                 )}
                 <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                   <Users className="h-3 w-3" aria-hidden="true" />
@@ -318,7 +319,7 @@ export function TierManager({ initialTiers }: { initialTiers: CreatorTierWithCou
                   {tier.maxSubscribers ? ` / ${tier.maxSubscribers}` : ""} Fans
                 </p>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex">
                 <Button
                   type="button"
                   size="sm"
@@ -351,7 +352,7 @@ export function TierManager({ initialTiers }: { initialTiers: CreatorTierWithCou
           onSubmit={handleCreate}
         />
       ) : (
-        <Button type="button" variant="outline" className="w-fit gap-1.5" onClick={() => setCreating(true)}>
+        <Button type="button" variant="outline" className="w-full gap-1.5 md:w-fit" onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4" aria-hidden="true" /> Add tier
         </Button>
       )}

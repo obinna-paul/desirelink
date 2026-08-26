@@ -13,8 +13,8 @@ function RequirementRow({ requirement }: { requirement: MonetizationEligibility[
     requirement.kind === "count" ? `${requirement.current} / ${requirement.required}` : requirement.detail;
 
   return (
-    <li className="flex items-center justify-between gap-2 text-sm">
-      <span className="flex items-center gap-2">
+    <li className="flex items-start justify-between gap-3 text-sm">
+      <span className="flex min-w-0 items-start gap-2">
         {requirement.met ? (
           <Check className="h-4 w-4 shrink-0 text-neon-cyan" aria-hidden="true" />
         ) : (
@@ -22,7 +22,7 @@ function RequirementRow({ requirement }: { requirement: MonetizationEligibility[
         )}
         {requirement.label}
       </span>
-      <span className="tabular-nums text-muted-foreground">{detail}</span>
+      <span className="shrink-0 tabular-nums text-muted-foreground">{detail}</span>
     </li>
   );
 }
@@ -54,7 +54,7 @@ export function MonetizationPanel({
 
   if (eligibility.isMonetized) {
     return (
-      <div className="rounded-xl border border-border/60 bg-card p-4">
+      <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
         <div className="flex items-center gap-2">
           <Badge variant="neon" className="gap-1">
             <Check className="h-3 w-3" aria-hidden="true" /> Monetized
@@ -75,12 +75,12 @@ export function MonetizationPanel({
 
   if (eligibility.monetizationStatus === "suspended") {
     return (
-      <div className="rounded-xl border border-destructive/40 bg-card p-4">
+      <div className="rounded-2xl border border-destructive/40 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
         <Badge variant="outline" className="text-destructive">
           Monetization suspended
         </Badge>
         <p className="mt-2 text-sm text-muted-foreground">
-          Monetization was suspended for this account. Your Fan (tier subscriber) revenue is unaffected — contact
+          Monetization was suspended for this account. Your Fan (tier subscriber) revenue is unaffected - contact
           support to appeal the suspension.
         </p>
       </div>
@@ -89,13 +89,13 @@ export function MonetizationPanel({
 
   if (eligibility.monetizationStatus === "pending") {
     return (
-      <div className="rounded-xl border border-border/60 bg-card p-4">
+      <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
         <Badge variant="outline">Application pending review</Badge>
         <p className="mt-2 text-sm text-muted-foreground">
           {eligibility.pendingApplicationSince && (
             <>Applied {new Date(eligibility.pendingApplicationSince).toLocaleDateString()}. </>
           )}
-          An admin reviews monetization applications manually — your Fans and tier revenue are unaffected while you
+          An admin reviews monetization applications manually - your Fans and tier revenue are unaffected while you
           wait.
         </p>
       </div>
@@ -103,11 +103,11 @@ export function MonetizationPanel({
   }
 
   return (
-    <div className="rounded-xl border border-border/60 bg-card p-4">
+    <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
       <h3 className="text-sm font-semibold">Enable monetization</h3>
       <p className="mt-1 text-sm text-muted-foreground">
-        Meet these requirements to apply — an admin reviews every application before it&apos;s approved. This never
-        affects your own Fans — you can keep earning from tier subscriptions either way.
+        Meet these requirements to apply - an admin reviews every application before it&apos;s approved. This never
+        affects your own Fans - you can keep earning from tier subscriptions either way.
       </p>
       {eligibility.monetizationStatus === "denied" && (
         <p className="mt-2 text-xs text-destructive">
@@ -124,7 +124,7 @@ export function MonetizationPanel({
           {error}
         </p>
       )}
-      <Button type="button" className="mt-3" disabled={pending || !eligibility.eligible} onClick={handleApply}>
+      <Button type="button" className="mt-3 w-full md:w-auto" disabled={pending || !eligibility.eligible} onClick={handleApply}>
         {pending ? "..." : eligibility.eligible ? "Apply for monetization" : "Requirements not met yet"}
       </Button>
     </div>

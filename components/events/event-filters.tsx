@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronDown, SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +70,14 @@ export function EventFiltersPanel({ initialFilters }: { initialFilters: EventFil
     initialFilters.radiusKm === null ? "any" : String(initialFilters.radiusKm)
   );
   const [privacy, setPrivacy] = useState<EventPrivacyFilter>(initialFilters.privacy);
+  const [open, setOpen] = useState(false);
+
+  const activeFilterCount =
+    types.length +
+    (datePreset !== "any" ? 1 : 0) +
+    (city.trim() ? 1 : 0) +
+    (radiusKm !== "any" ? 1 : 0) +
+    (privacy !== "all" ? 1 : 0);
 
   function applyFilters() {
     const params = new URLSearchParams();
@@ -82,6 +91,7 @@ export function EventFiltersPanel({ initialFilters }: { initialFilters: EventFil
     params.set("radius", radiusKm);
     params.set("privacy", privacy);
     router.push(`/events?${params.toString()}`);
+    setOpen(false);
   }
 
   function clearFilters() {
@@ -93,15 +103,31 @@ export function EventFiltersPanel({ initialFilters }: { initialFilters: EventFil
     setRadiusKm("any");
     setPrivacy("all");
     router.push("/events");
+    setOpen(false);
   }
 
   return (
-    <details open className="rounded-xl border border-border/60 bg-card">
-      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
-        Filters
-      </summary>
+    <section className="rounded-2xl border border-border/60 bg-card shadow-sm md:rounded-xl md:shadow-none">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold md:hidden"
+      >
+        <span className="flex items-center gap-2">
+          <SlidersHorizontal className="h-4 w-4 text-primary" aria-hidden="true" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">
+              {activeFilterCount}
+            </span>
+          )}
+        </span>
+        <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} aria-hidden="true" />
+      </button>
 
-      <div className="flex flex-col gap-5 border-t border-border/60 p-4">
+      <div className={cn("flex-col gap-5 border-t border-border/60 p-4 md:flex md:border-t-0", open ? "flex" : "hidden")}>
+        <div className="hidden text-sm font-semibold md:block">Filters</div>
         <FilterSection title="Type">
           <div className="flex flex-wrap gap-2">
             {EVENT_TYPE_OPTIONS.map((option) => (
@@ -195,14 +221,14 @@ export function EventFiltersPanel({ initialFilters }: { initialFilters: EventFil
         )}
 
         <div className="flex gap-3">
-          <Button type="button" onClick={applyFilters}>
+          <Button type="button" onClick={applyFilters} className="flex-1 md:flex-none">
             Apply filters
           </Button>
-          <Button type="button" variant="outline" onClick={clearFilters}>
+          <Button type="button" variant="outline" onClick={clearFilters} className="flex-1 md:flex-none">
             Clear all
           </Button>
         </div>
       </div>
-    </details>
+    </section>
   );
 }

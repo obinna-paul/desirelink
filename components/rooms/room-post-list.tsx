@@ -46,7 +46,7 @@ export function RoomPostList({
       )}
 
       {posts.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
           No posts yet. Be the first to share something.
         </div>
       ) : (
@@ -54,10 +54,10 @@ export function RoomPostList({
           {posts.map((post) => {
             const initials = post.author.displayName.slice(0, 2).toUpperCase();
             return (
-              <li key={post.id} className="rounded-xl border border-border/60 bg-card p-4">
+              <li key={post.id} className="rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm md:rounded-xl md:p-4 md:shadow-none">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Avatar className="h-9 w-9 border border-border">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar className="h-10 w-10 border border-border md:h-9 md:w-9">
                       <AvatarImage src={post.author.avatarUrl} alt={post.author.displayName} />
                       <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                     </Avatar>
@@ -85,7 +85,7 @@ export function RoomPostList({
                     )}
                   </div>
                 </div>
-                <p className="mt-3 whitespace-pre-wrap text-sm">{post.content}</p>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-6">{post.content}</p>
               </li>
             );
           })}

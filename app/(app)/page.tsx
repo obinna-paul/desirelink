@@ -61,8 +61,14 @@ export default async function HomePage({
   if (query) {
     const results = await searchProfiles(query, viewerProfile);
     return (
-      <div className="flex flex-col gap-6">
-        <PageHeader title="Search" description={`Results for "${query}"`} />
+      <div className="flex flex-col gap-4 md:gap-6">
+        <div className="hidden md:block">
+          <PageHeader title="Search" description={`Results for "${query}"`} />
+        </div>
+        <div className="md:hidden">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Search results</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Results for &quot;{query}&quot;</p>
+        </div>
         <AvailableTonightStrip items={availableTonight} />
         <EventsTonightStrip events={tonightEvents} />
         <ProfileGrid profiles={results} emptyMessage={`No one found matching "${query}".`} />
@@ -75,11 +81,13 @@ export default async function HomePage({
   if (tab === "events") {
     const events = await getHomeUpcomingEvents(viewerProfile, 24);
     return (
-      <div className="flex flex-col gap-6">
-        <PageHeader
-          title="Home"
-          description="Browse profiles across udala, filtered by what you're into right now."
-        />
+      <div className="flex flex-col gap-4 md:gap-6">
+        <div className="hidden md:block">
+          <PageHeader
+            title="Home"
+            description="Browse profiles across udala, filtered by what you're into right now."
+          />
+        </div>
         <AvailableTonightStrip items={availableTonight} />
         <EventsTonightStrip events={tonightEvents} />
         <RecommendedForYou recommendations={recommendations ?? []} />
@@ -95,11 +103,13 @@ export default async function HomePage({
   if (tab === "feed") {
     const posts = await getFeedPosts(viewerProfile?.id ?? null);
     return (
-      <div className="flex flex-col gap-6">
-        <PageHeader
-          title="Home"
-          description="Browse profiles across udala, filtered by what you're into right now."
-        />
+      <div className="flex flex-col gap-4 md:gap-6">
+        <div className="hidden md:block">
+          <PageHeader
+            title="Home"
+            description="Browse profiles across udala, filtered by what you're into right now."
+          />
+        </div>
         <AvailableTonightStrip items={availableTonight} />
         <EventsTonightStrip events={tonightEvents} />
         <RecommendedForYou recommendations={recommendations ?? []} />
@@ -115,11 +125,13 @@ export default async function HomePage({
   const { profiles, note } = await getHomeFeed(tab, viewerProfile);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Home"
-        description="Browse profiles across udala, filtered by what you're into right now."
-      />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader
+          title="Home"
+          description="Browse profiles across udala, filtered by what you're into right now."
+        />
+      </div>
       <AvailableTonightStrip items={availableTonight} />
       <EventsTonightStrip events={tonightEvents} />
       <RecommendedForYou recommendations={recommendations ?? []} />

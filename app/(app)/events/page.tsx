@@ -41,13 +41,22 @@ export default async function EventsPage({
   ]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Events"
-        description="Find and host in-person and virtual gatherings."
-      />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader
+          title="Events"
+          description="Find and host in-person and virtual gatherings."
+        />
+      </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="md:hidden">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+          Events
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Find gatherings worth showing up for.</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:gap-3">
         <Button asChild className="gap-1.5">
           <Link href="/events/new">
             <CalendarPlus className="h-4 w-4" aria-hidden="true" /> Host an event
@@ -64,9 +73,9 @@ export default async function EventsPage({
 
       <EventFiltersPanel initialFilters={filters} />
 
-      <p className="text-sm text-muted-foreground">
+      <div className="rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
         {events.length} upcoming {events.length === 1 ? "event" : "events"}
-      </p>
+      </div>
 
       {note && <p className="text-sm text-muted-foreground">{note}</p>}
 

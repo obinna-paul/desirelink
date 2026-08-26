@@ -72,11 +72,13 @@ export default async function EventDetailPage({
   const isFull = event.maxAttendees !== null && event.currentAttendees >= event.maxAttendees;
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title={event.title} description={event.eventType} />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader title={event.title} description={event.eventType} />
+      </div>
 
-      <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
-        <div className="relative flex h-56 w-full items-center justify-center overflow-hidden bg-secondary">
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm md:rounded-xl md:shadow-none">
+        <div className="relative flex h-52 w-full items-center justify-center overflow-hidden bg-secondary md:h-56">
           {event.coverImageUrl ? (
             <Image
               src={event.coverImageUrl}
@@ -91,7 +93,14 @@ export default async function EventDetailPage({
           )}
         </div>
 
-        <div className="flex flex-col gap-4 p-5">
+        <div className="flex flex-col gap-4 p-4 md:p-5">
+          <div className="md:hidden">
+            <h1 className="font-heading text-2xl font-semibold leading-tight text-foreground">
+              {event.title}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">{event.eventType}</p>
+          </div>
+
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant="outline">{event.eventType}</Badge>
             {event.isPrivate && <Badge variant="secondary">Private</Badge>}
@@ -112,7 +121,7 @@ export default async function EventDetailPage({
                 dateStyle: "full",
                 timeStyle: "short",
               })}
-              {" – "}
+              {" - "}
               {new Date(event.endTime).toLocaleString(undefined, { timeStyle: "short" })}
             </span>
             {location && (
@@ -129,7 +138,7 @@ export default async function EventDetailPage({
 
           <Link
             href={`/profile/${event.host.username}`}
-            className="flex w-fit items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-2 transition-colors hover:border-neon-pink/60"
+            className="flex w-full items-center gap-2 rounded-2xl border border-border/60 bg-background px-3 py-2.5 transition-colors hover:border-neon-pink/60 md:w-fit md:rounded-lg md:py-2"
           >
             <Avatar className="h-8 w-8 border border-border">
               <AvatarImage src={event.host.avatarUrl} alt={event.host.displayName} />
@@ -141,7 +150,7 @@ export default async function EventDetailPage({
             </div>
           </Link>
 
-          <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
+          <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4 [&>*]:w-full md:[&>*]:w-auto">
             {isHost ? (
               <Button asChild variant="outline" className="gap-1.5">
                 <Link href={`/events/manage/${event.id}/edit`}>
@@ -162,14 +171,14 @@ export default async function EventDetailPage({
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-1">
         <SectionTab href={`/events/${event.id}`} label="Details" isActive={section === "details"} />
         <SectionTab href={`/events/${event.id}?section=chat`} label="Chat" isActive={section === "chat"} />
       </div>
 
       {section === "details" ? (
         <>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
             <h2 className="text-sm font-semibold">Who&apos;s going?</h2>
 
             <div className="flex flex-wrap gap-1.5">
@@ -182,7 +191,7 @@ export default async function EventDetailPage({
 
             <p className="flex items-center gap-1.5 text-xs italic text-muted-foreground">
               <UserPlus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              See who you follow is attending — coming soon.
+              See who you follow is attending - coming soon.
             </p>
 
             {attendees.hasHiddenAttendees && (
