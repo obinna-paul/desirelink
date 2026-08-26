@@ -1,4 +1,4 @@
-import type { AvailabilityStatusType, DesireLevel, Prisma } from "@prisma/client";
+import type { AvailabilityStatusType, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect } from "@/lib/home-feed";

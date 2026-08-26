@@ -8,7 +8,6 @@ import {
   recordProviderPostView,
 } from "@/lib/premium";
 import { isProviderProfileType } from "@/lib/provider-types";
-import { MAX_POST_IMAGES } from "@/lib/post-shared";
 
 const FEED_LIMIT = 30;
 const PROFILE_POSTS_LIMIT = 50;
