@@ -11,7 +11,6 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <AuthShell
-      activeMode="login"
       title="Welcome back"
       description="Log in to continue your conversations, plans, and creator access."
     >

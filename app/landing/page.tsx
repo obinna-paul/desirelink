@@ -12,7 +12,6 @@ export const metadata: Metadata = {
 export default function LandingPage() {
   return (
     <AuthShell
-      activeMode="login"
       title="Log in to Udala"
       description="Continue to your private social map, messages, events, and creator circles."
     >

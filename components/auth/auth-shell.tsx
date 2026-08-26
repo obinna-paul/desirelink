@@ -5,7 +5,6 @@ import Link from "next/link";
 import { BadgeCheck, LockKeyhole, ShieldCheck } from "lucide-react";
 
 import authShowcase from "@/public/images/udala-auth-showcase.png";
-import { cn } from "@/lib/utils";
 
 const TRUST_MARKERS = [
   { icon: BadgeCheck, label: "18+ verified entry" },
@@ -17,12 +16,10 @@ export function AuthShell({
   title,
   description,
   children,
-  activeMode,
 }: {
   title: string;
   description: string;
   children: React.ReactNode;
-  activeMode: "login" | "signup";
 }) {
   return (
     <main className="min-h-dvh bg-[#f7f1f4] text-[#1b141b] lg:h-dvh lg:overflow-hidden">
@@ -44,9 +41,6 @@ export function AuthShell({
 
           <div className="flex flex-1 flex-col justify-center py-4">
             <div className="mx-auto w-full max-w-[520px]">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[#ff4eb3]">
-                Premium African social discovery
-              </p>
               <h1 className="max-w-[13ch] font-heading text-4xl font-semibold leading-[1.02] tracking-tight xl:text-[3.35rem]">
                 Create. Earn. Connect.
               </h1>
@@ -95,30 +89,6 @@ export function AuthShell({
               />
               <span className="ml-3 font-heading text-2xl font-semibold tracking-tight text-[#211720]">Udala</span>
             </Link>
-            <div className="mb-6 flex rounded-xl border border-[#ded0d8] bg-white p-1 shadow-sm">
-              <Link
-                href="/login"
-                className={cn(
-                  "flex h-11 flex-1 items-center justify-center rounded-lg text-sm font-semibold transition-colors",
-                  activeMode === "login"
-                    ? "bg-[#20161f] text-white"
-                    : "text-[#675965] hover:bg-[#f6eef3] hover:text-[#20161f]"
-                )}
-              >
-                Log in
-              </Link>
-              <Link
-                href="/signup"
-                className={cn(
-                  "flex h-11 flex-1 items-center justify-center rounded-lg text-sm font-semibold transition-colors",
-                  activeMode === "signup"
-                    ? "bg-[#20161f] text-white"
-                    : "text-[#675965] hover:bg-[#f6eef3] hover:text-[#20161f]"
-                )}
-              >
-                Create account
-              </Link>
-            </div>
 
             <div className="mb-5">
               <h2 className="font-heading text-3xl font-semibold tracking-tight text-[#171017]">{title}</h2>
