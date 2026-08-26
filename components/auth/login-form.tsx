@@ -45,7 +45,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <FormField
           label="Email"
@@ -76,7 +76,7 @@ export function LoginForm() {
         <Button
           type="submit"
           disabled={status !== "idle"}
-          className="h-12 rounded-lg bg-[#211720] text-white hover:bg-[#3a2635]"
+          className="h-12 rounded-lg bg-[#e91e8f] text-white shadow-[0_14px_30px_rgba(233,30,143,0.24)] hover:bg-[#c81779]"
         >
           {status === "loading" && "Logging in..."}
           {status === "success" && "Success! Redirecting..."}

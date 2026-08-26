@@ -42,7 +42,7 @@ export function GoogleSignInButton({ variant = "default" }: { variant?: "default
           isAuth
             ? "h-12 rounded-lg border-white/12 bg-white/[0.055] text-white hover:border-white/28 hover:bg-white/[0.09]"
             : isLightAuth
-              ? "h-12 rounded-lg border-[#d8c8d2] bg-white text-[#211720] hover:border-[#b893a6] hover:bg-[#fbf6f8]"
+              ? "h-12 rounded-lg border-[#16a34a] bg-[#16a34a] text-white shadow-[0_14px_30px_rgba(22,163,74,0.2)] hover:border-[#12833d] hover:bg-[#12833d]"
               : undefined
         }
         onClick={() => signIn("google", { callbackUrl: "/" })}

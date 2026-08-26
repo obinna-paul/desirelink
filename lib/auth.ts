@@ -7,6 +7,51 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { getClientIpFromHeaders } from "@/lib/security/request";
+import { generateUniqueUsername } from "@/lib/username";
+
+async function ensureProfileForAuthUser(user: {
+  id?: string | null;
+  email?: string | null;
+  name?: string | null;
+  image?: string | null;
+}) {
+  if (!user.id || !user.email) return;
+
+  const existingProfile = await prisma.profile.findUnique({
+    where: { userId: user.id },
+    select: { id: true },
+  });
+  if (existingProfile) return;
+
+  const email = user.email.toLowerCase();
+  const fallbackName = email.split("@")[0] || "Udala member";
+  const displayName = user.name?.trim() || fallbackName;
+  const username = await generateUniqueUsername(email);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      email,
+      name: displayName,
+      image: user.image ?? undefined,
+      profile: {
+        create: {
+          username,
+          displayName,
+          bio: "",
+          avatarUrl: user.image ?? "",
+          gender: "unspecified",
+          orientation: "unspecified",
+          locationLat: 0,
+          locationLng: 0,
+          city: "",
+          country: "",
+          profileType: "EXPLORER",
+        },
+      },
+    },
+  });
+}
 
 const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
@@ -49,6 +94,11 @@ if (hasGoogleCredentials) {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: "openid email profile",
+        },
+      },
     })
   );
 }
@@ -60,7 +110,22 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
   providers,
+  events: {
+    async createUser({ user }) {
+      await ensureProfileForAuthUser(user).catch((error) => {
+        console.error("[auth] failed to create profile for OAuth user", error);
+      });
+    },
+  },
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google") {
+        await ensureProfileForAuthUser(user).catch((error) => {
+          console.error("[auth] failed to ensure Google user profile", error);
+        });
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) token.id = user.id;
       return token;
