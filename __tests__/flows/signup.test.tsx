@@ -37,7 +37,9 @@ describe("signup flow", () => {
     await user.type(screen.getByLabelText(/email/i), "ada@example.com");
     await user.type(screen.getByLabelText(/^password$/i), "password123");
     await user.type(screen.getByLabelText(/confirm password/i), "password123");
-    await user.click(screen.getByRole("button", { name: /sign up/i }));
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await user.click(screen.getByRole("button", { name: /create account/i }));
 
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalledWith("credentials", {

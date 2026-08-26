@@ -99,13 +99,13 @@ export function DesireMapEditor({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <p className="text-sm text-muted-foreground">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5 sm:gap-6">
+      <p className="rounded-xl border border-border/60 bg-background/35 px-4 py-3 text-sm leading-6 text-muted-foreground">
         {selectedCount} of {DESIRE_CATEGORIES.length} selected. Tap a level to select it again to
         clear it. Everything defaults to private until you say otherwise.
       </p>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {DESIRE_CATEGORIES.map((category) => {
           const value = state[category];
           const isSelected = value.level !== null;
@@ -113,7 +113,7 @@ export function DesireMapEditor({
           return (
             <div
               key={category}
-              className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-4"
+              className="flex flex-col gap-3 rounded-xl border border-border/60 bg-background/35 p-4"
             >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-medium">{category}</p>
@@ -139,7 +139,7 @@ export function DesireMapEditor({
                     size="sm"
                     variant={value.level === option.value ? "default" : "outline"}
                     aria-pressed={value.level === option.value}
-                    className="min-h-11 px-2.5 text-xs"
+                    className="min-h-11 flex-1 px-2.5 text-xs sm:flex-none"
                     onClick={() => setLevel(category, option.value)}
                   >
                     {option.label}
@@ -172,12 +172,12 @@ export function DesireMapEditor({
         </p>
       )}
 
-      <div className="flex gap-3">
-        <Button type="submit" disabled={status === "saving"}>
+      <div className="sticky bottom-3 z-10 flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/95 p-3 shadow-lift backdrop-blur sm:static sm:flex-row sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+        <Button type="submit" disabled={status === "saving"} className="h-12">
           {status === "saving" ? "Saving..." : submitLabel}
         </Button>
         {skipHref && (
-          <Button type="button" variant="outline" onClick={() => router.push(skipHref)}>
+          <Button type="button" variant="outline" className="h-12" onClick={() => router.push(skipHref)}>
             Skip for now
           </Button>
         )}

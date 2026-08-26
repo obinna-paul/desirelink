@@ -5,7 +5,7 @@ import { getProviders, signIn } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 
-export function GoogleSignInButton() {
+export function GoogleSignInButton({ variant = "default" }: { variant?: "default" | "auth" }) {
   const [available, setAvailable] = useState(false);
 
   useEffect(() => {
@@ -30,6 +30,11 @@ export function GoogleSignInButton() {
       <Button
         type="button"
         variant="outline"
+        className={
+          variant === "auth"
+            ? "h-12 rounded-lg border-white/12 bg-white/[0.055] text-white hover:border-white/28 hover:bg-white/[0.09]"
+            : undefined
+        }
         onClick={() => signIn("google", { callbackUrl: "/" })}
       >
         Continue with Google
