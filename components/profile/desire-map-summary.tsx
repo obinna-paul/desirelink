@@ -29,7 +29,7 @@ export function DesireMapSummary({
         </h2>
         {isOwner && (
           <Button asChild variant="ghost" size="sm" className="min-h-11 gap-1 px-2 text-xs">
-            <Link href="/onboarding/desires">
+            <Link href="/profile/edit#desire-map">
               <Pencil className="h-3 w-3" /> Edit
             </Link>
           </Button>
@@ -41,7 +41,7 @@ export function DesireMapSummary({
           {isOwner ? (
             <>
               You haven&apos;t built your desire map yet.{" "}
-              <Link href="/onboarding/desires" className="text-neon-pink underline underline-offset-2">
+              <Link href="/profile/edit#desire-map" className="text-neon-pink underline underline-offset-2">
                 Get started
               </Link>
               .

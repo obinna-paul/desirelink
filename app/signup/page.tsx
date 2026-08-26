@@ -30,7 +30,7 @@ const STEPS = [
   {
     id: "confirm",
     title: "Confirm and continue",
-    description: "Next, you will build your Desire Map and privacy settings.",
+    description: "Next, you will land in profile settings with a focused setup checklist.",
   },
 ] as const;
 
@@ -108,7 +108,7 @@ export default function SignupPage() {
       return;
     }
 
-    router.push("/onboarding/desires");
+    router.push("/profile/edit");
     router.refresh();
   }
 
@@ -140,7 +140,7 @@ export default function SignupPage() {
                 Your account starts private.
               </h1>
               <p className="mt-5 max-w-md text-base leading-7 text-[#675965]">
-                Create access first. Then we guide you through desires, location privacy, availability, and safety controls.
+                Create access first. Then finish profile, verification, visibility, and Desire Map setup from one place.
               </p>
             </div>
 
@@ -270,7 +270,7 @@ export default function SignupPage() {
                   <div className="flex gap-3 rounded-xl border border-[#e0bfd0] bg-[#fff4f8] p-4 text-sm leading-6 text-[#675965]">
                     <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#8f285d]" aria-hidden="true" />
                     <p>
-                      After account creation, you will choose what you are looking for, what stays private, and how visible you want to be.
+                      After account creation, your profile settings will show the most important setup actions first.
                     </p>
                   </div>
                 </div>
