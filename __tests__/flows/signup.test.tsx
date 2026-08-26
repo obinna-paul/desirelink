@@ -34,7 +34,7 @@ describe("signup flow", () => {
     render(<SignupPage />);
 
     await user.type(screen.getByLabelText(/name/i), "Ada Lovelace");
-    await user.type(screen.getByLabelText(/email/i), "ada@example.com");
+    await user.type(screen.getByLabelText(/email/i), "Ada@Example.COM");
     await user.type(screen.getByLabelText(/^password$/i), "password123");
     await user.type(screen.getByLabelText(/confirm password/i), "password123");
     await user.click(screen.getByRole("button", { name: /continue/i }));

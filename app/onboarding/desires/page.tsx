@@ -31,11 +31,12 @@ export default async function DesireOnboardingPage() {
             <Image
               src="/udala-logo-light.png"
               alt="Udala"
-              width={145}
-              height={56}
+              width={500}
+              height={500}
               priority
-              className="h-10 w-auto object-contain"
+              className="h-12 w-12 object-contain"
             />
+            <span className="font-heading text-xl font-semibold tracking-tight text-[#211720]">Udala</span>
           </Link>
           <Link
             href="/profile"

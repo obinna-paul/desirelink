@@ -23,7 +23,15 @@ export function AuthCard({
           className="mx-auto mb-8 flex h-16 w-fit items-center justify-center"
           aria-label="udala"
         >
-          <Image src="/udala-logo-light.png" alt="Udala" width={160} height={64} priority className="h-12 w-auto object-contain" />
+          <Image
+            src="/udala-logo-light.png"
+            alt="Udala"
+            width={500}
+            height={500}
+            priority
+            className="h-14 w-14 object-contain"
+          />
+          <span className="ml-3 font-heading text-xl font-semibold tracking-tight">Udala</span>
         </Link>
         <div className="rounded-xl border border-border/60 bg-card p-6 shadow-lg">
           <div className="mb-6">

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
@@ -19,9 +20,10 @@ export async function POST(req: Request) {
   }
 
   const { name, email, password, profileType } = parsed.data;
+  const normalizedEmail = email.toLowerCase();
   const ip = getClientIp(req);
   const ipLimit = checkRateLimit(`signup:ip:${ip}`, { limit: 10, windowMs: 60 * 60 * 1000 });
-  const emailLimit = checkRateLimit(`signup:email:${email.toLowerCase()}`, {
+  const emailLimit = checkRateLimit(`signup:email:${normalizedEmail}`, {
     limit: 5,
     windowMs: 60 * 60 * 1000,
   });
@@ -34,39 +36,55 @@ export async function POST(req: Request) {
     );
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    return NextResponse.json(
-      { error: "An account with this email already exists" },
-      { status: 409 }
-    );
-  }
+  try {
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing) {
+      return NextResponse.json(
+        { error: "An account with this email already exists" },
+        { status: 409 }
+      );
+    }
 
-  const passwordHash = await bcrypt.hash(password, 12);
-  const username = await generateUniqueUsername(email);
+    const passwordHash = await bcrypt.hash(password, 12);
+    const username = await generateUniqueUsername(normalizedEmail);
 
-  await prisma.user.create({
-    data: {
-      email,
-      name,
-      passwordHash,
-      profile: {
-        create: {
-          username,
-          displayName: name,
-          bio: "",
-          avatarUrl: "",
-          gender: "unspecified",
-          orientation: "unspecified",
-          locationLat: 0,
-          locationLng: 0,
-          city: "",
-          country: "",
-          profileType,
+    await prisma.user.create({
+      data: {
+        email: normalizedEmail,
+        name,
+        passwordHash,
+        profile: {
+          create: {
+            username,
+            displayName: name,
+            bio: "",
+            avatarUrl: "",
+            gender: "unspecified",
+            orientation: "unspecified",
+            locationLat: 0,
+            locationLng: 0,
+            city: "",
+            country: "",
+            profileType,
+          },
         },
       },
-    },
-  });
+    });
+  } catch (error) {
+    console.error("[signup] account creation failed", error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json(
+        { error: "An account with this email already exists" },
+        { status: 409 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: "Unable to create account. Please try again." },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ success: true }, { status: 201 });
 }

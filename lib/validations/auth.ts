@@ -5,7 +5,7 @@ export const ACCOUNT_TYPE_VALUES = ["EXPLORER", "CREATOR", "PAIR", "SERVICE_PROV
 export const signupSchema = z
   .object({
     name: z.string().min(2, "Name must be at least 2 characters").max(50),
-    email: z.string().email("Enter a valid email address"),
+    email: z.string().trim().toLowerCase().email("Enter a valid email address"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
     profileType: z.enum(ACCOUNT_TYPE_VALUES),
@@ -18,7 +18,7 @@ export const signupSchema = z
 export type SignupInput = z.infer<typeof signupSchema>;
 
 export const loginSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
+  email: z.string().trim().toLowerCase().email("Enter a valid email address"),
   password: z.string().min(1, "Password is required"),
 });
 

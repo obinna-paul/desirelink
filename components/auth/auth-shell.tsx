@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { BadgeCheck, CalendarDays, LockKeyhole, MapPin, ShieldCheck, Sparkles } from "lucide-react";
+import { BadgeCheck, LockKeyhole, ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -10,12 +10,6 @@ const TRUST_MARKERS = [
   { icon: BadgeCheck, label: "18+ verified entry" },
   { icon: ShieldCheck, label: "Consent-first spaces" },
   { icon: LockKeyhole, label: "Private by default" },
-] as const;
-
-const EXPERIENCE_POINTS = [
-  { icon: MapPin, label: "Nearby", value: "Location-aware matches" },
-  { icon: Sparkles, label: "Creator access", value: "Circles, posts, and private plans" },
-  { icon: CalendarDays, label: "Events", value: "Recommended nights and rooms" },
 ] as const;
 
 export function AuthShell({
@@ -31,61 +25,57 @@ export function AuthShell({
 }) {
   return (
     <main className="min-h-screen bg-[#f7f1f4] text-[#1b141b]">
-      <div className="grid min-h-screen lg:grid-cols-[minmax(0,0.92fr)_minmax(480px,1.08fr)]">
-        <section className="hidden min-h-screen flex-col justify-between border-r border-[#e5d8df] bg-[#fbf8f9] px-10 py-9 lg:flex xl:px-14">
+      <div className="grid min-h-screen lg:grid-cols-[minmax(0,0.96fr)_minmax(480px,1.04fr)]">
+        <section className="hidden min-h-screen flex-col justify-between overflow-hidden border-r border-[#1e1722] bg-[#07090d] px-10 py-8 text-white lg:flex xl:px-14">
           <div>
             <Link href="/landing" className="flex w-fit items-center gap-3" aria-label="Udala home">
               <Image
-                src="/udala-logo-light.png"
+                src="/udala-logo.png"
                 alt="Udala"
-                width={164}
-                height={64}
+                width={500}
+                height={500}
                 priority
-                className="h-12 w-auto object-contain"
+                className="h-16 w-16 object-contain"
               />
+              <span className="font-heading text-2xl font-semibold tracking-tight">Udala</span>
             </Link>
           </div>
 
-          <div className="max-w-xl">
-            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-[#8a4962]">
+          <div className="flex flex-1 flex-col justify-center py-8">
+            <div className="mx-auto w-full max-w-[560px]">
+              <p className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-[#ff4eb3]">
                 Premium African social discovery
-            </p>
-            <h1 className="max-w-[11ch] font-heading text-5xl font-semibold leading-[0.98] tracking-tight text-[#171017] xl:text-6xl">
-              Meet with intention.
-            </h1>
-            <p className="mt-5 max-w-md text-base leading-7 text-[#61535d]">
-              Private chats, creator circles, events, and availability tools for verified adults who want a more deliberate social app.
-            </p>
-
-            <div className="mt-9 grid max-w-lg gap-3">
-              {EXPERIENCE_POINTS.map((point) => {
-                const Icon = point.icon;
-                return (
-                  <div key={point.label} className="grid grid-cols-[2.75rem_1fr] items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#211720] text-[#f4d1da]">
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <span>
-                      <span className="block text-sm font-semibold text-[#211720]">{point.label}</span>
-                      <span className="block text-sm text-[#786a73]">{point.value}</span>
-                    </span>
-                  </div>
-                );
-              })}
+              </p>
+              <h1 className="max-w-[13ch] font-heading text-4xl font-semibold leading-[1.02] tracking-tight xl:text-5xl">
+                Create. Earn. Connect.
+              </h1>
+              <p className="mt-4 max-w-md text-base leading-7 text-white/68">
+                A private, adult-only social experience for creators, providers, pairs, and members across African cities.
+              </p>
+              <div className="mt-7 flex justify-center">
+                <Image
+                  src="/images/udala-auth-showcase.png"
+                  alt="Udala app preview with an African creator and private social features"
+                  width={1122}
+                  height={1402}
+                  priority
+                  className="h-auto max-h-[58vh] w-full max-w-[470px] object-contain"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 pb-1">
             {TRUST_MARKERS.map((marker) => {
               const Icon = marker.icon;
               return (
-              <span
+                <span
                   key={marker.label}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#e0c9d4] bg-white px-3 text-xs font-semibold text-[#51454e] shadow-sm"
-              >
-                  <Icon className="h-3.5 w-3.5 text-[#a32f68]" aria-hidden="true" />
+                  className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/12 bg-white/[0.06] px-3 text-xs font-semibold text-white/78"
+                >
+                  <Icon className="h-3.5 w-3.5 text-[#ff4eb3]" aria-hidden="true" />
                   {marker.label}
-              </span>
+                </span>
               );
             })}
           </div>
@@ -97,18 +87,21 @@ export function AuthShell({
               <Image
                 src="/udala-logo-light.png"
                 alt="Udala"
-                width={150}
-                height={58}
+                width={500}
+                height={500}
                 priority
-                className="h-11 w-auto object-contain"
+                className="h-14 w-14 object-contain"
               />
+              <span className="ml-3 font-heading text-2xl font-semibold tracking-tight text-[#211720]">Udala</span>
             </Link>
             <div className="mb-8 flex rounded-xl border border-[#ded0d8] bg-white p-1 shadow-sm">
               <Link
                 href="/login"
                 className={cn(
                   "flex h-11 flex-1 items-center justify-center rounded-lg text-sm font-semibold transition-colors",
-                  activeMode === "login" ? "bg-[#20161f] text-white" : "text-[#675965] hover:bg-[#f6eef3] hover:text-[#20161f]"
+                  activeMode === "login"
+                    ? "bg-[#20161f] text-white"
+                    : "text-[#675965] hover:bg-[#f6eef3] hover:text-[#20161f]"
                 )}
               >
                 Log in
@@ -117,7 +110,9 @@ export function AuthShell({
                 href="/signup"
                 className={cn(
                   "flex h-11 flex-1 items-center justify-center rounded-lg text-sm font-semibold transition-colors",
-                  activeMode === "signup" ? "bg-[#20161f] text-white" : "text-[#675965] hover:bg-[#f6eef3] hover:text-[#20161f]"
+                  activeMode === "signup"
+                    ? "bg-[#20161f] text-white"
+                    : "text-[#675965] hover:bg-[#f6eef3] hover:text-[#20161f]"
                 )}
               >
                 Create account
