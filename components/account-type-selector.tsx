@@ -16,7 +16,7 @@ export function AccountTypeSelector({
   onChange: (value: ProfileType) => void;
   name?: string;
   className?: string;
-  variant?: "default" | "auth";
+  variant?: "default" | "auth" | "lightAuth";
 }) {
   return (
     <div role="radiogroup" aria-label="Account type" className={cn("grid grid-cols-1 gap-3", className)}>
@@ -31,6 +31,10 @@ export function AccountTypeSelector({
                 ? selected
                   ? "border-[#f8b7c8]/70 bg-[#f8b7c8]/12 text-white"
                   : "border-white/10 bg-white/[0.04] text-white hover:border-white/24"
+                : variant === "lightAuth"
+                  ? selected
+                    ? "border-[#9b2f66] bg-[#fff4f8] text-[#211720] shadow-sm"
+                    : "border-[#d8c8d2] bg-white text-[#211720] hover:border-[#b893a6]"
                 : selected
                   ? "border-primary bg-secondary"
                   : "border-border/60 bg-card hover:border-primary/50"
@@ -45,7 +49,15 @@ export function AccountTypeSelector({
               className="sr-only"
             />
             <span className="text-sm font-semibold">{option.label}</span>
-            <span className={variant === "auth" ? "text-xs text-white/56" : "text-xs text-muted-foreground"}>
+            <span
+              className={
+                variant === "auth"
+                  ? "text-xs text-white/56"
+                  : variant === "lightAuth"
+                    ? "text-xs text-[#756771]"
+                    : "text-xs text-muted-foreground"
+              }
+            >
               {option.description}
             </span>
           </label>

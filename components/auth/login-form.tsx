@@ -53,7 +53,7 @@ export function LoginForm() {
           autoComplete="email"
           registration={register("email")}
           error={errors.email?.message}
-          variant="auth"
+          variant="lightAuth"
         />
         <FormField
           label="Password"
@@ -61,30 +61,34 @@ export function LoginForm() {
           autoComplete="current-password"
           registration={register("password")}
           error={errors.password?.message}
-          variant="auth"
+          variant="lightAuth"
         />
         <div className="flex justify-end">
-          <Link href="/help" className="text-sm font-medium text-[#f8b7c8] underline-offset-4 hover:underline">
+          <Link href="/help" className="text-sm font-semibold text-[#8f285d] underline-offset-4 hover:underline">
             Forgot password?
           </Link>
         </div>
         {serverError && (
-          <p role="alert" className="text-sm text-red-300">
+          <p role="alert" className="text-sm text-[#b42318]">
             {serverError}
           </p>
         )}
-        <Button type="submit" disabled={status !== "idle"} className="h-12 rounded-lg bg-[#f0d5dd] text-[#18131d] hover:bg-white">
+        <Button
+          type="submit"
+          disabled={status !== "idle"}
+          className="h-12 rounded-lg bg-[#211720] text-white hover:bg-[#3a2635]"
+        >
           {status === "loading" && "Logging in..."}
           {status === "success" && "Success! Redirecting..."}
           {status === "idle" && "Log in"}
         </Button>
       </form>
 
-      <GoogleSignInButton variant="auth" />
+      <GoogleSignInButton variant="lightAuth" />
 
-      <p className="text-center text-sm text-white/58">
+      <p className="text-center text-sm text-[#6f626b]">
         New to Udala?{" "}
-        <Link href="/signup" className="font-semibold text-[#f8b7c8] underline-offset-4 hover:underline">
+        <Link href="/signup" className="font-semibold text-[#8f285d] underline-offset-4 hover:underline">
           Create an account
         </Link>
       </p>

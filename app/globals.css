@@ -74,16 +74,3 @@
     @apply font-heading;
   }
 }
-
-@keyframes authFloat {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-    opacity: 0.78;
-  }
-
-  50% {
-    transform: translate3d(0, -12px, 0);
-    opacity: 1;
-  }
-}

@@ -1,6 +1,6 @@
 import Link from "next/link";
+import Image from "next/image";
 
-import { BrandLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export function AuthCard({
@@ -20,10 +20,10 @@ export function AuthCard({
       <div className="w-full max-w-sm">
         <Link
           href="/landing"
-          className="mx-auto mb-8 block h-28 w-28 overflow-hidden rounded-2xl"
+          className="mx-auto mb-8 flex h-16 w-fit items-center justify-center"
           aria-label="udala"
         >
-          <BrandLogo className="h-full w-full" priority alt="" />
+          <Image src="/udala-logo-light.png" alt="Udala" width={160} height={64} priority className="h-12 w-auto object-contain" />
         </Link>
         <div className="rounded-xl border border-border/60 bg-card p-6 shadow-lg">
           <div className="mb-6">

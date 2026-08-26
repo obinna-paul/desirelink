@@ -5,7 +5,7 @@ import { getProviders, signIn } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 
-export function GoogleSignInButton({ variant = "default" }: { variant?: "default" | "auth" }) {
+export function GoogleSignInButton({ variant = "default" }: { variant?: "default" | "auth" | "lightAuth" }) {
   const [available, setAvailable] = useState(false);
 
   useEffect(() => {
@@ -19,21 +19,31 @@ export function GoogleSignInButton({ variant = "default" }: { variant?: "default
   }, []);
 
   if (!available) return null;
+  const isAuth = variant === "auth";
+  const isLightAuth = variant === "lightAuth";
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span className="h-px flex-1 bg-border" />
+      <div
+        className={
+          isAuth
+            ? "flex items-center gap-3 text-xs text-white/46"
+            : "flex items-center gap-3 text-xs text-muted-foreground"
+        }
+      >
+        <span className={isAuth ? "h-px flex-1 bg-white/16" : "h-px flex-1 bg-border"} />
         or
-        <span className="h-px flex-1 bg-border" />
+        <span className={isAuth ? "h-px flex-1 bg-white/16" : "h-px flex-1 bg-border"} />
       </div>
       <Button
         type="button"
         variant="outline"
         className={
-          variant === "auth"
+          isAuth
             ? "h-12 rounded-lg border-white/12 bg-white/[0.055] text-white hover:border-white/28 hover:bg-white/[0.09]"
-            : undefined
+            : isLightAuth
+              ? "h-12 rounded-lg border-[#d8c8d2] bg-white text-[#211720] hover:border-[#b893a6] hover:bg-[#fbf6f8]"
+              : undefined
         }
         onClick={() => signIn("google", { callbackUrl: "/" })}
       >

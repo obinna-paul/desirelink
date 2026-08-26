@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -9,7 +10,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 
 import { AccountTypeSelector } from "@/components/account-type-selector";
-import { BrandLogo } from "@/components/brand-logo";
 import { FormField } from "@/components/auth/form-field";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { Button } from "@/components/ui/button";
@@ -113,32 +113,32 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#110d14] px-4 py-5 text-white sm:px-8 sm:py-6">
-      <div
-        className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_30%_0%,rgba(248,183,200,0.18),transparent_34%),radial-gradient(circle_at_85%_22%,rgba(116,64,174,0.2),transparent_28%)]"
-        aria-hidden="true"
-      />
+    <main className="min-h-screen bg-[#f7f1f4] px-4 py-5 text-[#1b141b] sm:px-8 sm:py-6">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-5xl flex-col">
-        <header className="relative z-10 flex items-center justify-between">
+        <header className="flex items-center justify-between">
           <Link href="/landing" className="flex items-center gap-3" aria-label="Udala login">
-            <span className="flex h-11 w-11 overflow-hidden rounded-lg bg-white/10 ring-1 ring-white/15">
-              <BrandLogo className="h-full w-full" priority alt="" />
-            </span>
-            <span className="font-heading text-xl font-semibold tracking-tight">Udala</span>
+            <Image
+              src="/udala-logo-light.png"
+              alt="Udala"
+              width={145}
+              height={56}
+              priority
+              className="h-10 w-auto object-contain"
+            />
           </Link>
-          <Link href="/login" className="text-sm font-semibold text-white/62 underline-offset-4 hover:text-white hover:underline">
+          <Link href="/login" className="text-sm font-semibold text-[#8f285d] underline-offset-4 hover:underline">
             Log in
           </Link>
         </header>
 
-        <section className="relative z-10 grid flex-1 items-center gap-6 py-8 sm:gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:py-14">
+        <section className="grid flex-1 items-center gap-6 py-8 sm:gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:py-14">
           <aside className="hidden flex-col gap-8 lg:flex">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#f8b7c8]">Join Udala</p>
-              <h1 className="mt-4 font-heading text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8a4962]">Join Udala</p>
+              <h1 className="mt-4 max-w-[9ch] font-heading text-5xl font-semibold leading-[1.02] tracking-tight">
                 Your account starts private.
               </h1>
-              <p className="mt-4 max-w-md text-base leading-7 text-white/62">
+              <p className="mt-5 max-w-md text-base leading-7 text-[#675965]">
                 Create access first. Then we guide you through desires, location privacy, availability, and safety controls.
               </p>
             </div>
@@ -151,23 +151,23 @@ export default function SignupPage() {
                   <li
                     key={item.id}
                     className={cn(
-                      "flex gap-3 rounded-xl border p-4 transition-colors",
+                      "flex gap-3 rounded-xl border bg-white p-4 shadow-sm transition-colors",
                       isActive
-                        ? "border-[#f8b7c8]/50 bg-[#f8b7c8]/10"
-                        : "border-white/10 bg-white/[0.035]"
+                        ? "border-[#b893a6]"
+                        : "border-[#e2d5dc]"
                     )}
                   >
                     <span
                       className={cn(
                         "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                        isDone || isActive ? "bg-[#f0d5dd] text-[#18131d]" : "bg-white/10 text-white/48"
+                        isDone || isActive ? "bg-[#211720] text-white" : "bg-[#f2e9ee] text-[#8c7a85]"
                       )}
                     >
                       {isDone ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : index + 1}
                     </span>
                     <span>
-                      <span className="block text-sm font-semibold">{item.title}</span>
-                      <span className="mt-1 block text-xs leading-5 text-white/52">{item.description}</span>
+                      <span className="block text-sm font-semibold text-[#211720]">{item.title}</span>
+                      <span className="mt-1 block text-xs leading-5 text-[#756771]">{item.description}</span>
                     </span>
                   </li>
                 );
@@ -176,8 +176,8 @@ export default function SignupPage() {
           </aside>
 
           <div className="lg:hidden">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#f8b7c8]">Join Udala</p>
-            <h1 className="mt-3 font-heading text-3xl font-semibold leading-tight tracking-tight">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8a4962]">Join Udala</p>
+            <h1 className="mt-3 font-heading text-3xl font-semibold leading-tight tracking-tight text-[#171017]">
               Your account starts private.
             </h1>
             <div className="mt-5 flex gap-2" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
@@ -186,20 +186,22 @@ export default function SignupPage() {
                   key={item.id}
                   className={cn(
                     "h-1.5 flex-1 rounded-full transition-colors",
-                    index <= step ? "bg-[#f0d5dd]" : "bg-white/12"
+                    index <= step ? "bg-[#211720]" : "bg-[#e1d3dc]"
                   )}
                 />
               ))}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.052] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:p-7">
+          <div className="rounded-2xl border border-[#e0d2da] bg-white p-4 shadow-[0_24px_70px_rgba(41,22,34,0.12)] sm:p-7">
             <div className="mb-5 sm:mb-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#f8b7c8] sm:text-sm sm:normal-case sm:tracking-normal">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f285d] sm:text-sm sm:normal-case sm:tracking-normal">
                 Step {step + 1} of {STEPS.length}
               </p>
-              <h2 className="mt-2 font-heading text-xl font-semibold tracking-tight sm:text-2xl">{currentStep.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-white/58">{currentStep.description}</p>
+              <h2 className="mt-2 font-heading text-xl font-semibold tracking-tight text-[#211720] sm:text-2xl">
+                {currentStep.title}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-[#756771]">{currentStep.description}</p>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
@@ -211,7 +213,7 @@ export default function SignupPage() {
                       autoComplete="name"
                       registration={register("name")}
                       error={errors.name?.message}
-                      variant="auth"
+                      variant="lightAuth"
                     />
                     <FormField
                       label="Email"
@@ -219,7 +221,7 @@ export default function SignupPage() {
                       autoComplete="email"
                       registration={register("email")}
                       error={errors.email?.message}
-                      variant="auth"
+                      variant="lightAuth"
                     />
                   </div>
                   <FormField
@@ -228,7 +230,7 @@ export default function SignupPage() {
                     autoComplete="new-password"
                     registration={register("password")}
                     error={errors.password?.message}
-                    variant="auth"
+                    variant="lightAuth"
                   />
                   <FormField
                     label="Confirm password"
@@ -236,7 +238,7 @@ export default function SignupPage() {
                     autoComplete="new-password"
                     registration={register("confirmPassword")}
                     error={errors.confirmPassword?.message}
-                    variant="auth"
+                    variant="lightAuth"
                   />
                 </>
               )}
@@ -246,26 +248,26 @@ export default function SignupPage() {
                   control={control}
                   name="profileType"
                   render={({ field }) => (
-                    <AccountTypeSelector value={field.value} onChange={field.onChange} variant="auth" />
+                    <AccountTypeSelector value={field.value} onChange={field.onChange} variant="lightAuth" />
                   )}
                 />
               )}
 
               {step === 2 && (
                 <div className="flex flex-col gap-4">
-                  <div className="rounded-xl border border-white/10 bg-black/18 p-4">
+                  <div className="rounded-xl border border-[#e0d2da] bg-[#fbf7f9] p-4">
                     {reviewItems.map((item) => (
                       <div
                         key={item.label}
-                        className="flex min-h-11 items-center justify-between gap-4 border-b border-white/8 py-2 last:border-0"
+                        className="flex min-h-11 items-center justify-between gap-4 border-b border-[#e4d7df] py-2 last:border-0"
                       >
-                        <span className="text-sm text-white/48">{item.label}</span>
-                        <span className="text-right text-sm font-semibold capitalize text-white">{item.value}</span>
+                        <span className="text-sm text-[#756771]">{item.label}</span>
+                        <span className="text-right text-sm font-semibold capitalize text-[#211720]">{item.value}</span>
                       </div>
                     ))}
                   </div>
-                  <div className="flex gap-3 rounded-xl border border-[#f8b7c8]/20 bg-[#f8b7c8]/10 p-4 text-sm leading-6 text-white/68">
-                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#f8b7c8]" aria-hidden="true" />
+                  <div className="flex gap-3 rounded-xl border border-[#e0bfd0] bg-[#fff4f8] p-4 text-sm leading-6 text-[#675965]">
+                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#8f285d]" aria-hidden="true" />
                     <p>
                       After account creation, you will choose what you are looking for, what stays private, and how visible you want to be.
                     </p>
@@ -274,7 +276,7 @@ export default function SignupPage() {
               )}
 
               {serverError && (
-                <p role="alert" className="text-sm text-red-300">
+                <p role="alert" className="text-sm text-[#b42318]">
                   {serverError}
                 </p>
               )}
@@ -285,7 +287,7 @@ export default function SignupPage() {
                   variant="outline"
                   disabled={!canGoBack}
                   onClick={() => setStep((step - 1) as StepIndex)}
-                  className="h-12 rounded-lg border-white/12 bg-transparent text-white hover:border-white/28 hover:bg-white/[0.08]"
+                  className="h-12 rounded-lg border-[#d8c8d2] bg-white text-[#211720] hover:border-[#b893a6] hover:bg-[#fbf6f8]"
                 >
                   <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Back
                 </Button>
@@ -294,7 +296,7 @@ export default function SignupPage() {
                   <Button
                     type="button"
                     onClick={goNext}
-                    className="h-12 rounded-lg bg-[#f0d5dd] px-6 text-[#18131d] hover:bg-white"
+                    className="h-12 rounded-lg bg-[#211720] px-6 text-white hover:bg-[#3a2635]"
                   >
                     Continue <ChevronRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
@@ -302,7 +304,7 @@ export default function SignupPage() {
                   <Button
                     type="submit"
                     disabled={status !== "idle"}
-                    className="h-12 rounded-lg bg-[#f0d5dd] px-6 text-[#18131d] hover:bg-white"
+                    className="h-12 rounded-lg bg-[#211720] px-6 text-white hover:bg-[#3a2635]"
                   >
                     {status === "submitting" && "Creating account..."}
                     {status === "success" && "Success! Logging you in..."}
@@ -313,10 +315,10 @@ export default function SignupPage() {
             </form>
 
             <div className="mt-7">
-              <GoogleSignInButton variant="auth" />
+              <GoogleSignInButton variant="lightAuth" />
             </div>
 
-            <p className="mt-7 text-xs leading-5 text-white/45">
+            <p className="mt-7 text-xs leading-5 text-[#786a73]">
               By continuing, you confirm you are at least 18 years old and agree to Udala&apos;s safety standards.
             </p>
           </div>

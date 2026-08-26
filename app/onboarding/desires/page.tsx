@@ -1,11 +1,11 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { BrandLogo } from "@/components/brand-logo";
 import { DesireMapEditor } from "@/components/desires/desire-map-editor";
 
 export default async function DesireOnboardingPage() {
@@ -24,22 +24,22 @@ export default async function DesireOnboardingPage() {
   }
 
   return (
-    <main className="dark min-h-screen overflow-hidden bg-background px-4 py-5 text-foreground sm:px-8 sm:py-8">
-      <div
-        className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_25%_0%,hsl(335_74%_68%/0.18),transparent_34%),radial-gradient(circle_at_88%_16%,hsl(276_72%_55%/0.2),transparent_28%)]"
-        aria-hidden="true"
-      />
-      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-2.5rem)] w-full max-w-5xl flex-col">
+    <main className="min-h-screen bg-[#f7f1f4] px-4 py-5 text-[#1b141b] sm:px-8 sm:py-8">
+      <div className="mx-auto flex min-h-[calc(100vh-2.5rem)] w-full max-w-5xl flex-col">
         <header className="flex items-center justify-between">
           <Link href="/landing" className="flex items-center gap-3" aria-label="Udala">
-            <span className="flex h-11 w-11 overflow-hidden rounded-lg bg-white/10 ring-1 ring-white/15">
-              <BrandLogo className="h-full w-full" priority alt="" />
-            </span>
-            <span className="font-heading text-xl font-semibold tracking-tight">Udala</span>
+            <Image
+              src="/udala-logo-light.png"
+              alt="Udala"
+              width={145}
+              height={56}
+              priority
+              className="h-10 w-auto object-contain"
+            />
           </Link>
           <Link
             href="/profile"
-            className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#8f285d] underline-offset-4 hover:underline"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Skip
           </Link>
@@ -48,23 +48,23 @@ export default async function DesireOnboardingPage() {
         <section className="grid flex-1 items-start gap-6 py-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-10 lg:py-14">
           <aside className="flex flex-col gap-5 lg:sticky lg:top-8">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-neon-pink">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8a4962]">
                 Onboarding
               </p>
-              <h1 className="mt-3 font-heading text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
+              <h1 className="mt-3 max-w-[10ch] font-heading text-3xl font-semibold leading-tight tracking-tight text-[#171017] sm:text-5xl">
                 Build your Desire Map.
               </h1>
-              <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">
+              <p className="mt-4 max-w-md text-sm leading-6 text-[#675965] sm:text-base sm:leading-7">
                 Choose what you are looking for, what you regularly enjoy, and what stays private. This powers matching without exposing more than you choose.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-card backdrop-blur">
+            <div className="rounded-2xl border border-[#e0d2da] bg-white p-4 shadow-sm">
               <div className="flex gap-3">
-                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-neon-pink" aria-hidden="true" />
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#8f285d]" aria-hidden="true" />
                 <div>
-                  <p className="text-sm font-semibold">Private until you decide</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  <p className="text-sm font-semibold text-[#211720]">Private until you decide</p>
+                  <p className="mt-1 text-xs leading-5 text-[#756771]">
                     Every desire starts with privacy controls. You can edit visibility later from your profile.
                   </p>
                 </div>
@@ -72,7 +72,7 @@ export default async function DesireOnboardingPage() {
             </div>
           </aside>
 
-          <div className="rounded-2xl border border-border/60 bg-card/82 p-4 shadow-lift backdrop-blur sm:p-6">
+          <div className="rounded-2xl border border-[#e0d2da] bg-white p-4 shadow-[0_24px_70px_rgba(41,22,34,0.1)] sm:p-6">
             <DesireMapEditor
               initialDesires={profile.desires}
               redirectTo="/profile"
