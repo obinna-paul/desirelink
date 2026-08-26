@@ -26,8 +26,17 @@ const globalForPayments = globalThis as unknown as {
   paymentProvider: PaymentProvider | undefined;
 };
 
-export const paymentProvider: PaymentProvider = globalForPayments.paymentProvider ?? createPaymentProvider();
+function getPaymentProvider(): PaymentProvider {
+  const provider = globalForPayments.paymentProvider ?? createPaymentProvider();
+  if (process.env.NODE_ENV !== "production") globalForPayments.paymentProvider = provider;
+  return provider;
+}
 
-if (process.env.NODE_ENV !== "production") globalForPayments.paymentProvider = paymentProvider;
+export const paymentProvider: PaymentProvider = new Proxy({} as PaymentProvider, {
+  get(_target, property: keyof PaymentProvider) {
+    const value = getPaymentProvider()[property];
+    return typeof value === "function" ? value.bind(getPaymentProvider()) : value;
+  },
+});
 
 export * from "./types";
