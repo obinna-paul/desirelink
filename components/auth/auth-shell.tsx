@@ -24,44 +24,22 @@ export function AuthShell({
 }) {
   return (
     <main className="min-h-dvh bg-[#f7f1f4] text-[#1b141b] lg:h-dvh lg:overflow-hidden">
-      <div className="flex min-h-dvh flex-col px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-[calc(env(safe-area-inset-top)+1rem)] lg:hidden">
-        <header className="flex items-center justify-between">
+      <div className="flex min-h-dvh flex-col px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-[calc(env(safe-area-inset-top)+1.25rem)] lg:hidden">
+        <header className="flex justify-center">
           <AuthLogo compact />
-          <Link
-            href="/signup"
-            className="inline-flex min-h-11 items-center rounded-full border border-[#e3cfd9] bg-white px-4 text-sm font-semibold text-[#8f285d] shadow-sm"
-          >
-            Create
-          </Link>
         </header>
 
-        <section className="mt-5 rounded-[28px] bg-[#160e16] px-5 py-5 text-white shadow-[0_24px_70px_rgba(33,23,32,0.28)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#ff77bd]">Private social access</p>
-          <h1 className="mt-3 max-w-[11ch] font-heading text-[2.45rem] font-semibold leading-[0.98] tracking-tight">
+        <section className="mt-10 text-center">
+          <h1 className="font-heading text-[2.35rem] font-semibold leading-[1.02] tracking-tight text-[#171017]">
             {title}
           </h1>
-          <p className="mt-3 text-[0.95rem] leading-6 text-white/72">{description}</p>
-
-          <div className="mt-5 grid grid-cols-1 gap-2">
-            {TRUST_MARKERS.map((marker) => {
-              const Icon = marker.icon;
-              return (
-                <div
-                  key={marker.label}
-                  className="flex min-h-11 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] px-3 text-sm font-semibold text-white/82"
-                >
-                  <Icon className="h-4 w-4 text-[#ff4eb3]" aria-hidden="true" />
-                  {marker.label}
-                </div>
-              );
-            })}
-          </div>
+          <p className="mx-auto mt-3 max-w-[22rem] text-base leading-7 text-[#6f626b]">{description}</p>
         </section>
 
-        <section className="-mt-3 flex-1 rounded-t-[30px] border border-[#ead9e2] bg-white px-4 pb-5 pt-6 shadow-[0_-10px_40px_rgba(33,23,32,0.08)]">
+        <section className="mt-9 flex-1">
           {children}
 
-          <p className="mt-5 text-center text-xs leading-5 text-[#786a73]">
+          <p className="mt-6 text-center text-xs leading-5 text-[#786a73]">
             By continuing, you confirm you are at least 18 years old and agree to Udala&apos;s{" "}
             <Link href="/help" className="font-semibold text-[#8f285d] underline-offset-4 hover:underline">
               safety standards

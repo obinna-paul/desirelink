@@ -13,6 +13,7 @@ import { AuthLogo } from "@/components/auth/auth-logo";
 import { FormField } from "@/components/auth/form-field";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { Button } from "@/components/ui/button";
+import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
 import { signupSchema, type SignupInput } from "@/lib/validations/auth";
 import { cn } from "@/lib/utils";
 
@@ -58,14 +59,16 @@ export default function SignupPage() {
   const canGoBack = step > 0 && status === "idle";
   const currentStep = STEPS[step];
   const normalizedEmail = values.email?.trim().toLowerCase();
+  const selectedRoleLabel =
+    ACCOUNT_TYPE_OPTIONS.find((option) => option.value === values.profileType)?.label ?? "Explorer";
 
   const reviewItems = useMemo(
     () => [
       { label: "Name", value: values.name || "Not set" },
       { label: "Email", value: normalizedEmail || "Not set" },
-      { label: "Role", value: values.profileType?.replace("_", " ") || "Explorer" },
+      { label: "Role", value: selectedRoleLabel },
     ],
-    [normalizedEmail, values.name, values.profileType]
+    [normalizedEmail, selectedRoleLabel, values.name]
   );
 
   async function goNext() {
@@ -129,31 +132,25 @@ export default function SignupPage() {
         </header>
 
         <div className="lg:hidden">
-          <header className="flex items-center justify-between">
+          <header className="flex justify-center">
             <AuthLogo compact />
-            <Link
-              href="/login"
-              className="inline-flex min-h-11 items-center rounded-full border border-[#e3cfd9] bg-white px-4 text-sm font-semibold text-[#8f285d] shadow-sm"
-            >
-              Log in
-            </Link>
           </header>
 
-          <section className="mt-5 rounded-[28px] bg-[#160e16] px-5 py-5 text-white shadow-[0_24px_70px_rgba(33,23,32,0.24)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#ff77bd]">
+          <section className="mt-9 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f285d]">
               Step {step + 1} of {STEPS.length}
             </p>
-            <h1 className="mt-3 max-w-[11ch] font-heading text-[2.35rem] font-semibold leading-[1] tracking-tight">
+            <h1 className="mx-auto mt-3 max-w-[13ch] font-heading text-[2.25rem] font-semibold leading-[1.04] tracking-tight text-[#171017]">
               {currentStep.title}
             </h1>
-            <p className="mt-3 text-[0.95rem] leading-6 text-white/72">{currentStep.description}</p>
-            <div className="mt-5 flex gap-2" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
+            <p className="mx-auto mt-3 max-w-[22rem] text-base leading-7 text-[#6f626b]">{currentStep.description}</p>
+            <div className="mx-auto mt-5 flex max-w-48 gap-2" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
               {STEPS.map((item, index) => (
                 <span
                   key={item.id}
                   className={cn(
                     "h-1.5 flex-1 rounded-full transition-colors",
-                    index <= step ? "bg-[#ff4eb3]" : "bg-white/16"
+                    index <= step ? "bg-[#e91e8f]" : "bg-[#e6d6df]"
                   )}
                 />
               ))}
@@ -223,7 +220,7 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-[#e0d2da] bg-white p-5 shadow-[0_24px_70px_rgba(41,22,34,0.12)] sm:p-7 lg:rounded-2xl">
+          <div className="rounded-3xl border border-[#ead9e2] bg-white p-5 shadow-[0_18px_55px_rgba(41,22,34,0.08)] sm:p-7 lg:rounded-2xl">
             <div className="mb-5 hidden sm:mb-6 lg:block">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f285d] sm:text-sm sm:normal-case sm:tracking-normal">
                 Step {step + 1} of {STEPS.length}
@@ -350,6 +347,12 @@ export default function SignupPage() {
 
             <p className="mt-7 text-xs leading-5 text-[#786a73]">
               By continuing, you confirm you are at least 18 years old and agree to Udala&apos;s safety standards.
+            </p>
+            <p className="mt-5 text-center text-sm leading-6 text-[#6f626b] lg:hidden">
+              Already have an account?{" "}
+              <Link href="/login" className="inline-flex min-h-11 items-center font-semibold text-[#8f285d] underline-offset-4 hover:underline">
+                Log in
+              </Link>
             </p>
           </div>
         </section>

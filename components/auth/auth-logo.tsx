@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
@@ -17,6 +16,7 @@ export function AuthLogo({
   className?: string;
 }) {
   const logoSrc = variant === "dark" ? logoDark : logoLight;
+  const logoUrl = typeof logoSrc === "string" ? logoSrc : logoSrc.src;
 
   return (
     <Link
@@ -27,19 +27,16 @@ export function AuthLogo({
       <span
         className={cn(
           "relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl",
+          variant === "dark" ? "bg-white/8" : "bg-[#f8edf3]",
           compact ? "h-11 w-11" : "h-12 w-12"
         )}
         aria-hidden="true"
       >
-        <Image
-          src={logoSrc}
-          alt=""
-          width={500}
-          height={500}
-          priority
-          unoptimized
-          className="h-[88px] w-[88px] max-w-none -translate-y-2 object-contain"
+        <span
+          className="absolute inset-0 bg-contain bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${logoUrl})` }}
         />
+        <span className="font-heading text-lg font-semibold text-[#8f2ff0]">U</span>
       </span>
       <span
         className={cn(
