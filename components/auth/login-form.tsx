@@ -45,8 +45,8 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5 sm:gap-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 sm:gap-4">
         <FormField
           label="Email"
           type="email"
@@ -64,7 +64,10 @@ export function LoginForm() {
           variant="lightAuth"
         />
         <div className="flex justify-end">
-          <Link href="/help" className="text-sm font-semibold text-[#8f285d] underline-offset-4 hover:underline">
+          <Link
+            href="/help"
+            className="inline-flex min-h-11 items-center text-sm font-semibold text-[#8f285d] underline-offset-4 hover:underline"
+          >
             Forgot password?
           </Link>
         </div>
@@ -76,7 +79,7 @@ export function LoginForm() {
         <Button
           type="submit"
           disabled={status !== "idle"}
-          className="h-12 rounded-lg bg-[#e91e8f] text-white shadow-[0_14px_30px_rgba(233,30,143,0.24)] hover:bg-[#c81779]"
+          className="h-[52px] rounded-xl bg-[#e91e8f] text-base text-white shadow-[0_14px_30px_rgba(233,30,143,0.24)] hover:bg-[#c81779] sm:h-12 sm:rounded-lg sm:text-sm"
         >
           {status === "loading" && "Logging in..."}
           {status === "success" && "Success! Redirecting..."}
@@ -86,9 +89,9 @@ export function LoginForm() {
 
       <GoogleSignInButton variant="lightAuth" />
 
-      <p className="text-center text-sm text-[#6f626b]">
+      <p className="text-center text-sm leading-6 text-[#6f626b]">
         New to Udala?{" "}
-        <Link href="/signup" className="font-semibold text-[#8f285d] underline-offset-4 hover:underline">
+        <Link href="/signup" className="inline-flex min-h-11 items-center font-semibold text-[#8f285d] underline-offset-4 hover:underline">
           Create an account
         </Link>
       </p>

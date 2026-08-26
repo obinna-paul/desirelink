@@ -46,7 +46,7 @@ export function FormField({
             isAuth &&
               "h-12 rounded-lg border-white/12 bg-white/[0.055] text-white shadow-none placeholder:text-white/35 focus-visible:ring-[#f8b7c8]",
             isLightAuth &&
-              "h-12 rounded-lg border-[#d8c8d2] bg-white text-[#211720] shadow-none placeholder:text-[#9b8e97] focus-visible:ring-[#9b2f66]"
+              "h-[52px] rounded-xl border-[#d8c8d2] bg-white text-base text-[#211720] shadow-none placeholder:text-[#9b8e97] focus-visible:ring-[#9b2f66] sm:h-12 sm:rounded-lg sm:text-sm"
           )}
           {...registration}
         />

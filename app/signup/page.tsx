@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 
 import { AccountTypeSelector } from "@/components/account-type-selector";
+import { AuthLogo } from "@/components/auth/auth-logo";
 import { FormField } from "@/components/auth/form-field";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { Button } from "@/components/ui/button";
@@ -57,14 +57,15 @@ export default function SignupPage() {
   const values = watch();
   const canGoBack = step > 0 && status === "idle";
   const currentStep = STEPS[step];
+  const normalizedEmail = values.email?.trim().toLowerCase();
 
   const reviewItems = useMemo(
     () => [
       { label: "Name", value: values.name || "Not set" },
-      { label: "Email", value: values.email || "Not set" },
+      { label: "Email", value: normalizedEmail || "Not set" },
       { label: "Role", value: values.profileType?.replace("_", " ") || "Explorer" },
     ],
-    [values.email, values.name, values.profileType]
+    [normalizedEmail, values.name, values.profileType]
   );
 
   async function goNext() {
@@ -82,10 +83,15 @@ export default function SignupPage() {
     setServerError(null);
     setStatus("submitting");
 
+    const normalizedData = {
+      ...data,
+      email: data.email.trim().toLowerCase(),
+    };
+
     const res = await fetch("/api/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify(normalizedData),
     });
 
     if (!res.ok) {
@@ -98,7 +104,7 @@ export default function SignupPage() {
     setStatus("success");
 
     const result = await signIn("credentials", {
-      email: data.email,
+      email: normalizedData.email,
       password: data.password,
       redirect: false,
     });
@@ -113,26 +119,49 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f1f4] px-4 py-5 text-[#1b141b] sm:px-8 sm:py-6">
-      <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-5xl flex-col">
-        <header className="flex items-center justify-between">
-          <Link href="/landing" className="flex items-center gap-3" aria-label="Udala login">
-            <Image
-              src="/udala-logo-light.png"
-              alt="Udala"
-              width={500}
-              height={500}
-              priority
-              className="h-12 w-12 object-contain"
-            />
-            <span className="font-heading text-xl font-semibold tracking-tight text-[#211720]">Udala</span>
-          </Link>
+    <main className="min-h-dvh bg-[#f7f1f4] px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-[calc(env(safe-area-inset-top)+1rem)] text-[#1b141b] sm:px-8 sm:py-6">
+      <div className="mx-auto flex min-h-[calc(100dvh-2.25rem)] w-full max-w-5xl flex-col">
+        <header className="hidden items-center justify-between lg:flex">
+          <AuthLogo compact />
           <Link href="/login" className="text-sm font-semibold text-[#8f285d] underline-offset-4 hover:underline">
             Log in
           </Link>
         </header>
 
-        <section className="grid flex-1 items-center gap-6 py-8 sm:gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:py-14">
+        <div className="lg:hidden">
+          <header className="flex items-center justify-between">
+            <AuthLogo compact />
+            <Link
+              href="/login"
+              className="inline-flex min-h-11 items-center rounded-full border border-[#e3cfd9] bg-white px-4 text-sm font-semibold text-[#8f285d] shadow-sm"
+            >
+              Log in
+            </Link>
+          </header>
+
+          <section className="mt-5 rounded-[28px] bg-[#160e16] px-5 py-5 text-white shadow-[0_24px_70px_rgba(33,23,32,0.24)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#ff77bd]">
+              Step {step + 1} of {STEPS.length}
+            </p>
+            <h1 className="mt-3 max-w-[11ch] font-heading text-[2.35rem] font-semibold leading-[1] tracking-tight">
+              {currentStep.title}
+            </h1>
+            <p className="mt-3 text-[0.95rem] leading-6 text-white/72">{currentStep.description}</p>
+            <div className="mt-5 flex gap-2" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
+              {STEPS.map((item, index) => (
+                <span
+                  key={item.id}
+                  className={cn(
+                    "h-1.5 flex-1 rounded-full transition-colors",
+                    index <= step ? "bg-[#ff4eb3]" : "bg-white/16"
+                  )}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <section className="grid flex-1 items-start gap-5 py-5 sm:gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:py-14">
           <aside className="hidden flex-col gap-8 lg:flex">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8a4962]">Join Udala</p>
@@ -176,7 +205,7 @@ export default function SignupPage() {
             </ol>
           </aside>
 
-          <div className="lg:hidden">
+          <div className="hidden">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8a4962]">Join Udala</p>
             <h1 className="mt-3 font-heading text-3xl font-semibold leading-tight tracking-tight text-[#171017]">
               Your account starts private.
@@ -194,8 +223,8 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[#e0d2da] bg-white p-4 shadow-[0_24px_70px_rgba(41,22,34,0.12)] sm:p-7">
-            <div className="mb-5 sm:mb-6">
+          <div className="rounded-[28px] border border-[#e0d2da] bg-white p-5 shadow-[0_24px_70px_rgba(41,22,34,0.12)] sm:p-7 lg:rounded-2xl">
+            <div className="mb-5 hidden sm:mb-6 lg:block">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f285d] sm:text-sm sm:normal-case sm:tracking-normal">
                 Step {step + 1} of {STEPS.length}
               </p>
@@ -270,7 +299,7 @@ export default function SignupPage() {
                   <div className="flex gap-3 rounded-xl border border-[#e0bfd0] bg-[#fff4f8] p-4 text-sm leading-6 text-[#675965]">
                     <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#8f285d]" aria-hidden="true" />
                     <p>
-                      After account creation, your profile settings will show the most important setup actions first.
+                      We will take you to profile settings next so you can add a photo, verify your identity, set visibility, and choose your Desire Map when you are ready.
                     </p>
                   </div>
                 </div>
@@ -288,7 +317,7 @@ export default function SignupPage() {
                   variant="outline"
                   disabled={!canGoBack}
                   onClick={() => setStep((step - 1) as StepIndex)}
-                  className="h-12 rounded-lg border-[#d8c8d2] bg-white text-[#211720] hover:border-[#b893a6] hover:bg-[#fbf6f8]"
+                  className="h-12 w-full rounded-xl border-[#d8c8d2] bg-white text-[#211720] hover:border-[#b893a6] hover:bg-[#fbf6f8] sm:w-auto sm:rounded-lg"
                 >
                   <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Back
                 </Button>
@@ -297,7 +326,7 @@ export default function SignupPage() {
                   <Button
                     type="button"
                     onClick={goNext}
-                    className="h-12 rounded-lg bg-[#211720] px-6 text-white hover:bg-[#3a2635]"
+                    className="h-12 w-full rounded-xl bg-[#e91e8f] px-6 text-white shadow-[0_14px_30px_rgba(233,30,143,0.24)] hover:bg-[#c81779] sm:w-auto sm:rounded-lg"
                   >
                     Continue <ChevronRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
@@ -305,7 +334,7 @@ export default function SignupPage() {
                   <Button
                     type="submit"
                     disabled={status !== "idle"}
-                    className="h-12 rounded-lg bg-[#211720] px-6 text-white hover:bg-[#3a2635]"
+                    className="h-12 w-full rounded-xl bg-[#e91e8f] px-6 text-white shadow-[0_14px_30px_rgba(233,30,143,0.24)] hover:bg-[#c81779] sm:w-auto sm:rounded-lg"
                   >
                     {status === "submitting" && "Creating account..."}
                     {status === "success" && "Success! Logging you in..."}
