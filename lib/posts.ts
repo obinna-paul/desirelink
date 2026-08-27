@@ -1,4 +1,4 @@
-import type { ProfileType } from "@prisma/client";
+import type { ProfileType, RsvpStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import {
@@ -8,6 +8,7 @@ import {
   recordProviderPostView,
 } from "@/lib/premium";
 import { isProviderProfileType } from "@/lib/provider-types";
+import type { PostMediaItem } from "@/lib/post-shared";
 
 const FEED_LIMIT = 30;
 const PROFILE_POSTS_LIMIT = 50;
@@ -24,26 +25,125 @@ type RawPost = {
   id: string;
   content: string;
   mediaUrls: unknown;
+  postType: "standard" | "event" | "live";
+  eventId: string | null;
   isSubscriberOnly: boolean;
   createdAt: Date;
   author: { id: string; username: string; displayName: string; avatarUrl: string; profileType: ProfileType };
+  event: {
+    id: string;
+    title: string;
+    description: string;
+    eventType: string;
+    startTime: Date;
+    endTime: Date;
+    venueName: string;
+    address: string;
+    city: string;
+    maxAttendees: number | null;
+    currentAttendees: number;
+    priceCents: number;
+    isPrivate: boolean;
+    coverImageUrl: string;
+    hostId: string;
+    rsvps: { status: RsvpStatus }[];
+  } | null;
+  comments: RawComment[];
+  reactions: { id: string }[];
+  _count: { comments: number; reactions: number; shares: number };
 };
 
 type PostLockReason = "subscriber_only" | "premium_provider_limit";
+
+export type PostCommentView = {
+  id: string;
+  content: string;
+  createdAt: string;
+  author: { id: string; username: string; displayName: string; avatarUrl: string };
+  replies: PostCommentView[];
+};
+
+type RawComment = {
+  id: string;
+  content: string;
+  createdAt: Date;
+  author: { id: string; username: string; displayName: string; avatarUrl: string };
+  replies?: RawComment[];
+};
+
+export type PostEventView = {
+  id: string;
+  title: string;
+  description: string;
+  eventType: string;
+  startTime: string;
+  endTime: string;
+  venueName: string;
+  address: string;
+  city: string;
+  maxAttendees: number | null;
+  currentAttendees: number;
+  priceCents: number;
+  isPrivate: boolean;
+  coverImageUrl: string;
+  hostId: string;
+  viewerRsvpStatus: "going" | "interested" | "not_going" | null;
+};
 
 export type PostView = {
   id: string;
   content: string | null;
   mediaUrls: string[];
+  mediaItems: PostMediaItem[];
+  postType: "standard" | "event" | "live";
+  event: PostEventView | null;
   isSubscriberOnly: boolean;
   locked: boolean;
   lockReason: PostLockReason | null;
   createdAt: string;
   author: { id: string; username: string; displayName: string; avatarUrl: string; profileType: ProfileType };
+  counts: { comments: number; reactions: number; shares: number };
+  viewerLiked: boolean;
+  comments: PostCommentView[];
 };
 
-function toMediaUrls(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+export function toMediaItems(value: unknown): PostMediaItem[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    if (typeof item === "string") {
+      return [{ url: item, type: "image" as const }];
+    }
+    if (
+      item &&
+      typeof item === "object" &&
+      "url" in item &&
+      typeof item.url === "string" &&
+      "type" in item &&
+      (item.type === "image" || item.type === "video")
+    ) {
+      return [
+        {
+          url: item.url,
+          type: item.type,
+          width: typeof item.width === "number" ? item.width : undefined,
+          height: typeof item.height === "number" ? item.height : undefined,
+          durationSeconds: typeof item.durationSeconds === "number" ? item.durationSeconds : undefined,
+        },
+      ];
+    }
+    return [];
+  });
+}
+
+function toCommentView(comment: RawComment): PostCommentView {
+  return {
+    id: comment.id,
+    content: comment.content,
+    createdAt: comment.createdAt.toISOString(),
+    author: comment.author,
+    replies: (comment.replies ?? []).map(toCommentView),
+  };
 }
 
 function toPostView(
@@ -57,16 +157,109 @@ function toPostView(
       ? "premium_provider_limit"
       : null;
   const locked = lockReason !== null;
+  const mediaItems = toMediaItems(post.mediaUrls);
 
   return {
     id: post.id,
     isSubscriberOnly: post.isSubscriberOnly,
+    postType: post.postType,
     createdAt: post.createdAt.toISOString(),
     locked,
     lockReason,
     content: locked ? null : post.content,
-    mediaUrls: locked ? [] : toMediaUrls(post.mediaUrls),
+    mediaUrls: locked ? [] : mediaItems.map((item) => item.url),
+    mediaItems: locked ? [] : mediaItems,
+    event: locked || !post.event
+      ? null
+      : {
+          id: post.event.id,
+          title: post.event.title,
+          description: post.event.description,
+          eventType: post.event.eventType,
+          startTime: post.event.startTime.toISOString(),
+          endTime: post.event.endTime.toISOString(),
+          venueName: post.event.venueName,
+          address: post.event.address,
+          city: post.event.city,
+          maxAttendees: post.event.maxAttendees,
+          currentAttendees: post.event.currentAttendees,
+          priceCents: post.event.priceCents,
+          isPrivate: post.event.isPrivate,
+          coverImageUrl: post.event.coverImageUrl,
+          hostId: post.event.hostId,
+          viewerRsvpStatus:
+            post.event.rsvps[0]?.status === "waitlist"
+              ? null
+              : (post.event.rsvps[0]?.status as "going" | "interested" | "not_going" | undefined) ?? null,
+        },
     author: post.author,
+    counts: post._count,
+    viewerLiked: post.reactions.length > 0,
+    comments: locked ? [] : post.comments.map(toCommentView),
+  };
+}
+
+function postSelect(viewerProfileId: string | null) {
+  return {
+    id: true,
+    content: true,
+    mediaUrls: true,
+    postType: true,
+    eventId: true,
+    isSubscriberOnly: true,
+    createdAt: true,
+    author: { select: postAuthorSelect },
+    event: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        eventType: true,
+        startTime: true,
+        endTime: true,
+        venueName: true,
+        address: true,
+        city: true,
+        maxAttendees: true,
+        currentAttendees: true,
+        priceCents: true,
+        isPrivate: true,
+        coverImageUrl: true,
+        hostId: true,
+        rsvps: {
+          where: { userId: viewerProfileId ?? "__anonymous__" },
+          select: { status: true },
+          take: 1,
+        },
+      },
+    },
+    reactions: {
+      where: { userId: viewerProfileId ?? "__anonymous__", type: "like" as const },
+      select: { id: true },
+      take: 1,
+    },
+    comments: {
+      where: { parentId: null },
+      orderBy: { createdAt: "desc" as const },
+      take: 2,
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+        replies: {
+          orderBy: { createdAt: "asc" as const },
+          take: 2,
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+          },
+        },
+      },
+    },
+    _count: { select: { comments: true, reactions: true, shares: true } },
   };
 }
 
@@ -159,14 +352,7 @@ export async function getCreatorProfilePosts(
     where: { authorId: creatorProfileId },
     orderBy: { createdAt: "desc" },
     take: PROFILE_POSTS_LIMIT,
-    select: {
-      id: true,
-      content: true,
-      mediaUrls: true,
-      isSubscriberOnly: true,
-      createdAt: true,
-      author: { select: postAuthorSelect },
-    },
+    select: postSelect(viewerProfileId),
   });
 
   return applyProviderContentLimits(posts, viewerProfileId, () => hasSubscriberAccess);
@@ -191,14 +377,7 @@ export async function getFeedPosts(viewerProfileId: string | null): Promise<Post
     where,
     orderBy: { createdAt: "desc" },
     take: FEED_LIMIT,
-    select: {
-      id: true,
-      content: true,
-      mediaUrls: true,
-      isSubscriberOnly: true,
-      createdAt: true,
-      author: { select: postAuthorSelect },
-    },
+    select: postSelect(viewerProfileId),
   });
 
   return applyProviderContentLimits(
@@ -206,4 +385,22 @@ export async function getFeedPosts(viewerProfileId: string | null): Promise<Post
     viewerProfileId,
     (post) => post.author.id === viewerProfileId || subscribedCreatorIds.has(post.author.id)
   );
+}
+
+export async function getPostByIdForViewer(
+  postId: string,
+  viewerProfileId: string | null
+): Promise<PostView | null> {
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: postSelect(viewerProfileId),
+  });
+  if (!post) return null;
+
+  const isOwner = viewerProfileId === post.author.id;
+  const hasSubscriberAccess =
+    isOwner || (viewerProfileId ? await isActiveSubscriber(viewerProfileId, post.author.id) : false);
+
+  const [view] = await applyProviderContentLimits([post], viewerProfileId, () => hasSubscriberAccess);
+  return view ?? null;
 }

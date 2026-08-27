@@ -30,7 +30,7 @@ export function EventManageList({ initialEvents }: { initialEvents: Event[] }) {
 
   if (events.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+      <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
         You haven&apos;t hosted any events yet.
       </div>
     );
@@ -45,11 +45,11 @@ export function EventManageList({ initialEvents }: { initialEvents: Event[] }) {
         return (
           <li
             key={event.id}
-            className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm sm:flex-row sm:items-center sm:justify-between md:rounded-lg md:p-4 md:shadow-none"
           >
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold">{event.title}</p>
+                <p className="text-base font-semibold md:text-sm">{event.title}</p>
                 <Badge variant="outline">{event.eventType}</Badge>
                 {event.isPrivate && <Badge variant="secondary">Private</Badge>}
                 {isPast && (
@@ -79,7 +79,7 @@ export function EventManageList({ initialEvents }: { initialEvents: Event[] }) {
                 {event.priceCents > 0 && <span>{formatCents(event.priceCents)}</span>}
               </p>
             </div>
-            <div className="flex shrink-0 gap-2">
+            <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex">
               <Button asChild size="sm" variant="outline" className="gap-1.5">
                 <Link href={`/events/manage/${event.id}/edit`}>
                   <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Edit

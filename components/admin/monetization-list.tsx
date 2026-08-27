@@ -21,8 +21,8 @@ function ProviderRow({
   const isSuspended = provider.monetizationStatus === "suspended";
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-card p-4">
-      <div className="flex min-w-0 items-center gap-3">
+    <li className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between md:rounded-lg md:shadow-none">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
         <Avatar className="h-10 w-10 border border-border">
           <AvatarImage src={provider.avatarUrl} alt={provider.displayName} />
           <AvatarFallback>{initials}</AvatarFallback>
@@ -42,7 +42,7 @@ function ProviderRow({
         type="button"
         size="sm"
         variant="outline"
-        className={isSuspended ? "" : "text-destructive"}
+        className={isSuspended ? "w-full sm:w-auto" : "w-full text-destructive sm:w-auto"}
         disabled={pending}
         onClick={() => onToggle(isSuspended ? "reinstate" : "suspend")}
       >
@@ -80,7 +80,7 @@ export function MonetizationList({ initialProviders }: { initialProviders: Monet
 
   if (providers.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:shadow-none">
         No monetized or suspended providers yet.
       </div>
     );

@@ -113,26 +113,26 @@ export function RoomForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-8">
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 md:gap-8">
+      <section className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
           Cover image
         </h2>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           {coverImageUrl ? (
-            <div className="relative h-24 w-40 overflow-hidden rounded-lg border border-border/60 bg-secondary">
-              <Image src={coverImageUrl} alt="" fill sizes="10rem" className="object-cover" />
+            <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border/60 bg-secondary sm:h-24 sm:w-40 md:rounded-lg">
+              <Image src={coverImageUrl} alt="" fill sizes="(max-width: 640px) 100vw, 10rem" className="object-cover" />
               <button
                 type="button"
                 aria-label="Remove cover image"
                 onClick={() => setCoverImageUrl("")}
-                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-background/80 text-foreground transition-colors hover:bg-background"
+                className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/85 text-foreground transition-colors hover:bg-background sm:right-1 sm:top-1 sm:h-5 sm:w-5"
               >
-                <X className="h-3 w-3" />
+                <X className="h-4 w-4 sm:h-3 sm:w-3" />
               </button>
             </div>
           ) : (
-            <div className="flex h-24 w-40 items-center justify-center rounded-lg border border-dashed border-border/60 text-xs text-muted-foreground">
+            <div className="flex aspect-video w-full items-center justify-center rounded-2xl border border-dashed border-border/60 text-xs text-muted-foreground sm:h-24 sm:w-40 md:rounded-lg">
               No image
             </div>
           )}
@@ -140,7 +140,7 @@ export function RoomForm() {
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto md:rounded-md"
           >
             {uploading ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -159,8 +159,8 @@ export function RoomForm() {
         </div>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
           Details
         </h2>
         <FieldWrapper label="Name" htmlFor="name" required>
@@ -170,13 +170,14 @@ export function RoomForm() {
           <Textarea
             id="description"
             rows={4}
+            className="resize-none rounded-2xl md:rounded-md"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             maxLength={2000}
           />
         </FieldWrapper>
         <FieldWrapper label="Private room" htmlFor="isPrivate">
-          <label htmlFor="isPrivate" className="flex min-h-11 cursor-pointer items-center gap-2">
+          <label htmlFor="isPrivate" className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-border/60 bg-background px-3 py-2 md:min-h-11 md:rounded-none md:border-0 md:bg-transparent md:px-0 md:py-0">
             <Switch id="isPrivate" checked={isPrivate} onCheckedChange={setIsPrivate} />
             <span className="text-sm text-muted-foreground">
               {isPrivate ? "Join requests require your approval" : "Anyone can join instantly"}
@@ -191,11 +192,11 @@ export function RoomForm() {
         </p>
       )}
 
-      <div className="flex gap-3">
-        <Button type="submit" disabled={submitting || uploading}>
+      <div className="sticky bottom-20 z-10 grid grid-cols-1 gap-2 rounded-2xl border border-border/60 bg-background/95 p-3 shadow-lg backdrop-blur sm:static sm:flex sm:bg-transparent sm:p-0 sm:shadow-none">
+        <Button type="submit" className="w-full sm:w-auto" disabled={submitting || uploading}>
           {submitting ? "Creating..." : "Create room"}
         </Button>
-        <Button type="button" variant="outline" onClick={() => router.push("/communities")}>
+        <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => router.push("/communities")}>
           Cancel
         </Button>
       </div>

@@ -11,6 +11,7 @@ function profile(overrides: Partial<ProfileCardData> = {}): ProfileCardData {
     avatarUrl: "",
     city: "Lagos",
     country: "NG",
+    showExactLocation: true,
     profileType: "CREATOR",
     serviceCategories: [],
     isVerified: true,

@@ -87,7 +87,7 @@ function ServiceListingForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-3 rounded-lg border border-border/60 bg-background p-4"
+      className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background p-4 shadow-sm md:rounded-lg md:shadow-none"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
@@ -126,6 +126,7 @@ function ServiceListingForm({
         <Textarea
           id="service-description"
           rows={2}
+          className="resize-none rounded-2xl md:rounded-md"
           value={form.description}
           onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
           placeholder="What's included in this service"
@@ -168,12 +169,12 @@ function ServiceListingForm({
         </p>
       )}
 
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={status === "saving"}>
+      <div className="grid grid-cols-1 gap-2 sm:flex">
+        <Button type="submit" size="sm" className="w-full sm:w-auto" disabled={status === "saving"}>
           {status === "saving" ? "Saving..." : submitLabel}
         </Button>
         {onCancel && (
-          <Button type="button" size="sm" variant="outline" onClick={onCancel}>
+          <Button type="button" size="sm" variant="outline" className="w-full sm:w-auto" onClick={onCancel}>
             Cancel
           </Button>
         )}
@@ -243,12 +244,12 @@ export function ServiceListingManager({ initialListings }: { initialListings: Se
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
         Service listings
       </h2>
 
       {listings.length === 0 && !creating && (
-        <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
           You don&apos;t have any service listings yet.
         </div>
       )}
@@ -267,7 +268,7 @@ export function ServiceListingManager({ initialListings }: { initialListings: Se
           ) : (
             <li
               key={listing.id}
-              className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:rounded-lg md:shadow-none"
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -282,12 +283,12 @@ export function ServiceListingManager({ initialListings }: { initialListings: Se
                 )}
                 <p className="mt-1 text-xs text-muted-foreground">{listing.durationMinutes} minutes</p>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="gap-1.5"
+                  className="w-full gap-1.5 sm:w-auto"
                   onClick={() => setEditingId(listing.id)}
                 >
                   <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Edit
@@ -296,7 +297,7 @@ export function ServiceListingManager({ initialListings }: { initialListings: Se
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="gap-1.5 text-destructive"
+                  className="w-full gap-1.5 text-destructive sm:w-auto"
                   onClick={() => handleDelete(listing.id)}
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Delete
@@ -315,7 +316,7 @@ export function ServiceListingManager({ initialListings }: { initialListings: Se
           onSubmit={handleCreate}
         />
       ) : (
-        <Button type="button" variant="outline" className="w-fit gap-1.5" onClick={() => setCreating(true)}>
+        <Button type="button" variant="outline" className="w-full gap-1.5 sm:w-fit" onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4" aria-hidden="true" /> Add service
         </Button>
       )}

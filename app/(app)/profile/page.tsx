@@ -31,9 +31,17 @@ export default async function ProfilePage({
 
   if (!profile) {
     return (
-      <div className="flex flex-col gap-6">
-        <PageHeader title="Profile" description="Manage your public profile and desires." />
-        <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+      <div className="flex flex-col gap-4 md:gap-6">
+        <div className="hidden md:block">
+          <PageHeader title="Profile" description="Manage your public profile and desires." />
+        </div>
+        <div className="md:hidden">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+            Profile
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">Manage your public profile.</p>
+        </div>
+        <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
           We couldn&apos;t find your profile. Please contact support.
         </div>
       </div>

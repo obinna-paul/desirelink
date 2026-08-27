@@ -79,8 +79,19 @@ enum ReportTargetType {
   message
   group_message
   post
+  post_comment
   room_post
   event
+}
+
+enum PostType {
+  standard
+  event
+  live
+}
+
+enum PostReactionType {
+  like
 }
 
 enum ReviewContextType {
@@ -249,6 +260,9 @@ model Profile {
   roomMemberships        RoomMember[]
   roomPosts              RoomPost[]
   posts                  Post[]
+  postComments           PostComment[]
+  postReactions          PostReaction[]
+  postShares             PostShare[]
   blocksMade             Block[]               @relation("BlockBlocker")
   blocksReceived         Block[]               @relation("BlockBlocked")
   reportsMade            Report[]              @relation("ReportReporter")
@@ -490,6 +504,7 @@ model Event {
 
   rsvps        EventRsvp[]
   transactions Transaction[]
+  feedPosts    Post[]
 
   @@index([hostId])
   @@index([startTime])
@@ -607,15 +622,68 @@ model GroupChatMute {
 // --- Creator posts -------------------------------------------------------
 
 model Post {
-  id               String   @id @default(cuid())
+  id               String         @id @default(cuid())
   authorId         String
-  author           Profile  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author           Profile        @relation(fields: [authorId], references: [id], onDelete: Cascade)
   content          String
   mediaUrls        Json
-  isSubscriberOnly Boolean  @default(false)
-  createdAt        DateTime @default(now())
+  postType         PostType       @default(standard)
+  eventId          String?
+  event            Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  isSubscriberOnly Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  comments         PostComment[]
+  reactions        PostReaction[]
+  shares           PostShare[]
 
   @@index([authorId])
+  @@index([eventId])
+  @@index([postType])
+}
+
+model PostComment {
+  id        String        @id @default(cuid())
+  postId    String
+  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    Profile       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    PostComment?  @relation("PostCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   PostComment[] @relation("PostCommentReplies")
+  content   String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+model PostReaction {
+  id        String           @id @default(cuid())
+  postId    String
+  post      Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  profile   Profile          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      PostReactionType @default(like)
+  createdAt DateTime         @default(now())
+
+  @@unique([postId, userId, type])
+  @@index([postId])
+  @@index([userId])
+}
+
+model PostShare {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  profile   Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  target    String
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@index([userId])
 }
 
 // --- Trust & safety --------------------------------------------------------

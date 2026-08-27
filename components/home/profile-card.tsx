@@ -15,7 +15,14 @@ export function ProfileCard({
   matchScore?: number;
 }) {
   const initials = profile.displayName.slice(0, 2).toUpperCase();
-  const location = [profile.city, profile.country].filter(Boolean).join(", ");
+  const preciseLocation = [profile.city, profile.country].filter(Boolean).join(", ");
+  const distanceLabel =
+    typeof profile.distanceKm === "number"
+      ? profile.distanceKm < 1
+        ? "Less than 1 km away"
+        : `${Math.round(profile.distanceKm)} km away`
+      : null;
+  const locationLabel = distanceLabel ?? (profile.showExactLocation ? preciseLocation : "");
   const visibleDesires = profile.desires.slice(0, 3);
   const extraDesireCount = profile.desires.length - visibleDesires.length;
   const activeStatus = profile.availabilityStatuses[0];
@@ -92,7 +99,7 @@ export function ProfileCard({
             )}
           </div>
           <p className="truncate text-xs text-muted-foreground">@{profile.username}</p>
-          {location && <p className="truncate text-xs text-muted-foreground">{location}</p>}
+          {locationLabel && <p className="truncate text-xs text-muted-foreground">{locationLabel}</p>}
         </div>
       </div>
 

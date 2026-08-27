@@ -8,6 +8,8 @@ export const updateProfileSchema = z.object({
   avatarUrl: z.string(),
   gender: z.string().min(1, "Select a gender"),
   orientation: z.string().min(1, "Select an orientation"),
+  locationLat: z.number().min(-90).max(90),
+  locationLng: z.number().min(-180).max(180),
   city: z.string().max(100),
   country: z.string().max(100),
   profileType: z.enum(ACCOUNT_TYPE_VALUES),

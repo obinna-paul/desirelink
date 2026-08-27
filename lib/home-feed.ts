@@ -32,6 +32,7 @@ export function profileCardSelect() {
     avatarUrl: true,
     city: true,
     country: true,
+    showExactLocation: true,
     profileType: true,
     serviceCategories: true,
     isVerified: true,
@@ -55,7 +56,9 @@ export function profileCardSelect() {
   } satisfies Prisma.ProfileSelect;
 }
 
-export type ProfileCardData = Prisma.ProfileGetPayload<{ select: ReturnType<typeof profileCardSelect> }>;
+export type ProfileCardData = Prisma.ProfileGetPayload<{ select: ReturnType<typeof profileCardSelect> }> & {
+  distanceKm?: number;
+};
 
 type ViewerProfile = {
   id: string;
@@ -161,7 +164,7 @@ export async function getHomeFeed(
         .filter(({ distanceKm }) => distanceKm <= MEET_RADIUS_KM)
         .sort((a, b) => a.distanceKm - b.distanceKm)
         .slice(0, 24)
-        .map(({ candidate }) => candidate);
+        .map(({ candidate, distanceKm }) => ({ ...candidate, distanceKm }));
 
       return { profiles: withinRadius };
     }

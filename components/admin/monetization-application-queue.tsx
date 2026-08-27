@@ -21,8 +21,8 @@ function ApplicationRow({
   const initials = application.provider.displayName.slice(0, 2).toUpperCase();
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-card p-4">
-      <div className="flex min-w-0 items-center gap-3">
+    <li className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between md:rounded-lg md:shadow-none">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
         <Avatar className="h-10 w-10 border border-border">
           <AvatarImage src={application.provider.avatarUrl} alt={application.provider.displayName} />
           <AvatarFallback>{initials}</AvatarFallback>
@@ -39,18 +39,18 @@ function ApplicationRow({
         </Badge>
       </div>
 
-      <div className="flex shrink-0 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
         <Button
           type="button"
           size="sm"
           variant="outline"
-          className="text-destructive"
+          className="w-full text-destructive sm:w-auto"
           disabled={pending}
           onClick={() => onRespond("deny")}
         >
           Deny
         </Button>
-        <Button type="button" size="sm" disabled={pending} onClick={() => onRespond("approve")}>
+        <Button type="button" size="sm" className="w-full sm:w-auto" disabled={pending} onClick={() => onRespond("approve")}>
           Approve
         </Button>
       </div>
@@ -84,7 +84,7 @@ export function MonetizationApplicationQueue({
 
   if (applications.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:shadow-none">
         No pending monetization applications.
       </div>
     );

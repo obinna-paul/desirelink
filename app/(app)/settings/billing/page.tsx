@@ -34,13 +34,21 @@ export default async function BillingSettingsPage({
   const overview = await getBillingOverview(profile.id);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Billing" description="Payment methods, premium status, subscriptions, and billing history." />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader title="Billing" description="Payment methods, premium status, subscriptions, and billing history." />
+      </div>
+      <div className="md:hidden">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+          Billing
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Premium, cards, subscriptions, and history.</p>
+      </div>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold">udala premium</h2>
         {overview.premium ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card p-4">
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:rounded-xl md:shadow-none">
             <div>
               <p className="text-sm font-medium">
                 {overview.premium.active ? "Active" : overview.premium.status}
@@ -61,7 +69,7 @@ export default async function BillingSettingsPage({
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold">Provider subscriptions</h2>
         {overview.providerSubscriptions.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed border-border/60 bg-card p-6 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:shadow-none">
             You&apos;re not subscribed to any providers yet.
           </div>
         ) : (
@@ -69,7 +77,7 @@ export default async function BillingSettingsPage({
             {overview.providerSubscriptions.map((sub) => (
               <li
                 key={sub.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card p-4"
+                className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:rounded-xl md:shadow-none"
               >
                 <div>
                   <p className="text-sm font-medium">
@@ -97,12 +105,12 @@ export default async function BillingSettingsPage({
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold">Billing history</h2>
         {overview.transactions.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed border-border/60 bg-card p-6 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:shadow-none">
             No charges yet.
           </div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
-            <table className="w-full border-collapse text-left text-sm">
+            <table className="min-w-[640px] border-collapse text-left text-sm md:w-full">
               <thead>
                 <tr className="border-b border-border/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <th scope="col" className="px-4 py-2 font-medium">

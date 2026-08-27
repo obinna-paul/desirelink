@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Profile } from "@prisma/client";
+import { LocateFixed } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +85,8 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
   const [status, setStatus] = useState<"idle" | "saving" | "success">("idle");
   const [serverError, setServerError] = useState<string | null>(null);
   const [premiumUpsell, setPremiumUpsell] = useState<string | null>(null);
+  const [locationStatus, setLocationStatus] = useState<"idle" | "locating" | "success" | "error">("idle");
+  const [locationMessage, setLocationMessage] = useState<string | null>(null);
 
   const {
     register,
@@ -100,6 +103,8 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       avatarUrl: profile.avatarUrl,
       gender: profile.gender,
       orientation: profile.orientation,
+      locationLat: profile.locationLat,
+      locationLng: profile.locationLng,
       city: profile.city,
       country: profile.country,
       profileType: profile.profileType,
@@ -116,6 +121,8 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
   const avatarUrl = watch("avatarUrl");
   const profileType = watch("profileType");
   const serviceCategories = watch("serviceCategories");
+  const locationLat = watch("locationLat");
+  const locationLng = watch("locationLng");
 
   function toggleServiceCategory(category: string) {
     const next = serviceCategories.includes(category)
@@ -149,6 +156,31 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
     setStatus("success");
     router.push("/profile");
     router.refresh();
+  }
+
+  function useCurrentLocation() {
+    setLocationMessage(null);
+
+    if (!("geolocation" in navigator)) {
+      setLocationStatus("error");
+      setLocationMessage("Your browser does not support location detection.");
+      return;
+    }
+
+    setLocationStatus("locating");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setValue("locationLat", Number(position.coords.latitude.toFixed(6)), { shouldDirty: true });
+        setValue("locationLng", Number(position.coords.longitude.toFixed(6)), { shouldDirty: true });
+        setLocationStatus("success");
+        setLocationMessage("Location saved locally. Save changes to update nearby matching.");
+      },
+      () => {
+        setLocationStatus("error");
+        setLocationMessage("We could not access your location. Check browser permission and try again.");
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
+    );
   }
 
   return (
@@ -201,6 +233,39 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
           <FieldWrapper label="Country" htmlFor="country" error={errors.country?.message}>
             <Input id="country" {...register("country")} />
           </FieldWrapper>
+        </div>
+        <div className="rounded-2xl border border-border/60 bg-background/60 p-3 md:rounded-lg">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">Nearby matching</p>
+              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                Use your device location for distance sorting. Exact location is only displayed if you turn it on below.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2 sm:w-auto"
+              disabled={locationStatus === "locating"}
+              onClick={useCurrentLocation}
+            >
+              <LocateFixed className="h-4 w-4" aria-hidden="true" />
+              {locationStatus === "locating" ? "Locating..." : "Use current location"}
+            </Button>
+          </div>
+          {(locationLat !== 0 || locationLng !== 0) && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Coordinates saved: {Number(locationLat).toFixed(3)}, {Number(locationLng).toFixed(3)}
+            </p>
+          )}
+          {locationMessage && (
+            <p
+              role={locationStatus === "error" ? "alert" : undefined}
+              className={locationStatus === "error" ? "mt-3 text-xs text-destructive" : "mt-3 text-xs text-muted-foreground"}
+            >
+              {locationMessage}
+            </p>
+          )}
         </div>
       </section>
 

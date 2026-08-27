@@ -76,7 +76,7 @@ export function ReportDialog({
           type="button"
           aria-label={label}
           onClick={openDialog}
-          className="text-muted-foreground transition-colors hover:text-destructive"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
         >
           <Flag className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -91,13 +91,13 @@ export function ReportDialog({
           role="dialog"
           aria-modal="true"
           aria-labelledby="report-dialog-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={() => setOpen(false)}
         >
           <div
             ref={dialogRef}
             tabIndex={-1}
-            className="w-full max-w-sm rounded-xl border border-border/60 bg-card p-5 focus:outline-none"
+            className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-5 shadow-xl focus:outline-none"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
@@ -120,7 +120,7 @@ export function ReportDialog({
                 <p className="text-xs text-muted-foreground">
                   Thanks for letting us know. Our team will review it.
                 </p>
-                <Button type="button" size="sm" onClick={() => setOpen(false)}>
+                <Button type="button" size="sm" className="w-full sm:w-auto" onClick={() => setOpen(false)}>
                   Done
                 </Button>
               </div>
@@ -156,11 +156,11 @@ export function ReportDialog({
                     {error}
                   </p>
                 )}
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+                <div className="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
+                  <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" size="sm" disabled={submitting}>
+                  <Button type="submit" size="sm" className="w-full sm:w-auto" disabled={submitting}>
                     {submitting ? "Submitting..." : "Submit report"}
                   </Button>
                 </div>

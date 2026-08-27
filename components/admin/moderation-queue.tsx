@@ -38,14 +38,14 @@ function ModerationRow({
   const preview = item.contentPreview;
 
   return (
-    <li className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <li className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="flex min-w-0 gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">
             <TriangleAlert className="h-5 w-5 text-destructive" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
               <h2 className="text-sm font-semibold">{preview?.title ?? "Content unavailable"}</h2>
               <Badge variant="outline" className="capitalize">
                 {contentTypeLabel(item.contentType)}
@@ -57,7 +57,7 @@ function ModerationRow({
           </div>
         </div>
         {owner && (
-          <div className="flex items-center gap-2 rounded-lg border border-border/60 px-2.5 py-2">
+          <div className="flex items-center gap-2 rounded-xl border border-border/60 px-2.5 py-2 md:rounded-lg">
             <Avatar className="h-7 w-7 border border-border">
               <AvatarImage src={owner.avatarUrl} alt={owner.displayName} />
               <AvatarFallback className="text-[10px]">{initials(owner.displayName)}</AvatarFallback>
@@ -72,19 +72,19 @@ function ModerationRow({
         )}
       </div>
 
-      <div className="rounded-lg border border-border/60 bg-background/40 p-3">
+      <div className="rounded-2xl border border-border/60 bg-background/40 p-3 md:rounded-lg">
         <p className="max-h-24 overflow-hidden whitespace-pre-wrap text-sm">
           {preview?.body || item.details || "No preview available."}
         </p>
         <p className="mt-2 text-xs text-muted-foreground">{item.details}</p>
       </div>
 
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-end">
         <Button
           type="button"
           size="sm"
           variant="outline"
-          className="gap-1.5"
+          className="w-full gap-1.5 sm:w-auto"
           disabled={Boolean(pendingAction)}
           onClick={() => onAction("review")}
         >
@@ -95,7 +95,7 @@ function ModerationRow({
           type="button"
           size="sm"
           variant="outline"
-          className="gap-1.5"
+          className="w-full gap-1.5 sm:w-auto"
           disabled={Boolean(pendingAction) || !owner}
           onClick={() => onAction("warn")}
         >
@@ -106,7 +106,7 @@ function ModerationRow({
           type="button"
           size="sm"
           variant="outline"
-          className="gap-1.5 text-destructive hover:text-destructive"
+          className="w-full gap-1.5 text-destructive hover:text-destructive sm:w-auto"
           disabled={Boolean(pendingAction)}
           onClick={() => onAction("remove")}
         >
@@ -117,7 +117,7 @@ function ModerationRow({
           type="button"
           size="sm"
           variant="outline"
-          className="gap-1.5 text-destructive hover:text-destructive"
+          className="w-full gap-1.5 text-destructive hover:text-destructive sm:w-auto"
           disabled={Boolean(pendingAction) || !owner}
           onClick={() => onAction("suspend")}
         >
@@ -158,7 +158,7 @@ export function ModerationQueue({ initialItems }: { initialItems: ModerationQueu
 
   if (items.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:shadow-none">
         No pending moderation flags.
       </div>
     );

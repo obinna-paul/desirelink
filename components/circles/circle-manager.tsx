@@ -64,7 +64,7 @@ function PermissionSwitch({
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex min-h-14 items-center justify-between gap-4 rounded-lg border border-border/60 bg-background px-3 py-2">
+    <label className="flex min-h-14 items-center justify-between gap-4 rounded-2xl border border-border/60 bg-background px-3 py-2 md:rounded-lg">
       <span className="min-w-0">
         <span className="block text-sm font-medium">{label}</span>
         {description && <span className="block text-xs text-muted-foreground">{description}</span>}
@@ -172,7 +172,7 @@ function CircleEditor({
   }
 
   return (
-    <form onSubmit={saveCircle} className="flex flex-col gap-5 rounded-lg border border-border/60 bg-card p-4">
+    <form onSubmit={saveCircle} className="flex flex-col gap-5 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-lg md:shadow-none">
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
@@ -228,7 +228,7 @@ function CircleEditor({
                 ))
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
@@ -247,6 +247,7 @@ function CircleEditor({
                 type="button"
                 variant="outline"
                 size="icon"
+                className="h-11 w-full sm:w-11"
                 onClick={addMember}
                 disabled={status === "adding" || !username.trim()}
                 aria-label="Add member"
@@ -315,15 +316,15 @@ function CircleEditor({
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={status !== "idle"} className="gap-1.5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <Button type="submit" disabled={status !== "idle"} className="w-full gap-1.5 sm:w-auto">
           <Save className="h-4 w-4" aria-hidden="true" />
           {status === "saving" ? "Saving..." : "Save circle"}
         </Button>
         <Button
           type="button"
           variant="outline"
-          className="gap-1.5 text-destructive"
+          className="w-full gap-1.5 text-destructive sm:w-auto"
           onClick={deleteCircle}
           disabled={status !== "idle"}
         >
@@ -376,7 +377,7 @@ export function CircleManager({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="rounded-lg border border-border/60 bg-card p-4">
+      <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-lg md:shadow-none">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">
             <Eye className="h-5 w-5 text-neon-cyan" aria-hidden="true" />
@@ -391,7 +392,7 @@ export function CircleManager({
       </div>
 
       {circles.length === 0 && !creating && (
-        <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
           No circles yet.
         </div>
       )}
@@ -411,7 +412,7 @@ export function CircleManager({
       </div>
 
       {creating ? (
-        <form onSubmit={createCircle} className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-4">
+        <form onSubmit={createCircle} className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-lg md:shadow-none">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="new-circle-name" className="text-xs font-medium text-muted-foreground">
@@ -448,18 +449,18 @@ export function CircleManager({
             </p>
           )}
 
-          <div className="flex gap-2">
-            <Button type="submit" disabled={status === "saving"} className="gap-1.5">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button type="submit" disabled={status === "saving"} className="w-full gap-1.5 sm:w-auto">
               <Plus className="h-4 w-4" aria-hidden="true" />
               {status === "saving" ? "Creating..." : "Create circle"}
             </Button>
-            <Button type="button" variant="outline" onClick={() => setCreating(false)}>
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setCreating(false)}>
               Cancel
             </Button>
           </div>
         </form>
       ) : (
-        <Button type="button" variant="outline" className="w-fit gap-1.5" onClick={() => setCreating(true)}>
+        <Button type="button" variant="outline" className="w-full gap-1.5 sm:w-fit" onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4" aria-hidden="true" /> New circle
         </Button>
       )}

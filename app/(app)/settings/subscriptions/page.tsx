@@ -24,11 +24,19 @@ export default async function SubscriptionsSettingsPage() {
   const subscriptions = await getMySubscriptions(profile.id);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Subscriptions"
-        description="Manage the creators you're subscribed to."
-      />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader
+          title="Subscriptions"
+          description="Manage the creators you're subscribed to."
+        />
+      </div>
+      <div className="md:hidden">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+          Subscriptions
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Creators and providers you support.</p>
+      </div>
       <SubscriptionsList initialSubscriptions={subscriptions} />
     </div>
   );

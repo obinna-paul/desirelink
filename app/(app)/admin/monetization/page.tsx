@@ -24,17 +24,29 @@ export default async function AdminMonetizationPage() {
   ]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Monetization"
-        description="Review applications, and manage providers already earning from the rewards pool."
-      />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader
+          title="Monetization"
+          description="Review applications, and manage providers already earning from the rewards pool."
+        />
+      </div>
+      <div className="md:hidden">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+          Monetization
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Applications and earning providers.</p>
+      </div>
       <div>
-        <h2 className="mb-3 text-sm font-semibold">Pending applications</h2>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm md:normal-case md:tracking-normal md:text-foreground">
+          Pending applications
+        </h2>
         <MonetizationApplicationQueue initialApplications={applications} />
       </div>
       <div>
-        <h2 className="mb-3 text-sm font-semibold">Monetized &amp; suspended providers</h2>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm md:normal-case md:tracking-normal md:text-foreground">
+          Monetized &amp; suspended providers
+        </h2>
         <MonetizationList initialProviders={providers} />
       </div>
     </div>

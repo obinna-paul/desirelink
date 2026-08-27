@@ -10,7 +10,7 @@ const STATUS_VARIANT = {
 export function ReportsList({ reports }: { reports: MyReportData[] }) {
   if (reports.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+      <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
         You haven&apos;t submitted any reports.
       </div>
     );
@@ -19,8 +19,8 @@ export function ReportsList({ reports }: { reports: MyReportData[] }) {
   return (
     <ul className="flex flex-col gap-3">
       {reports.map((report) => (
-        <li key={report.id} className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <li key={report.id} className="flex flex-col gap-2 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-lg md:shadow-none">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-1.5">
               <Badge variant="outline" className="capitalize">
                 {report.targetType}

@@ -33,9 +33,17 @@ export default async function ManageEventsPage() {
   const latestHostRequest = requests.find((request) => request.requestType === "host") ?? null;
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Manage events" description="Events you're hosting." />
-      <Button asChild className="w-fit gap-1.5">
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader title="Manage events" description="Events you're hosting." />
+      </div>
+      <div className="md:hidden">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+          Manage events
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Events you're hosting.</p>
+      </div>
+      <Button asChild className="w-full gap-1.5 md:w-fit">
         <Link href="/events/new">
           <Plus className="h-4 w-4" aria-hidden="true" /> Host a new event
         </Link>

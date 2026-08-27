@@ -161,7 +161,7 @@ export default async function RoomDetailPage({
           )}
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
           <Lock className="h-6 w-6 text-neon-pink" aria-hidden="true" />
           <p className="font-medium text-foreground">This room is private</p>
           <p>Request to join to see posts and members.</p>

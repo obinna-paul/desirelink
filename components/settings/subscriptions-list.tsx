@@ -28,7 +28,7 @@ function SubscriptionRow({
   const initials = subscription.creator.displayName.slice(0, 2).toUpperCase();
 
   return (
-    <li className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+    <li className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:rounded-lg md:shadow-none">
       <Link href={`/profile/${subscription.creator.username}`} className="flex min-w-0 items-center gap-3">
         <Avatar className="h-10 w-10 border border-border">
           <AvatarImage src={subscription.creator.avatarUrl} alt={subscription.creator.displayName} />
@@ -42,8 +42,8 @@ function SubscriptionRow({
         </div>
       </Link>
 
-      <div className="flex shrink-0 items-center gap-3">
-        <div className="text-right">
+      <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="text-left sm:text-right">
           <Badge variant={STATUS_VARIANT[subscription.status]} className="capitalize">
             {subscription.status}
           </Badge>
@@ -57,7 +57,7 @@ function SubscriptionRow({
             type="button"
             size="sm"
             variant="outline"
-            className="text-destructive"
+            className="w-full text-destructive sm:w-auto"
             disabled={cancelling}
             onClick={onCancel}
           >
@@ -98,13 +98,13 @@ export function SubscriptionsList({ initialSubscriptions }: { initialSubscriptio
   const past = subscriptions.filter((sub) => sub.status !== "active");
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5 md:gap-6">
       <div>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
           Active subscriptions
         </h2>
         {active.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:shadow-none">
             You&apos;re not subscribed to any creators yet.
           </div>
         ) : (
@@ -129,7 +129,7 @@ export function SubscriptionsList({ initialSubscriptions }: { initialSubscriptio
 
       {past.length > 0 && (
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
             Past subscriptions
           </h2>
           <ul className="flex flex-col gap-3">

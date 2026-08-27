@@ -150,7 +150,7 @@ export function ProfileView({
               )}
             </div>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
-            {visibleFieldSet.has("location") && location && (
+            {visibleFieldSet.has("location") && profile.showExactLocation && location && (
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                 <MapPin className="h-3 w-3" /> {location}
               </p>

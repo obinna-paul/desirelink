@@ -20,17 +20,25 @@ const SAFETY_LINKS = [
 
 export default function SafetyCenterPage() {
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Safety Center"
-        description="Tools to help you stay in control of who can reach you."
-      />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader
+          title="Safety Center"
+          description="Tools to help you stay in control of who can reach you."
+        />
+      </div>
+      <div className="md:hidden">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+          Safety
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Control blocks, reports, and reachability.</p>
+      </div>
       <ul className="flex flex-col gap-2">
         {SAFETY_LINKS.map((link) => (
           <li key={link.href}>
             <Link
               href={link.href}
-              className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card p-4 transition-colors hover:border-neon-pink/60"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm transition-colors hover:border-neon-pink/60 md:rounded-xl md:p-4 md:shadow-none"
             >
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">
@@ -38,7 +46,7 @@ export default function SafetyCenterPage() {
                 </span>
                 <div>
                   <p className="text-sm font-medium">{link.label}</p>
-                  <p className="text-xs text-muted-foreground">{link.description}</p>
+                  <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{link.description}</p>
                 </div>
               </div>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />

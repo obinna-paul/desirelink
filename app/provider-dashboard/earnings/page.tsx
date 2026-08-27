@@ -27,11 +27,19 @@ export default async function ProviderEarningsPage() {
   if (!isProviderProfileType(profile.profileType)) {
     return (
       <AppShell>
-        <div className="flex flex-col gap-6">
-          <PageHeader
-            title="Provider earnings"
-            description="Earnings are available for creators, pairs, and service providers."
-          />
+        <div className="flex flex-col gap-4 md:gap-6">
+          <div className="hidden md:block">
+            <PageHeader
+              title="Provider earnings"
+              description="Earnings are available for creators, pairs, and service providers."
+            />
+          </div>
+          <div className="md:hidden">
+            <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+              Provider earnings
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">Available for earning provider profiles.</p>
+          </div>
           <BecomeCreatorPrompt />
         </div>
       </AppShell>

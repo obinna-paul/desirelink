@@ -2,21 +2,53 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import NextImage from "next/image";
-import { AlertTriangle, Image as ImageIcon, Loader2, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, CalendarDays, Image as ImageIcon, Loader2, ShieldCheck, Video, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { MAX_POST_IMAGES } from "@/lib/post-shared";
+import { EVENT_TYPE_OPTIONS } from "@/lib/events";
+import { MAX_POST_MEDIA_ITEMS, type PostMediaItem } from "@/lib/post-shared";
 import type { PostView } from "@/lib/posts";
 import { detectTextPii, hasImageMetadataSignature, type PiiFinding } from "@/lib/pii";
 import { useFocusTrap } from "@/lib/use-focus-trap";
+import { cn } from "@/lib/utils";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024;
+const MAX_VIDEO_FILE_SIZE = 100 * 1024 * 1024;
 
-type SanitizedImage = {
-  url: string;
+type ComposerMode = "standard" | "event";
+
+type UploadedMedia = PostMediaItem & {
   metadataDetected: boolean;
+};
+
+type EventFormState = {
+  title: string;
+  eventType: (typeof EVENT_TYPE_OPTIONS)[number];
+  startTime: string;
+  endTime: string;
+  venueName: string;
+  address: string;
+  city: string;
+  maxAttendees: string;
+  priceDollars: string;
+  isPrivate: boolean;
+};
+
+const emptyEventForm: EventFormState = {
+  title: "",
+  eventType: EVENT_TYPE_OPTIONS[0],
+  startTime: "",
+  endTime: "",
+  venueName: "",
+  address: "",
+  city: "",
+  maxAttendees: "",
+  priceDollars: "0",
+  isPrivate: false,
 };
 
 function imageHasUsableCanvasType(file: File) {
@@ -63,7 +95,9 @@ export function PostComposer({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [content, setContent] = useState("");
-  const [images, setImages] = useState<SanitizedImage[]>([]);
+  const [mode, setMode] = useState<ComposerMode>("standard");
+  const [mediaItems, setMediaItems] = useState<UploadedMedia[]>([]);
+  const [eventForm, setEventForm] = useState(emptyEventForm);
   const [isSubscriberOnly, setIsSubscriberOnly] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -86,18 +120,28 @@ export function PostComposer({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [showPiiWarning]);
 
-  const imageUrls = useMemo(() => images.map((image) => image.url), [images]);
+  const mediaPayload = useMemo(
+    () =>
+      mediaItems.map((item) => ({
+        url: item.url,
+        type: item.type,
+        width: item.width,
+        height: item.height,
+        durationSeconds: item.durationSeconds,
+      })),
+    [mediaItems]
+  );
   const strippedImageCount = useMemo(
-    () => images.filter((image) => image.metadataDetected).length,
-    [images]
+    () => mediaItems.filter((image) => image.metadataDetected).length,
+    [mediaItems]
   );
 
   async function handleFiles(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0) return;
 
-    if (images.length + files.length > MAX_POST_IMAGES) {
-      setError(`Up to ${MAX_POST_IMAGES} images per post.`);
+    if (mediaItems.length + files.length > MAX_POST_MEDIA_ITEMS) {
+      setError(`Up to ${MAX_POST_MEDIA_ITEMS} media items per post.`);
       event.target.value = "";
       return;
     }
@@ -106,33 +150,40 @@ export function PostComposer({
     setUploading(true);
 
     for (const file of files) {
-      if (!file.type.startsWith("image/")) {
-        setError("Please choose image files only.");
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      if (!isImage && !isVideo) {
+        setError("Please choose image or video files only.");
         continue;
       }
-      if (file.size > MAX_FILE_SIZE) {
-        setError("Each image must be under 5MB.");
+      if (isImage && file.size > MAX_IMAGE_FILE_SIZE) {
+        setError("Each image must be under 8MB.");
+        continue;
+      }
+      if (isVideo && file.size > MAX_VIDEO_FILE_SIZE) {
+        setError("Each video must be under 100MB.");
         continue;
       }
 
       try {
-        const metadataDetected = hasImageMetadataSignature(await file.arrayBuffer());
+        const buffer = await file.arrayBuffer();
+        const metadataDetected = isImage ? hasImageMetadataSignature(buffer) : false;
         // Future vision-based PII scanning can run here before upload.
-        const sanitizedFile = await stripImageMetadata(file);
-        if (sanitizedFile.size > MAX_FILE_SIZE) {
-          setError("Each image must be under 5MB after metadata stripping.");
+        const sanitizedFile = isImage ? await stripImageMetadata(file) : file;
+        if (isImage && sanitizedFile.size > MAX_IMAGE_FILE_SIZE) {
+          setError("Each image must be under 8MB after metadata stripping.");
           continue;
         }
         const formData = new FormData();
         formData.append("file", sanitizedFile);
 
-        const res = await fetch("/api/upload/post-image", { method: "POST", body: formData });
+        const res = await fetch("/api/upload/post-media", { method: "POST", body: formData });
         const body = await res.json().catch(() => null);
         if (!res.ok) {
           setError(body?.error ?? "Upload failed. Please try again.");
           continue;
         }
-        setImages((prev) => [...prev, { url: body.url, metadataDetected }]);
+        setMediaItems((prev) => [...prev, { ...body.media, metadataDetected }]);
       } catch {
         setError("Upload failed. Please try again.");
       }
@@ -143,17 +194,39 @@ export function PostComposer({
   }
 
   function removeImage(url: string) {
-    setImages((prev) => prev.filter((existing) => existing.url !== url));
+    setMediaItems((prev) => prev.filter((existing) => existing.url !== url));
   }
 
   async function publishPost() {
     setSubmitting(true);
     setError(null);
 
+    const eventPayload =
+      mode === "event"
+        ? {
+            title: eventForm.title,
+            eventType: eventForm.eventType,
+            startTime: eventForm.startTime,
+            endTime: eventForm.endTime,
+            venueName: eventForm.venueName,
+            address: eventForm.address,
+            city: eventForm.city,
+            maxAttendees: eventForm.maxAttendees ? Number(eventForm.maxAttendees) : null,
+            priceCents: Math.round(Number(eventForm.priceDollars || 0) * 100),
+            isPrivate: eventForm.isPrivate,
+          }
+        : undefined;
+
     const res = await fetch("/api/posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: content.trim(), mediaUrls: imageUrls, isSubscriberOnly }),
+      body: JSON.stringify({
+        content: content.trim(),
+        mediaItems: mediaPayload,
+        isSubscriberOnly,
+        postType: mode,
+        event: eventPayload,
+      }),
     });
 
     setSubmitting(false);
@@ -167,8 +240,10 @@ export function PostComposer({
     const { post } = await res.json();
     onCreated(post);
     setContent("");
-    setImages([]);
+    setMediaItems([]);
     setIsSubscriberOnly(false);
+    setMode("standard");
+    setEventForm(emptyEventForm);
     setPiiAcknowledged(false);
     setPendingFindings([]);
   }
@@ -176,8 +251,12 @@ export function PostComposer({
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    if (!content.trim() && imageUrls.length === 0) {
-      setError("Write something or add an image.");
+    if (!content.trim() && mediaPayload.length === 0 && mode !== "event") {
+      setError("Write something or add media.");
+      return;
+    }
+    if (mode === "event" && (!eventForm.title.trim() || !eventForm.startTime || !eventForm.endTime || !eventForm.venueName.trim())) {
+      setError("Add the event title, time, and venue before publishing.");
       return;
     }
 
@@ -202,6 +281,31 @@ export function PostComposer({
       onSubmit={handleSubmit}
       className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm md:rounded-xl md:p-4 md:shadow-none"
     >
+      <div className="grid grid-cols-2 gap-2 rounded-full bg-secondary/60 p-1">
+        <button
+          type="button"
+          aria-pressed={mode === "standard"}
+          onClick={() => setMode("standard")}
+          className={cn(
+            "min-h-10 rounded-full text-sm font-semibold transition-colors",
+            mode === "standard" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Post
+        </button>
+        <button
+          type="button"
+          aria-pressed={mode === "event"}
+          onClick={() => setMode("event")}
+          className={cn(
+            "min-h-10 rounded-full text-sm font-semibold transition-colors",
+            mode === "event" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Event
+        </button>
+      </div>
+
       <label htmlFor="post-content" className="sr-only">
         Post content
       </label>
@@ -209,7 +313,7 @@ export function PostComposer({
         id="post-content"
         rows={3}
         maxLength={2000}
-        placeholder="Share something with your Fans..."
+        placeholder={mode === "event" ? "Tell people why they should come..." : "Share something with your Fans..."}
         value={content}
         onChange={(event) => {
           setContent(event.target.value);
@@ -218,29 +322,160 @@ export function PostComposer({
         className="min-h-28 resize-none rounded-2xl text-base md:rounded-md md:text-sm"
       />
 
-      {(strippedImageCount > 0 || images.length > 0) && (
+      {mode === "event" && (
+        <section className="grid grid-cols-1 gap-3 rounded-2xl border border-border/60 bg-background/50 p-3 md:grid-cols-2">
+          <div className="md:col-span-2">
+            <label htmlFor="feed-event-title" className="text-xs font-medium text-muted-foreground">
+              Event title
+            </label>
+            <Input
+              id="feed-event-title"
+              value={eventForm.title}
+              onChange={(event) => setEventForm((current) => ({ ...current, title: event.target.value }))}
+              placeholder="Name the event"
+              className="mt-1 h-11"
+            />
+          </div>
+          <div>
+            <label htmlFor="feed-event-type" className="text-xs font-medium text-muted-foreground">
+              Type
+            </label>
+            <Select
+              id="feed-event-type"
+              value={eventForm.eventType}
+              onChange={(event) =>
+                setEventForm((current) => ({
+                  ...current,
+                  eventType: event.target.value as (typeof EVENT_TYPE_OPTIONS)[number],
+                }))
+              }
+              className="mt-1 h-11"
+            >
+              {EVENT_TYPE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <label htmlFor="feed-event-venue" className="text-xs font-medium text-muted-foreground">
+              Venue
+            </label>
+            <Input
+              id="feed-event-venue"
+              value={eventForm.venueName}
+              onChange={(event) => setEventForm((current) => ({ ...current, venueName: event.target.value }))}
+              placeholder="Venue or online"
+              className="mt-1 h-11"
+            />
+          </div>
+          <div>
+            <label htmlFor="feed-event-start" className="text-xs font-medium text-muted-foreground">
+              Starts
+            </label>
+            <Input
+              id="feed-event-start"
+              type="datetime-local"
+              value={eventForm.startTime}
+              onChange={(event) => setEventForm((current) => ({ ...current, startTime: event.target.value }))}
+              className="mt-1 h-11"
+            />
+          </div>
+          <div>
+            <label htmlFor="feed-event-end" className="text-xs font-medium text-muted-foreground">
+              Ends
+            </label>
+            <Input
+              id="feed-event-end"
+              type="datetime-local"
+              value={eventForm.endTime}
+              onChange={(event) => setEventForm((current) => ({ ...current, endTime: event.target.value }))}
+              className="mt-1 h-11"
+            />
+          </div>
+          <div>
+            <label htmlFor="feed-event-city" className="text-xs font-medium text-muted-foreground">
+              City
+            </label>
+            <Input
+              id="feed-event-city"
+              value={eventForm.city}
+              onChange={(event) => setEventForm((current) => ({ ...current, city: event.target.value }))}
+              placeholder="Uses profile city if blank"
+              className="mt-1 h-11"
+            />
+          </div>
+          <div>
+            <label htmlFor="feed-event-capacity" className="text-xs font-medium text-muted-foreground">
+              Capacity
+            </label>
+            <Input
+              id="feed-event-capacity"
+              type="number"
+              min={1}
+              value={eventForm.maxAttendees}
+              onChange={(event) => setEventForm((current) => ({ ...current, maxAttendees: event.target.value }))}
+              placeholder="Unlimited"
+              className="mt-1 h-11"
+            />
+          </div>
+          <div>
+            <label htmlFor="feed-event-price" className="text-xs font-medium text-muted-foreground">
+              Price USD
+            </label>
+            <Input
+              id="feed-event-price"
+              type="number"
+              min={0}
+              step="0.01"
+              value={eventForm.priceDollars}
+              onChange={(event) => setEventForm((current) => ({ ...current, priceDollars: event.target.value }))}
+              className="mt-1 h-11"
+            />
+          </div>
+          <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card px-3 text-sm md:col-span-2">
+            <span className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-neon-pink" aria-hidden="true" />
+              Private event
+            </span>
+            <Switch
+              checked={eventForm.isPrivate}
+              onCheckedChange={(checked) => setEventForm((current) => ({ ...current, isPrivate: checked }))}
+            />
+          </label>
+        </section>
+      )}
+
+      {(strippedImageCount > 0 || mediaItems.length > 0) && (
         <div className="flex items-start gap-2 rounded-2xl border border-border/60 bg-secondary/40 p-3 text-xs text-muted-foreground md:rounded-lg">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-neon-cyan" aria-hidden="true" />
           <p>
             {strippedImageCount > 0
               ? `${strippedImageCount} uploaded ${strippedImageCount === 1 ? "image had" : "images had"} metadata markers and ${strippedImageCount === 1 ? "was" : "were"} re-encoded before upload.`
-              : "Images are re-encoded before upload to remove common metadata."}
+              : "Images are re-encoded before upload to remove common metadata. Videos are stored without EXIF stripping."}
           </p>
         </div>
       )}
 
-      {images.length > 0 && (
+      {mediaItems.length > 0 && (
         <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-          {images.map((image) => (
+          {mediaItems.map((item) => (
             <div
-              key={image.url}
+              key={item.url}
               className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border/60 bg-secondary sm:h-20 sm:w-20 sm:rounded-lg"
             >
-              <NextImage src={image.url} alt="" fill sizes="5rem" className="object-cover" />
+              {item.type === "video" ? (
+                <div className="flex h-full w-full items-center justify-center bg-black text-white">
+                  <Video className="h-6 w-6" aria-hidden="true" />
+                </div>
+              ) : (
+                <NextImage src={item.url} alt="" fill sizes="5rem" className="object-cover" />
+              )}
               <button
                 type="button"
-                aria-label="Remove image"
-                onClick={() => removeImage(image.url)}
+                aria-label="Remove media"
+                onClick={() => removeImage(item.url)}
                 className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-background/80 text-foreground transition-colors hover:bg-background"
               >
                 <X className="h-3 w-3" />
@@ -255,7 +490,7 @@ export function PostComposer({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            disabled={uploading || images.length >= MAX_POST_IMAGES}
+            disabled={uploading || mediaItems.length >= MAX_POST_MEDIA_ITEMS}
             className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:rounded-md"
           >
             {uploading ? (
@@ -263,12 +498,12 @@ export function PostComposer({
             ) : (
               <ImageIcon className="h-4 w-4" aria-hidden="true" />
             )}
-            {uploading ? "Uploading..." : "Add image"}
+            {uploading ? "Uploading..." : "Add media"}
           </button>
           <input
             ref={inputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,video/mp4,video/webm,video/quicktime"
             multiple
             className="hidden"
             onChange={handleFiles}

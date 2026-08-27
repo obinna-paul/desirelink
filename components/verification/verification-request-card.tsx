@@ -30,9 +30,9 @@ const FileSlot = memo(function FileSlot({
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         {url ? (
-          <div className="relative h-16 w-24 overflow-hidden rounded-lg border border-border/60 bg-secondary">
+          <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border/60 bg-secondary sm:h-16 sm:w-24 sm:rounded-lg">
             <Image src={url} alt="" fill sizes="6rem" className="object-cover" />
             <button
               type="button"
@@ -44,7 +44,7 @@ const FileSlot = memo(function FileSlot({
             </button>
           </div>
         ) : (
-          <div className="flex h-16 w-24 items-center justify-center rounded-lg border border-dashed border-border/60 text-[10px] text-muted-foreground">
+          <div className="flex aspect-video w-full items-center justify-center rounded-2xl border border-dashed border-border/60 text-xs text-muted-foreground sm:h-16 sm:w-24 sm:rounded-lg sm:text-[10px]">
             No image
           </div>
         )}
@@ -52,7 +52,7 @@ const FileSlot = memo(function FileSlot({
           type="button"
           onClick={onPick}
           disabled={uploading}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:rounded-md"
         >
           {uploading ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -153,9 +153,9 @@ export function VerificationRequestCard({
 
   if (isVerified) {
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-card p-4">
+      <div className="flex items-start gap-2 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
         <BadgeCheck className="h-5 w-5 shrink-0 text-neon-pink" aria-hidden="true" />
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
           <span>You&rsquo;re a verified {label}.</span>
           <Badge variant="neon">Verified {label}</Badge>
         </div>
@@ -165,7 +165,7 @@ export function VerificationRequestCard({
 
   if (latestStatus === "pending") {
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-card p-4">
+      <div className="flex items-start gap-2 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
         <Clock className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
         <p className="text-sm text-muted-foreground">
           Your {label} verification request is pending review.
@@ -176,7 +176,7 @@ export function VerificationRequestCard({
 
   if (ineligibleMessage) {
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-dashed border-border/60 bg-card p-4">
+      <div className="flex items-start gap-2 rounded-2xl border border-dashed border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
         <ShieldAlert className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
         <p className="text-sm text-muted-foreground">{ineligibleMessage}</p>
       </div>
@@ -186,12 +186,12 @@ export function VerificationRequestCard({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-4"
+      className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none"
     >
       <div>
         <h3 className="text-sm font-semibold">Request {label} verification</h3>
         <p className="text-xs text-muted-foreground">
-          Upload a government ID and a selfie. We don&rsquo;t process real ID documents in this environment —
+          Upload a government ID and a selfie. We don&rsquo;t process real ID documents in this environment -
           this just flags your request for manual review.
         </p>
         {latestStatus === "denied" && (
@@ -201,7 +201,7 @@ export function VerificationRequestCard({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FileSlot
           label="Government ID"
           url={govIdUrl}
@@ -248,7 +248,7 @@ export function VerificationRequestCard({
       <button
         type="submit"
         disabled={submitting || uploadingId || uploadingSelfie}
-        className="inline-flex min-h-11 w-fit items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-fit sm:rounded-md"
       >
         {submitting ? "Submitting..." : "Submit for review"}
       </button>

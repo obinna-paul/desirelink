@@ -229,7 +229,7 @@ export default async function EventDetailPage({
           initialMutedUserIds={mutedUserIds}
         />
       ) : (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
           <Lock className="h-6 w-6 text-neon-pink" aria-hidden="true" />
           <p className="font-medium text-foreground">Chat is for confirmed attendees</p>
           <p>RSVP as Going to join the conversation.</p>

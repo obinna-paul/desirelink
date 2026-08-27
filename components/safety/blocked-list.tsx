@@ -32,7 +32,7 @@ export function BlockedList({ initialBlocks }: { initialBlocks: BlockedProfileDa
 
   if (blocks.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+      <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
         You haven&apos;t blocked anyone.
       </div>
     );
@@ -51,7 +51,7 @@ export function BlockedList({ initialBlocks }: { initialBlocks: BlockedProfileDa
           return (
             <li
               key={blocked.id}
-              className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:rounded-lg md:shadow-none"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <Avatar className="h-10 w-10 border border-border">
@@ -69,7 +69,7 @@ export function BlockedList({ initialBlocks }: { initialBlocks: BlockedProfileDa
                 type="button"
                 size="sm"
                 variant="outline"
-                className="shrink-0"
+                className="w-full shrink-0 sm:w-auto"
                 disabled={unblockingId === blocked.id}
                 onClick={() => handleUnblock(blocked.id)}
               >

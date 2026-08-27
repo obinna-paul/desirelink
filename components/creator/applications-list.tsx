@@ -26,7 +26,7 @@ function ApplicationRow({
   const initials = application.profile.displayName.slice(0, 2).toUpperCase();
 
   return (
-    <li className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+    <li className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:rounded-lg md:shadow-none">
       <div className="flex min-w-0 items-center gap-3">
         <Avatar className="h-10 w-10 border border-border">
           <AvatarImage src={application.profile.avatarUrl} alt={application.profile.displayName} />
@@ -41,18 +41,18 @@ function ApplicationRow({
       </div>
 
       {onRespond ? (
-        <div className="flex shrink-0 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
           <Button
             type="button"
             size="sm"
             variant="outline"
-            className="text-destructive"
+            className="w-full text-destructive sm:w-auto"
             disabled={pending}
             onClick={() => onRespond("denied")}
           >
             Deny
           </Button>
-          <Button type="button" size="sm" disabled={pending} onClick={() => onRespond("approved")}>
+          <Button type="button" size="sm" className="w-full sm:w-auto" disabled={pending} onClick={() => onRespond("approved")}>
             Approve
           </Button>
         </div>
@@ -93,13 +93,13 @@ export function ApplicationsList({
   const reviewedApplications = applications.filter((app) => app.status !== "pending");
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5 md:gap-6">
       <div>
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
           Pending ({pendingApplications.length})
         </h3>
         {pendingApplications.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:shadow-none">
             No pending applications right now.
           </div>
         ) : (
@@ -118,7 +118,7 @@ export function ApplicationsList({
 
       {reviewedApplications.length > 0 && (
         <div>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
             Reviewed
           </h3>
           <ul className="flex flex-col gap-3">

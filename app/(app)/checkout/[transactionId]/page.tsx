@@ -45,8 +45,16 @@ export default async function CheckoutPage({
 
   if (transaction.event) {
     return (
-      <div className="flex flex-col gap-6">
-        <PageHeader title="Checkout" description="Mock payment — no real charge is made." />
+      <div className="flex flex-col gap-4 md:gap-6">
+        <div className="hidden md:block">
+          <PageHeader title="Checkout" description="Mock payment - no real charge is made." />
+        </div>
+        <div className="md:hidden">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+            Checkout
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">Confirm your mock payment.</p>
+        </div>
         <MockCheckout
           transactionId={transaction.id}
           status={transaction.status}
@@ -63,8 +71,16 @@ export default async function CheckoutPage({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Checkout" description="Mock payment — no real charge is made." />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader title="Checkout" description="Mock payment - no real charge is made." />
+      </div>
+      <div className="md:hidden">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+          Checkout
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Confirm your mock payment.</p>
+      </div>
       <MockCheckout
         transactionId={transaction.id}
         status={transaction.status}

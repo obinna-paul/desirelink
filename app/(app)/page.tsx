@@ -8,6 +8,7 @@ import { HomeTabs } from "@/components/home/home-tabs";
 import { ProfileGrid } from "@/components/home/profile-grid";
 import { RecommendedForYou } from "@/components/home/recommended-for-you";
 import { AvailableTonightStrip } from "@/components/home/available-tonight-strip";
+import { FeedComposer } from "@/components/posts/feed-composer";
 import { PostList } from "@/components/posts/post-list";
 import { EventGrid } from "@/components/events/event-grid";
 import { EventsTonightStrip } from "@/components/events/events-tonight-strip";
@@ -20,6 +21,7 @@ import {
 } from "@/lib/home-feed";
 import { getAvailableTonight } from "@/lib/availability";
 import { getFeedPosts } from "@/lib/posts";
+import { isProviderProfileType } from "@/lib/provider-types";
 import { getHomeUpcomingEvents, getTonightEvents } from "@/lib/events";
 import { getPersonalizedRecommendations } from "@/lib/recommendations";
 
@@ -47,7 +49,7 @@ export default async function HomePage({
 
   const viewerProfile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, locationLat: true, locationLng: true },
+    select: { id: true, displayName: true, profileType: true, locationLat: true, locationLng: true },
   });
 
   const [availableTonight, tonightEvents, recommendations] = await Promise.all([
@@ -114,6 +116,9 @@ export default async function HomePage({
         <EventsTonightStrip events={tonightEvents} />
         <RecommendedForYou recommendations={recommendations ?? []} />
         <HomeTabs activeTab={tab} />
+        {viewerProfile && isProviderProfileType(viewerProfile.profileType) && (
+          <FeedComposer displayName={viewerProfile.displayName} />
+        )}
         <PostList
           posts={posts}
           emptyMessage="No posts yet. Subscribe to creators to see their posts here."

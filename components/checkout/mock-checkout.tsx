@@ -73,8 +73,8 @@ export function MockCheckout({
   }, [status]);
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-6 rounded-xl border border-border/60 bg-card p-6">
-      <div className="flex items-center justify-between border-b border-border/60 pb-4">
+    <div className="mx-auto flex w-full max-w-md flex-col gap-5 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-6 md:rounded-xl md:shadow-none">
+      <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-4">
         <div>
           <p className="text-sm font-medium">{tierName}</p>
           <p className="text-xs text-muted-foreground">
@@ -93,13 +93,14 @@ export function MockCheckout({
               This completes automatically in a few seconds, or you can finish it now.
             </p>
           </div>
-          <div className="flex flex-wrap justify-center gap-2">
-            <Button type="button" disabled={submitting} onClick={() => resolve("checkout.completed")}>
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-center">
+            <Button type="button" className="w-full sm:w-auto" disabled={submitting} onClick={() => resolve("checkout.completed")}>
               {submitting ? "Processing..." : "Simulate Payment Success"}
             </Button>
             <Button
               type="button"
               variant="outline"
+              className="w-full sm:w-auto"
               disabled={submitting}
               onClick={() => resolve("checkout.failed")}
             >
@@ -120,9 +121,9 @@ export function MockCheckout({
                 : `You're now subscribed to ${tierName}.`}
             </p>
           </div>
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-center">
             {backHref ? (
-              <Button asChild size="sm">
+              <Button asChild size="sm" className="w-full sm:w-auto">
                 <Link href={backHref}>{backLabel}</Link>
               </Button>
             ) : (
@@ -133,7 +134,7 @@ export function MockCheckout({
               )
             )}
             {kind === "subscription" && (
-              <Button asChild size="sm" variant="outline">
+              <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
                 <Link href="/settings/subscriptions">View subscriptions</Link>
               </Button>
             )}
@@ -149,12 +150,12 @@ export function MockCheckout({
             <p className="mt-1 text-xs text-muted-foreground">No charge was made.</p>
           </div>
           {backHref ? (
-            <Button asChild size="sm" variant="outline">
+            <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
               <Link href={backHref}>Try again</Link>
             </Button>
           ) : (
             creatorUsername && (
-              <Button asChild size="sm" variant="outline">
+                <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
                 <Link href={`/profile/${creatorUsername}?section=membership`}>Try again</Link>
               </Button>
             )

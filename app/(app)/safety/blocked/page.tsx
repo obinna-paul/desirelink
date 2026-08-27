@@ -26,11 +26,19 @@ export default async function BlockedUsersPage() {
   const blocks = await getBlockedProfiles(viewerProfile.id);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Blocked users"
-        description="They can't message you, see your profile, or follow you while blocked."
-      />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="hidden md:block">
+        <PageHeader
+          title="Blocked users"
+          description="They can't message you, see your profile, or follow you while blocked."
+        />
+      </div>
+      <div className="md:hidden">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+          Blocked users
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Manage who cannot contact or view you.</p>
+      </div>
       <BlockedList initialBlocks={blocks} />
     </div>
   );
