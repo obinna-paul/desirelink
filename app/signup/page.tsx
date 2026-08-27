@@ -323,7 +323,7 @@ export default function SignupPage() {
                   <Button
                     type="button"
                     onClick={goNext}
-                    className="h-12 w-full rounded-xl bg-[#e91e8f] px-6 text-white shadow-[0_14px_30px_rgba(233,30,143,0.24)] hover:bg-[#c81779] sm:w-auto sm:rounded-lg"
+                    className="h-12 w-full rounded-xl bg-[#050505] px-6 text-white shadow-[0_14px_30px_rgba(5,5,5,0.18)] hover:bg-[#1b1b1b] sm:w-auto sm:rounded-lg"
                   >
                     Continue <ChevronRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
@@ -331,7 +331,7 @@ export default function SignupPage() {
                   <Button
                     type="submit"
                     disabled={status !== "idle"}
-                    className="h-12 w-full rounded-xl bg-[#e91e8f] px-6 text-white shadow-[0_14px_30px_rgba(233,30,143,0.24)] hover:bg-[#c81779] sm:w-auto sm:rounded-lg"
+                    className="h-12 w-full rounded-xl bg-[#050505] px-6 text-white shadow-[0_14px_30px_rgba(5,5,5,0.18)] hover:bg-[#1b1b1b] sm:w-auto sm:rounded-lg"
                   >
                     {status === "submitting" && "Creating account..."}
                     {status === "success" && "Success! Logging you in..."}

@@ -79,7 +79,7 @@ export function LoginForm() {
         <Button
           type="submit"
           disabled={status !== "idle"}
-          className="h-[52px] rounded-xl bg-[#e91e8f] text-base text-white shadow-[0_14px_30px_rgba(233,30,143,0.24)] hover:bg-[#c81779] sm:h-12 sm:rounded-lg sm:text-sm"
+          className="h-[52px] rounded-xl bg-[#050505] text-base text-white shadow-[0_14px_30px_rgba(5,5,5,0.18)] hover:bg-[#1b1b1b] sm:h-12 sm:rounded-lg sm:text-sm"
         >
           {status === "loading" && "Logging in..."}
           {status === "success" && "Success! Redirecting..."}
