@@ -63,7 +63,7 @@ export function ReviewDialog({
     event.preventDefault();
     const selected = contexts.find((c) => contextKey(c) === selectedKey);
     if (!selected) {
-      setError("Choose what you're reviewing");
+      setError("Choose what you are reviewing");
       return;
     }
 

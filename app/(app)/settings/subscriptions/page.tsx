@@ -28,7 +28,7 @@ export default async function SubscriptionsSettingsPage() {
       <div className="hidden md:block">
         <PageHeader
           title="Subscriptions"
-          description="Manage the creators you're subscribed to."
+          description="Manage the creators you support."
         />
       </div>
       <div className="md:hidden">

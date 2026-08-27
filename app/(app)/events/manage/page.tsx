@@ -35,13 +35,13 @@ export default async function ManageEventsPage() {
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <div className="hidden md:block">
-        <PageHeader title="Manage events" description="Events you're hosting." />
+        <PageHeader title="Manage events" description="Events you are hosting." />
       </div>
       <div className="md:hidden">
         <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
           Manage events
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Events you're hosting.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Events you are hosting.</p>
       </div>
       <Button asChild className="w-full gap-1.5 md:w-fit">
         <Link href="/events/new">

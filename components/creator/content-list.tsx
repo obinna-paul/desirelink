@@ -24,7 +24,7 @@ export function ContentList({
       <PostList
         posts={posts}
         showAuthor={false}
-        emptyMessage="You haven't published anything yet."
+        emptyMessage="You have not published anything yet."
       />
     </div>
   );

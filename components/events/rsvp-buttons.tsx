@@ -11,7 +11,7 @@ import type { RsvpAction } from "@/lib/rsvp";
 const OPTIONS: { value: RsvpAction; label: string; icon: typeof Check }[] = [
   { value: "going", label: "Going", icon: Check },
   { value: "interested", label: "Interested", icon: HelpCircle },
-  { value: "not_going", label: "Can't Go", icon: X },
+  { value: "not_going", label: "Cannot Go", icon: X },
 ];
 
 export function RsvpButtons({

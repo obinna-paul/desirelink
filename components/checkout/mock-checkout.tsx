@@ -117,8 +117,8 @@ export function MockCheckout({
             <p className="text-sm font-medium">Payment complete</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {kind === "event"
-                ? `You're going to ${tierName}.`
-                : `You're now subscribed to ${tierName}.`}
+                ? `You are going to ${tierName}.`
+                : `You are now subscribed to ${tierName}.`}
             </p>
           </div>
           <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-center">

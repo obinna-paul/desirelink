@@ -238,7 +238,7 @@ export function ProfileView({
         <PostList
           posts={posts}
           showAuthor={false}
-          emptyMessage={isOwner ? "You haven't published anything yet." : "No posts yet."}
+          emptyMessage={isOwner ? "You have not published anything yet." : "No posts yet."}
         />
       ) : (
         <>

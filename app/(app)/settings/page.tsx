@@ -19,7 +19,7 @@ const SETTINGS_LINKS = [
   {
     href: "/settings/subscriptions",
     label: "Subscriptions",
-    description: "Manage the creators you're subscribed to and cancel anytime.",
+    description: "Manage the creators you support and cancel anytime.",
     icon: CreditCard,
   },
   {

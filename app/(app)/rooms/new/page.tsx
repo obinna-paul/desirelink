@@ -14,7 +14,7 @@ export default async function NewRoomPage() {
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <div className="hidden md:block">
-        <PageHeader title="Create a room" description="Start a community around something you're into." />
+        <PageHeader title="Create a room" description="Start a community around your interests." />
       </div>
       <div className="md:hidden">
         <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">

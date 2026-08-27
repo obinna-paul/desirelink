@@ -16,7 +16,7 @@ export function EventManageList({ initialEvents }: { initialEvents: Event[] }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function handleDelete(id: string) {
-    if (!window.confirm("Delete this event? This can't be undone.")) return;
+    if (!window.confirm("Delete this event? This cannot be undone.")) return;
 
     setDeletingId(id);
     const res = await fetch(`/api/events/${id}`, { method: "DELETE" });

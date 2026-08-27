@@ -38,7 +38,7 @@ export async function RightRail() {
 
   return (
     <aside
-      aria-label="Who's around"
+      aria-label="People nearby"
       className="sticky top-16 hidden h-[calc(100vh-4rem)] w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border/60 px-5 py-6 xl:flex"
     >
       {viewerProfile && <ProfileSetupActions profile={viewerProfile} />}

@@ -129,7 +129,7 @@ function ServiceListingForm({
           className="resize-none rounded-2xl md:rounded-md"
           value={form.description}
           onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-          placeholder="What's included in this service"
+          placeholder="What is included in this service"
         />
       </div>
 

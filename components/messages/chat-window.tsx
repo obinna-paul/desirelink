@@ -280,7 +280,7 @@ export function ChatWindow({
             }}
             placeholder={
               blocked
-                ? "You can't message this user"
+                ? "You cannot message this user"
                 : isNewConversation && !reason
                   ? "Pick a reason above to get started"
                   : "Write a message..."

@@ -87,7 +87,7 @@ export default async function HomePage({
         <div className="hidden md:block">
           <PageHeader
             title="Home"
-            description="Browse profiles across udala, filtered by what you're into right now."
+            description="Browse profiles across udala, filtered by your current interests."
           />
         </div>
         <AvailableTonightStrip items={availableTonight} />
@@ -109,7 +109,7 @@ export default async function HomePage({
         <div className="hidden md:block">
           <PageHeader
             title="Home"
-            description="Browse profiles across udala, filtered by what you're into right now."
+            description="Browse profiles across udala, filtered by your current interests."
           />
         </div>
         <AvailableTonightStrip items={availableTonight} />
@@ -134,7 +134,7 @@ export default async function HomePage({
       <div className="hidden md:block">
         <PageHeader
           title="Home"
-          description="Browse profiles across udala, filtered by what you're into right now."
+          description="Browse profiles across udala, filtered by your current interests."
         />
       </div>
       <AvailableTonightStrip items={availableTonight} />

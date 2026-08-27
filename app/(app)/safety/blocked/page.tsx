@@ -30,7 +30,7 @@ export default async function BlockedUsersPage() {
       <div className="hidden md:block">
         <PageHeader
           title="Blocked users"
-          description="They can't message you, see your profile, or follow you while blocked."
+          description="They cannot message you, see your profile, or follow you while blocked."
         />
       </div>
       <div className="md:hidden">
