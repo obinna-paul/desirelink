@@ -3,20 +3,14 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const HOME_TABS = [
-  { value: "browse", label: "Browse" },
   { value: "feed", label: "Feed" },
-  { value: "chat", label: "Chat" },
-  { value: "flirt", label: "Flirt" },
-  { value: "meet", label: "Meet" },
   { value: "events", label: "Events" },
-  { value: "creators", label: "Creators" },
-  { value: "couples", label: "Couples" },
-  { value: "explore", label: "Explore" },
+  { value: "services", label: "Services" },
 ] as const;
 
 export type HomeTabValue = (typeof HOME_TABS)[number]["value"];
 
-export const DEFAULT_HOME_TAB: HomeTabValue = "browse";
+export const DEFAULT_HOME_TAB: HomeTabValue = "feed";
 
 export function isHomeTabValue(value: string | undefined): value is HomeTabValue {
   return HOME_TABS.some((tab) => tab.value === value);
@@ -99,7 +93,7 @@ export type HomeFeedResult = {
 };
 
 export async function getHomeFeed(
-  tab: HomeTabValue,
+  tab: string,
   viewerProfile: ViewerProfile | null
 ): Promise<HomeFeedResult> {
   const visible: Prisma.ProfileWhereInput = { isIncognito: false };

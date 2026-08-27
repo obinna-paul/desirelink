@@ -184,6 +184,7 @@ export function DiscoverFiltersPanel({
 
   function applyFilters() {
     const params = new URLSearchParams();
+    if (initialFilters.query) params.set("q", initialFilters.query);
     genders.forEach((value) => params.append("gender", value));
     orientations.forEach((value) => params.append("orientation", value));
     if (isPremium) {

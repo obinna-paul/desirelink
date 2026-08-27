@@ -35,6 +35,7 @@ export default async function DiscoverPage({
   const { profiles, note } = await searchDiscoverProfiles(filters, viewerProfile, viewerIsPremium);
 
   const activeFilterCount =
+    (filters.query ? 1 : 0) +
     filters.genders.length +
     filters.orientations.length +
     (filters.radiusKm !== DEFAULT_RADIUS_KM ? 1 : 0) +
@@ -60,7 +61,9 @@ export default async function DiscoverPage({
 
       <div className="md:hidden">
         <h1 className="font-heading text-2xl font-semibold tracking-tight">Discover</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Find people nearby with the right signals.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {filters.query ? `Results for "${filters.query}"` : "Find people nearby with the right signals."}
+        </p>
       </div>
 
       <DiscoverFiltersPanel initialFilters={filters} isPremium={viewerIsPremium} />
@@ -68,7 +71,7 @@ export default async function DiscoverPage({
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/60 bg-card px-4 py-3 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:px-0 md:py-0 md:shadow-none">
         <p className="text-sm text-muted-foreground">
           <span className="font-semibold text-foreground">{profiles.length}</span>{" "}
-          {profiles.length === 1 ? "profile matches" : "profiles match"} your filters
+          {profiles.length === 1 ? "profile matches" : "profiles match"} {filters.query ? "your search" : "your filters"}
           {activeFilterCount > 0 && ` (${activeFilterCount} applied)`}
         </p>
       </div>

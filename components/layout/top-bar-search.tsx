@@ -1,25 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 export function TopBarSearch({ className }: { className?: string }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [value, setValue] = useState(searchParams.get("q") ?? "");
+
+  if (pathname !== "/discover") {
+    return null;
+  }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     const trimmed = value.trim();
-    router.push(trimmed ? `/?q=${encodeURIComponent(trimmed)}` : "/");
+    router.push(trimmed ? `/discover?q=${encodeURIComponent(trimmed)}` : "/discover");
   }
 
   function handleClear() {
     setValue("");
-    router.push("/");
+    router.push("/discover");
   }
 
   return (

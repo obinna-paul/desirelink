@@ -387,6 +387,27 @@ export async function getFeedPosts(viewerProfileId: string | null): Promise<Post
   );
 }
 
+export async function getPublicFeedPosts(viewerProfileId: string | null): Promise<PostView[]> {
+  const posts = await prisma.post.findMany({
+    where: {
+      isSubscriberOnly: false,
+      author: {
+        isIncognito: false,
+        isSuspended: false,
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: FEED_LIMIT,
+    select: postSelect(viewerProfileId),
+  });
+
+  return applyProviderContentLimits(
+    posts,
+    viewerProfileId,
+    (post) => post.author.id === viewerProfileId || !post.isSubscriberOnly
+  );
+}
+
 export async function getPostByIdForViewer(
   postId: string,
   viewerProfileId: string | null

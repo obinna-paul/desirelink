@@ -73,6 +73,7 @@ export const VERIFICATION_FILTER_OPTIONS = [
 export type VerificationFilterValue = (typeof VERIFICATION_FILTER_OPTIONS)[number]["value"];
 
 export type DiscoverFilters = {
+  query: string;
   genders: string[];
   orientations: string[];
   accountTypes: ProfileType[];
@@ -107,6 +108,7 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
   const verificationParam = toSingle(searchParams.verification);
 
   return {
+    query: toSingle(searchParams.q)?.trim() ?? "",
     genders: toArray(searchParams.gender),
     orientations: toArray(searchParams.orientation),
     accountTypes: toArray(searchParams.accountType).filter((value): value is ProfileType =>
@@ -177,6 +179,15 @@ function buildWhere(
 
   if (viewerProfile) {
     where.NOT = { id: viewerProfile.id };
+  }
+
+  if (filters.query) {
+    and.push({
+      OR: [
+        { username: { contains: filters.query, mode: "insensitive" } },
+        { displayName: { contains: filters.query, mode: "insensitive" } },
+      ],
+    });
   }
 
   if (filters.genders.length > 0) {
