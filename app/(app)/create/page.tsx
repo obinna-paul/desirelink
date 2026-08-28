@@ -75,20 +75,62 @@ function isCreateType(value: string | undefined): value is CreateType {
 function CreateOptionCard({
   option,
   activeType,
+  layout = "mobile",
 }: {
   option: (typeof createOptions)[number];
   activeType: CreateType;
+  layout?: "desktop" | "mobile";
 }) {
   const Icon = option.icon;
   const isActive = option.type === activeType;
+
+  if (layout === "desktop" && !option.primary) {
+    return (
+      <Link
+        href={option.href}
+        aria-current={isActive ? "page" : undefined}
+        className={cn(
+          "group flex min-h-[104px] items-center gap-4 rounded-2xl border p-4 transition-[background,border-color,box-shadow,transform] hover:-translate-y-0.5",
+          isActive
+            ? "border-foreground bg-foreground text-background shadow-lift"
+            : "border-border/70 bg-card text-foreground shadow-sm hover:border-primary/35 hover:shadow-lift"
+        )}
+      >
+        <span
+          className={cn(
+            "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border",
+            isActive
+              ? "border-background/20 bg-background/10"
+              : "border-border/70 bg-secondary text-primary"
+          )}
+        >
+          <Icon className="h-5 w-5" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-heading text-xl font-semibold tracking-tight">{option.label}</span>
+          <span className={cn("mt-1 block text-sm leading-5", isActive ? "text-background/72" : "text-muted-foreground")}>
+            {option.description}
+          </span>
+        </span>
+        <span
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-transform group-hover:translate-x-0.5",
+            isActive ? "bg-background/15" : "bg-secondary text-muted-foreground"
+          )}
+        >
+          <ArrowRight className="h-4 w-4" aria-hidden />
+        </span>
+      </Link>
+    );
+  }
 
   return (
     <Link
       href={option.href}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "group relative flex min-h-[132px] overflow-hidden rounded-[22px] border p-4 transition-[background,border-color,box-shadow,transform] hover:-translate-y-0.5 md:rounded-2xl",
-        option.primary ? "md:col-span-5 lg:col-span-6 xl:col-span-5" : "md:col-span-3 lg:col-span-2 xl:col-span-1",
+        "group relative flex overflow-hidden rounded-[22px] border p-4 transition-[background,border-color,box-shadow,transform] hover:-translate-y-0.5 md:rounded-2xl",
+        layout === "desktop" ? "min-h-[332px] p-6" : "min-h-[132px]",
         isActive
           ? option.primary
             ? "border-transparent bg-[linear-gradient(135deg,hsl(276_72%_45%),hsl(335_70%_48%),hsl(24_90%_56%))] text-white shadow-lift"
@@ -131,12 +173,13 @@ function CreateOptionCard({
         </span>
 
         <span className="block min-w-0">
-          <span className={cn("block font-heading text-2xl font-semibold", option.primary ? "md:text-3xl" : "")}>
+          <span className={cn("block font-heading text-2xl font-semibold", layout === "desktop" ? "md:text-4xl" : "")}>
             {option.label}
           </span>
           <span
             className={cn(
               "mt-2 block max-w-md text-sm leading-6",
+              layout === "desktop" && "text-base leading-7",
               isActive ? (option.primary ? "text-white/86" : "text-background/75") : "text-muted-foreground"
             )}
           >
@@ -234,16 +277,19 @@ export default async function CreatePage({
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-5 lg:grid-cols-12 xl:grid-cols-8">
-          {createOptions.map((option) => (
-            <CreateOptionCard key={option.type} option={option} activeType={activeType} />
-          ))}
+        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+          <CreateOptionCard option={createOptions[0]} activeType={activeType} layout="desktop" />
+          <div className="grid gap-3">
+            {createOptions.slice(1).map((option) => (
+              <CreateOptionCard key={option.type} option={option} activeType={activeType} layout="desktop" />
+            ))}
+          </div>
         </div>
       </section>
 
       <section aria-label="Creation type" className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:hidden">
         {createOptions.map((option) => (
-          <CreateOptionCard key={option.type} option={option} activeType={activeType} />
+          <CreateOptionCard key={option.type} option={option} activeType={activeType} layout="mobile" />
         ))}
       </section>
 
