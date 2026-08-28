@@ -1,5 +1,7 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 import { PREMIUM_SUBSCRIPTION_PRICE_CENTS } from "@/lib/premium";
@@ -97,17 +99,45 @@ export type BillingOverview = {
   transactions: { id: string; amountCents: number; status: string; createdAt: Date; description: string }[];
 };
 
+function isMissingSchemaError(error: unknown, tableName: string): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2021" || error.code === "P2022") &&
+    String(error.meta?.table ?? error.meta?.column ?? "").includes(tableName)
+  );
+}
+
+const providerSubscriptionInclude = {
+  provider: { select: { username: true, displayName: true } },
+  tier: { select: { name: true } },
+} satisfies Prisma.ProviderSubscriptionInclude;
+
+type BillingProviderSubscription = Prisma.ProviderSubscriptionGetPayload<{
+  include: typeof providerSubscriptionInclude;
+}>;
+
+async function getActiveProviderSubscriptionsForBilling(
+  profileId: string
+): Promise<BillingProviderSubscription[]> {
+  try {
+    return await prisma.providerSubscription.findMany({
+      where: { subscriberId: profileId, status: { in: ["active", "past_due"] } },
+      include: providerSubscriptionInclude,
+      orderBy: { startsAt: "desc" },
+    });
+  } catch (error) {
+    if (isMissingSchemaError(error, "ProviderSubscription")) {
+      console.warn("Billing provider subscriptions are unavailable until ProviderSubscription migrations are applied.");
+      return [];
+    }
+    throw error;
+  }
+}
+
 export async function getBillingOverview(profileId: string): Promise<BillingOverview> {
   const [premium, providerSubs, paymentMethods, transactions] = await Promise.all([
     prisma.premiumSubscription.findUnique({ where: { userId: profileId } }),
-    prisma.providerSubscription.findMany({
-      where: { subscriberId: profileId, status: { in: ["active", "past_due"] } },
-      include: {
-        provider: { select: { username: true, displayName: true } },
-        tier: { select: { name: true } },
-      },
-      orderBy: { startsAt: "desc" },
-    }),
+    getActiveProviderSubscriptionsForBilling(profileId),
     getPaymentMethods(profileId),
     prisma.transaction.findMany({
       where: { userId: profileId },
