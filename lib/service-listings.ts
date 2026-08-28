@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import type { ServiceListingInput } from "@/lib/validations/service-listing";
@@ -33,18 +33,29 @@ export type HomeServiceListingView = Prisma.ServiceListingGetPayload<{
 }>;
 
 export async function getHomeServiceListings(limit = 24): Promise<HomeServiceListingView[]> {
-  return prisma.serviceListing.findMany({
-    where: {
-      provider: {
-        profileType: "SERVICE_PROVIDER",
-        isIncognito: false,
-        isSuspended: false,
+  try {
+    return await prisma.serviceListing.findMany({
+      where: {
+        provider: {
+          profileType: "SERVICE_PROVIDER",
+          isIncognito: false,
+          isSuspended: false,
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-    take: limit,
-    include: homeServiceListingInclude,
-  });
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      include: homeServiceListingInclude,
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2021" || error.code === "P2022")
+    ) {
+      console.warn("Home service listings are unavailable until service listing migrations are applied.");
+      return [];
+    }
+    throw error;
+  }
 }
 
 export async function createServiceListing(providerId: string, input: ServiceListingInput) {

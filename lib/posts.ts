@@ -1,4 +1,4 @@
-import type { ProfileType, RsvpStatus } from "@prisma/client";
+import { Prisma, type ProfileType, type RsvpStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import {
@@ -12,6 +12,13 @@ import type { PostMediaItem } from "@/lib/post-shared";
 
 const FEED_LIMIT = 30;
 const PROFILE_POSTS_LIMIT = 50;
+
+function isMissingSchemaError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2021" || error.code === "P2022")
+  );
+}
 
 const postAuthorSelect = {
   id: true,
@@ -388,24 +395,32 @@ export async function getFeedPosts(viewerProfileId: string | null): Promise<Post
 }
 
 export async function getPublicFeedPosts(viewerProfileId: string | null): Promise<PostView[]> {
-  const posts = await prisma.post.findMany({
-    where: {
-      isSubscriberOnly: false,
-      author: {
-        isIncognito: false,
-        isSuspended: false,
+  try {
+    const posts = await prisma.post.findMany({
+      where: {
+        isSubscriberOnly: false,
+        author: {
+          isIncognito: false,
+          isSuspended: false,
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-    take: FEED_LIMIT,
-    select: postSelect(viewerProfileId),
-  });
+      orderBy: { createdAt: "desc" },
+      take: FEED_LIMIT,
+      select: postSelect(viewerProfileId),
+    });
 
-  return applyProviderContentLimits(
-    posts,
-    viewerProfileId,
-    (post) => post.author.id === viewerProfileId || !post.isSubscriberOnly
-  );
+    return applyProviderContentLimits(
+      posts,
+      viewerProfileId,
+      (post) => post.author.id === viewerProfileId || !post.isSubscriberOnly
+    );
+  } catch (error) {
+    if (isMissingSchemaError(error)) {
+      console.warn("Home public feed is unavailable until feed interaction migrations are applied.");
+      return [];
+    }
+    throw error;
+  }
 }
 
 export async function getPostByIdForViewer(
