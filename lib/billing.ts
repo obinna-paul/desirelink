@@ -27,16 +27,24 @@ export type PaymentMethodView = {
 };
 
 export async function getPaymentMethods(profileId: string): Promise<PaymentMethodView[]> {
-  const methods = await prisma.paymentMethod.findMany({ where: { userId: profileId }, orderBy: { createdAt: "asc" } });
-  return methods.map((method) => ({
-    id: method.id,
-    brand: method.brand,
-    last4: method.last4,
-    expMonth: method.expMonth,
-    expYear: method.expYear,
-    country: method.country,
-    isDefault: method.isDefault,
-  }));
+  try {
+    const methods = await prisma.paymentMethod.findMany({ where: { userId: profileId }, orderBy: { createdAt: "asc" } });
+    return methods.map((method) => ({
+      id: method.id,
+      brand: method.brand,
+      last4: method.last4,
+      expMonth: method.expMonth,
+      expYear: method.expYear,
+      country: method.country,
+      isDefault: method.isDefault,
+    }));
+  } catch (error) {
+    if (isMissingSchemaError(error, "PaymentMethod")) {
+      console.warn("Billing payment methods are unavailable until PaymentMethod migrations are applied.");
+      return [];
+    }
+    throw error;
+  }
 }
 
 export type RemoveCardResult = { ok: true } | { ok: false; status: number; error: string };
