@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { createCheckoutSession } from "@/lib/legacy-checkout";
 
@@ -22,6 +24,14 @@ export type PublicTierView = {
   viewerState: TierViewerState;
 };
 
+function isMissingSchemaError(error: unknown, tableName: string): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2021" || error.code === "P2022") &&
+    String(error.meta?.table ?? error.meta?.column ?? "").includes(tableName)
+  );
+}
+
 export async function getPublicTiers(
   creatorProfileId: string,
   viewerProfileId: string | null
@@ -33,7 +43,6 @@ export async function getPublicTiers(
       _count: {
         select: {
           subscriptions: { where: { status: "active" } },
-          providerSubscriptions: { where: { status: "active", endsAt: { gt: new Date() } } },
         },
       },
     },
@@ -41,6 +50,24 @@ export async function getPublicTiers(
 
   const isOwner = viewerProfileId === creatorProfileId;
   const tierIds = tiers.map((tier) => tier.id);
+  const now = new Date();
+  let providerSubscriberCounts = new Map<string, number>();
+
+  if (tierIds.length > 0) {
+    try {
+      const counts = await prisma.providerSubscription.groupBy({
+        by: ["tierId"],
+        where: { tierId: { in: tierIds }, status: "active", endsAt: { gt: now } },
+        _count: { _all: true },
+      });
+      providerSubscriberCounts = new Map(counts.map((count) => [count.tierId, count._count._all]));
+    } catch (error) {
+      if (!isMissingSchemaError(error, "ProviderSubscription")) {
+        throw error;
+      }
+      console.warn("Provider tier counts are unavailable until ProviderSubscription migrations are applied.");
+    }
+  }
 
   const [subscriptions, providerSubscriptions, applications] =
     !isOwner && viewerProfileId
@@ -54,15 +81,7 @@ export async function getPublicTiers(
             },
             select: { tierId: true },
           }),
-          prisma.providerSubscription.findMany({
-            where: {
-              subscriberId: viewerProfileId,
-              tierId: { in: tierIds },
-              status: "active",
-              endsAt: { gt: new Date() },
-            },
-            select: { tierId: true },
-          }),
+          getViewerProviderSubscriptions(viewerProfileId, tierIds),
           prisma.accessApplication.findMany({
             where: { userId: viewerProfileId, tierId: { in: tierIds } },
             select: { tierId: true, status: true },
@@ -77,7 +96,7 @@ export async function getPublicTiers(
   const applicationByTier = new Map(applications.map((app) => [app.tierId, app.status]));
 
   return tiers.map((tier) => {
-    const subscriberCount = tier._count.subscriptions + tier._count.providerSubscriptions;
+    const subscriberCount = tier._count.subscriptions + (providerSubscriberCounts.get(tier.id) ?? 0);
     const isFull = Boolean(tier.maxSubscribers && subscriberCount >= tier.maxSubscribers);
 
     let viewerState: TierViewerState;
@@ -109,6 +128,26 @@ export async function getPublicTiers(
       viewerState,
     };
   });
+}
+
+async function getViewerProviderSubscriptions(viewerProfileId: string, tierIds: string[]) {
+  try {
+    return await prisma.providerSubscription.findMany({
+      where: {
+        subscriberId: viewerProfileId,
+        tierId: { in: tierIds },
+        status: "active",
+        endsAt: { gt: new Date() },
+      },
+      select: { tierId: true },
+    });
+  } catch (error) {
+    if (isMissingSchemaError(error, "ProviderSubscription")) {
+      console.warn("Viewer provider subscriptions are unavailable until ProviderSubscription migrations are applied.");
+      return [];
+    }
+    throw error;
+  }
 }
 
 async function hasActiveSubscription(subscriberId: string, tierId: string): Promise<boolean> {

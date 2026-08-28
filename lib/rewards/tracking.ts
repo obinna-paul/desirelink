@@ -1,12 +1,29 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { isPremiumUser } from "@/lib/premium";
 import { METRIC_TYPES } from "./points";
 
+function isMissingSchemaError(error: unknown, tableName: string): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2021" || error.code === "P2022") &&
+    String(error.meta?.table ?? error.meta?.column ?? "").includes(tableName)
+  );
+}
+
 async function recordEngagement(providerId: string, userId: string, metricType: string): Promise<void> {
   if (providerId === userId) return;
-  await prisma.engagementMetric.create({ data: { providerId, userId, metricType, value: 1 } });
+  try {
+    await prisma.engagementMetric.create({ data: { providerId, userId, metricType, value: 1 } });
+  } catch (error) {
+    if (!isMissingSchemaError(error, "EngagementMetric")) {
+      throw error;
+    }
+    console.warn("Reward engagement tracking is unavailable until EngagementMetric migrations are applied.");
+  }
 }
 
 /** Engagement metrics only count points when they come from a premium user (see METRIC_TYPES / points.ts). */
@@ -64,10 +81,7 @@ export async function recordMonthStartRetentionSnapshot(): Promise<void> {
   const now = new Date();
 
   const [tierSubs, legacySubs] = await Promise.all([
-    prisma.providerSubscription.findMany({
-      where: { status: "active", endsAt: { gt: now } },
-      select: { providerId: true, subscriberId: true },
-    }),
+    getActiveProviderSubscriptionsForRetention(now),
     prisma.subscription.findMany({
       where: { status: "active", endsAt: { gt: now } },
       select: { creatorId: true, subscriberId: true },
@@ -80,4 +94,19 @@ export async function recordMonthStartRetentionSnapshot(): Promise<void> {
   ];
 
   await Promise.all(pairs.map((pair) => trackSubscriberRetention(pair.providerId, pair.subscriberId)));
+}
+
+async function getActiveProviderSubscriptionsForRetention(now: Date) {
+  try {
+    return await prisma.providerSubscription.findMany({
+      where: { status: "active", endsAt: { gt: now } },
+      select: { providerId: true, subscriberId: true },
+    });
+  } catch (error) {
+    if (isMissingSchemaError(error, "ProviderSubscription")) {
+      console.warn("Provider retention snapshot is unavailable until ProviderSubscription migrations are applied.");
+      return [];
+    }
+    throw error;
+  }
 }

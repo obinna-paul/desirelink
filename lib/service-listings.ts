@@ -4,10 +4,21 @@ import { prisma } from "@/lib/prisma";
 import type { ServiceListingInput } from "@/lib/validations/service-listing";
 
 export async function getProviderServiceListings(providerId: string) {
-  return prisma.serviceListing.findMany({
-    where: { providerId },
-    orderBy: { createdAt: "asc" },
-  });
+  try {
+    return await prisma.serviceListing.findMany({
+      where: { providerId },
+      orderBy: { createdAt: "asc" },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2021" || error.code === "P2022")
+    ) {
+      console.warn("Provider service listings are unavailable until ServiceListing migrations are applied.");
+      return [];
+    }
+    throw error;
+  }
 }
 
 export type ServiceListingView = Awaited<ReturnType<typeof getProviderServiceListings>>[number];

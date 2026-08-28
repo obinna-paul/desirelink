@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { ProfileType } from "@prisma/client";
+import { Prisma, type ProfileType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { METRIC_TYPES } from "@/lib/rewards/points";
@@ -54,18 +54,46 @@ const MONETIZATION_REQUIREMENTS: Record<"CREATOR" | "PAIR" | "SERVICE_PROVIDER",
   },
 };
 
+function isMissingSchemaError(error: unknown, tableName: string): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2021" || error.code === "P2022") &&
+    String(error.meta?.table ?? error.meta?.column ?? "").includes(tableName)
+  );
+}
+
 async function getFanCount(providerId: string): Promise<number> {
   const now = new Date();
-  const [tierFans, legacyFans] = await Promise.all([
-    prisma.providerSubscription.count({ where: { providerId, status: "active", endsAt: { gt: now } } }),
-    prisma.subscription.count({ where: { creatorId: providerId, status: "active", endsAt: { gt: now } } }),
-  ]);
+  const legacyFans = await prisma.subscription.count({
+    where: { creatorId: providerId, status: "active", endsAt: { gt: now } },
+  });
+  let tierFans = 0;
+
+  try {
+    tierFans = await prisma.providerSubscription.count({
+      where: { providerId, status: "active", endsAt: { gt: now } },
+    });
+  } catch (error) {
+    if (!isMissingSchemaError(error, "ProviderSubscription")) {
+      throw error;
+    }
+    console.warn("Provider fan count is unavailable until ProviderSubscription migrations are applied.");
+  }
+
   return tierFans + legacyFans;
 }
 
 async function getContentCount(providerId: string, profileType: ProfileType): Promise<number> {
   if (profileType === "SERVICE_PROVIDER") {
-    return prisma.serviceListing.count({ where: { providerId } });
+    try {
+      return await prisma.serviceListing.count({ where: { providerId } });
+    } catch (error) {
+      if (!isMissingSchemaError(error, "ServiceListing")) {
+        throw error;
+      }
+      console.warn("Service listing count is unavailable until ServiceListing migrations are applied.");
+      return 0;
+    }
   }
   return prisma.post.count({ where: { authorId: providerId } });
 }
@@ -81,11 +109,19 @@ async function getContentCount(providerId: string, profileType: ProfileType): Pr
  */
 async function getActivityScore(providerId: string, windowDays: number): Promise<number> {
   const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
-  const result = await prisma.engagementMetric.aggregate({
-    where: { providerId, createdAt: { gte: since }, metricType: { not: METRIC_TYPES.SUBSCRIBER_RETENTION } },
-    _sum: { value: true },
-  });
-  return result._sum.value ?? 0;
+  try {
+    const result = await prisma.engagementMetric.aggregate({
+      where: { providerId, createdAt: { gte: since }, metricType: { not: METRIC_TYPES.SUBSCRIBER_RETENTION } },
+      _sum: { value: true },
+    });
+    return result._sum.value ?? 0;
+  } catch (error) {
+    if (!isMissingSchemaError(error, "EngagementMetric")) {
+      throw error;
+    }
+    console.warn("Provider activity score is unavailable until EngagementMetric migrations are applied.");
+    return 0;
+  }
 }
 
 export type MonetizationRequirement =
