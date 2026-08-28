@@ -1,5 +1,7 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 
@@ -13,6 +15,33 @@ export const PROVIDER_POST_VIEW_METRIC_PREFIX = "provider_post_view:";
 export const PROFILE_VISITOR_METRIC_TYPE = "visitor_profile_view";
 
 const PREMIUM_LENGTH_MONTHS = 1;
+const profileViewerInclude = {
+  user: {
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      avatarUrl: true,
+      city: true,
+      country: true,
+      profileType: true,
+      isVerified: true,
+      isTrustedMember: true,
+    },
+  },
+} satisfies Prisma.EngagementMetricInclude;
+
+type ProfileViewerMetric = Prisma.EngagementMetricGetPayload<{
+  include: typeof profileViewerInclude;
+}>;
+
+function isMissingEngagementMetricSchema(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2021" || error.code === "P2022") &&
+    String(error.meta?.table ?? error.meta?.column ?? "").includes("EngagementMetric")
+  );
+}
 
 function startOfToday() {
   const date = new Date();
@@ -165,14 +194,23 @@ export async function canJoinPublicRoomWithPremium(profileId: string) {
 }
 
 export async function getDailyProviderPostUsage(profileId: string) {
-  const metrics = await prisma.engagementMetric.findMany({
-    where: {
-      userId: profileId,
-      metricType: { startsWith: PROVIDER_POST_VIEW_METRIC_PREFIX },
-      createdAt: { gte: startOfToday() },
-    },
-    select: { metricType: true },
-  });
+  let metrics: { metricType: string }[] = [];
+
+  try {
+    metrics = await prisma.engagementMetric.findMany({
+      where: {
+        userId: profileId,
+        metricType: { startsWith: PROVIDER_POST_VIEW_METRIC_PREFIX },
+        createdAt: { gte: startOfToday() },
+      },
+      select: { metricType: true },
+    });
+  } catch (error) {
+    if (!isMissingEngagementMetricSchema(error)) {
+      throw error;
+    }
+    console.warn("Provider post usage is unavailable until EngagementMetric migrations are applied.");
+  }
 
   const viewedPostIds = new Set(
     metrics
@@ -192,20 +230,27 @@ export async function recordProviderPostView(providerId: string, viewerProfileId
   if (providerId === viewerProfileId) return;
 
   const metricType = `${PROVIDER_POST_VIEW_METRIC_PREFIX}${postId}`;
-  const existing = await prisma.engagementMetric.findFirst({
-    where: {
-      providerId,
-      userId: viewerProfileId,
-      metricType,
-      createdAt: { gte: startOfToday() },
-    },
-    select: { id: true },
-  });
-
-  if (!existing) {
-    await prisma.engagementMetric.create({
-      data: { providerId, userId: viewerProfileId, metricType, value: 1 },
+  try {
+    const existing = await prisma.engagementMetric.findFirst({
+      where: {
+        providerId,
+        userId: viewerProfileId,
+        metricType,
+        createdAt: { gte: startOfToday() },
+      },
+      select: { id: true },
     });
+
+    if (!existing) {
+      await prisma.engagementMetric.create({
+        data: { providerId, userId: viewerProfileId, metricType, value: 1 },
+      });
+    }
+  } catch (error) {
+    if (!isMissingEngagementMetricSchema(error)) {
+      throw error;
+    }
+    console.warn("Provider post view tracking is unavailable until EngagementMetric migrations are applied.");
   }
 }
 
@@ -221,41 +266,44 @@ export async function recordProfileVisit(
   if (!viewer || viewer.id === profileId) return;
 
   const hideViewer = viewer.isIncognito && (await isPremiumUser(viewer.id));
-  await prisma.engagementMetric.create({
-    data: {
-      providerId: profileId,
-      userId: hideViewer ? null : viewer.id,
-      metricType: PROFILE_VISITOR_METRIC_TYPE,
-      value: 1,
-    },
-  });
+  try {
+    await prisma.engagementMetric.create({
+      data: {
+        providerId: profileId,
+        userId: hideViewer ? null : viewer.id,
+        metricType: PROFILE_VISITOR_METRIC_TYPE,
+        value: 1,
+      },
+    });
+  } catch (error) {
+    if (!isMissingEngagementMetricSchema(error)) {
+      throw error;
+    }
+    console.warn("Profile visit tracking is unavailable until EngagementMetric migrations are applied.");
+  }
 }
 
 export async function getProfileViewerList(profileId: string) {
-  const visits = await prisma.engagementMetric.findMany({
-    where: {
-      providerId: profileId,
-      metricType: PROFILE_VISITOR_METRIC_TYPE,
-      userId: { not: null },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    include: {
-      user: {
-        select: {
-          id: true,
-          username: true,
-          displayName: true,
-          avatarUrl: true,
-          city: true,
-          country: true,
-          profileType: true,
-          isVerified: true,
-          isTrustedMember: true,
-        },
+  let visits: ProfileViewerMetric[];
+
+  try {
+    visits = await prisma.engagementMetric.findMany({
+      where: {
+        providerId: profileId,
+        metricType: PROFILE_VISITOR_METRIC_TYPE,
+        userId: { not: null },
       },
-    },
-  });
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      include: profileViewerInclude,
+    });
+  } catch (error) {
+    if (!isMissingEngagementMetricSchema(error)) {
+      throw error;
+    }
+    console.warn("Profile viewer list is unavailable until EngagementMetric migrations are applied.");
+    return [];
+  }
 
   const seen = new Set<string>();
   return visits
