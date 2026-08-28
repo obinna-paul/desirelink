@@ -631,13 +631,16 @@ model Post {
   eventId          String?
   event            Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
   isSubscriberOnly Boolean       @default(false)
+  isArchived       Boolean       @default(false)
   createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
   comments         PostComment[]
   reactions        PostReaction[]
   shares           PostShare[]
 
   @@index([authorId])
   @@index([eventId])
+  @@index([isArchived])
   @@index([postType])
 }
 

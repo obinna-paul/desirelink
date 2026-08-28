@@ -1,9 +1,23 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { Prisma } from "@prisma/client";
 
 import { authOptions } from "@/lib/auth";
 import { isActiveSubscriber } from "@/lib/posts";
 import { prisma } from "@/lib/prisma";
+
+function isMissingPostArchiveError(error: unknown): boolean {
+  const target =
+    error instanceof Prisma.PrismaClientKnownRequestError
+      ? String(error.meta?.table ?? error.meta?.column ?? "")
+      : "";
+
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2022" &&
+    (target.includes("Post.isArchived") || target.includes("isArchived"))
+  );
+}
 
 export async function POST(_req: Request, { params }: { params: { postId: string } }) {
   const session = await getServerSession(authOptions);
@@ -20,10 +34,19 @@ export async function POST(_req: Request, { params }: { params: { postId: string
     return NextResponse.json({ error: "Your account is suspended from reacting" }, { status: 403 });
   }
 
-  const post = await prisma.post.findUnique({
-    where: { id: params.postId },
-    select: { authorId: true, isSubscriberOnly: true },
-  });
+  let post: { authorId: string; isSubscriberOnly: boolean } | null;
+  try {
+    post = await prisma.post.findFirst({
+      where: { id: params.postId, isArchived: false },
+      select: { authorId: true, isSubscriberOnly: true },
+    });
+  } catch (error) {
+    if (!isMissingPostArchiveError(error)) throw error;
+    post = await prisma.post.findUnique({
+      where: { id: params.postId },
+      select: { authorId: true, isSubscriberOnly: true },
+    });
+  }
   if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
   if (
     post.isSubscriberOnly &&

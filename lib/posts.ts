@@ -20,6 +20,15 @@ function isMissingSchemaError(error: unknown): boolean {
   );
 }
 
+function isMissingPostArchiveError(error: unknown): boolean {
+  const target =
+    error instanceof Prisma.PrismaClientKnownRequestError
+      ? String(error.meta?.table ?? error.meta?.column ?? "")
+      : "";
+
+  return isMissingSchemaError(error) && (target.includes("Post.isArchived") || target.includes("isArchived"));
+}
+
 const postAuthorSelect = {
   id: true,
   username: true,
@@ -111,6 +120,8 @@ export type PostView = {
   author: { id: string; username: string; displayName: string; avatarUrl: string; profileType: ProfileType };
   counts: { comments: number; reactions: number; shares: number };
   viewerLiked: boolean;
+  viewerCanManage: boolean;
+  viewerCanEdit: boolean;
   comments: PostCommentView[];
 };
 
@@ -156,7 +167,9 @@ function toCommentView(comment: RawComment): PostCommentView {
 function toPostView(
   post: RawPost,
   hasSubscriberAccess: boolean,
-  premiumProviderLocked = false
+  premiumProviderLocked = false,
+  viewerProfileId: string | null = null,
+  viewerIsPremium = false
 ): PostView {
   const lockReason = post.isSubscriberOnly && !hasSubscriberAccess
     ? "subscriber_only"
@@ -202,6 +215,8 @@ function toPostView(
     author: post.author,
     counts: post._count,
     viewerLiked: post.reactions.length > 0,
+    viewerCanManage: post.author.id === viewerProfileId,
+    viewerCanEdit: post.author.id === viewerProfileId && viewerIsPremium,
     comments: locked ? [] : post.comments.map(toCommentView),
   };
 }
@@ -332,7 +347,7 @@ async function applyProviderContentLimits(
       }
     }
 
-    return toPostView(post, hasSubscriberAccess(post), premiumProviderLocked);
+    return toPostView(post, hasSubscriberAccess(post), premiumProviderLocked, viewerProfileId, context.isPremium);
   });
 
   await Promise.allSettled(recordTasks);
@@ -355,12 +370,24 @@ export async function getCreatorProfilePosts(
   const hasSubscriberAccess =
     isOwner || (viewerProfileId ? await isActiveSubscriber(viewerProfileId, creatorProfileId) : false);
 
-  const posts = await prisma.post.findMany({
-    where: { authorId: creatorProfileId },
-    orderBy: { createdAt: "desc" },
-    take: PROFILE_POSTS_LIMIT,
-    select: postSelect(viewerProfileId),
-  });
+  let posts: RawPost[];
+  try {
+    posts = await prisma.post.findMany({
+      where: { authorId: creatorProfileId, isArchived: false },
+      orderBy: { createdAt: "desc" },
+      take: PROFILE_POSTS_LIMIT,
+      select: postSelect(viewerProfileId),
+    });
+  } catch (error) {
+    if (!isMissingPostArchiveError(error)) throw error;
+    console.warn("Post archive filtering is unavailable until Post.isArchived migration is applied.");
+    posts = await prisma.post.findMany({
+      where: { authorId: creatorProfileId },
+      orderBy: { createdAt: "desc" },
+      take: PROFILE_POSTS_LIMIT,
+      select: postSelect(viewerProfileId),
+    });
+  }
 
   return applyProviderContentLimits(posts, viewerProfileId, () => hasSubscriberAccess);
 }
@@ -380,12 +407,24 @@ export async function getFeedPosts(viewerProfileId: string | null): Promise<Post
       ? { authorId: { in: Array.from(subscribedCreatorIds) } }
       : { author: { profileType: "CREATOR" as const, isIncognito: false } };
 
-  const posts = await prisma.post.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: FEED_LIMIT,
-    select: postSelect(viewerProfileId),
-  });
+  let posts: RawPost[];
+  try {
+    posts = await prisma.post.findMany({
+      where: { ...where, isArchived: false },
+      orderBy: { createdAt: "desc" },
+      take: FEED_LIMIT,
+      select: postSelect(viewerProfileId),
+    });
+  } catch (error) {
+    if (!isMissingPostArchiveError(error)) throw error;
+    console.warn("Post archive filtering is unavailable until Post.isArchived migration is applied.");
+    posts = await prisma.post.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: FEED_LIMIT,
+      select: postSelect(viewerProfileId),
+    });
+  }
 
   return applyProviderContentLimits(
     posts,
@@ -399,6 +438,7 @@ export async function getPublicFeedPosts(viewerProfileId: string | null): Promis
     const posts = await prisma.post.findMany({
       where: {
         isSubscriberOnly: false,
+        isArchived: false,
         author: {
           isIncognito: false,
           isSuspended: false,
@@ -415,6 +455,27 @@ export async function getPublicFeedPosts(viewerProfileId: string | null): Promis
       (post) => post.author.id === viewerProfileId || !post.isSubscriberOnly
     );
   } catch (error) {
+    if (isMissingPostArchiveError(error)) {
+      console.warn("Post archive filtering is unavailable until Post.isArchived migration is applied.");
+      const posts = await prisma.post.findMany({
+        where: {
+          isSubscriberOnly: false,
+          author: {
+            isIncognito: false,
+            isSuspended: false,
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: FEED_LIMIT,
+        select: postSelect(viewerProfileId),
+      });
+
+      return applyProviderContentLimits(
+        posts,
+        viewerProfileId,
+        (post) => post.author.id === viewerProfileId || !post.isSubscriberOnly
+      );
+    }
     if (isMissingSchemaError(error)) {
       console.warn("Home public feed is unavailable until feed interaction migrations are applied.");
       return [];
@@ -427,10 +488,20 @@ export async function getPostByIdForViewer(
   postId: string,
   viewerProfileId: string | null
 ): Promise<PostView | null> {
-  const post = await prisma.post.findUnique({
-    where: { id: postId },
-    select: postSelect(viewerProfileId),
-  });
+  let post: RawPost | null;
+  try {
+    post = await prisma.post.findFirst({
+      where: { id: postId, isArchived: false },
+      select: postSelect(viewerProfileId),
+    });
+  } catch (error) {
+    if (!isMissingPostArchiveError(error)) throw error;
+    console.warn("Post archive filtering is unavailable until Post.isArchived migration is applied.");
+    post = await prisma.post.findUnique({
+      where: { id: postId },
+      select: postSelect(viewerProfileId),
+    });
+  }
   if (!post) return null;
 
   const isOwner = viewerProfileId === post.author.id;

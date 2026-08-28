@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PostActions } from "@/components/posts/post-actions";
 import { PostEventAttachment } from "@/components/posts/post-event-attachment";
 import { PostMediaCarousel } from "@/components/posts/post-media-carousel";
+import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import type { PostView } from "@/lib/posts";
 
@@ -72,7 +73,16 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
               <Lock className="h-3 w-3" aria-hidden="true" /> premium
             </Badge>
           )}
-          <ReportDialog targetType="post" targetId={post.id} label="Report post" variant="icon" />
+          {post.viewerCanManage ? (
+            <PostOwnerControls
+              postId={post.id}
+              canEdit={post.viewerCanEdit}
+              initialContent={post.content ?? ""}
+              initialSubscriberOnly={post.isSubscriberOnly}
+            />
+          ) : (
+            <ReportDialog targetType="post" targetId={post.id} label="Report post" variant="icon" />
+          )}
         </div>
       </div>
 

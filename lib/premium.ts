@@ -91,7 +91,8 @@ export type PremiumLimitFeature =
   | "public_rooms"
   | "incognito"
   | "advanced_search"
-  | "profile_viewers";
+  | "profile_viewers"
+  | "post_editing";
 
 export type PremiumLimitPayload = {
   error: string;

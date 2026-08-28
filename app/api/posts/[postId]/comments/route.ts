@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { authOptions } from "@/lib/auth";
@@ -12,6 +13,19 @@ const commentSchema = z.object({
   content: z.string().trim().min(1, "Comment can't be empty").max(1000, "Comments must be 1000 characters or fewer"),
   parentId: z.string().optional(),
 });
+
+function isMissingPostArchiveError(error: unknown): boolean {
+  const target =
+    error instanceof Prisma.PrismaClientKnownRequestError
+      ? String(error.meta?.table ?? error.meta?.column ?? "")
+      : "";
+
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2022" &&
+    (target.includes("Post.isArchived") || target.includes("isArchived"))
+  );
+}
 
 function serializeComment(comment: {
   id: string;
@@ -49,10 +63,19 @@ export async function POST(req: Request, { params }: { params: { postId: string 
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
   }
 
-  const post = await prisma.post.findUnique({
-    where: { id: params.postId },
-    select: { id: true, authorId: true, isSubscriberOnly: true },
-  });
+  let post: { id: string; authorId: string; isSubscriberOnly: boolean } | null;
+  try {
+    post = await prisma.post.findFirst({
+      where: { id: params.postId, isArchived: false },
+      select: { id: true, authorId: true, isSubscriberOnly: true },
+    });
+  } catch (error) {
+    if (!isMissingPostArchiveError(error)) throw error;
+    post = await prisma.post.findUnique({
+      where: { id: params.postId },
+      select: { id: true, authorId: true, isSubscriberOnly: true },
+    });
+  }
   if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
   if (
     post.isSubscriberOnly &&

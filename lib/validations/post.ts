@@ -53,3 +53,16 @@ export const createPostSchema = z
   });
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;
+
+export const updatePostSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("archive"),
+  }),
+  z.object({
+    action: z.literal("edit"),
+    content: z.string().trim().min(1, "Post can't be empty").max(2000, "Posts must be 2000 characters or fewer"),
+    isSubscriberOnly: z.boolean().optional(),
+  }),
+]);
+
+export type UpdatePostInput = z.infer<typeof updatePostSchema>;
