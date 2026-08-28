@@ -15,6 +15,14 @@ import {
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
 
+function hasCloudinaryConfig() {
+  return Boolean(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET
+  );
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -55,6 +63,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Video must be under 100MB" }, { status: 400 });
   }
 
+  if (!hasCloudinaryConfig()) {
+    console.error("[post-media] Cloudinary environment variables are missing.");
+    return NextResponse.json(
+      { error: "Media uploads need Cloudinary keys configured in Vercel." },
+      { status: 503 }
+    );
+  }
+
   const buffer = Buffer.from(await file.arrayBuffer());
 
   try {
@@ -87,7 +103,8 @@ export async function POST(req: Request) {
       },
       { status: 200 }
     );
-  } catch {
+  } catch (error) {
+    console.error("[post-media] Cloudinary upload failed", error);
     return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 502 });
   }
 }
