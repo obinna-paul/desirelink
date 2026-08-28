@@ -47,7 +47,7 @@ export default async function EditProfilePage() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Basics, privacy, verification, and desires.</p>
       </div>
-      <div className="xl:hidden">
+      <div className="hidden md:block xl:hidden">
         <ProfileSetupActions profile={profile} />
       </div>
       <EditProfileForm profile={profile} />
