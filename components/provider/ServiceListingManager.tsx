@@ -183,11 +183,17 @@ function ServiceListingForm({
   );
 }
 
-export function ServiceListingManager({ initialListings }: { initialListings: ServiceListingView[] }) {
+export function ServiceListingManager({
+  initialListings,
+  startCreating = false,
+}: {
+  initialListings: ServiceListingView[];
+  startCreating?: boolean;
+}) {
   const router = useRouter();
   const [listings, setListings] = useState(initialListings);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(startCreating);
 
   async function handleCreate(input: ServiceListingInput) {
     const res = await fetch("/api/service-listings", {

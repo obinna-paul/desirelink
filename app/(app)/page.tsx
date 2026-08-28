@@ -5,7 +5,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { HomeTabs } from "@/components/home/home-tabs";
-import { FeedComposer } from "@/components/posts/feed-composer";
 import { PostList } from "@/components/posts/post-list";
 import { EventGrid } from "@/components/events/event-grid";
 import { ServiceListingGrid } from "@/components/home/service-listing-grid";
@@ -14,7 +13,6 @@ import {
   isHomeTabValue,
 } from "@/lib/home-feed";
 import { getPublicFeedPosts } from "@/lib/posts";
-import { isProviderProfileType } from "@/lib/provider-types";
 import { getHomeUpcomingEvents } from "@/lib/events";
 import { getHomeServiceListings } from "@/lib/service-listings";
 
@@ -51,15 +49,10 @@ export default async function HomePage({
             />
           )
         : (
-            <>
-              {viewerProfile && isProviderProfileType(viewerProfile.profileType) && (
-                <FeedComposer displayName={viewerProfile.displayName} />
-              )}
-              <PostList
-                posts={await getPublicFeedPosts(viewerProfile?.id ?? null)}
-                emptyMessage="No public posts yet. Creators, pairs, and service providers can publish from Create."
-              />
-            </>
+            <PostList
+              posts={await getPublicFeedPosts(viewerProfile?.id ?? null)}
+              emptyMessage="No public posts yet. Creators, pairs, and service providers can publish from Create."
+            />
           );
 
   return (
