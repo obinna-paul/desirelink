@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
 
@@ -22,6 +24,14 @@ export function isCreatorDashboardTab(value: string | undefined): value is Creat
 }
 
 const GROWTH_MONTHS_BACK = 6;
+
+function isMissingSchemaError(error: unknown, identifier: string): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2021" || error.code === "P2022") &&
+    String(error.meta?.table ?? error.meta?.column ?? "").includes(identifier)
+  );
+}
 
 /**
  * Tier management (creation, pricing, applications) is a capability of any
@@ -69,28 +79,44 @@ export async function getSubscribers(profileId: string) {
 }
 
 export async function getCreatorTiers(profileId: string) {
-  return prisma.creatorTier.findMany({
-    where: { creatorId: profileId },
-    orderBy: { createdAt: "asc" },
-    include: { _count: { select: { subscriptions: true } } },
-  });
+  try {
+    return await prisma.creatorTier.findMany({
+      where: { creatorId: profileId },
+      orderBy: { createdAt: "asc" },
+      include: { _count: { select: { subscriptions: true } } },
+    });
+  } catch (error) {
+    if (isMissingSchemaError(error, "CreatorTier.tierType")) {
+      console.warn("Creator tiers are unavailable until the CreatorTier.tierType migration is applied.");
+      return [];
+    }
+    throw error;
+  }
 }
 
 export type CreatorTierWithCount = Awaited<ReturnType<typeof getCreatorTiers>>[number];
 
 export async function getCreatorApplications(profileId: string) {
-  return prisma.accessApplication.findMany({
-    where: { tier: { creatorId: profileId } },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    select: {
-      id: true,
-      status: true,
-      createdAt: true,
-      tier: { select: { id: true, name: true } },
-      profile: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
-    },
-  });
+  try {
+    return await prisma.accessApplication.findMany({
+      where: { tier: { creatorId: profileId } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        tier: { select: { id: true, name: true } },
+        profile: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+      },
+    });
+  } catch (error) {
+    if (isMissingSchemaError(error, "AccessApplication")) {
+      console.warn("Tier applications are unavailable until AccessApplication migrations are applied.");
+      return [];
+    }
+    throw error;
+  }
 }
 
 export type CreatorApplication = Awaited<ReturnType<typeof getCreatorApplications>>[number];

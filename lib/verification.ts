@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 
 export const VERIFICATION_REQUEST_TYPES = ["creator", "host"] as const;
@@ -5,6 +7,14 @@ export type VerificationRequestType = (typeof VERIFICATION_REQUEST_TYPES)[number
 
 export function isVerificationRequestType(value: unknown): value is VerificationRequestType {
   return typeof value === "string" && (VERIFICATION_REQUEST_TYPES as readonly string[]).includes(value);
+}
+
+function isMissingVerificationSchema(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2021" || error.code === "P2022") &&
+    String(error.meta?.table ?? error.meta?.column ?? "").includes("VerificationRequest")
+  );
 }
 
 export type SubmitVerificationResult =
@@ -46,10 +56,18 @@ export async function submitVerificationRequest(
     }
   }
 
-  const existingPending = await prisma.verificationRequest.findFirst({
-    where: { profileId, requestType, status: "pending" },
-    select: { id: true },
-  });
+  let existingPending: { id: string } | null = null;
+  try {
+    existingPending = await prisma.verificationRequest.findFirst({
+      where: { profileId, requestType, status: "pending" },
+      select: { id: true },
+    });
+  } catch (error) {
+    if (isMissingVerificationSchema(error)) {
+      return { ok: false, status: 503, error: "Verification requests are unavailable until the database repair is applied" };
+    }
+    throw error;
+  }
   if (existingPending) {
     return { ok: false, status: 400, error: "You already have a pending request of this type" };
   }
@@ -62,10 +80,18 @@ export async function submitVerificationRequest(
 }
 
 export async function getMyVerificationRequests(profileId: string) {
-  return prisma.verificationRequest.findMany({
-    where: { profileId },
-    orderBy: { createdAt: "desc" },
-  });
+  try {
+    return await prisma.verificationRequest.findMany({
+      where: { profileId },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (error) {
+    if (isMissingVerificationSchema(error)) {
+      console.warn("Verification requests are unavailable until VerificationRequest migrations are applied.");
+      return [];
+    }
+    throw error;
+  }
 }
 
 const verificationProfileSelect = {
@@ -76,11 +102,19 @@ const verificationProfileSelect = {
 } as const;
 
 export async function getPendingVerificationRequests() {
-  return prisma.verificationRequest.findMany({
-    where: { status: "pending" },
-    orderBy: { createdAt: "asc" },
-    include: { profile: { select: verificationProfileSelect } },
-  });
+  try {
+    return await prisma.verificationRequest.findMany({
+      where: { status: "pending" },
+      orderBy: { createdAt: "asc" },
+      include: { profile: { select: verificationProfileSelect } },
+    });
+  } catch (error) {
+    if (isMissingVerificationSchema(error)) {
+      console.warn("Admin verification queue is unavailable until VerificationRequest migrations are applied.");
+      return [];
+    }
+    throw error;
+  }
 }
 
 export type PendingVerificationRequest = Awaited<ReturnType<typeof getPendingVerificationRequests>>[number];
