@@ -36,17 +36,29 @@ export async function getPublicTiers(
   creatorProfileId: string,
   viewerProfileId: string | null
 ): Promise<PublicTierView[]> {
-  const tiers = await prisma.creatorTier.findMany({
-    where: { creatorId: creatorProfileId },
-    orderBy: { createdAt: "asc" },
-    include: {
-      _count: {
-        select: {
-          subscriptions: { where: { status: "active" } },
+  let tiers: Prisma.CreatorTierGetPayload<{
+    include: { _count: { select: { subscriptions: true } } };
+  }>[];
+
+  try {
+    tiers = await prisma.creatorTier.findMany({
+      where: { creatorId: creatorProfileId },
+      orderBy: { createdAt: "asc" },
+      include: {
+        _count: {
+          select: {
+            subscriptions: { where: { status: "active" } },
+          },
         },
       },
-    },
-  });
+    });
+  } catch (error) {
+    if (isMissingSchemaError(error, "CreatorTier.tierType")) {
+      console.warn("Public tiers are unavailable until the CreatorTier.tierType migration is applied.");
+      return [];
+    }
+    throw error;
+  }
 
   const isOwner = viewerProfileId === creatorProfileId;
   const tierIds = tiers.map((tier) => tier.id);
