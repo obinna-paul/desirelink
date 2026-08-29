@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { DesireMapSummary } from "@/components/profile/desire-map-summary";
+import { PreferencesSummary } from "@/components/profile/preferences-summary";
 import { PostList } from "@/components/posts/post-list";
 import { BlockButton } from "@/components/safety/block-button";
 import { ReportDialog } from "@/components/safety/report-dialog";
@@ -373,7 +373,7 @@ export function ProfileView({
               </section>
             )}
 
-            <DesireMapSummary desires={desires} isOwner={isOwner} />
+            <PreferencesSummary desires={desires} isOwner={isOwner} />
           </div>
         )}
 

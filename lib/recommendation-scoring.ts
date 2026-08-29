@@ -1,5 +1,7 @@
 import type { DesireLevel } from "@prisma/client";
 
+import { getPreferenceLabel } from "@/lib/desire-options";
+
 export const DESIRE_LEVEL_WEIGHT: Record<DesireLevel, number> = {
   curious: 3,
   interested: 6,
@@ -57,15 +59,15 @@ export function scoreDesireOverlap(
   }
 
   const score = Math.max(0, Math.min(55, rawScore));
+  const matchedPreferenceLabels = matchedCategories.slice(0, 2).map(getPreferenceLabel);
   const reasons =
     matchedCategories.length > 0
       ? [
-          `${matchedCategories.slice(0, 2).join(", ")} ${
+          `${matchedPreferenceLabels.join(", ")} ${
             highIntentOverlap > 0 ? "aligns strongly" : "overlaps"
-          } in your Desire Maps`,
+          } in your preferences`,
         ]
       : [];
 
   return { score, reasons };
 }
-

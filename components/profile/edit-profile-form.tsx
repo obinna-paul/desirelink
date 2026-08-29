@@ -63,7 +63,7 @@ const EDIT_SECTIONS: {
   { id: "location", label: "Location", description: "City and nearby matching", icon: MapPin },
   { id: "privacy", label: "Privacy", description: "Search, location, incognito", icon: Lock },
   { id: "availability", label: "Availability", description: "Chat and meet status", icon: Bell },
-  { id: "desires", label: "Desire Map", description: "Recommendation signals", icon: Sparkles },
+  { id: "desires", label: "Preferences", description: "Recommendation taste", icon: Sparkles },
   { id: "services", label: "Services", description: "What you offer", icon: Store },
   { id: "verification", label: "Verification", description: "Trust signals", icon: ShieldCheck },
   { id: "monetization", label: "Monetization", description: "Premium and payouts", icon: WalletCards },
@@ -404,15 +404,14 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
 
     if (activeSection === "desires") {
       return (
-        <SectionShell title="Desire Map" description="Your Desire Map now lives below this form as a focused editor.">
+        <SectionShell title="Preferences" description="A focused setup for what you want to find, enjoy, and avoid.">
           <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
             <p className="text-sm leading-6 text-muted-foreground">
-              Save any profile changes, then use the Desire Map editor below to update what you are looking for,
-              what you enjoy, and what should influence recommendations.
+              Save any profile changes, then update your preferences below. They stay private unless you choose to show them.
             </p>
             <Button asChild type="button" variant="outline" className="mt-4 h-11">
-              <a href="#desire-map">
-                Open Desire Map <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              <a href="#preferences">
+                Open Preferences <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </a>
             </Button>
           </div>

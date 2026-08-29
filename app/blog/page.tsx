@@ -8,7 +8,7 @@ import { getAllPosts } from "@/lib/blog";
 export const metadata: Metadata = {
   title: "udala Blog",
   description:
-    "Guides and updates from udala: how the Desire Map works, safety and consent, hosting events, and growing as a creator.",
+    "Guides and updates from udala: how Preferences work, safety and consent, hosting events, and growing as a creator.",
 };
 
 function formatDate(dateString: string) {

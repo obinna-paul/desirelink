@@ -15,6 +15,7 @@ import {
   type CircleWithDetails,
   type ProfileFieldName,
 } from "@/lib/circles";
+import { getPreferenceLabel } from "@/lib/desire-options";
 
 type CircleFormState = {
   name: string;
@@ -283,18 +284,18 @@ function CircleEditor({
 
           <div className="flex flex-col gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Desire map
+              Preferences
             </p>
             {desireCategories.length === 0 ? (
               <p className="rounded-lg border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-                Add desires to your profile to control them here.
+                Add preferences to your profile to control them here.
               </p>
             ) : (
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {desireCategories.map((category) => (
                   <PermissionSwitch
                     key={desirePermissionKey(category)}
-                    label={category}
+                    label={getPreferenceLabel(category)}
                     checked={form.desireCategories.includes(category)}
                     onCheckedChange={(checked) =>
                       setForm((prev) => ({
@@ -385,7 +386,7 @@ export function CircleManager({
           <div>
             <h2 className="text-sm font-semibold">Public baseline</h2>
             <p className="text-xs text-muted-foreground">
-              Everyone can see your name, avatar, badges, bio, and public desires.
+              Everyone can see your name, avatar, badges, bio, and public preferences.
             </p>
           </div>
         </div>

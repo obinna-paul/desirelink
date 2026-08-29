@@ -7,7 +7,7 @@ const SETTINGS_LINKS = [
   {
     href: "/settings/circles",
     label: "Circles",
-    description: "Control which members can see private profile fields and desires.",
+    description: "Control which members can see private profile fields and preferences.",
     icon: UsersRound,
   },
   {

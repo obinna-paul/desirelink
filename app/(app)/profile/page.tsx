@@ -33,7 +33,7 @@ export default async function ProfilePage({
     return (
       <div className="flex flex-col gap-4 md:gap-6">
         <div className="hidden md:block">
-          <PageHeader title="Profile" description="Manage your public profile and desires." />
+          <PageHeader title="Profile" description="Manage your public profile and preferences." />
         </div>
         <div className="md:hidden">
           <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
@@ -59,7 +59,7 @@ export default async function ProfilePage({
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <div className="hidden md:block">
-        <PageHeader title="Profile" description="Manage your public profile and desires." />
+        <PageHeader title="Profile" description="Manage your public profile and preferences." />
       </div>
       <ProfileView
         profile={profile}

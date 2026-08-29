@@ -20,11 +20,11 @@ export const RADIUS_OPTIONS = [10, 25, 50, 100, 250] as const;
 export const DEFAULT_RADIUS_KM = 50;
 
 export const DESIRE_LEVEL_FILTER_OPTIONS: { value: DesireLevel; label: string }[] = [
-  { value: "curious", label: "Curious about" },
-  { value: "interested", label: "Interested in" },
+  { value: "curious", label: "Open to" },
+  { value: "interested", label: "Interested" },
   { value: "looking", label: "Looking for" },
-  { value: "regular", label: "Regularly enjoy" },
-  { value: "hard_limit", label: "Hard limit" },
+  { value: "regular", label: "Usually enjoy" },
+  { value: "hard_limit", label: "Avoid" },
 ];
 
 export const DISCOVER_SORT_OPTIONS = [

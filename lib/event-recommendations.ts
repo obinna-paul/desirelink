@@ -3,6 +3,7 @@ import type { DesireLevel, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm } from "@/lib/home-feed";
 import { DESIRE_LEVEL_WEIGHT } from "@/lib/recommendations";
+import { getPreferenceLabel } from "@/lib/desire-options";
 
 const DEFAULT_EVENT_RECOMMENDATION_LIMIT = 3;
 const MAX_EVENT_RECOMMENDATION_LIMIT = 12;
@@ -104,7 +105,7 @@ function scoreEventType(
     matchedCategories.length > 0
       ? [
           `${event.eventType} matches ${
-            highIntentMatch ? "a strong Desire Map interest" : matchedCategories[0]
+            highIntentMatch ? "a strong preference" : getPreferenceLabel(matchedCategories[0])
           }`,
         ]
       : [];

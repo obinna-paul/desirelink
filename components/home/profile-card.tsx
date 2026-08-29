@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { PremiumBadge } from "@/components/premium/premium-badge";
 import type { ProfileCardData } from "@/lib/home-feed";
 import { AVAILABILITY_STATUS_LABELS } from "@/lib/availability-options";
+import { getPreferenceLabel } from "@/lib/desire-options";
 
 export function ProfileCard({
   profile,
@@ -103,7 +104,7 @@ export function ProfileCard({
         <div className="flex flex-wrap gap-1.5 pt-1">
           {visibleDesires.map((desire) => (
             <Badge key={desire.id} variant="outline">
-              {desire.category}
+              {getPreferenceLabel(desire.category)}
             </Badge>
           ))}
           {extraDesireCount > 0 && (

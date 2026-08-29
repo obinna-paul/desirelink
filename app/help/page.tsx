@@ -76,11 +76,10 @@ export default function HelpCenterPage() {
         </nav>
 
         <CategorySection id="account-privacy" title="Account & Privacy" icon={UserCog}>
-          <FaqItem question="How do I control who sees each item on my Desire Map?">
+          <FaqItem question="How do I control who sees my Preferences?">
             <p>
-              Every category on your Desire Map has its own privacy level — Public, Followers, or
-              Private. Private entries still count toward matching, they&apos;re just never shown on your
-              profile. Manage this from{" "}
+              Preferences are private by default and still improve recommendations. In Profile settings,
+              you can choose whether selected preferences appear on your profile. Manage this from{" "}
               <Link href="/profile/edit">Profile → Edit</Link>.
             </p>
           </FaqItem>

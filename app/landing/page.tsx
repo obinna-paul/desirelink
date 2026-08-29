@@ -13,7 +13,7 @@ export default function LandingPage() {
   return (
     <AuthShell
       title="Log in to Udala"
-      description="Continue to your private social map, messages, events, and creator circles."
+      description="Continue to your private social space, messages, events, and creator circles."
     >
       <LoginForm />
     </AuthShell>

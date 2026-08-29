@@ -20,7 +20,7 @@ export function RecommendedForYou({
             Recommended for you
           </h2>
           <p className="hidden text-sm text-muted-foreground md:block">
-            Sorted by Desire Map overlap, distance, availability, and recent activity.
+            Sorted by preference overlap, distance, availability, and recent activity.
           </p>
         </div>
         <Link

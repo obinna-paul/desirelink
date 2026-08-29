@@ -11,7 +11,7 @@ import { PremiumUpsell } from "@/components/premium/premium-upsell";
 import { cn } from "@/lib/utils";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
-import { DESIRE_CATEGORIES } from "@/lib/desire-options";
+import { DESIRE_CATEGORIES, getPreferenceLabel } from "@/lib/desire-options";
 import {
   AVAILABILITY_FILTER_OPTIONS,
   BODY_TYPE_FILTER_OPTIONS,
@@ -140,6 +140,9 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
 
 const toDropdownOptions = (values: readonly string[]): DropdownOption[] =>
   values.map((value) => ({ value, label: value }));
+
+const toPreferenceDropdownOptions = (values: readonly string[]): DropdownOption[] =>
+  values.map((value) => ({ value, label: getPreferenceLabel(value) }));
 
 export function DiscoverFiltersPanel({
   initialFilters,
@@ -309,7 +312,7 @@ export function DiscoverFiltersPanel({
             </h2>
             {!isPremium && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Upgrade to use interests, last active, body type, and verification filters.
+                Upgrade to use preferences, last active, body type, and verification filters.
               </p>
             )}
           </div>
@@ -322,14 +325,14 @@ export function DiscoverFiltersPanel({
           )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <MultiSelectDropdown
-              label="Desires"
-              options={toDropdownOptions(DESIRE_CATEGORIES)}
+              label="Preferences"
+              options={toPreferenceDropdownOptions(DESIRE_CATEGORIES)}
               selected={desireCategories}
               onChange={setDesireCategories}
               disabled={!isPremium}
               footer={
                 <Select
-                  aria-label="Desire level"
+                  aria-label="Preference level"
                   value={desireLevel}
                   onChange={(event) => setDesireLevel(event.target.value as DesireLevel | "")}
                   className="h-10 w-full text-xs"

@@ -73,9 +73,9 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
       },
       {
         id: "desires",
-        title: "Set Desire Map",
+        title: "Set preferences",
         description: "Improve recommendations and match quality",
-        href: "/profile/edit#desire-map",
+        href: "/profile/edit#preferences",
         done: profile._count.desires > 0,
         icon: Sparkles,
       },
