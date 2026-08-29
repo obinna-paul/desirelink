@@ -113,8 +113,8 @@ export function PaymentMethodManager({ initialCards }: { initialCards: PaymentMe
     <div className="flex flex-col gap-3">
       {cards.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-          No saved cards yet. Cards are saved automatically the first time you subscribe to something — Udala
-          Premium, or a provider&apos;s tier.
+          No saved cards yet. Cards are saved automatically the first time you subscribe to something — udala
+          premium, or a provider&apos;s tier.
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -143,7 +143,7 @@ export function PaymentMethodManager({ initialCards }: { initialCards: PaymentMe
       )}
       {cards.length > 0 && (
         <p className="text-xs text-muted-foreground">
-          To use a different card, remove this one and subscribe again — Udala doesn&apos;t yet support saving more
+          To use a different card, remove this one and subscribe again — udala doesn&apos;t yet support saving more
           than one card at a time.
         </p>
       )}
