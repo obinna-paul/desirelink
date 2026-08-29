@@ -2,16 +2,6 @@ import type { AvailabilityStatusType, DesireLevel, Prisma, ProfileType } from "@
 
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
-import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
-
-export const ACCOUNT_TYPE_FILTER_OPTIONS = ACCOUNT_TYPE_OPTIONS.map(({ value, label }) => ({
-  value,
-  label,
-}));
-
-export const PROVIDER_TYPE_FILTER_OPTIONS = ACCOUNT_TYPE_FILTER_OPTIONS.filter(
-  (option) => option.value !== "EXPLORER"
-);
 
 export const AVAILABILITY_FILTER_OPTIONS = [
   { value: "any", label: "Any" },
@@ -111,9 +101,7 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
     query: toSingle(searchParams.q)?.trim() ?? "",
     genders: toArray(searchParams.gender),
     orientations: toArray(searchParams.orientation),
-    accountTypes: toArray(searchParams.accountType).filter((value): value is ProfileType =>
-      ACCOUNT_TYPE_FILTER_OPTIONS.some((option) => option.value === value)
-    ),
+    accountTypes: [],
     desireCategories: toArray(searchParams.desire),
     desireLevel: DESIRE_LEVEL_FILTER_OPTIONS.some((option) => option.value === desireLevelParam)
       ? (desireLevelParam as DesireLevel)
@@ -137,8 +125,7 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
 
 export function hasAdvancedDiscoverFilters(filters: DiscoverFilters): boolean {
   return Boolean(
-    filters.accountTypes.length > 0 ||
-      filters.desireCategories.length > 0 ||
+    filters.desireCategories.length > 0 ||
       filters.desireLevel ||
       filters.bodyTypes.length > 0 ||
       filters.lastActive !== "any" ||

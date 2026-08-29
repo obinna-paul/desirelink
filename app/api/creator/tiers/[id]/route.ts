@@ -15,7 +15,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const profile = await getCreatorProfileByUserId(session.user.id);
   if (!profile) {
-    return NextResponse.json({ error: "Creator access required" }, { status: 403 });
+    return NextResponse.json({ error: "Profile required" }, { status: 403 });
   }
 
   const existing = await prisma.creatorTier.findUnique({ where: { id: params.id } });
@@ -59,7 +59,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
 
   const profile = await getCreatorProfileByUserId(session.user.id);
   if (!profile) {
-    return NextResponse.json({ error: "Creator access required" }, { status: 403 });
+    return NextResponse.json({ error: "Profile required" }, { status: 403 });
   }
 
   const existing = await prisma.creatorTier.findUnique({ where: { id: params.id } });

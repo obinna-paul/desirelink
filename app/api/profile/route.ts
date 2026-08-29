@@ -48,8 +48,8 @@ export async function PATCH(req: Request) {
     where: { userId: session.user.id },
     data: {
       ...rest,
-      profileType,
-      serviceCategories: profileType === "SERVICE_PROVIDER" ? serviceCategories : [],
+      ...(profileType ? { profileType } : {}),
+      serviceCategories,
     },
   });
 

@@ -2,7 +2,6 @@ import "server-only";
 
 import { Prisma, type ProfileType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { isProviderProfileType } from "@/lib/provider-types";
 import { METRIC_TYPES } from "@/lib/rewards/points";
 
 type MonetizationConfig = {
@@ -24,7 +23,15 @@ type MonetizationConfig = {
  * platform-funded rewards pool — a provider's own Fan (tier subscriber)
  * revenue is never affected, monetized or not.
  */
-const MONETIZATION_REQUIREMENTS: Record<"CREATOR" | "PAIR" | "SERVICE_PROVIDER", MonetizationConfig> = {
+const MONETIZATION_REQUIREMENTS: Record<ProfileType, MonetizationConfig> = {
+  EXPLORER: {
+    minAccountAgeDays: 30,
+    minFans: 25,
+    minContentItems: 10,
+    contentLabel: "posts or services",
+    minActivityEvents: 100,
+    activityWindowDays: 60,
+  },
   CREATOR: {
     minAccountAgeDays: 30,
     minFans: 25,
@@ -34,12 +41,9 @@ const MONETIZATION_REQUIREMENTS: Record<"CREATOR" | "PAIR" | "SERVICE_PROVIDER",
     activityWindowDays: 60,
   },
   PAIR: {
-    // Posting isn't wired up for Pair accounts yet (app/api/posts gates to
-    // CREATOR only), so a content requirement would make monetization
-    // unreachable for them — left at 0 until that feature exists.
     minAccountAgeDays: 30,
     minFans: 25,
-    minContentItems: 0,
+    minContentItems: 10,
     contentLabel: "posts",
     minActivityEvents: 100,
     activityWindowDays: 60,
@@ -83,19 +87,18 @@ async function getFanCount(providerId: string): Promise<number> {
   return tierFans + legacyFans;
 }
 
-async function getContentCount(providerId: string, profileType: ProfileType): Promise<number> {
-  if (profileType === "SERVICE_PROVIDER") {
-    try {
-      return await prisma.serviceListing.count({ where: { providerId } });
-    } catch (error) {
-      if (!isMissingSchemaError(error, "ServiceListing")) {
-        throw error;
-      }
-      console.warn("Service listing count is unavailable until ServiceListing migrations are applied.");
-      return 0;
+async function getContentCount(providerId: string): Promise<number> {
+  const postCount = await prisma.post.count({ where: { authorId: providerId } });
+  try {
+    const serviceCount = await prisma.serviceListing.count({ where: { providerId } });
+    return postCount + serviceCount;
+  } catch (error) {
+    if (!isMissingSchemaError(error, "ServiceListing")) {
+      throw error;
     }
+    console.warn("Service listing count is unavailable until ServiceListing migrations are applied.");
+    return postCount;
   }
-  return prisma.post.count({ where: { authorId: providerId } });
 }
 
 /**
@@ -139,13 +142,13 @@ export type MonetizationEligibility = {
 
 export async function getMonetizationEligibility(providerId: string): Promise<MonetizationEligibility | null> {
   const profile = await prisma.profile.findUnique({ where: { id: providerId } });
-  if (!profile || !isProviderProfileType(profile.profileType)) return null;
+  if (!profile) return null;
 
-  const config = MONETIZATION_REQUIREMENTS[profile.profileType as "CREATOR" | "PAIR" | "SERVICE_PROVIDER"];
+  const config = MONETIZATION_REQUIREMENTS[profile.profileType];
   const accountAgeDays = Math.floor((Date.now() - profile.createdAt.getTime()) / (1000 * 60 * 60 * 24));
   const [fanCount, contentCount, activityScore, pendingApplication] = await Promise.all([
     getFanCount(providerId),
-    getContentCount(providerId, profile.profileType),
+    getContentCount(providerId),
     getActivityScore(providerId, config.activityWindowDays),
     prisma.monetizationApplication.findFirst({
       where: { providerId, status: "pending" },

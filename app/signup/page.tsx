@@ -4,16 +4,14 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, ShieldCheck } from "lucide-react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 
-import { AccountTypeSelector } from "@/components/account-type-selector";
 import { AuthLogo } from "@/components/auth/auth-logo";
 import { FormField } from "@/components/auth/form-field";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { Button } from "@/components/ui/button";
-import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
 import { signupSchema, type SignupInput } from "@/lib/validations/auth";
 import { cn } from "@/lib/utils";
 
@@ -24,18 +22,13 @@ const STEPS = [
     description: "Start with secure login details. Your profile setup comes after this.",
   },
   {
-    id: "role",
-    title: "Choose how you want to enter",
-    description: "Udala adapts the first experience around your role.",
-  },
-  {
     id: "confirm",
     title: "Confirm and continue",
-    description: "Next, you will land in profile settings with a focused setup checklist.",
+    description: "Next, you will land in profile settings to finish the essentials.",
   },
 ] as const;
 
-type StepIndex = 0 | 1 | 2;
+type StepIndex = 0 | 1;
 
 export default function SignupPage() {
   const router = useRouter();
@@ -46,29 +39,24 @@ export default function SignupPage() {
   const {
     register,
     handleSubmit,
-    control,
     trigger,
     watch,
     formState: { errors },
   } = useForm<SignupInput>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { profileType: "EXPLORER" },
   });
 
   const values = watch();
   const canGoBack = step > 0 && status === "idle";
   const currentStep = STEPS[step];
   const normalizedEmail = values.email?.trim().toLowerCase();
-  const selectedRoleLabel =
-    ACCOUNT_TYPE_OPTIONS.find((option) => option.value === values.profileType)?.label ?? "Explorer";
 
   const reviewItems = useMemo(
     () => [
       { label: "Name", value: values.name || "Not set" },
       { label: "Email", value: normalizedEmail || "Not set" },
-      { label: "Role", value: selectedRoleLabel },
     ],
-    [normalizedEmail, selectedRoleLabel, values.name]
+    [normalizedEmail, values.name]
   );
 
   async function goNext() {
@@ -79,7 +67,7 @@ export default function SignupPage() {
       if (!valid) return;
     }
 
-    if (step < 2) setStep((step + 1) as StepIndex);
+    if (step < 1) setStep((step + 1) as StepIndex);
   }
 
   async function onSubmit(data: SignupInput) {
@@ -271,16 +259,6 @@ export default function SignupPage() {
               )}
 
               {step === 1 && (
-                <Controller
-                  control={control}
-                  name="profileType"
-                  render={({ field }) => (
-                    <AccountTypeSelector value={field.value} onChange={field.onChange} variant="lightAuth" />
-                  )}
-                />
-              )}
-
-              {step === 2 && (
                 <div className="flex flex-col gap-4">
                   <div className="rounded-xl border border-[#e0d2da] bg-[#fbf7f9] p-4">
                     {reviewItems.map((item) => (
@@ -289,7 +267,7 @@ export default function SignupPage() {
                         className="flex min-h-11 items-center justify-between gap-4 border-b border-[#e4d7df] py-2 last:border-0"
                       >
                         <span className="text-sm text-[#756771]">{item.label}</span>
-                        <span className="text-right text-sm font-semibold capitalize text-[#211720]">{item.value}</span>
+                        <span className="text-right text-sm font-semibold text-[#211720]">{item.value}</span>
                       </div>
                     ))}
                   </div>
@@ -319,7 +297,7 @@ export default function SignupPage() {
                   <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Back
                 </Button>
 
-                {step < 2 ? (
+                {step < 1 ? (
                   <Button
                     type="button"
                     onClick={goNext}

@@ -6,7 +6,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { flagContentIfNeeded } from "@/lib/moderation";
 import { getPostByIdForViewer } from "@/lib/posts";
-import { isProviderProfileType } from "@/lib/provider-types";
 import { createPostSchema } from "@/lib/validations/post";
 import { readJson } from "@/lib/security/request";
 
@@ -44,7 +43,6 @@ export async function POST(req: Request) {
       username: true,
       displayName: true,
       avatarUrl: true,
-      profileType: true,
       isSuspended: true,
       city: true,
       locationLat: true,
@@ -52,9 +50,7 @@ export async function POST(req: Request) {
     },
   });
 
-  if (!profile || !isProviderProfileType(profile.profileType)) {
-    return NextResponse.json({ error: "Provider access required" }, { status: 403 });
-  }
+  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   if (profile.isSuspended) {
     return NextResponse.json({ error: "Your account is suspended from posting" }, { status: 403 });
   }

@@ -28,7 +28,7 @@ export default async function HomePage({
 
   const viewerProfile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, displayName: true, profileType: true, locationLat: true, locationLng: true },
+    select: { id: true, displayName: true, locationLat: true, locationLng: true },
   });
 
   const activeTab = isHomeTabValue(searchParams.tab) ? searchParams.tab : DEFAULT_HOME_TAB;
@@ -45,13 +45,13 @@ export default async function HomePage({
         ? (
             <ServiceListingGrid
               listings={await getHomeServiceListings(24)}
-              emptyMessage="No services are listed yet. Service providers can add offerings from profile settings."
+              emptyMessage="No services are listed yet. Create a service when you are ready to offer one."
             />
           )
         : (
             <PostList
               posts={await getPublicFeedPosts(viewerProfile?.id ?? null)}
-              emptyMessage="No public posts yet. Creators, pairs, and service providers can publish from Create."
+              emptyMessage="No public posts yet. Publish from Create when you are ready."
             />
           );
 

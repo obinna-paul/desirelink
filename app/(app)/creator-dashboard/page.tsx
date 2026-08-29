@@ -6,7 +6,6 @@ import { DollarSign, Eye, Users } from "lucide-react";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
-import { BecomeCreatorPrompt } from "@/components/creator/become-creator-prompt";
 import { DashboardTabs } from "@/components/creator/dashboard-tabs";
 import { StatCard } from "@/components/creator/stat-card";
 import { AudienceList } from "@/components/creator/audience-list";
@@ -31,15 +30,10 @@ import {
 import { getCreatorProfilePosts } from "@/lib/posts";
 import { getMyVerificationRequests } from "@/lib/verification";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
-import { isProviderProfileType } from "@/lib/providers";
 import { ProviderEarningsDashboard } from "@/components/provider/provider-earnings-dashboard";
 import { getProviderEarningsDashboard } from "@/lib/rewards/earnings";
 import { MonetizationPanel } from "@/components/creator/monetization-panel";
 import { getMonetizationEligibility } from "@/lib/monetization";
-
-const PROVIDER_ONLY_TABS = CREATOR_DASHBOARD_TABS.filter(
-  (tab) => tab.value === "tiers" || tab.value === "applications" || tab.value === "earnings"
-);
 
 const SubscriberGrowthChart = dynamic(
   () => import("@/components/creator/analytics-charts").then((mod) => mod.SubscriberGrowthChart),
@@ -66,37 +60,15 @@ export default async function CreatorDashboardPage({
     redirect("/login");
   }
 
-  if (!isProviderProfileType(profile.profileType)) {
-    return (
-      <div className="flex flex-col gap-4 md:gap-6">
-        <div className="hidden md:block">
-          <PageHeader
-            title="Provider dashboard"
-            description="Fans, revenue, and analytics for your provider profile."
-          />
-        </div>
-        <div className="md:hidden">
-          <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-            Dashboard
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Set up your provider profile.</p>
-        </div>
-        <BecomeCreatorPrompt />
-      </div>
-    );
-  }
-
-  const isCreator = profile.profileType === "CREATOR";
-  const availableTabs = isCreator ? CREATOR_DASHBOARD_TABS : PROVIDER_ONLY_TABS;
   const requestedTab = isCreatorDashboardTab(searchParams.tab) ? searchParams.tab : DEFAULT_CREATOR_DASHBOARD_TAB;
-  const tab = availableTabs.some((available) => available.value === requestedTab) ? requestedTab : "tiers";
+  const tab = CREATOR_DASHBOARD_TABS.some((available) => available.value === requestedTab) ? requestedTab : DEFAULT_CREATOR_DASHBOARD_TAB;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <div className="hidden md:block">
         <PageHeader
-          title="Provider dashboard"
-          description="Fans, revenue, and tiers for your provider profile."
+          title="Creator Studio"
+          description="Posts, fans, revenue, and insights from one place."
         />
       </div>
       <div className="md:hidden">
@@ -105,7 +77,7 @@ export default async function CreatorDashboardPage({
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Fans, revenue, tiers, and insights.</p>
       </div>
-      <DashboardTabs activeTab={tab} tabs={availableTabs} />
+      <DashboardTabs activeTab={tab} tabs={CREATOR_DASHBOARD_TABS} />
 
       {tab === "overview" && <OverviewTab profileId={profile.id} />}
       {tab === "assistant" && <AssistantTab profileId={profile.id} />}

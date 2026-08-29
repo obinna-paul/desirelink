@@ -78,15 +78,11 @@ export async function sendPartnerInvite(
 ): Promise<PartnerActionResult> {
   const fromProfile = await prisma.profile.findUnique({
     where: { id: fromProfileId },
-    select: { id: true, profileType: true, partnerId: true },
+    select: { id: true, partnerId: true },
   });
 
   if (!fromProfile) {
     return { ok: false, status: 404, error: "Profile not found" };
-  }
-
-  if (fromProfile.profileType !== "PAIR") {
-    return { ok: false, status: 403, error: "Only Pair accounts can link a partner." };
   }
 
   if (fromProfile.partnerId) {
@@ -95,7 +91,7 @@ export async function sendPartnerInvite(
 
   const toProfile = await prisma.profile.findUnique({
     where: { username },
-    select: { id: true, profileType: true, partnerId: true },
+    select: { id: true, partnerId: true },
   });
 
   if (!toProfile) {
@@ -104,10 +100,6 @@ export async function sendPartnerInvite(
 
   if (toProfile.id === fromProfileId) {
     return { ok: false, status: 400, error: "You can't link to yourself." };
-  }
-
-  if (toProfile.profileType !== "PAIR") {
-    return { ok: false, status: 400, error: "That profile isn't set up as a Pair account." };
   }
 
   if (toProfile.partnerId) {

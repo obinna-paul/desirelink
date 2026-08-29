@@ -7,9 +7,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ProfileView } from "@/components/profile/profile-view";
 import { getCreatorProfilePosts } from "@/lib/posts";
 import { getPublicTiers } from "@/lib/tiers";
-import { isProviderProfileType } from "@/lib/providers";
 import { getProviderServiceListings } from "@/lib/service-listings";
 import { isPremiumUser } from "@/lib/premium";
+import { getProfileEvents } from "@/lib/events";
 
 export default async function ProfilePage({
   searchParams,
@@ -48,10 +48,11 @@ export default async function ProfilePage({
     );
   }
 
-  const [posts, tiers, serviceListings, profileIsPremium] = await Promise.all([
-    profile.profileType === "CREATOR" ? getCreatorProfilePosts(profile.id, profile.id) : Promise.resolve([]),
-    isProviderProfileType(profile.profileType) ? getPublicTiers(profile.id, profile.id) : Promise.resolve([]),
-    profile.profileType === "SERVICE_PROVIDER" ? getProviderServiceListings(profile.id) : Promise.resolve([]),
+  const [posts, tiers, serviceListings, events, profileIsPremium] = await Promise.all([
+    getCreatorProfilePosts(profile.id, profile.id),
+    getPublicTiers(profile.id, profile.id),
+    getProviderServiceListings(profile.id),
+    getProfileEvents(profile.id, profile.id),
     isPremiumUser(profile.id),
   ]);
 
@@ -66,10 +67,11 @@ export default async function ProfilePage({
         posts={posts}
         tiers={tiers}
         serviceListings={serviceListings}
+        events={events}
         isOwner
         isPremium={profileIsPremium}
         profileHref="/profile"
-        activeSection={searchParams.section === "posts" ? "posts" : "about"}
+        activeSection={searchParams.section}
       />
     </div>
   );

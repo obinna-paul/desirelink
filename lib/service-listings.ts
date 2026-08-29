@@ -48,7 +48,6 @@ export async function getHomeServiceListings(limit = 24): Promise<HomeServiceLis
     return await prisma.serviceListing.findMany({
       where: {
         provider: {
-          profileType: "SERVICE_PROVIDER",
           isIncognito: false,
           isSuspended: false,
         },

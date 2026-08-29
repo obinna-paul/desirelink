@@ -6,10 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { createServiceListing, getProviderServiceListings } from "@/lib/service-listings";
 import { serviceListingSchema } from "@/lib/validations/service-listing";
 
-async function getServiceProviderProfile(userId: string) {
-  const profile = await prisma.profile.findUnique({ where: { userId } });
-  if (profile?.profileType !== "SERVICE_PROVIDER") return null;
-  return profile;
+async function getCurrentProfile(userId: string) {
+  return prisma.profile.findUnique({ where: { userId } });
 }
 
 export async function GET() {
@@ -18,9 +16,9 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const profile = await getServiceProviderProfile(session.user.id);
+  const profile = await getCurrentProfile(session.user.id);
   if (!profile) {
-    return NextResponse.json({ error: "Service provider access required" }, { status: 403 });
+    return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
   const listings = await getProviderServiceListings(profile.id);
@@ -33,9 +31,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const profile = await getServiceProviderProfile(session.user.id);
+  const profile = await getCurrentProfile(session.user.id);
   if (!profile) {
-    return NextResponse.json({ error: "Service provider access required" }, { status: 403 });
+    return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
   const body = await req.json().catch(() => null);

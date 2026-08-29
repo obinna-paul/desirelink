@@ -30,10 +30,10 @@ export default async function EditProfilePage() {
     redirect("/profile");
   }
 
-  const showPartnerPanel = profile.profileType === "PAIR" || profile.partnerId !== null;
+  const showPartnerPanel = profile.partnerId !== null;
   const [partnerState, serviceListings] = await Promise.all([
     showPartnerPanel ? getPartnerState(profile.id) : Promise.resolve(null),
-    profile.profileType === "SERVICE_PROVIDER" ? getProviderServiceListings(profile.id) : Promise.resolve(null),
+    getProviderServiceListings(profile.id),
   ]);
 
   return (
@@ -75,7 +75,7 @@ export default async function EditProfilePage() {
         />
       </section>
       {partnerState && <PartnerLinkPanel initialState={partnerState} />}
-      {serviceListings && <ServiceListingManager initialListings={serviceListings} />}
+      <ServiceListingManager initialListings={serviceListings} />
     </div>
   );
 }

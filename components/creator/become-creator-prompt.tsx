@@ -10,14 +10,14 @@ export function BecomeCreatorPrompt() {
         <Sparkles className="h-6 w-6 text-primary-foreground" aria-hidden="true" />
       </span>
       <div>
-        <h2 className="text-lg font-semibold">Become a provider</h2>
+        <h2 className="text-lg font-semibold">Set up earning tools</h2>
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          Switch your account type to Creator, Pair, or Service Provider to unlock subscription
-          tiers and the provider dashboard - Fans, revenue, and tiers all in one place.
+          Add tiers, publish services, and review your earning dashboard when you are ready
+          to monetize your activity on Udala.
         </p>
       </div>
       <Button asChild className="w-full md:w-auto">
-        <Link href="/profile/edit">Update account type</Link>
+        <Link href="/creator-dashboard">Open Creator Studio</Link>
       </Button>
     </div>
   );

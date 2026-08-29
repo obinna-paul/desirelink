@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import type { ProfileType } from "@prisma/client";
 import { PREMIUM_SUBSCRIPTION_PRICE_CENTS, countActivePremiumSubscriptionsInRange } from "@/lib/premium";
 import { calculatePoints, calculatePointsBreakdown, distributePool, pointWeight, METRIC_TYPES, METRIC_TYPE_LABELS } from "./points";
-import { PROVIDER_PROFILE_TYPES } from "@/lib/provider-types";
 
 const REWARDS_POOL_SHARE = 0.7;
 const DASHBOARD_MONTH_COUNT = 12;
@@ -95,7 +94,7 @@ export async function getCurrentMonthEstimate(providerId: string, providerType: 
 
   const [providers, premiumSubscriberCount, ownMetrics] = await Promise.all([
     prisma.profile.findMany({
-      where: { profileType: { in: [...PROVIDER_PROFILE_TYPES] }, isMonetized: true },
+      where: { isMonetized: true },
       select: { id: true, profileType: true },
     }),
     countActivePremiumSubscriptionsInRange(start, end),
@@ -157,7 +156,7 @@ export async function getProviderEarningsDashboard(providerId: string) {
     where: { id: providerId },
     select: { id: true, profileType: true, isMonetized: true, monetizationStatus: true },
   });
-  if (!profile || !PROVIDER_PROFILE_TYPES.includes(profile.profileType)) return null;
+  if (!profile) return null;
 
   const now = new Date();
   const thisMonth = currentMonthRange(now);
@@ -312,7 +311,7 @@ export async function getProviderEarningsDashboard(providerId: string) {
       label: "Service bookings",
       amountCents: 0,
       currentMonthCents: 0,
-      status: profile.profileType === "SERVICE_PROVIDER" ? `${serviceBookingSignals} booking signals` : "service providers only",
+      status: `${serviceBookingSignals} booking signals`,
     },
     { key: "tips", label: "Tips", amountCents: 0, currentMonthCents: 0, status: "future" },
     {

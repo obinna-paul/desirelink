@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Award, BadgeCheck, Briefcase, CalendarCheck, Heart, ShieldCheck, Sparkles } from "lucide-react";
+import { Award, BadgeCheck, CalendarCheck, ShieldCheck } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -51,23 +51,6 @@ export function ProfileCard({
           <div className="flex flex-wrap items-center gap-1.5">
             <p className="truncate text-sm font-semibold">{profile.displayName}</p>
             {isPremium && <PremiumBadge className="px-1.5 py-0.5 text-[10px]" />}
-            {profile.profileType === "CREATOR" && (
-              <Sparkles
-                role="img"
-                aria-label="Creator"
-                className="h-3.5 w-3.5 shrink-0 text-neon-pink"
-              />
-            )}
-            {profile.profileType === "PAIR" && (
-              <Heart role="img" aria-label="Pair" className="h-3.5 w-3.5 shrink-0 text-neon-cyan" />
-            )}
-            {profile.profileType === "SERVICE_PROVIDER" && (
-              <Briefcase
-                role="img"
-                aria-label="Service provider"
-                className="h-3.5 w-3.5 shrink-0 text-neon-cyan"
-              />
-            )}
             {profile.isTrustedMember ? (
               <ShieldCheck
                 role="img"

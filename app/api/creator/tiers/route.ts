@@ -15,7 +15,7 @@ export async function GET() {
 
   const profile = await getCreatorProfileByUserId(session.user.id);
   if (!profile) {
-    return NextResponse.json({ error: "Creator access required" }, { status: 403 });
+    return NextResponse.json({ error: "Profile required" }, { status: 403 });
   }
 
   const tiers = await prisma.creatorTier.findMany({
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 
   const profile = await getCreatorProfileByUserId(session.user.id);
   if (!profile) {
-    return NextResponse.json({ error: "Creator access required" }, { status: 403 });
+    return NextResponse.json({ error: "Profile required" }, { status: 403 });
   }
 
   const body = await readJson(req);

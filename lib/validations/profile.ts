@@ -12,7 +12,7 @@ export const updateProfileSchema = z.object({
   locationLng: z.number().min(-180).max(180),
   city: z.string().max(100),
   country: z.string().max(100),
-  profileType: z.enum(ACCOUNT_TYPE_VALUES),
+  profileType: z.enum(ACCOUNT_TYPE_VALUES).optional(),
   serviceCategories: z.array(z.string()).max(10),
   isVerified: z.boolean(),
   openToChat: z.boolean(),

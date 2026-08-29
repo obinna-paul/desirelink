@@ -17,7 +17,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const creatorProfile = await getCreatorProfileByUserId(session.user.id);
   if (!creatorProfile) {
-    return NextResponse.json({ error: "Creator access required" }, { status: 403 });
+    return NextResponse.json({ error: "Profile required" }, { status: 403 });
   }
 
   const application = await prisma.accessApplication.findUnique({

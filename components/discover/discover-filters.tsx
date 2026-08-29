@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
-import type { DesireLevel, ProfileType } from "@prisma/client";
+import type { DesireLevel } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -19,7 +19,6 @@ import {
   DESIRE_LEVEL_FILTER_OPTIONS,
   DISCOVER_SORT_OPTIONS,
   LAST_ACTIVE_FILTER_OPTIONS,
-  PROVIDER_TYPE_FILTER_OPTIONS,
   RADIUS_OPTIONS,
   VERIFICATION_FILTER_OPTIONS,
   type AvailabilityFilterValue,
@@ -152,7 +151,6 @@ export function DiscoverFiltersPanel({
   const router = useRouter();
   const [genders, setGenders] = useState<string[]>(initialFilters.genders);
   const [orientations, setOrientations] = useState<string[]>(initialFilters.orientations);
-  const [accountTypes, setAccountTypes] = useState<ProfileType[]>(initialFilters.accountTypes);
   const [desireCategories, setDesireCategories] = useState<string[]>(initialFilters.desireCategories);
   const [desireLevel, setDesireLevel] = useState<DesireLevel | "">(initialFilters.desireLevel ?? "");
   const [bodyTypes, setBodyTypes] = useState<string[]>(initialFilters.bodyTypes);
@@ -174,8 +172,7 @@ export function DiscoverFiltersPanel({
     (availability !== "any" ? 1 : 0) +
     (sort !== "newest" ? 1 : 0) +
     (isPremium
-      ? accountTypes.length +
-        desireCategories.length +
+      ? desireCategories.length +
         bodyTypes.length +
         (desireLevel ? 1 : 0) +
         (lastActive !== "any" ? 1 : 0) +
@@ -188,7 +185,6 @@ export function DiscoverFiltersPanel({
     genders.forEach((value) => params.append("gender", value));
     orientations.forEach((value) => params.append("orientation", value));
     if (isPremium) {
-      accountTypes.forEach((value) => params.append("accountType", value));
       desireCategories.forEach((value) => params.append("desire", value));
       bodyTypes.forEach((value) => params.append("bodyType", value));
       if (desireLevel) params.set("desireLevel", desireLevel);
@@ -205,7 +201,6 @@ export function DiscoverFiltersPanel({
   function clearFilters() {
     setGenders([]);
     setOrientations([]);
-    setAccountTypes([]);
     setDesireCategories([]);
     setDesireLevel("");
     setBodyTypes([]);
@@ -314,7 +309,7 @@ export function DiscoverFiltersPanel({
             </h2>
             {!isPremium && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Upgrade to use interests, last active, body type, verification, and provider type filters.
+                Upgrade to use interests, last active, body type, and verification filters.
               </p>
             )}
           </div>
@@ -326,13 +321,6 @@ export function DiscoverFiltersPanel({
             />
           )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <MultiSelectDropdown
-              label="Provider type"
-              options={PROVIDER_TYPE_FILTER_OPTIONS}
-              selected={accountTypes}
-              onChange={(next) => setAccountTypes(next as ProfileType[])}
-              disabled={!isPremium}
-            />
             <MultiSelectDropdown
               label="Desires"
               options={toDropdownOptions(DESIRE_CATEGORIES)}

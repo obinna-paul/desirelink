@@ -35,6 +35,18 @@ const eventCardInclude = {
 
 export type UpcomingEvent = Prisma.EventGetPayload<{ include: typeof eventCardInclude }>;
 
+export async function getProfileEvents(profileId: string, viewerProfileId: string | null): Promise<UpcomingEvent[]> {
+  return prisma.event.findMany({
+    where: {
+      hostId: profileId,
+      ...visibilityWhere(viewerProfileId),
+    },
+    orderBy: { startTime: "desc" },
+    take: 30,
+    include: eventCardInclude,
+  });
+}
+
 type ViewerProfile = {
   id: string;
   locationLat: number;

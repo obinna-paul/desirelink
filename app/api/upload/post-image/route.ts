@@ -16,12 +16,10 @@ export async function POST(req: Request) {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { profileType: true },
+    select: { id: true },
   });
 
-  if (profile?.profileType !== "CREATOR") {
-    return NextResponse.json({ error: "Creator access required" }, { status: 403 });
-  }
+  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
 
   const formData = await req.formData();
   const file = formData.get("file");

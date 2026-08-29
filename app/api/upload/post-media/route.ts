@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { cloudinary } from "@/lib/cloudinary";
 import { prisma } from "@/lib/prisma";
-import { isProviderProfileType } from "@/lib/provider-types";
 import {
   allowedPostMediaTypesLabel,
   isAllowedImageFile,
@@ -31,12 +30,10 @@ export async function POST(req: Request) {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { profileType: true, isSuspended: true },
+    select: { isSuspended: true },
   });
 
-  if (!profile || !isProviderProfileType(profile.profileType)) {
-    return NextResponse.json({ error: "Provider access required" }, { status: 403 });
-  }
+  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   if (profile.isSuspended) {
     return NextResponse.json({ error: "Your account is suspended from uploading media" }, { status: 403 });
   }

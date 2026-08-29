@@ -13,7 +13,6 @@ import {
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isProviderProfileType } from "@/lib/provider-types";
 import { getProviderServiceListings } from "@/lib/service-listings";
 import { EventForm } from "@/components/events/event-form";
 import { FeedComposer } from "@/components/posts/feed-composer";
@@ -54,7 +53,7 @@ const createOptions: {
     type: "service",
     label: "Service",
     eyebrow: "Earn",
-    description: "List a paid service from your provider profile.",
+    description: "List a paid service from your profile.",
     href: "/create?type=service",
     icon: BriefcaseBusiness,
   },
@@ -199,14 +198,6 @@ function CreateOptionCard({
   );
 }
 
-function ProviderOnlyNotice({ action }: { action: string }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
-      {action} is available to Creators, Pairs, and Service Providers. Update your profile type in settings to unlock it.
-    </div>
-  );
-}
-
 export default async function CreatePage({
   searchParams,
 }: {
@@ -219,14 +210,13 @@ export default async function CreatePage({
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, displayName: true, profileType: true },
+    select: { id: true, displayName: true },
   });
   if (!profile) redirect("/login");
 
   const activeType = isCreateType(searchParams.type) ? searchParams.type : "post";
-  const isProvider = isProviderProfileType(profile.profileType);
   const serviceListings =
-    activeType === "service" && profile.profileType === "SERVICE_PROVIDER"
+    activeType === "service"
       ? await getProviderServiceListings(profile.id)
       : [];
 
@@ -234,17 +224,11 @@ export default async function CreatePage({
     activeType === "event" ? (
       <EventForm />
     ) : activeType === "service" ? (
-      profile.profileType === "SERVICE_PROVIDER" ? (
-        <ServiceListingManager initialListings={serviceListings} startCreating />
-      ) : (
-        <ProviderOnlyNotice action="Service creation" />
-      )
+      <ServiceListingManager initialListings={serviceListings} startCreating />
     ) : activeType === "room" ? (
       <RoomForm />
-    ) : isProvider ? (
-      <FeedComposer displayName={profile.displayName} />
     ) : (
-      <ProviderOnlyNotice action="Post creation" />
+      <FeedComposer displayName={profile.displayName} />
     );
 
   return (

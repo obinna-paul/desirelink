@@ -10,10 +10,11 @@ import { getPublicTiers } from "@/lib/tiers";
 import { getBlockRelationship } from "@/lib/block";
 import { getProfileVisibility, getVisibleDesires } from "@/lib/circles";
 import { getReviewableContexts, getReviewsForProfile, getReviewSummary } from "@/lib/reviews";
-import { confirmProviderPayment, isProviderProfileType } from "@/lib/providers";
+import { confirmProviderPayment } from "@/lib/providers";
 import { getProviderServiceListings } from "@/lib/service-listings";
 import { trackContentView, trackProfileView as trackPremiumProfileView, trackServiceView } from "@/lib/rewards/tracking";
 import { isPremiumUser, recordProfileVisit } from "@/lib/premium";
+import { getProfileEvents } from "@/lib/events";
 
 export default async function PublicProfilePage({
   params,
@@ -65,19 +66,20 @@ export default async function PublicProfilePage({
   const desires = await getVisibleDesires(profile.id, visibility);
 
   const viewerOrOwnerId = isOwner ? profile.id : (viewerProfile?.id ?? null);
-  const isProvider = isProviderProfileType(profile.profileType);
 
-  const posts = profile.profileType === "CREATOR" ? await getCreatorProfilePosts(profile.id, viewerOrOwnerId) : [];
-  const tiers = isProvider ? await getPublicTiers(profile.id, viewerOrOwnerId) : [];
-  const serviceListings =
-    profile.profileType === "SERVICE_PROVIDER" ? await getProviderServiceListings(profile.id) : [];
+  const [posts, tiers, serviceListings, events] = await Promise.all([
+    getCreatorProfilePosts(profile.id, viewerOrOwnerId),
+    getPublicTiers(profile.id, viewerOrOwnerId),
+    getProviderServiceListings(profile.id),
+    getProfileEvents(profile.id, viewerOrOwnerId),
+  ]);
 
-  if (viewerProfile && isProvider) {
+  if (viewerProfile) {
     await trackPremiumProfileView(profile.id, viewerProfile.id);
-    if (profile.profileType === "CREATOR" && posts.length > 0) {
+    if (posts.length > 0) {
       await trackContentView(profile.id, viewerProfile.id);
     }
-    if (profile.profileType === "SERVICE_PROVIDER" && serviceListings.length > 0) {
+    if (serviceListings.length > 0) {
       await trackServiceView(profile.id, viewerProfile.id);
     }
   }
@@ -100,6 +102,7 @@ export default async function PublicProfilePage({
         posts={posts}
         tiers={tiers}
         serviceListings={serviceListings}
+        events={events}
         isOwner={isOwner}
         isPremium={profileIsPremium}
         canMessage={!isOwner && Boolean(viewerProfile)}
@@ -109,7 +112,7 @@ export default async function PublicProfilePage({
         reviewableContexts={reviewableContexts}
         visibleProfileFields={visibility.profileFields}
         profileHref={`/profile/${profile.username}`}
-        activeSection={searchParams.section === "posts" ? "posts" : "about"}
+        activeSection={searchParams.section}
       />
     </div>
   );
