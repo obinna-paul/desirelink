@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
-import { cloudinary } from "@/lib/cloudinary";
+import { storeUpload } from "@/lib/uploads";
 import { allowedImageTypesLabel, isAllowedImageFile } from "@/lib/security/uploads";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -34,22 +34,16 @@ export async function POST(req: Request) {
   const buffer = Buffer.from(await file.arrayBuffer());
 
   try {
-    const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: "udala/verification/ids",
-          transformation: [{ width: 1600, height: 1600, crop: "limit" }],
-        },
-        (error, result) => {
-          if (error || !result) return reject(error ?? new Error("Upload failed"));
-          resolve(result);
-        }
-      );
-      uploadStream.end(buffer);
+    const { url } = await storeUpload({
+      buffer,
+      folder: "udala/verification/ids",
+      contentType: file.type,
+      transformation: [{ width: 1600, height: 1600, crop: "limit" }],
     });
 
-    return NextResponse.json({ url: result.secure_url }, { status: 200 });
-  } catch {
+    return NextResponse.json({ url }, { status: 200 });
+  } catch (error) {
+    console.error("[upload/verification-id] failed", error);
     return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 502 });
   }
 }

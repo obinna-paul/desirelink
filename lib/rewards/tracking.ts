@@ -63,7 +63,7 @@ export function trackCoupleInterest(providerId: string, userId: string): Promise
 /**
  * Subscriber retention isn't "engagement from a premium user" like the other
  * metrics — it's a per-subscriber credit for keeping them around, regardless
- * of whether that subscriber also holds Udala Premium. It's recorded once per
+ * of whether that subscriber also holds udala premium. It's recorded once per
  * active subscriber, not gated by isPremiumUser.
  */
 export function trackSubscriberRetention(providerId: string, subscriberId: string): Promise<void> {

@@ -31,8 +31,11 @@ export async function TopBar() {
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/82 md:flex md:h-16 md:items-center md:justify-between md:px-7 md:py-0">
       <div className="flex flex-col gap-2 md:hidden">
         <div className="flex min-h-11 items-center justify-between gap-3">
-          <Link href="/" className="flex min-h-11 min-w-0 items-center" aria-label="Udala home">
-            <span className="font-heading text-2xl font-semibold tracking-tight text-primary">Udala</span>
+          <Link href="/" className="flex min-h-11 min-w-0 items-center gap-2" aria-label="udala home">
+            <span className="h-8 w-8 shrink-0 overflow-hidden rounded-lg">
+              <BrandLogo className="h-full w-full" priority alt="" />
+            </span>
+            <span className="font-heading text-2xl font-semibold tracking-tight text-primary">udala</span>
           </Link>
 
           <div className="flex items-center gap-1">

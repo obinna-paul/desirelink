@@ -39,7 +39,7 @@ export default async function EditProfilePage() {
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <div className="hidden md:block">
-        <PageHeader title="Edit Profile" description="Update how others see you on Udala." />
+        <PageHeader title="Edit Profile" description="Update how others see you on udala." />
       </div>
       <div className="md:hidden">
         <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">

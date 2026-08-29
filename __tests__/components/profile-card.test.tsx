@@ -45,6 +45,6 @@ describe("ProfileCard", () => {
     expect(screen.getByText("91% match")).toBeInTheDocument();
     expect(screen.getByText("Dinner")).toBeInTheDocument();
     expect(screen.getByText("+1 more")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /^creator$/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /verified creator/i })).toBeInTheDocument();
   });
 });

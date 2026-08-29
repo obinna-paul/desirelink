@@ -23,7 +23,7 @@ export async function GET() {
 
 /**
  * Paystack saves a reusable authorization after a successful real charge. So
- * "Add Card" starts checkout for Udala Premium ($5), the one product every
+ * "Add Card" starts checkout for udala premium ($5), the one product every
  * account can subscribe to; the resulting card gets saved once that payment
  * completes (see confirmProviderPayment / lib/payments/webhook-handler.ts).
  */

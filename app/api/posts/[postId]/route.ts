@@ -88,7 +88,7 @@ export async function PATCH(req: Request, { params }: { params: { postId: string
     return NextResponse.json(
       premiumLimitPayload(
         "post_editing",
-        "Editing published posts is a premium feature. Upgrade to Udala Premium to revise posts after publishing."
+        "Editing published posts is a premium feature. Upgrade to udala premium to revise posts after publishing."
       ),
       { status: 402 }
     );

@@ -60,7 +60,7 @@ export default async function HomePage({
       <div className="hidden md:block">
         <PageHeader
           title="Home"
-          description="Public posts, upcoming events, and services from the Udala community."
+          description="Public posts, upcoming events, and services from the udala community."
         />
       </div>
       <HomeTabs activeTab={activeTab} />

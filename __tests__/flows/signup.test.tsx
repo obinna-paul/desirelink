@@ -38,7 +38,6 @@ describe("signup flow", () => {
     await user.type(screen.getByLabelText(/^password$/i), "password123");
     await user.type(screen.getByLabelText(/confirm password/i), "password123");
     await user.click(screen.getByRole("button", { name: /continue/i }));
-    await user.click(screen.getByRole("button", { name: /continue/i }));
     await user.click(screen.getByRole("button", { name: /create account/i }));
 
     await waitFor(() => {
@@ -52,9 +51,8 @@ describe("signup flow", () => {
     expect(submittedBodies[0]).toMatchObject({
       name: "Ada Lovelace",
       email: "ada@example.com",
-      profileType: "EXPLORER",
     });
-    expect(navigation.__mockRouter.push).toHaveBeenCalledWith("/onboarding/desires");
+    expect(navigation.__mockRouter.push).toHaveBeenCalledWith("/profile/edit");
     expect(navigation.__mockRouter.refresh).toHaveBeenCalled();
   });
 });

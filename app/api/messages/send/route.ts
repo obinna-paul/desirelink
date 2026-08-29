@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       {
         error: "You've reached your 10 message limit for the last 24 hours.",
         code: "MESSAGE_LIMIT_REACHED",
-        upsell: "Upgrade to Udala Premium for unlimited messaging.",
+        upsell: "Upgrade to udala premium for unlimited messaging.",
         remaining: limit.remaining,
         limit: limit.limit,
       },

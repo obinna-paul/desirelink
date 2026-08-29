@@ -31,7 +31,7 @@ export function AuthCard({
             priority
             className="h-14 w-14 object-contain"
           />
-          <span className="ml-3 font-heading text-xl font-semibold tracking-tight">Udala</span>
+          <span className="ml-3 font-heading text-xl font-semibold tracking-tight">udala</span>
         </Link>
         <div className="rounded-xl border border-border/60 bg-card p-6 shadow-lg">
           <div className="mb-6">

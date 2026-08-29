@@ -30,7 +30,7 @@ const STEPS: {
   {
     id: "looking",
     title: "What are you hoping to find?",
-    description: "Choose the experiences Udala should prioritize for you.",
+    description: "Choose the experiences udala should prioritize for you.",
     level: "looking",
     helper: "These carry the strongest recommendation weight.",
   },

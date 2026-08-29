@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
-import { cloudinary } from "@/lib/cloudinary";
+import { storeUpload } from "@/lib/uploads";
 import { prisma } from "@/lib/prisma";
 import {
   allowedPostMediaTypesLabel,
@@ -13,14 +13,6 @@ import {
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
-
-function hasCloudinaryConfig() {
-  return Boolean(
-    process.env.CLOUDINARY_CLOUD_NAME &&
-      process.env.CLOUDINARY_API_KEY &&
-      process.env.CLOUDINARY_API_SECRET
-  );
-}
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -60,48 +52,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Video must be under 100MB" }, { status: 400 });
   }
 
-  if (!hasCloudinaryConfig()) {
-    console.error("[post-media] Cloudinary environment variables are missing.");
-    return NextResponse.json(
-      { error: "Media uploads need Cloudinary keys configured in Vercel." },
-      { status: 503 }
-    );
-  }
-
   const buffer = Buffer.from(await file.arrayBuffer());
 
   try {
-    const result = await new Promise<{ secure_url: string; width?: number; height?: number; duration?: number }>(
-      (resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          {
-            folder: "udala/posts",
-            resource_type: "auto",
-            transformation: isVideo ? undefined : [{ width: 1600, height: 1600, crop: "limit" }],
-          },
-          (error, result) => {
-            if (error || !result) return reject(error ?? new Error("Upload failed"));
-            resolve(result);
-          }
-        );
-        uploadStream.end(buffer);
-      }
-    );
+    const stored = await storeUpload({
+      buffer,
+      folder: "udala/posts",
+      contentType: file.type,
+      resourceType: isVideo ? "video" : "image",
+      transformation: isVideo ? undefined : [{ width: 1600, height: 1600, crop: "limit" }],
+    });
 
     return NextResponse.json(
       {
         media: {
-          url: result.secure_url,
+          url: stored.url,
           type: isVideo ? "video" : "image",
-          width: result.width,
-          height: result.height,
-          durationSeconds: result.duration,
+          width: stored.width,
+          height: stored.height,
+          durationSeconds: stored.durationSeconds,
         },
       },
       { status: 200 }
     );
   } catch (error) {
-    console.error("[post-media] Cloudinary upload failed", error);
+    console.error("[upload/post-media] failed", error);
     return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 502 });
   }
 }

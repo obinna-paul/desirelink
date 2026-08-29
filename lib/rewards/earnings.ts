@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { ProfileType } from "@prisma/client";
 import { PREMIUM_SUBSCRIPTION_PRICE_CENTS, countActivePremiumSubscriptionsInRange } from "@/lib/premium";
+import { isProviderProfileType } from "@/lib/provider-types";
 import { calculatePoints, calculatePointsBreakdown, distributePool, pointWeight, METRIC_TYPES, METRIC_TYPE_LABELS } from "./points";
 
 const REWARDS_POOL_SHARE = 0.7;
@@ -156,7 +157,7 @@ export async function getProviderEarningsDashboard(providerId: string) {
     where: { id: providerId },
     select: { id: true, profileType: true, isMonetized: true, monetizationStatus: true },
   });
-  if (!profile) return null;
+  if (!profile || !isProviderProfileType(profile.profileType)) return null;
 
   const now = new Date();
   const thisMonth = currentMonthRange(now);

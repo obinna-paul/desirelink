@@ -132,7 +132,7 @@ function CreateOptionCard({
         layout === "desktop" ? "min-h-[332px] p-6" : "min-h-[132px]",
         isActive
           ? option.primary
-            ? "border-transparent bg-[linear-gradient(135deg,hsl(276_72%_45%),hsl(335_70%_48%),hsl(24_90%_56%))] text-white shadow-lift"
+            ? "border-transparent bg-primary text-primary-foreground shadow-lift"
             : "border-foreground bg-foreground text-background shadow-lift"
           : "border-border/70 bg-card text-foreground shadow-sm hover:border-primary/35 hover:shadow-lift"
       )}

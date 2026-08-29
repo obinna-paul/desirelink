@@ -319,7 +319,7 @@ export function GroupChat({
             <PremiumUpsell
               compact
               title="Message limit reached"
-              description={premiumUpsell ?? "Upgrade to Udala Premium for unlimited messaging."}
+              description={premiumUpsell ?? "Upgrade to udala premium for unlimited messaging."}
             />
           )}
           {messageLimit && (

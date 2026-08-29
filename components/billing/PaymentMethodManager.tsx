@@ -138,7 +138,7 @@ export function PaymentMethodManager({ initialCards }: { initialCards: PaymentMe
 
       {cards.length === 0 && (
         <Button type="button" className="w-fit" disabled={adding} onClick={addCard}>
-          {adding ? "..." : "Add a card via Udala Premium"}
+          {adding ? "..." : "Add a card via udala premium"}
         </Button>
       )}
       {cards.length > 0 && (

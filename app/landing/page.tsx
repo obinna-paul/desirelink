@@ -6,13 +6,13 @@ import { LoginForm } from "@/components/auth/login-form";
 export const metadata: Metadata = {
   title: "Udala - Log in",
   description:
-    "Log in to Udala, a premium African social discovery app for private chats, creator circles, events, and real-time availability.",
+    "Log in to udala, a premium African social discovery app for private chats, creator circles, events, and real-time availability.",
 };
 
 export default function LandingPage() {
   return (
     <AuthShell
-      title="Log in to Udala"
+      title="Log in to udala"
       description="Continue to your private social space, messages, events, and creator circles."
     >
       <LoginForm />

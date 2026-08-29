@@ -71,6 +71,13 @@ export default function SignupPage() {
   }
 
   async function onSubmit(data: SignupInput) {
+    // Guard against a premature submit (e.g. Enter pressed on step 0): only the
+    // final review step actually creates the account — otherwise just advance.
+    if (step < STEPS.length - 1) {
+      void goNext();
+      return;
+    }
+
     setServerError(null);
     setStatus("submitting");
 
@@ -149,7 +156,7 @@ export default function SignupPage() {
         <section className="grid flex-1 items-start gap-5 py-5 sm:gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:py-14">
           <aside className="hidden flex-col gap-8 lg:flex">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8a4962]">Join Udala</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8a4962]">Join udala</p>
               <h1 className="mt-4 max-w-[9ch] font-heading text-5xl font-semibold leading-[1.02] tracking-tight">
                 Your account starts private.
               </h1>
@@ -191,7 +198,7 @@ export default function SignupPage() {
           </aside>
 
           <div className="hidden">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8a4962]">Join Udala</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8a4962]">Join udala</p>
             <h1 className="mt-3 font-heading text-3xl font-semibold leading-tight tracking-tight text-[#171017]">
               Your account starts private.
             </h1>
@@ -307,8 +314,9 @@ export default function SignupPage() {
                   </Button>
                 ) : (
                   <Button
-                    type="submit"
+                    type="button"
                     disabled={status !== "idle"}
+                    onClick={handleSubmit(onSubmit)}
                     className="h-12 w-full rounded-xl bg-[#050505] px-6 text-white shadow-[0_14px_30px_rgba(5,5,5,0.18)] hover:bg-[#1b1b1b] sm:w-auto sm:rounded-lg"
                   >
                     {status === "submitting" && "Creating account..."}

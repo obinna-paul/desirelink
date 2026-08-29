@@ -128,7 +128,9 @@ export function PostActions({
   const [commentCount, setCommentCount] = useState(initialCounts.comments);
   const [shareCount, setShareCount] = useState(initialCounts.shares);
   const [comments, setComments] = useState(initialComments);
-  const [commentsOpen, setCommentsOpen] = useState(initialComments.length > 0);
+  // Comments stay collapsed until the viewer taps the comment button — the feed
+  // should not render full threads inline by default.
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const [comment, setComment] = useState("");
   const [pendingComment, setPendingComment] = useState(false);
   const [error, setError] = useState<string | null>(null);

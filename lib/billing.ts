@@ -181,7 +181,7 @@ export async function getBillingOverview(profileId: string): Promise<BillingOver
       amountCents: transaction.amountCents,
       status: transaction.status,
       createdAt: transaction.createdAt,
-      description: transaction.isPremium ? "Udala Premium" : (transaction.tier?.name ?? "Payment"),
+      description: transaction.isPremium ? "udala premium" : (transaction.tier?.name ?? "Payment"),
     })),
   };
 }

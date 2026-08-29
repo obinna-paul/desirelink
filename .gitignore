@@ -63,3 +63,6 @@ __pycache__/
 /public/fallback-*.js
 
 .vercel
+
+# Local upload fallback (used when Cloudinary is not configured)
+/public/uploads/
