@@ -80,7 +80,7 @@ function ProfileSectionTab({
   );
 }
 
-function EmptyProfileSection({
+export function EmptyProfileSection({
   title,
   description,
   actionHref,

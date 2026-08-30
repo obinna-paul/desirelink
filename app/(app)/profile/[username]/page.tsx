@@ -5,7 +5,9 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProfileView } from "@/components/profile/profile-view";
+import { CreatorProfileView } from "@/components/profile/creator-profile-view";
 import { getCreatorProfilePosts } from "@/lib/posts";
+import { getCreatorStats } from "@/lib/creator";
 import { getPublicTiers } from "@/lib/tiers";
 import { getBlockRelationship } from "@/lib/block";
 import { getProfileVisibility, getVisibleDesires } from "@/lib/circles";
@@ -15,6 +17,7 @@ import { getProviderServiceListings } from "@/lib/service-listings";
 import { trackContentView, trackProfileView as trackPremiumProfileView, trackServiceView } from "@/lib/rewards/tracking";
 import { isPremiumUser, recordProfileVisit } from "@/lib/premium";
 import { getProfileEvents } from "@/lib/events";
+import { isProviderProfileType } from "@/lib/provider-types";
 
 export default async function PublicProfilePage({
   params,
@@ -66,12 +69,14 @@ export default async function PublicProfilePage({
   const desires = await getVisibleDesires(profile.id, visibility);
 
   const viewerOrOwnerId = isOwner ? profile.id : (viewerProfile?.id ?? null);
+  const isProvider = isProviderProfileType(profile.profileType);
 
-  const [posts, tiers, serviceListings, events] = await Promise.all([
+  const [posts, tiers, serviceListings, events, stats] = await Promise.all([
     getCreatorProfilePosts(profile.id, viewerOrOwnerId),
     getPublicTiers(profile.id, viewerOrOwnerId),
     getProviderServiceListings(profile.id),
     getProfileEvents(profile.id, viewerOrOwnerId),
+    isProvider ? getCreatorStats(profile.id) : Promise.resolve(null),
   ]);
 
   if (viewerProfile) {
@@ -96,25 +101,48 @@ export default async function PublicProfilePage({
       <div className="hidden md:block">
         <PageHeader title={profile.displayName} description={`@${profile.username}`} />
       </div>
-      <ProfileView
-        profile={profile}
-        desires={desires}
-        posts={posts}
-        tiers={tiers}
-        serviceListings={serviceListings}
-        events={events}
-        isOwner={isOwner}
-        isPremium={profileIsPremium}
-        canMessage={!isOwner && Boolean(viewerProfile)}
-        viewerHeartsBalance={viewerProfile?.heartsBalance ?? 0}
-        canModerate={!isOwner && Boolean(viewerProfile)}
-        reviewSummary={reviewSummary}
-        reviews={reviews}
-        reviewableContexts={reviewableContexts}
-        visibleProfileFields={visibility.profileFields}
-        profileHref={`/profile/${profile.username}`}
-        activeSection={searchParams.section}
-      />
+      {isProvider && stats ? (
+        <CreatorProfileView
+          profile={profile}
+          desires={desires}
+          posts={posts}
+          tiers={tiers}
+          serviceListings={serviceListings}
+          events={events}
+          isOwner={isOwner}
+          isPremium={profileIsPremium}
+          canMessage={!isOwner && Boolean(viewerProfile)}
+          viewerHeartsBalance={viewerProfile?.heartsBalance ?? 0}
+          canModerate={!isOwner && Boolean(viewerProfile)}
+          reviewSummary={reviewSummary}
+          reviews={reviews}
+          reviewableContexts={reviewableContexts}
+          visibleProfileFields={visibility.profileFields}
+          profileHref={`/profile/${profile.username}`}
+          activeSection={searchParams.section}
+          stats={stats}
+        />
+      ) : (
+        <ProfileView
+          profile={profile}
+          desires={desires}
+          posts={posts}
+          tiers={tiers}
+          serviceListings={serviceListings}
+          events={events}
+          isOwner={isOwner}
+          isPremium={profileIsPremium}
+          canMessage={!isOwner && Boolean(viewerProfile)}
+          viewerHeartsBalance={viewerProfile?.heartsBalance ?? 0}
+          canModerate={!isOwner && Boolean(viewerProfile)}
+          reviewSummary={reviewSummary}
+          reviews={reviews}
+          reviewableContexts={reviewableContexts}
+          visibleProfileFields={visibility.profileFields}
+          profileHref={`/profile/${profile.username}`}
+          activeSection={searchParams.section}
+        />
+      )}
     </div>
   );
 }

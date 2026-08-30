@@ -5,11 +5,15 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProfileView } from "@/components/profile/profile-view";
+import { CreatorProfileView } from "@/components/profile/creator-profile-view";
 import { getCreatorProfilePosts } from "@/lib/posts";
+import { getCreatorStats } from "@/lib/creator";
 import { getPublicTiers } from "@/lib/tiers";
 import { getProviderServiceListings } from "@/lib/service-listings";
 import { isPremiumUser } from "@/lib/premium";
 import { getProfileEvents } from "@/lib/events";
+import { getReviewSummary, getReviewsForProfile } from "@/lib/reviews";
+import { isProviderProfileType } from "@/lib/provider-types";
 
 export default async function ProfilePage({
   searchParams,
@@ -48,12 +52,17 @@ export default async function ProfilePage({
     );
   }
 
-  const [posts, tiers, serviceListings, events, profileIsPremium] = await Promise.all([
+  const isProvider = isProviderProfileType(profile.profileType);
+
+  const [posts, tiers, serviceListings, events, profileIsPremium, reviewSummary, reviews, stats] = await Promise.all([
     getCreatorProfilePosts(profile.id, profile.id),
     getPublicTiers(profile.id, profile.id),
     getProviderServiceListings(profile.id),
     getProfileEvents(profile.id, profile.id),
     isPremiumUser(profile.id),
+    getReviewSummary(profile.id),
+    getReviewsForProfile(profile.id),
+    isProvider ? getCreatorStats(profile.id) : Promise.resolve(null),
   ]);
 
   return (
@@ -61,18 +70,38 @@ export default async function ProfilePage({
       <div className="hidden md:block">
         <PageHeader title="Profile" description="Manage your public profile and preferences." />
       </div>
-      <ProfileView
-        profile={profile}
-        desires={profile.desires}
-        posts={posts}
-        tiers={tiers}
-        serviceListings={serviceListings}
-        events={events}
-        isOwner
-        isPremium={profileIsPremium}
-        profileHref="/profile"
-        activeSection={searchParams.section}
-      />
+      {isProvider && stats ? (
+        <CreatorProfileView
+          profile={profile}
+          desires={profile.desires}
+          posts={posts}
+          tiers={tiers}
+          serviceListings={serviceListings}
+          events={events}
+          isOwner
+          isPremium={profileIsPremium}
+          profileHref="/profile"
+          activeSection={searchParams.section}
+          reviewSummary={reviewSummary}
+          reviews={reviews}
+          stats={stats}
+        />
+      ) : (
+        <ProfileView
+          profile={profile}
+          desires={profile.desires}
+          posts={posts}
+          tiers={tiers}
+          serviceListings={serviceListings}
+          events={events}
+          isOwner
+          isPremium={profileIsPremium}
+          profileHref="/profile"
+          activeSection={searchParams.section}
+          reviewSummary={reviewSummary}
+          reviews={reviews}
+        />
+      )}
     </div>
   );
 }

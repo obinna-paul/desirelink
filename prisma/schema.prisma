@@ -197,6 +197,7 @@ model Profile {
   displayName String
   bio         String
   avatarUrl   String
+  bannerUrl   String @default("")
 
   profileType       ProfileType @default(EXPLORER)
   serviceCategories String[]    @default([])

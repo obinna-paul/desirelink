@@ -42,7 +42,13 @@ export async function getCreatorProfileByUserId(userId: string) {
   return profile;
 }
 
-export async function getCreatorStats(profileId: string) {
+export type CreatorStats = {
+  subscriberCount: number;
+  totalRevenueCents: number;
+  profileViews: number;
+};
+
+export async function getCreatorStats(profileId: string): Promise<CreatorStats> {
   const [subscriberCount, revenueAgg, profile] = await Promise.all([
     prisma.subscription.count({ where: { creatorId: profileId, status: "active" } }),
     prisma.transaction.aggregate({

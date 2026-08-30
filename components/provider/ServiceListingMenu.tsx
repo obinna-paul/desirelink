@@ -14,7 +14,7 @@ function formatDuration(minutes: number): string {
   return remainder === 0 ? `${hours} hr${hours === 1 ? "" : "s"}` : `${hours}h ${remainder}m`;
 }
 
-function ServiceListingCard({
+export function ServiceListingSummaryCard({
   listing,
   providerUsername,
   isOwner,
@@ -73,7 +73,7 @@ export function ServiceListingMenu({
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {listings.map((listing) => (
-        <ServiceListingCard key={listing.id} listing={listing} providerUsername={providerUsername} isOwner={isOwner} />
+        <ServiceListingSummaryCard key={listing.id} listing={listing} providerUsername={providerUsername} isOwner={isOwner} />
       ))}
     </div>
   );
