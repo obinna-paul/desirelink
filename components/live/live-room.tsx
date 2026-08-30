@@ -41,8 +41,14 @@ type ChatMessage = {
   createdAt: string;
 };
 
+/** A join notice or gift log line, interleaved with real chat so the feed reads as one timeline. */
+type SystemEntry = { kind: "system"; id: string; text: string };
+type ChatEntry = ({ kind: "chat" } & ChatMessage) | SystemEntry;
+
 type GiftEvent = { hearts: number; sender: { displayName: string; avatarUrl: string } };
 type CelebrationGift = GiftEvent & { id: number };
+
+type PresenceMemberInfo = { username?: string; displayName?: string; avatarUrl?: string };
 
 const CONTROL_PILL =
   "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition-colors";
@@ -142,18 +148,26 @@ function HostControls({
   );
 }
 
-function ChatBubble({ message, dense = false }: { message: ChatMessage; dense?: boolean }) {
+function ChatBubble({ entry, dense = false }: { entry: ChatEntry; dense?: boolean }) {
+  if (entry.kind === "system") {
+    return (
+      <p className={cn("text-center text-xs italic", dense ? "text-white/60" : "text-muted-foreground")}>
+        {entry.text}
+      </p>
+    );
+  }
+
   return (
     <div className={cn("flex items-start gap-2", dense && "drop-shadow")}>
       {!dense && (
         <Avatar className="h-7 w-7 shrink-0 border border-white/20">
-          <AvatarImage src={message.sender.avatarUrl} alt="" />
-          <AvatarFallback className="text-[10px]">{message.sender.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
+          <AvatarImage src={entry.sender.avatarUrl} alt="" />
+          <AvatarFallback className="text-[10px]">{entry.sender.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
       )}
       <p className={cn("min-w-0 break-words", dense ? "text-sm" : "text-sm leading-snug")}>
-        <span className="font-semibold">{message.sender.displayName}</span>{" "}
-        <span className={dense ? "" : "text-white/90"}>{message.content}</span>
+        <span className="font-semibold">{entry.sender.displayName}</span>{" "}
+        <span className={dense ? "" : "text-white/90"}>{entry.content}</span>
       </p>
     </div>
   );
@@ -187,7 +201,7 @@ export function LiveRoom({
   tiers?: PublicTierView[];
 }) {
   const router = useRouter();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [content, setContent] = useState("");
   const [viewerCount, setViewerCount] = useState<number | null>(null);
   const [peakViewers, setPeakViewers] = useState(0);
@@ -203,6 +217,11 @@ export function LiveRoom({
   const tickerRef = useRef<HTMLDivElement>(null);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
   const giftIdRef = useRef(0);
+  const systemIdRef = useRef(0);
+
+  function pushSystemEntry(text: string) {
+    setMessages((prev) => [...prev, { kind: "system", id: `system-${systemIdRef.current++}`, text }]);
+  }
 
   useEffect(() => {
     tickerRef.current?.scrollTo({ top: tickerRef.current.scrollHeight });
@@ -237,15 +256,22 @@ export function LiveRoom({
     const channel = client.subscribe(channelName) as PresenceChannel;
 
     channel.bind("pusher:subscription_succeeded", () => setViewerCount(channel.members.count));
-    channel.bind("pusher:member_added", () => setViewerCount(channel.members.count));
+    channel.bind("pusher:member_added", (member: { info?: PresenceMemberInfo }) => {
+      setViewerCount(channel.members.count);
+      // Host-only: a per-viewer "joined" line would be noise in every viewer's own feed on any stream with real traffic.
+      if (isHost && member.info?.displayName) pushSystemEntry(`${member.info.displayName} joined`);
+    });
     channel.bind("pusher:member_removed", () => setViewerCount(channel.members.count));
 
     function onChatMessage(message: ChatMessage) {
-      setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+      setMessages((prev) =>
+        prev.some((m) => m.kind === "chat" && m.id === message.id) ? prev : [...prev, { kind: "chat", ...message }]
+      );
     }
     function onGift(gift: GiftEvent) {
       setHeartsTotal((total) => total + gift.hearts);
       setGiftQueue((prev) => [...prev, { ...gift, id: giftIdRef.current++ }]);
+      pushSystemEntry(`${gift.sender.displayName} sent ${gift.hearts} ${gift.hearts === 1 ? "heart" : "hearts"}`);
     }
     function onReaction() {
       setRemoteReactionTick((tick) => tick + 1);
@@ -266,7 +292,7 @@ export function LiveRoom({
       channel.unbind(LIVE_STREAM_ENDED_EVENT, onEnded);
       client.unsubscribe(channelName);
     };
-  }, [streamId]);
+  }, [streamId, isHost]);
 
   useEffect(() => {
     if (!confirmEnd) return;
@@ -342,10 +368,7 @@ export function LiveRoom({
   }
 
   return (
-    <div
-      data-lk-theme="default"
-      className="fixed inset-0 z-50 flex flex-col bg-black text-white lg:static lg:inset-auto lg:z-auto lg:mx-auto lg:my-4 lg:h-[calc(100vh-7rem)] lg:max-w-6xl lg:flex-row lg:gap-4 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-4"
-    >
+    <div data-lk-theme="default" className="fixed inset-0 z-50 flex flex-col bg-black text-white lg:flex-row">
       <LiveKitRoom
         serverUrl={livekitUrl}
         token={token}
@@ -353,11 +376,11 @@ export function LiveRoom({
         video={isHost && initialCameraEnabled}
         audio={isHost && initialMicEnabled}
         onDisconnected={() => router.push("/")}
-        className="flex flex-1 flex-col lg:flex-row lg:gap-4"
+        className="flex flex-1 flex-col lg:flex-row"
       >
         <div
           className={cn(
-            "relative flex-1 overflow-hidden lg:flex-[2] lg:rounded-xl",
+            "relative flex-1 overflow-hidden lg:flex-[2]",
             "[&_.lk-toast]:!top-[calc(env(safe-area-inset-top)+4.5rem)] lg:[&_.lk-toast]:!top-16"
           )}
         >
@@ -462,8 +485,8 @@ export function LiveRoom({
             ref={tickerRef}
             className="pointer-events-none absolute inset-x-0 bottom-0 flex max-h-40 flex-col gap-1 overflow-y-auto p-3 text-sm [mask-image:linear-gradient(to_top,black_60%,transparent)] landscape:bottom-24 landscape:max-h-24 lg:hidden"
           >
-            {messages.slice(-30).map((message) => (
-              <ChatBubble key={message.id} message={message} dense />
+            {messages.slice(-30).map((entry) => (
+              <ChatBubble key={entry.id} entry={entry} dense />
             ))}
           </div>
 
@@ -479,8 +502,8 @@ export function LiveRoom({
           {composer}
         </div>
 
-        {/* Desktop-only: a persistent side panel — chat history, gifting, and controls all stay visible next to the video. */}
-        <div className="hidden lg:flex lg:w-[340px] lg:shrink-0 lg:flex-col lg:overflow-hidden lg:rounded-xl lg:border lg:border-border/60 lg:bg-background lg:text-foreground">
+        {/* Desktop-only: a persistent side panel — chat history, gifting, and controls all stay visible next to the video. Flush against the viewport edge now that the room takes over the full screen. */}
+        <div className="hidden lg:flex lg:w-[340px] lg:shrink-0 lg:flex-col lg:overflow-hidden lg:border-l lg:border-border/60 lg:bg-background lg:text-foreground">
           <div className="border-b border-border/60 px-3 py-2.5">
             <p className="text-sm font-semibold">Live chat</p>
           </div>
@@ -488,7 +511,7 @@ export function LiveRoom({
             {messages.length === 0 ? (
               <p className="text-sm text-muted-foreground">Messages will show up here.</p>
             ) : (
-              messages.map((message) => <ChatBubble key={message.id} message={message} />)
+              messages.map((entry) => <ChatBubble key={entry.id} entry={entry} />)
             )}
           </div>
           <div className="flex flex-col gap-2 border-t border-border/60 p-3">
