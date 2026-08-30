@@ -32,9 +32,6 @@ export async function TopBar() {
       <div className="flex flex-col gap-2 md:hidden">
         <div className="flex min-h-11 items-center justify-between gap-3">
           <Link href="/" className="flex min-h-11 min-w-0 items-center gap-2" aria-label="udala home">
-            <span className="h-8 w-8 shrink-0 overflow-hidden rounded-lg">
-              <BrandLogo className="h-full w-full" priority alt="" />
-            </span>
             <span className="font-heading text-2xl font-semibold tracking-tight text-primary">udala</span>
           </Link>
 

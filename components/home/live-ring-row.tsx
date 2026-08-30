@@ -57,7 +57,7 @@ export function LiveRingRow({
   if (entries.length === 0 && !self?.isProvider) return null;
 
   return (
-    <div className="flex gap-2 overflow-x-auto" aria-label="Live and online now">
+    <div className="flex min-h-20 gap-2 overflow-x-auto py-1" aria-label="Live and online now">
       {entries.map((entry, index) => (
         <Link
           key={entry.id}
