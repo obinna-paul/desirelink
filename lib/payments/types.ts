@@ -1,4 +1,9 @@
-export type WebhookEventType = "charge.succeeded" | "charge.failed" | "unknown";
+export type WebhookEventType =
+  | "charge.succeeded"
+  | "charge.failed"
+  | "transfer.succeeded"
+  | "transfer.failed"
+  | "unknown";
 
 export type WebhookPaymentMethod = {
   id: string;

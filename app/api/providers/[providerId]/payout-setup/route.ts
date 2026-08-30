@@ -107,7 +107,7 @@ export async function POST(req: Request, { params }: { params: { providerId: str
   const recipientType =
     typeof body?.recipientType === "string" && body.recipientType.trim() ? body.recipientType.trim() : "nuban";
   const country = typeof body?.country === "string" ? body.country.trim().toUpperCase() : "";
-  const currency = typeof body?.currency === "string" && body.currency.trim() ? body.currency.trim().toUpperCase() : "USD";
+  const currency = typeof body?.currency === "string" && body.currency.trim() ? body.currency.trim().toUpperCase() : "NGN";
 
   if (!accountNumber || !bankCode || !bankName) {
     return NextResponse.json({ error: "accountNumber, bankCode, and bankName are required" }, { status: 400 });

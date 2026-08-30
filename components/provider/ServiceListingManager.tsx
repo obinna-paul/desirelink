@@ -18,7 +18,7 @@ type FormState = {
   description: string;
   category: string;
   durationMinutes: string;
-  priceDollars: string;
+  priceNaira: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -26,7 +26,7 @@ const EMPTY_FORM: FormState = {
   description: "",
   category: SERVICE_CATEGORY_OPTIONS[0],
   durationMinutes: "60",
-  priceDollars: "",
+  priceNaira: "",
 };
 
 function listingToForm(listing: ServiceListingView): FormState {
@@ -35,7 +35,7 @@ function listingToForm(listing: ServiceListingView): FormState {
     description: listing.description,
     category: listing.category,
     durationMinutes: String(listing.durationMinutes),
-    priceDollars: (listing.priceCents / 100).toString(),
+    priceNaira: (listing.priceCents / 100).toString(),
   };
 }
 
@@ -58,9 +58,9 @@ function ServiceListingForm({
     event.preventDefault();
     setError(null);
 
-    const priceDollars = Number(form.priceDollars);
+    const priceNaira = Number(form.priceNaira);
     const durationMinutes = Number(form.durationMinutes);
-    if (!form.title.trim() || Number.isNaN(priceDollars) || priceDollars < 0) {
+    if (!form.title.trim() || Number.isNaN(priceNaira) || priceNaira < 0) {
       setError("Enter a title and a valid price.");
       return;
     }
@@ -75,7 +75,7 @@ function ServiceListingForm({
       description: form.description.trim(),
       category: form.category,
       durationMinutes,
-      priceCents: Math.round(priceDollars * 100),
+      priceCents: Math.round(priceNaira * 100),
     });
     setStatus("idle");
 
@@ -149,16 +149,16 @@ function ServiceListingForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="service-price" className="text-xs font-medium text-muted-foreground">
-            Price (USD)
+            Price (NGN)
           </label>
           <Input
             id="service-price"
             type="number"
             min={0}
             step="0.01"
-            value={form.priceDollars}
-            onChange={(event) => setForm((prev) => ({ ...prev, priceDollars: event.target.value }))}
-            placeholder="150.00"
+            value={form.priceNaira}
+            onChange={(event) => setForm((prev) => ({ ...prev, priceNaira: event.target.value }))}
+            placeholder="15000.00"
           />
         </div>
       </div>

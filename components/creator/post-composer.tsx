@@ -37,7 +37,7 @@ type EventFormState = {
   address: string;
   city: string;
   maxAttendees: string;
-  priceDollars: string;
+  priceNaira: string;
   isPrivate: boolean;
 };
 
@@ -50,7 +50,7 @@ const emptyEventForm: EventFormState = {
   address: "",
   city: "",
   maxAttendees: "",
-  priceDollars: "0",
+  priceNaira: "0",
   isPrivate: false,
 };
 
@@ -212,7 +212,7 @@ export function PostComposer({
             address: eventForm.address,
             city: eventForm.city,
             maxAttendees: eventForm.maxAttendees ? Number(eventForm.maxAttendees) : null,
-            priceCents: Math.round(Number(eventForm.priceDollars || 0) * 100),
+            priceCents: Math.round(Number(eventForm.priceNaira || 0) * 100),
             isPrivate: eventForm.isPrivate,
           }
         : undefined;
@@ -423,15 +423,15 @@ export function PostComposer({
           </div>
           <div>
             <label htmlFor="feed-event-price" className="text-xs font-medium text-muted-foreground">
-              Price USD
+              Price NGN
             </label>
             <Input
               id="feed-event-price"
               type="number"
               min={0}
               step="0.01"
-              value={eventForm.priceDollars}
-              onChange={(event) => setEventForm((current) => ({ ...current, priceDollars: event.target.value }))}
+              value={eventForm.priceNaira}
+              onChange={(event) => setEventForm((current) => ({ ...current, priceNaira: event.target.value }))}
               className="mt-1 h-11"
             />
           </div>

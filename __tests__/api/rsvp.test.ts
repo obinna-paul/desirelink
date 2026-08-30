@@ -64,7 +64,10 @@ describe("POST /api/events/[id]/rsvp", () => {
 
     const response = await POST(request({ status: "going" }), { params: { id: "event-1" } });
 
-    expect(mockSetRsvp).toHaveBeenCalledWith("profile-1", "event-1", "going");
+    expect(mockSetRsvp).toHaveBeenCalledWith("profile-1", "event-1", "going", {
+      successUrl: "http://localhost/events/event-1",
+      cancelUrl: "http://localhost/events/event-1",
+    });
     await expect(response.json()).resolves.toEqual({ state: "updated", status: "going", message: "Saved" });
     expect(response.status).toBe(200);
   });

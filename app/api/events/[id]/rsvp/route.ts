@@ -24,7 +24,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: "Invalid RSVP status" }, { status: 400 });
   }
 
-  const result = await setRsvp(profile.id, params.id, body.status);
+  const origin = new URL(req.url).origin;
+  const returnUrl = `${origin}/events/${params.id}`;
+
+  const result = await setRsvp(profile.id, params.id, body.status, { successUrl: returnUrl, cancelUrl: returnUrl });
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }

@@ -16,7 +16,7 @@ type PayoutRow = {
 };
 
 function formatCents(cents: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+  return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(cents / 100);
 }
 
 export function PayoutHistory({ providerId, payouts }: { providerId: string; payouts: PayoutRow[] }) {

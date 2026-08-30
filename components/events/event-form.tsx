@@ -27,7 +27,7 @@ type FormState = {
   lat: string;
   lng: string;
   maxAttendees: string;
-  priceDollars: string;
+  priceNaira: string;
   isPrivate: boolean;
   coverImageUrl: string;
 };
@@ -44,7 +44,7 @@ const EMPTY_FORM: FormState = {
   lat: "",
   lng: "",
   maxAttendees: "",
-  priceDollars: "",
+  priceNaira: "",
   isPrivate: false,
   coverImageUrl: "",
 };
@@ -67,7 +67,7 @@ function eventToForm(event: Event): FormState {
     lat: event.lat ? String(event.lat) : "",
     lng: event.lng ? String(event.lng) : "",
     maxAttendees: event.maxAttendees ? String(event.maxAttendees) : "",
-    priceDollars: event.priceCents ? String(event.priceCents / 100) : "",
+    priceNaira: event.priceCents ? String(event.priceCents / 100) : "",
     isPrivate: event.isPrivate,
     coverImageUrl: event.coverImageUrl,
   };
@@ -174,7 +174,7 @@ export function EventForm({ event, eventId }: { event?: Event; eventId?: string 
       lat: form.lat ? Number(form.lat) : 0,
       lng: form.lng ? Number(form.lng) : 0,
       maxAttendees: form.maxAttendees ? Number(form.maxAttendees) : null,
-      priceCents: form.priceDollars ? Math.round(Number(form.priceDollars) * 100) : 0,
+      priceCents: form.priceNaira ? Math.round(Number(form.priceNaira) * 100) : 0,
       isPrivate: form.isPrivate,
       coverImageUrl: form.coverImageUrl,
     };
@@ -392,15 +392,15 @@ export function EventForm({ event, eventId }: { event?: Event; eventId?: string 
               onChange={(e) => update("maxAttendees", e.target.value)}
             />
           </FieldWrapper>
-          <FieldWrapper label="Price, USD (optional)" htmlFor="price">
+          <FieldWrapper label="Price, NGN (optional)" htmlFor="price">
             <Input
               id="price"
               type="number"
               min={0}
               step="0.01"
               placeholder="Free"
-              value={form.priceDollars}
-              onChange={(e) => update("priceDollars", e.target.value)}
+              value={form.priceNaira}
+              onChange={(e) => update("priceNaira", e.target.value)}
             />
           </FieldWrapper>
         </div>

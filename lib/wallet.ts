@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 import { isProviderProfileType } from "@/lib/provider-types";
 
-/** Minimum wallet balance a provider can withdraw at once. */
-export const MINIMUM_WITHDRAWAL_CENTS = 1000;
+/** Minimum wallet balance a provider can withdraw at once, in kobo. */
+export const MINIMUM_WITHDRAWAL_CENTS = 1_500_000;
 
 /**
  * Flat platform fee taken only at withdrawal time. Every earning — gift
@@ -46,7 +46,7 @@ export async function withdrawWalletBalance(providerId: string): Promise<Withdra
     return {
       ok: false,
       status: 400,
-      error: `Minimum withdrawal is $${(MINIMUM_WITHDRAWAL_CENTS / 100).toFixed(2)}.`,
+      error: `Minimum withdrawal is ₦${(MINIMUM_WITHDRAWAL_CENTS / 100).toFixed(2)}.`,
     };
   }
 

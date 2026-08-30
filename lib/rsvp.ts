@@ -1,8 +1,81 @@
 import { prisma } from "@/lib/prisma";
-import { createEventCheckoutSession } from "@/lib/legacy-checkout";
+import { paymentProvider } from "@/lib/payments";
+import { processPaymentEvent } from "@/lib/payments/webhook-handler";
 import { profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
 import { trackEventRsvp } from "@/lib/rewards/tracking";
 import { isPremiumUser } from "@/lib/premium";
+
+async function getOrCreatePaymentCustomerId(profileId: string, existingCustomerId: string | null): Promise<string> {
+  if (existingCustomerId) return existingCustomerId;
+
+  const profile = await prisma.profile.findUniqueOrThrow({
+    where: { id: profileId },
+    select: { user: { select: { email: true } } },
+  });
+
+  const customerId = await paymentProvider.createCustomer(profileId, profile.user.email);
+  await prisma.profile.update({ where: { id: profileId }, data: { paymentCustomerId: customerId } });
+  return customerId;
+}
+
+/**
+ * Starts a real Paystack checkout for a priced event's first "going" RSVP —
+ * charges a saved card directly when one exists, otherwise creates a pending
+ * Transaction (the eventId ties it to this booking) and hands back a hosted
+ * checkout URL. Mirrors subscribeToProvider/purchaseHearts.
+ */
+async function createEventRsvpCheckout(
+  profileId: string,
+  eventId: string,
+  priceCents: number,
+  urls: { successUrl: string; cancelUrl: string }
+): Promise<RsvpResult> {
+  const profile = await prisma.profile.findUniqueOrThrow({
+    where: { id: profileId },
+    select: { paymentCustomerId: true },
+  });
+  const customerId = await getOrCreatePaymentCustomerId(profileId, profile.paymentCustomerId);
+  const defaultCard = await prisma.paymentMethod.findFirst({ where: { userId: profileId, isDefault: true } });
+
+  if (defaultCard) {
+    const { reference, success } = await paymentProvider.chargeSavedPaymentMethod(
+      customerId,
+      defaultCard.externalId,
+      priceCents,
+      { kind: "event_rsvp" }
+    );
+    if (!success) {
+      return { ok: false, status: 402, error: "Your saved card was declined. Try updating your payment method." };
+    }
+
+    const transaction = await prisma.transaction.create({
+      data: { userId: profileId, eventId, amountCents: priceCents, status: "pending", provider: "card" },
+    });
+    await processPaymentEvent({
+      type: "charge.succeeded",
+      customerId,
+      paymentMethod: null,
+      amountCents: priceCents,
+      reference,
+      metadata: { kind: "event_rsvp", pendingId: transaction.id },
+    });
+    return { ok: true, state: "updated", status: "going" };
+  }
+
+  const transaction = await prisma.transaction.create({
+    data: { userId: profileId, eventId, amountCents: priceCents, status: "pending", provider: "paystack" },
+  });
+
+  const checkoutUrl = await paymentProvider.createCheckoutSession(
+    customerId,
+    priceCents,
+    urls.successUrl,
+    urls.cancelUrl,
+    { kind: "event_rsvp", pendingId: transaction.id }
+  );
+
+  return { ok: true, state: "checkout", checkoutUrl };
+}
 
 export const RSVP_ACTIONS = ["going", "interested", "not_going"] as const;
 export type RsvpAction = (typeof RSVP_ACTIONS)[number];
@@ -80,11 +153,18 @@ export type RsvpResult =
 
 /**
  * Handles a click on Going / Interested / Can't Go. A priced event's first
- * "going" hands off to the payments service for a mock checkout instead of
- * updating the RSVP directly — the webhook flips it to "going" on success.
- * Leaving "going" (switching to interested/not_going) is free and immediate.
+ * "going" hands off to Paystack instead of updating the RSVP directly — a
+ * saved card is charged immediately, otherwise a checkout session is
+ * started and the webhook (or the redirect-back confirm) flips it to
+ * "going" on success. Leaving "going" (switching to interested/not_going)
+ * is free and immediate.
  */
-export async function setRsvp(profileId: string, eventId: string, action: RsvpAction): Promise<RsvpResult> {
+export async function setRsvp(
+  profileId: string,
+  eventId: string,
+  action: RsvpAction,
+  urls?: { successUrl: string; cancelUrl: string }
+): Promise<RsvpResult> {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) {
     return { ok: false, status: 404, error: "Event not found" };
@@ -105,11 +185,13 @@ export async function setRsvp(profileId: string, eventId: string, action: RsvpAc
   const viewerIsPremium = action === "going" && previousStatus !== "going" ? await isPremiumUser(profileId) : false;
 
   if (action === "going" && previousStatus !== "going" && event.priceCents > 0) {
-    const checkout = await createEventCheckoutSession(profileId, eventId);
-    if (!checkout.ok) {
-      return { ok: false, status: checkout.status, error: checkout.error };
+    if (event.maxAttendees !== null && event.currentAttendees >= event.maxAttendees) {
+      return { ok: false, status: 409, error: "This event is full." };
     }
-    return { ok: true, state: "checkout", checkoutUrl: checkout.checkoutUrl };
+    if (!urls) {
+      return { ok: false, status: 500, error: "Checkout is unavailable right now. Try again shortly." };
+    }
+    return createEventRsvpCheckout(profileId, eventId, event.priceCents, urls);
   }
 
   let savedStatus: RsvpAction | "waitlist" = action;
@@ -179,4 +261,16 @@ export async function setRsvp(profileId: string, eventId: string, action: RsvpAc
   }
 
   return { ok: true, state: "updated", status: savedStatus, message };
+}
+
+/**
+ * Confirms a pending priced-event RSVP after the attendee returns from
+ * checkout, by verifying the transaction reference directly with the
+ * payment provider (Paystack's recommended pattern). Safe to call more than
+ * once — processPaymentEvent no-ops once the pending Transaction is no
+ * longer "pending".
+ */
+export async function confirmEventRsvpPayment(reference: string): Promise<void> {
+  const event = await paymentProvider.verifyTransaction(reference);
+  await processPaymentEvent(event);
 }

@@ -44,7 +44,7 @@ const TOOLTIP_STYLE = {
 };
 
 function formatCents(cents: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+  return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(cents / 100);
 }
 
 function StatTile({
@@ -181,7 +181,7 @@ export function ProviderEarningsDashboard({
             <BarChart data={monthlyChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
               <XAxis dataKey="month" tick={AXIS_TICK} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
-              <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={(value) => `$${value}`} />
+              <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={(value) => `₦${value}`} />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value) => formatCents(Number(value) * 100)} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="subscriptions" stackId="earnings" name="Subscriptions" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />

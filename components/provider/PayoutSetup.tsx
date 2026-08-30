@@ -30,8 +30,8 @@ async function fetcher(url: string) {
   return body as PayoutSetupResponse;
 }
 
-function formatCents(cents: number, currency = "USD") {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
+function formatCents(cents: number, currency = "NGN") {
+  return new Intl.NumberFormat("en-NG", { style: "currency", currency }).format(cents / 100);
 }
 
 export function PayoutSetup({ providerId }: { providerId: string }) {
@@ -44,7 +44,7 @@ export function PayoutSetup({ providerId }: { providerId: string }) {
     bankCode: "",
     bankName: "",
     country: "",
-    currency: "USD",
+    currency: "NGN",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +93,7 @@ export function PayoutSetup({ providerId }: { providerId: string }) {
         </div>
         <div className="rounded-xl border border-border/60 bg-secondary/35 p-3">
           <p className="text-xs text-muted-foreground">Minimum withdrawal</p>
-          <p className="mt-1 text-lg font-semibold">{formatCents(payout?.minimumPayoutCents ?? 1000)}</p>
+          <p className="mt-1 text-lg font-semibold">{formatCents(payout?.minimumPayoutCents ?? 1_500_000)}</p>
         </div>
         <div className="rounded-xl border border-border/60 bg-secondary/35 p-3">
           <p className="text-xs text-muted-foreground">Status</p>

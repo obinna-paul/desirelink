@@ -61,10 +61,10 @@ describe("settleGift", () => {
     });
     expect(mockPrisma.profile.update).toHaveBeenNthCalledWith(2, {
       where: { id: "b" },
-      data: { walletBalanceCents: { increment: 10 } },
+      data: { walletBalanceCents: { increment: 15000 } },
     });
     expect(mockPrisma.gift.create).toHaveBeenCalledWith({
-      data: { streamId: null, senderId: "a", receiverId: "b", hearts: 10, valueCents: 10, context: "profile" },
+      data: { streamId: null, senderId: "a", receiverId: "b", hearts: 10, valueCents: 15000, context: "profile" },
     });
   });
 });

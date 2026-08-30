@@ -18,7 +18,7 @@ import { RsvpButtons } from "@/components/events/rsvp-buttons";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { formatCents } from "@/lib/creator";
 import { getEventDetail, getSimilarEvents } from "@/lib/events";
-import { getEventAttendees, getViewerRsvpStatus } from "@/lib/rsvp";
+import { confirmEventRsvpPayment, getEventAttendees, getViewerRsvpStatus } from "@/lib/rsvp";
 import { getGroupMessages, getMutedUserIds } from "@/lib/group-chat";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,7 @@ export default async function EventDetailPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { section?: string };
+  searchParams: { section?: string; reference?: string };
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -47,6 +47,10 @@ export default async function EventDetailPage({
   });
   if (!viewerProfile) {
     redirect("/login");
+  }
+
+  if (searchParams.reference) {
+    await confirmEventRsvpPayment(searchParams.reference);
   }
 
   const event = await getEventDetail(params.id, viewerProfile.id);

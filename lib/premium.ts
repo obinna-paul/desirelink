@@ -5,8 +5,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 
-/** Fixed at $5/month regardless of the subscriber's country or card currency. */
-export const PREMIUM_SUBSCRIPTION_PRICE_CENTS = 500;
+/** Fixed at ₦7,500/month (kobo). */
+export const PREMIUM_SUBSCRIPTION_PRICE_CENTS = 750_000;
 export const FREE_DAILY_MESSAGE_LIMIT = 10;
 export const FREE_DAILY_PROVIDER_POST_LIMIT = 5;
 export const FREE_PUBLIC_ROOM_LIMIT = 3;

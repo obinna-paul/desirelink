@@ -410,6 +410,7 @@ export async function getCreatorAssistantInsights(profileId: string) {
 
 export type CreatorAssistantInsights = Awaited<ReturnType<typeof getCreatorAssistantInsights>>;
 
+/** All amounts are stored in kobo (1/100 of a naira) — Paystack's smallest-unit convention for NGN. */
 export function formatCents(cents: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+  return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(cents / 100);
 }

@@ -109,6 +109,62 @@ async function handleHeartsPurchaseEvent(event: WebhookEvent): Promise<void> {
   }
 }
 
+/**
+ * A priced event's "going" RSVP checkout — the pending row here is the
+ * Transaction itself (created against `eventId` by lib/rsvp.ts's setRsvp),
+ * not a dedicated model like the other kinds, so success/failure updates
+ * that same row rather than creating a new ledger entry.
+ */
+async function handleEventRsvpEvent(event: WebhookEvent): Promise<void> {
+  const pendingId = event.metadata.pendingId;
+  if (!pendingId) return;
+
+  const pending = await prisma.transaction.findUnique({ where: { id: pendingId } });
+  if (!pending || pending.status !== "pending" || !pending.eventId) return;
+
+  if (event.type !== "charge.succeeded") {
+    await prisma.transaction.update({ where: { id: pendingId }, data: { status: "failed" } });
+    await notifyPaymentFailed(pending.userId);
+    return;
+  }
+
+  const eventRow = await prisma.event.findUnique({ where: { id: pending.eventId } });
+  if (!eventRow) {
+    await prisma.transaction.update({ where: { id: pendingId }, data: { status: "failed" } });
+    return;
+  }
+
+  if (eventRow.maxAttendees !== null && eventRow.currentAttendees >= eventRow.maxAttendees) {
+    const existingRsvp = await prisma.eventRsvp.findUnique({
+      where: { eventId_userId: { eventId: eventRow.id, userId: pending.userId } },
+    });
+    if (existingRsvp?.status !== "going") {
+      await prisma.transaction.update({ where: { id: pendingId }, data: { status: "failed" } });
+      return;
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const existingRsvp = await tx.eventRsvp.findUnique({
+      where: { eventId_userId: { eventId: eventRow.id, userId: pending.userId } },
+    });
+
+    await tx.eventRsvp.upsert({
+      where: { eventId_userId: { eventId: eventRow.id, userId: pending.userId } },
+      create: { eventId: eventRow.id, userId: pending.userId, status: "going" },
+      update: { status: "going" },
+    });
+
+    if (existingRsvp?.status !== "going") {
+      await tx.event.update({ where: { id: eventRow.id }, data: { currentAttendees: { increment: 1 } } });
+    }
+
+    await tx.transaction.update({ where: { id: pendingId }, data: { status: "succeeded" } });
+  });
+
+  if (event.paymentMethod) await upsertPaymentMethod(pending.userId, event.paymentMethod);
+}
+
 async function handlePremiumEvent(event: WebhookEvent): Promise<void> {
   const pendingId = event.metadata.pendingId;
   if (!pendingId) return;
@@ -131,6 +187,40 @@ async function handlePremiumEvent(event: WebhookEvent): Promise<void> {
 }
 
 /**
+ * Reconciles a payout transfer's final state. Paystack's transfer creation
+ * call can come back "pending" (e.g. it requires OTP finalization, or just
+ * hasn't settled yet) — this webhook is the only place that ever resolves
+ * such a transfer, so a wallet debit made against a transfer that later
+ * fails or gets reversed would otherwise never be refunded. Looked up by
+ * `payoutReference` (the reference we generated at transfer time and that
+ * Paystack always echoes back) rather than metadata, since transfer webhook
+ * payloads don't reliably round-trip custom metadata the way charge events do.
+ */
+async function handleWalletWithdrawalEvent(event: WebhookEvent): Promise<void> {
+  if (!event.reference) return;
+
+  const withdrawal = await prisma.walletWithdrawal.findFirst({ where: { payoutReference: event.reference } });
+  if (!withdrawal || withdrawal.status !== "pending") return;
+
+  if (event.type === "transfer.succeeded") {
+    await prisma.walletWithdrawal.update({
+      where: { id: withdrawal.id },
+      data: { status: "success", paidAt: new Date() },
+    });
+    return;
+  }
+
+  // Failed or reversed: the money never left the platform balance (or came back), so refund the provider's wallet.
+  await prisma.$transaction([
+    prisma.walletWithdrawal.update({ where: { id: withdrawal.id }, data: { status: "failed" } }),
+    prisma.profile.update({
+      where: { id: withdrawal.providerId },
+      data: { walletBalanceCents: { increment: withdrawal.amountCents } },
+    }),
+  ]);
+}
+
+/**
  * Processes a normalized payment event from either the async webhook route
  * or a synchronous post-redirect verifyTransaction() call (see
  * lib/billing.ts's confirmPendingPayment) — both produce the same
@@ -138,6 +228,9 @@ async function handlePremiumEvent(event: WebhookEvent): Promise<void> {
  * carries which pending row this event confirms or fails: {kind, pendingId}.
  */
 export async function processPaymentEvent(event: WebhookEvent): Promise<void> {
+  if (event.type === "transfer.succeeded" || event.type === "transfer.failed") {
+    return handleWalletWithdrawalEvent(event);
+  }
   if (event.type === "unknown") return;
 
   switch (event.metadata.kind) {
@@ -147,6 +240,8 @@ export async function processPaymentEvent(event: WebhookEvent): Promise<void> {
       return handlePremiumEvent(event);
     case "hearts_purchase":
       return handleHeartsPurchaseEvent(event);
+    case "event_rsvp":
+      return handleEventRsvpEvent(event);
     default:
       return;
   }

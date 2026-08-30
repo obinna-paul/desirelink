@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { name, description, priceDollars, tierType, maxSubscribers, isLimited, requiresApproval } =
+  const { name, description, priceNaira, tierType, maxSubscribers, isLimited, requiresApproval } =
     parsed.data;
 
   const tier = await prisma.creatorTier.create({
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
       creatorId: profile.id,
       name,
       description,
-      priceCents: Math.round(priceDollars * 100),
+      priceCents: Math.round(priceNaira * 100),
       tierType,
       maxSubscribers,
       isLimited,

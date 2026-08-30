@@ -21,7 +21,7 @@ import {
 type FormState = {
   name: string;
   description: string;
-  priceDollars: string;
+  priceNaira: string;
   tierType: (typeof TIER_TYPE_VALUES)[number];
   maxSubscribers: string;
   isLimited: boolean;
@@ -31,7 +31,7 @@ type FormState = {
 const EMPTY_FORM: FormState = {
   name: "",
   description: "",
-  priceDollars: (DEFAULT_TIER_PRICE_CENTS / 100).toString(),
+  priceNaira: (DEFAULT_TIER_PRICE_CENTS / 100).toString(),
   tierType: "basic",
   maxSubscribers: "",
   isLimited: false,
@@ -42,7 +42,7 @@ function tierToForm(tier: CreatorTierWithCount): FormState {
   return {
     name: tier.name,
     description: tier.description,
-    priceDollars: (tier.priceCents / 100).toString(),
+    priceNaira: (tier.priceCents / 100).toString(),
     tierType: tier.tierType as FormState["tierType"],
     maxSubscribers: tier.maxSubscribers ? String(tier.maxSubscribers) : "",
     isLimited: tier.isLimited,
@@ -69,19 +69,19 @@ function TierForm({
     event.preventDefault();
     setError(null);
 
-    const priceDollars = Number(form.priceDollars);
-    const minPriceDollars = MIN_TIER_PRICE_CENTS / 100;
-    const maxPriceDollars = MAX_TIER_PRICE_CENTS / 100;
-    if (!form.name.trim() || Number.isNaN(priceDollars)) {
+    const priceNaira = Number(form.priceNaira);
+    const minPriceNaira = MIN_TIER_PRICE_CENTS / 100;
+    const maxPriceNaira = MAX_TIER_PRICE_CENTS / 100;
+    if (!form.name.trim() || Number.isNaN(priceNaira)) {
       setError("Enter a tier name and a valid price.");
       return;
     }
-    if (priceDollars < minPriceDollars) {
-      setError(`Tier price must be at least $${minPriceDollars.toFixed(2)}.`);
+    if (priceNaira < minPriceNaira) {
+      setError(`Tier price must be at least ₦${minPriceNaira.toFixed(2)}.`);
       return;
     }
-    if (priceDollars > maxPriceDollars) {
-      setError(`Tier price can't exceed $${maxPriceDollars.toFixed(2)}.`);
+    if (priceNaira > maxPriceNaira) {
+      setError(`Tier price can't exceed ₦${maxPriceNaira.toFixed(2)}.`);
       return;
     }
 
@@ -89,7 +89,7 @@ function TierForm({
     const result = await onSubmit({
       name: form.name.trim(),
       description: form.description.trim(),
-      priceDollars,
+      priceNaira,
       tierType: form.tierType,
       maxSubscribers: form.maxSubscribers ? Number(form.maxSubscribers) : null,
       isLimited: form.isLimited,
@@ -121,7 +121,7 @@ function TierForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="tier-price" className="text-xs font-medium text-muted-foreground">
-            Price per month (USD, ${(MIN_TIER_PRICE_CENTS / 100).toFixed(2)}-${(MAX_TIER_PRICE_CENTS / 100).toFixed(2)})
+            Price per month (NGN, ₦{(MIN_TIER_PRICE_CENTS / 100).toFixed(2)}-₦{(MAX_TIER_PRICE_CENTS / 100).toFixed(2)})
           </label>
           <Input
             id="tier-price"
@@ -129,9 +129,9 @@ function TierForm({
             min={MIN_TIER_PRICE_CENTS / 100}
             max={MAX_TIER_PRICE_CENTS / 100}
             step="0.01"
-            value={form.priceDollars}
-            onChange={(event) => setForm((prev) => ({ ...prev, priceDollars: event.target.value }))}
-            placeholder="7.00"
+            value={form.priceNaira}
+            onChange={(event) => setForm((prev) => ({ ...prev, priceNaira: event.target.value }))}
+            placeholder="10500.00"
           />
         </div>
       </div>

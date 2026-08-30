@@ -65,7 +65,7 @@ function toWebhookPaymentMethod(authorization: PaystackAuthorization | undefined
 
 /** Paystack's transaction currency for this account. The merchant account must support whatever currency is charged. */
 function currency(): string {
-  return process.env.PAYSTACK_CURRENCY ?? "USD";
+  return process.env.PAYSTACK_CURRENCY ?? "NGN";
 }
 
 function normalizeRecipient(data: PaystackTransferRecipientData): PayoutRecipient {
@@ -233,10 +233,24 @@ export class PaystackProvider implements PaymentProvider {
       throw new Error("Invalid Paystack webhook signature");
     }
 
-    const body = JSON.parse(raw.toString("utf8")) as { event: string; data: PaystackTransactionData };
+    const body = JSON.parse(raw.toString("utf8")) as {
+      event: string;
+      data: PaystackTransactionData & Partial<PaystackTransferData>;
+    };
     const data = body.data;
     const metadata =
       data.metadata && typeof data.metadata === "object" ? (data.metadata as Record<string, string>) : {};
+
+    if (body.event === "transfer.success" || body.event === "transfer.failed" || body.event === "transfer.reversed") {
+      return {
+        type: body.event === "transfer.success" ? "transfer.succeeded" : "transfer.failed",
+        customerId: null,
+        paymentMethod: null,
+        amountCents: data.amount ?? null,
+        reference: data.reference ?? null,
+        metadata,
+      };
+    }
 
     if (body.event !== "charge.success") {
       return {

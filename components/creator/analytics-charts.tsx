@@ -115,11 +115,11 @@ export function EarningsChart({ data }: { data: EarningsPoint[] }) {
   return (
     <ChartCard
       title="Earnings"
-      description="Revenue collected per month (USD)"
-      tableCaption="Earnings in USD by month"
+      description="Revenue collected per month (NGN)"
+      tableCaption="Earnings in NGN by month"
       rows={data.map((point) => ({
         label: point.month,
-        value: `$${point.earnings.toFixed(2)}`,
+        value: `₦${point.earnings.toFixed(2)}`,
       }))}
     >
       <ResponsiveContainer width="100%" height="100%">
@@ -131,14 +131,14 @@ export function EarningsChart({ data }: { data: EarningsPoint[] }) {
             axisLine={false}
             tickLine={false}
             width={48}
-            tickFormatter={(value: number) => `$${value}`}
+            tickFormatter={(value: number) => `₦${value}`}
           />
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
             labelStyle={{ color: "hsl(var(--muted-foreground))" }}
             itemStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
             cursor={{ fill: "hsl(var(--muted))" }}
-            formatter={(value) => [`$${Number(value).toFixed(2)}`, "Earnings"]}
+            formatter={(value) => [`₦${Number(value).toFixed(2)}`, "Earnings"]}
           />
           <Bar dataKey="earnings" fill="hsl(var(--neon-pink))" radius={[4, 4, 0, 0]} maxBarSize={24} />
         </BarChart>
@@ -152,10 +152,10 @@ export function RewardsEarningsChart({ data }: { data: RewardsPoint[] }) {
     <ChartCard
       title="Rewards pool payouts"
       description="Your share of the monthly provider rewards pool"
-      tableCaption="Rewards pool payout in USD by month"
+      tableCaption="Rewards pool payout in NGN by month"
       rows={data.map((point) => ({
         label: point.month,
-        value: `$${point.amount.toFixed(2)}`,
+        value: `₦${point.amount.toFixed(2)}`,
       }))}
     >
       <ResponsiveContainer width="100%" height="100%">
@@ -167,14 +167,14 @@ export function RewardsEarningsChart({ data }: { data: RewardsPoint[] }) {
             axisLine={false}
             tickLine={false}
             width={48}
-            tickFormatter={(value: number) => `$${value}`}
+            tickFormatter={(value: number) => `₦${value}`}
           />
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
             labelStyle={{ color: "hsl(var(--muted-foreground))" }}
             itemStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
             cursor={{ fill: "hsl(var(--muted))" }}
-            formatter={(value) => [`$${Number(value).toFixed(2)}`, "Payout"]}
+            formatter={(value) => [`₦${Number(value).toFixed(2)}`, "Payout"]}
           />
           <Bar dataKey="amount" fill="hsl(var(--neon-cyan))" radius={[4, 4, 0, 0]} maxBarSize={24} />
         </BarChart>

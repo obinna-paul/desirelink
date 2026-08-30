@@ -7,7 +7,7 @@ import { RsvpButtons } from "@/components/events/rsvp-buttons";
 import type { PostEventView } from "@/lib/posts";
 
 function formatCents(cents: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+  return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(cents / 100);
 }
 
 export function PostEventAttachment({ event }: { event: PostEventView }) {
