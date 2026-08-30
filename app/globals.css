@@ -4,16 +4,16 @@
 
 @layer base {
   :root {
-    /* Warm & editorial — base neutrals (clay is the default/Provider accent) */
+    /* Warm & editorial — base neutrals (purple is the brand default/Provider accent) */
     --background: 35 40% 94%;
     --foreground: 30 16% 12%;
     --card: 36 100% 99%;
     --card-foreground: 30 16% 12%;
     --popover: 36 100% 99%;
     --popover-foreground: 30 16% 12%;
-    --primary: 17 53% 47%;
+    --primary: 276 72% 45%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 29 55% 90%;
+    --secondary: 276 40% 92%;
     --secondary-foreground: 30 16% 12%;
     --muted: 36 30% 92%;
     --muted-foreground: 27 7% 51%;
@@ -23,17 +23,17 @@
     --destructive-foreground: 0 0% 100%;
     --border: 36 29% 87%;
     --input: 36 25% 80%;
-    --ring: 17 53% 47%;
+    --ring: 276 72% 45%;
     --radius: 1.25rem;
 
     --sidebar: 35 40% 96%;
     --avatar-placeholder: 34 21% 81%;
     --trust: 162 40% 31%;
 
-    /* Accent-palette system: clay (default) / olive (Explorer) / plum / gold */
-    --accent-soft: 23 56% 65%;
-    --accent-tint: 29 55% 90%;
-    --accent-tint-border: 28 54% 79%;
+    /* Accent-palette system: purple (default/brand) / olive (Explorer) / plum / gold */
+    --accent-soft: 276 45% 66%;
+    --accent-tint: 276 40% 92%;
+    --accent-tint-border: 276 35% 81%;
 
     --neon-pink: 335 70% 42%;
     --neon-cyan: 190 65% 32%;
@@ -41,26 +41,26 @@
     --shadow-lift: 0 12px 28px hsl(30 40% 10% / 0.14);
   }
 
-  /* Explicit clay reset, for Provider-branded content nested inside an Explorer's olive-themed shell */
+  /* Explicit purple (brand) reset, for Provider-branded content nested inside an Explorer's olive-themed shell */
   .theme-clay {
-    --primary: 17 53% 47%;
-    --ring: 17 53% 47%;
-    --secondary: 29 55% 90%;
-    --accent-soft: 23 56% 65%;
-    --accent-tint: 29 55% 90%;
-    --accent-tint-border: 28 54% 79%;
+    --primary: 276 72% 45%;
+    --ring: 276 72% 45%;
+    --secondary: 276 40% 92%;
+    --accent-soft: 276 45% 66%;
+    --accent-tint: 276 40% 92%;
+    --accent-tint-border: 276 35% 81%;
   }
 
   .dark .theme-clay {
-    --primary: 17 55% 52%;
-    --ring: 17 55% 52%;
-    --secondary: 20 26% 18%;
-    --accent-soft: 23 55% 70%;
-    --accent-tint: 20 26% 18%;
-    --accent-tint-border: 20 28% 30%;
+    --primary: 276 65% 58%;
+    --ring: 276 65% 58%;
+    --secondary: 276 30% 20%;
+    --accent-soft: 276 40% 68%;
+    --accent-tint: 276 30% 20%;
+    --accent-tint-border: 276 28% 32%;
   }
 
-  /* Explorer surfaces use the olive accent instead of clay */
+  /* Explorer surfaces use the olive accent instead of the purple brand default */
   .theme-olive {
     --primary: 64 32% 36%;
     --ring: 64 32% 36%;
@@ -95,9 +95,9 @@
     --card-foreground: 35 25% 94%;
     --popover: 30 9% 11%;
     --popover-foreground: 35 25% 94%;
-    --primary: 17 55% 52%;
+    --primary: 276 65% 58%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 20 26% 18%;
+    --secondary: 276 30% 20%;
     --secondary-foreground: 35 25% 94%;
     --muted: 30 8% 16%;
     --muted-foreground: 30 8% 62%;
@@ -107,15 +107,15 @@
     --destructive-foreground: 0 0% 100%;
     --border: 30 8% 20%;
     --input: 30 8% 24%;
-    --ring: 17 55% 52%;
+    --ring: 276 65% 58%;
 
     --sidebar: 30 9% 9%;
     --avatar-placeholder: 30 8% 28%;
     --trust: 162 35% 46%;
 
-    --accent-soft: 23 55% 70%;
-    --accent-tint: 20 26% 18%;
-    --accent-tint-border: 20 28% 30%;
+    --accent-soft: 276 40% 68%;
+    --accent-tint: 276 30% 20%;
+    --accent-tint-border: 276 28% 32%;
 
     --neon-pink: 335 74% 68%;
     --neon-cyan: 190 46% 61%;
