@@ -2,20 +2,6 @@ import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
-export const HOME_TABS = [
-  { value: "feed", label: "Feed" },
-  { value: "events", label: "Events" },
-  { value: "services", label: "Services" },
-] as const;
-
-export type HomeTabValue = (typeof HOME_TABS)[number]["value"];
-
-export const DEFAULT_HOME_TAB: HomeTabValue = "feed";
-
-export function isHomeTabValue(value: string | undefined): value is HomeTabValue {
-  return HOME_TABS.some((tab) => tab.value === value);
-}
-
 const MEET_RADIUS_KM = 50;
 
 export function profileCardSelect() {

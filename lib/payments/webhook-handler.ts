@@ -80,6 +80,33 @@ async function handleProviderTierEvent(event: WebhookEvent): Promise<void> {
   }
 }
 
+async function handleHeartsPurchaseEvent(event: WebhookEvent): Promise<void> {
+  const pendingId = event.metadata.pendingId;
+  if (!pendingId) return;
+
+  const pending = await prisma.heartPurchase.findUnique({ where: { id: pendingId } });
+  if (!pending || pending.status !== "pending") return;
+
+  if (event.type === "charge.succeeded") {
+    await prisma.$transaction([
+      prisma.heartPurchase.update({
+        where: { id: pendingId },
+        data: { status: "succeeded", paymentReference: event.reference },
+      }),
+      prisma.profile.update({
+        where: { id: pending.userId },
+        data: { heartsBalance: { increment: pending.hearts } },
+      }),
+    ]);
+    if (event.paymentMethod) await upsertPaymentMethod(pending.userId, event.paymentMethod);
+    await recordTransaction(pending.userId, event, { status: "succeeded" });
+  } else {
+    await prisma.heartPurchase.update({ where: { id: pendingId }, data: { status: "failed" } });
+    await recordTransaction(pending.userId, event, { status: "failed" });
+    await notifyPaymentFailed(pending.userId);
+  }
+}
+
 async function handlePremiumEvent(event: WebhookEvent): Promise<void> {
   const pendingId = event.metadata.pendingId;
   if (!pendingId) return;
@@ -116,6 +143,8 @@ export async function processPaymentEvent(event: WebhookEvent): Promise<void> {
       return handleProviderTierEvent(event);
     case "premium":
       return handlePremiumEvent(event);
+    case "hearts_purchase":
+      return handleHeartsPurchaseEvent(event);
     default:
       return;
   }

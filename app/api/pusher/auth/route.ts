@@ -76,6 +76,19 @@ export async function POST(req: Request) {
     return NextResponse.json(authResponse);
   }
 
+  // presence-live-{streamId}: watching a live stream is public — anyone signed in may subscribe.
+  if (channelName.startsWith("presence-live-")) {
+    const authResponse = pusherServer.authorizeChannel(socketId, channelName, {
+      user_id: profile.id,
+      user_info: {
+        username: profile.username,
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarUrl,
+      },
+    });
+    return NextResponse.json(authResponse);
+  }
+
   // private-conversation-{profileIdA}-{profileIdB} (ids are hyphen-free cuids,
   // sorted — see lib/message-channels.ts): only the two participants may subscribe.
   if (channelName.startsWith("private-conversation-")) {

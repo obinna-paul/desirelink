@@ -6,6 +6,10 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProfileGrid } from "@/components/home/profile-grid";
 import { DiscoverFiltersPanel } from "@/components/discover/discover-filters";
+import { DiscoverTabs } from "@/components/discover/discover-tabs";
+import { EventGrid } from "@/components/events/event-grid";
+import { ServiceListingGrid } from "@/components/home/service-listing-grid";
+import { DEFAULT_DISCOVER_SECTION, isDiscoverSectionValue } from "@/lib/discover-sections";
 import {
   DEFAULT_RADIUS_KM,
   hasAdvancedDiscoverFilters,
@@ -14,11 +18,13 @@ import {
   type DiscoverSearchParams,
 } from "@/lib/discover";
 import { isPremiumUser } from "@/lib/premium";
+import { getHomeUpcomingEvents } from "@/lib/events";
+import { getHomeServiceListings } from "@/lib/service-listings";
 
 export default async function DiscoverPage({
   searchParams,
 }: {
-  searchParams: DiscoverSearchParams;
+  searchParams: DiscoverSearchParams & { section?: string };
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -27,8 +33,36 @@ export default async function DiscoverPage({
 
   const viewerProfile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, locationLat: true, locationLng: true },
+    select: { id: true, displayName: true, locationLat: true, locationLng: true },
   });
+
+  const section = isDiscoverSectionValue(searchParams.section) ? searchParams.section : DEFAULT_DISCOVER_SECTION;
+
+  if (section === "events") {
+    return (
+      <div className="flex flex-col gap-4 md:gap-6">
+        <DiscoverHeader />
+        <DiscoverTabs activeSection={section} />
+        <EventGrid
+          events={await getHomeUpcomingEvents(viewerProfile, 24)}
+          emptyMessage="No upcoming events yet. Head to Events to host one."
+        />
+      </div>
+    );
+  }
+
+  if (section === "services") {
+    return (
+      <div className="flex flex-col gap-4 md:gap-6">
+        <DiscoverHeader />
+        <DiscoverTabs activeSection={section} />
+        <ServiceListingGrid
+          listings={await getHomeServiceListings(24)}
+          emptyMessage="No services are listed yet. Create a service when you are ready to offer one."
+        />
+      </div>
+    );
+  }
 
   const filters = parseDiscoverFilters(searchParams);
   const viewerIsPremium = viewerProfile ? await isPremiumUser(viewerProfile.id) : false;
@@ -52,19 +86,8 @@ export default async function DiscoverPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader
-          title="Discover"
-          description="Search udala with basic filters, or unlock premium filters for finer matches."
-        />
-      </div>
-
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Discover</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {filters.query ? `Results for "${filters.query}"` : "Find people nearby with the right signals."}
-        </p>
-      </div>
+      <DiscoverHeader />
+      <DiscoverTabs activeSection={section} />
 
       <DiscoverFiltersPanel initialFilters={filters} isPremium={viewerIsPremium} />
 
@@ -83,5 +106,22 @@ export default async function DiscoverPage({
         emptyMessage="No one matches these filters yet. Try widening your search."
       />
     </div>
+  );
+}
+
+function DiscoverHeader() {
+  return (
+    <>
+      <div className="hidden md:block">
+        <PageHeader
+          title="Discover"
+          description="Search udala with basic filters, browse events, or find a service."
+        />
+      </div>
+      <div className="md:hidden">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Discover</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Find people, events, and services nearby.</p>
+      </div>
+    </>
   );
 }

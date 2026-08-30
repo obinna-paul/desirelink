@@ -63,6 +63,17 @@ function eventRevenueWhere(providerId: string, start?: Date, end?: Date) {
   };
 }
 
+function giftRevenueWhere(providerId: string, start?: Date, end?: Date) {
+  return {
+    receiverId: providerId,
+    ...(start && end ? { createdAt: { gte: start, lt: end } } : {}),
+  };
+}
+
+function sumGiftShares(items: { providerShareCents: number }[]) {
+  return items.reduce((sum, item) => sum + item.providerShareCents, 0);
+}
+
 export async function getProviderEarningsHistory(providerId: string) {
   return prisma.providerEarning.findMany({
     where: { providerId },
@@ -172,6 +183,9 @@ export async function getProviderEarningsDashboard(providerId: string) {
     eventAll,
     eventThisMonth,
     eventLastMonth,
+    giftAll,
+    giftThisMonth,
+    giftLastMonth,
     rewardsHistory,
     rewardsEstimate,
     activeLegacySubscribers,
@@ -180,6 +194,7 @@ export async function getProviderEarningsDashboard(providerId: string) {
     providerSubscriptions,
     monthlyDirectTransactions,
     monthlyEventTransactions,
+    monthlyGifts,
     monthlyMetrics,
     currentMonthMetricSums,
     serviceBookingSignals,
@@ -202,6 +217,15 @@ export async function getProviderEarningsDashboard(providerId: string) {
       where: eventRevenueWhere(providerId, lastMonth.start, lastMonth.end),
       select: { amountCents: true },
     }),
+    prisma.gift.findMany({ where: giftRevenueWhere(providerId), select: { providerShareCents: true } }),
+    prisma.gift.findMany({
+      where: giftRevenueWhere(providerId, thisMonth.start, thisMonth.end),
+      select: { providerShareCents: true },
+    }),
+    prisma.gift.findMany({
+      where: giftRevenueWhere(providerId, lastMonth.start, lastMonth.end),
+      select: { providerShareCents: true },
+    }),
     getProviderEarningsHistory(providerId),
     getCurrentMonthEstimate(providerId, profile.profileType, profile.isMonetized),
     prisma.subscription.count({ where: { creatorId: providerId, status: "active", endsAt: { gt: now } } }),
@@ -215,6 +239,10 @@ export async function getProviderEarningsDashboard(providerId: string) {
     prisma.transaction.findMany({
       where: eventRevenueWhere(providerId, firstBucketStart, buckets[buckets.length - 1].end),
       select: { amountCents: true, createdAt: true },
+    }),
+    prisma.gift.findMany({
+      where: giftRevenueWhere(providerId, firstBucketStart, buckets[buckets.length - 1].end),
+      select: { providerShareCents: true, createdAt: true },
     }),
     prisma.engagementMetric.findMany({
       where: { providerId, createdAt: { gte: firstBucketStart, lt: buckets[buckets.length - 1].end } },
@@ -238,6 +266,9 @@ export async function getProviderEarningsDashboard(providerId: string) {
   const eventAllCents = sumAmounts(eventAll);
   const eventThisMonthCents = sumAmounts(eventThisMonth);
   const eventLastMonthCents = sumAmounts(eventLastMonth);
+  const giftAllCents = sumGiftShares(giftAll);
+  const giftThisMonthCents = sumGiftShares(giftThisMonth);
+  const giftLastMonthCents = sumGiftShares(giftLastMonth);
   const activeSubscribers = activeLegacySubscribers + activeProviderSubscribers;
 
   const monthly = buckets.map((bucket) => {
@@ -248,6 +279,9 @@ export async function getProviderEarningsDashboard(providerId: string) {
       bucket.key === monthKey(now)
         ? rewardsEstimate.estimatedAmountCents
         : rewardsHistory.find((entry) => entry.month === bucket.key)?.amountCents ?? 0;
+    const giftCents = monthlyGifts
+      .filter((gift) => gift.createdAt >= bucket.start && gift.createdAt < bucket.end)
+      .reduce((sum, gift) => sum + gift.providerShareCents, 0);
     const eventCents = monthlyEventTransactions
       .filter((tx) => tx.createdAt >= bucket.start && tx.createdAt < bucket.end)
       .reduce((sum, tx) => sum + tx.amountCents, 0);
@@ -259,9 +293,9 @@ export async function getProviderEarningsDashboard(providerId: string) {
       directSubscriptionsCents: directCents,
       rewardsPoolCents: rewardCents,
       serviceBookingsCents: 0,
-      tipsCents: 0,
+      tipsCents: giftCents,
       eventTicketsCents: eventCents,
-      totalCents: directCents + rewardCents + eventCents,
+      totalCents: directCents + rewardCents + giftCents + eventCents,
       subscriberCount:
         legacySubscriptions.filter((sub) => sub.createdAt < bucket.end).length +
         providerSubscriptions.filter((sub) => sub.createdAt < bucket.end).length,
@@ -314,7 +348,13 @@ export async function getProviderEarningsDashboard(providerId: string) {
       currentMonthCents: 0,
       status: `${serviceBookingSignals} booking signals`,
     },
-    { key: "tips", label: "Tips", amountCents: 0, currentMonthCents: 0, status: "future" },
+    {
+      key: "tips",
+      label: "Live stream gifts",
+      amountCents: giftAllCents,
+      currentMonthCents: giftThisMonthCents,
+      status: "active",
+    },
     {
       key: "event_tickets",
       label: "Event tickets",
@@ -327,10 +367,11 @@ export async function getProviderEarningsDashboard(providerId: string) {
   return {
     provider: profile,
     totals: {
-      thisMonthCents: directThisMonthCents + rewardsEstimate.estimatedAmountCents + eventThisMonthCents,
-      lastMonthCents: directLastMonthCents + rewardsLastMonthCents + eventLastMonthCents,
-      allTimeCents: directAllCents + rewardsAllCents + eventAllCents,
-      liveEstimatedCurrentMonthCents: directThisMonthCents + rewardsEstimate.estimatedAmountCents + eventThisMonthCents,
+      thisMonthCents: directThisMonthCents + rewardsEstimate.estimatedAmountCents + giftThisMonthCents + eventThisMonthCents,
+      lastMonthCents: directLastMonthCents + rewardsLastMonthCents + giftLastMonthCents + eventLastMonthCents,
+      allTimeCents: directAllCents + rewardsAllCents + giftAllCents + eventAllCents,
+      liveEstimatedCurrentMonthCents:
+        directThisMonthCents + rewardsEstimate.estimatedAmountCents + giftThisMonthCents + eventThisMonthCents,
     },
     sourceBreakdown,
     monthly,

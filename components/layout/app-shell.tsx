@@ -2,10 +2,12 @@ import { TopBar } from "@/components/layout/top-bar";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { RightRail } from "@/components/layout/right-rail";
+import { PresencePing } from "@/components/layout/presence-ping";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
+      <PresencePing />
       <TopBar />
       <div className="mx-auto flex w-full max-w-[1600px]">
         <SidebarNav />
