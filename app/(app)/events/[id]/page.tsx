@@ -3,7 +3,7 @@ import nextDynamic from "next/dynamic";
 import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { CalendarDays, Lock, MapPin, Pencil, Users, UserPlus } from "lucide-react";
+import { CalendarDays, Lock, MapPin, Pencil, Users, UserPlus, Video } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -128,9 +128,21 @@ export default async function EventDetailPage({
               {" - "}
               {new Date(event.endTime).toLocaleString(undefined, { timeStyle: "short" })}
             </span>
-            {location && (
+            {location && event.format !== "online" && (
               <span className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-neon-cyan" aria-hidden="true" /> {location}
+              </span>
+            )}
+            {event.format !== "in_person" && (
+              <span className="flex items-center gap-2">
+                <Video className="h-4 w-4 text-neon-cyan" aria-hidden="true" />
+                {event.onlineUrl && (isHost || viewerRsvp === "going") ? (
+                  <a href={event.onlineUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-primary">
+                    Join online
+                  </a>
+                ) : (
+                  "Online — link shared once you RSVP"
+                )}
               </span>
             )}
             <span className="flex items-center gap-2">

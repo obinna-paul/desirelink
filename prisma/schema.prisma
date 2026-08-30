@@ -107,6 +107,7 @@ enum ChatChannelType {
 enum VerificationRequestType {
   creator
   host
+  service_provider
 }
 
 enum VerificationRequestStatus {
@@ -224,6 +225,7 @@ model Profile {
   isVerified        Boolean   @default(false)
   isVerifiedCreator Boolean   @default(false)
   isVerifiedHost    Boolean   @default(false)
+  isVerifiedServiceProvider Boolean @default(false)
   isTrustedMember   Boolean   @default(false)
   isSuspended       Boolean   @default(false)
   suspendedAt       DateTime?
@@ -444,6 +446,7 @@ model ServiceListing {
   category        String
   durationMinutes Int
   priceCents      Int
+  coverImageUrl   String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -508,6 +511,8 @@ model Event {
   title            String
   description      String
   eventType        String
+  format           String   @default("in_person")
+  onlineUrl        String?
   startTime        DateTime
   endTime          DateTime
   venueName        String

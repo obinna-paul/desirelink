@@ -11,6 +11,7 @@ import { ProfileSetupActions } from "@/components/profile/profile-setup-actions"
 import { ServiceListingManager } from "@/components/provider/ServiceListingManager";
 import { getPartnerState } from "@/lib/partners";
 import { getProviderServiceListings } from "@/lib/service-listings";
+import { getMyVerificationRequests } from "@/lib/verification";
 
 export default async function EditProfilePage() {
   const session = await getServerSession(authOptions);
@@ -31,10 +32,13 @@ export default async function EditProfilePage() {
   }
 
   const showPartnerPanel = profile.partnerId !== null;
-  const [partnerState, serviceListings] = await Promise.all([
+  const [partnerState, serviceListings, verificationRequests] = await Promise.all([
     showPartnerPanel ? getPartnerState(profile.id) : Promise.resolve(null),
     getProviderServiceListings(profile.id),
+    getMyVerificationRequests(profile.id),
   ]);
+  const latestServiceProviderRequest =
+    verificationRequests.find((request) => request.requestType === "service_provider") ?? null;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -75,7 +79,11 @@ export default async function EditProfilePage() {
         />
       </section>
       {partnerState && <PartnerLinkPanel initialState={partnerState} />}
-      <ServiceListingManager initialListings={serviceListings} />
+      <ServiceListingManager
+        initialListings={serviceListings}
+        isVerifiedServiceProvider={profile.isVerifiedServiceProvider}
+        latestServiceProviderStatus={latestServiceProviderRequest?.status ?? null}
+      />
     </div>
   );
 }

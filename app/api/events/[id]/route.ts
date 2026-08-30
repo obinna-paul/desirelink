@@ -44,6 +44,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       title: data.title,
       description: data.description,
       eventType: data.eventType,
+      format: data.format,
+      onlineUrl: data.onlineUrl ?? null,
       startTime: new Date(data.startTime),
       endTime: new Date(data.endTime),
       venueName: data.venueName,

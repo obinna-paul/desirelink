@@ -5,7 +5,8 @@ export const serviceListingSchema = z.object({
   description: z.string().max(500),
   category: z.string().min(1, "Select a category"),
   durationMinutes: z.number().int().min(15, "Minimum duration is 15 minutes").max(1440),
-  priceCents: z.number().int().min(0, "Price can't be negative").max(1_000_000),
+  priceCents: z.number().int().min(0, "Price can't be negative").max(100_000_000),
+  coverImageUrl: z.string().optional(),
 });
 
 export type ServiceListingInput = z.infer<typeof serviceListingSchema>;

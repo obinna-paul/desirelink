@@ -14,10 +14,16 @@ export async function POST(req: Request) {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true },
+    select: { id: true, isVerifiedHost: true },
   });
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  }
+  if (!profile.isVerifiedHost) {
+    return NextResponse.json(
+      { error: "Verify your identity as a host before creating an event." },
+      { status: 403 }
+    );
   }
 
   const body = await readJson(req);
@@ -37,6 +43,8 @@ export async function POST(req: Request) {
       title: data.title,
       description: data.description,
       eventType: data.eventType,
+      format: data.format,
+      onlineUrl: data.onlineUrl ?? null,
       startTime: new Date(data.startTime),
       endTime: new Date(data.endTime),
       venueName: data.venueName,

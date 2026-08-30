@@ -35,6 +35,12 @@ export async function POST(req: Request) {
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
+  if (!profile.isVerifiedServiceProvider) {
+    return NextResponse.json(
+      { error: "Verify your identity as a service provider before listing a service." },
+      { status: 403 }
+    );
+  }
 
   const body = await req.json().catch(() => null);
   const parsed = serviceListingSchema.safeParse(body);

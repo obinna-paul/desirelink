@@ -37,7 +37,7 @@ export default async function EditEventPage({ params }: { params: { id: string }
         </h1>
         <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{event.title}</p>
       </div>
-      <EventForm event={event} eventId={event.id} />
+      <EventForm event={event} eventId={event.id} isVerifiedHost latestHostStatus={null} />
     </div>
   );
 }

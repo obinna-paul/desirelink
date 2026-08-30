@@ -1,17 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import Image from "next/image";
+import { Image as ImageIcon, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
+import { VerificationRequestCard } from "@/components/verification/verification-request-card";
 import { formatCents } from "@/lib/creator";
 import { SERVICE_CATEGORY_OPTIONS } from "@/lib/account-types";
 import type { ServiceListingInput } from "@/lib/validations/service-listing";
 import type { ServiceListingView } from "@/lib/service-listings";
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 type FormState = {
   title: string;
@@ -19,6 +23,7 @@ type FormState = {
   category: string;
   durationMinutes: string;
   priceNaira: string;
+  coverImageUrl: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -27,6 +32,7 @@ const EMPTY_FORM: FormState = {
   category: SERVICE_CATEGORY_OPTIONS[0],
   durationMinutes: "60",
   priceNaira: "",
+  coverImageUrl: "",
 };
 
 function listingToForm(listing: ServiceListingView): FormState {
@@ -36,6 +42,7 @@ function listingToForm(listing: ServiceListingView): FormState {
     category: listing.category,
     durationMinutes: String(listing.durationMinutes),
     priceNaira: (listing.priceCents / 100).toString(),
+    coverImageUrl: listing.coverImageUrl ?? "",
   };
 }
 
@@ -52,7 +59,43 @@ function ServiceListingForm({
 }) {
   const [form, setForm] = useState(initial);
   const [status, setStatus] = useState<"idle" | "saving">("idle");
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleCoverUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file.");
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setError("Image must be under 5MB.");
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/upload/service-listing", { method: "POST", body: formData });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error ?? "Upload failed. Please try again.");
+        return;
+      }
+      setForm((prev) => ({ ...prev, coverImageUrl: body.url }));
+    } catch {
+      setError("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -76,6 +119,7 @@ function ServiceListingForm({
       category: form.category,
       durationMinutes,
       priceCents: Math.round(priceNaira * 100),
+      coverImageUrl: form.coverImageUrl,
     });
     setStatus("idle");
 
@@ -89,6 +133,49 @@ function ServiceListingForm({
       onSubmit={handleSubmit}
       className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background p-4 shadow-sm md:rounded-lg md:shadow-none"
     >
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground">Cover photo</span>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {form.coverImageUrl ? (
+            <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border/60 bg-secondary sm:h-20 sm:w-32 sm:rounded-lg">
+              <Image src={form.coverImageUrl} alt="" fill sizes="8rem" className="object-cover" />
+              <button
+                type="button"
+                aria-label="Remove cover photo"
+                onClick={() => setForm((prev) => ({ ...prev, coverImageUrl: "" }))}
+                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-background/80 text-foreground transition-colors hover:bg-background"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex aspect-video w-full items-center justify-center rounded-2xl border border-dashed border-border/60 text-xs text-muted-foreground sm:h-20 sm:w-32 sm:rounded-lg">
+              No image
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:rounded-md"
+          >
+            {uploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <ImageIcon className="h-4 w-4" aria-hidden="true" />
+            )}
+            {uploading ? "Uploading..." : "Upload cover"}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleCoverUpload}
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="service-title" className="text-xs font-medium text-muted-foreground">
@@ -170,7 +257,7 @@ function ServiceListingForm({
       )}
 
       <div className="grid grid-cols-1 gap-2 sm:flex">
-        <Button type="submit" size="sm" className="w-full sm:w-auto" disabled={status === "saving"}>
+        <Button type="submit" size="sm" className="w-full sm:w-auto" disabled={status === "saving" || uploading}>
           {status === "saving" ? "Saving..." : submitLabel}
         </Button>
         {onCancel && (
@@ -186,14 +273,18 @@ function ServiceListingForm({
 export function ServiceListingManager({
   initialListings,
   startCreating = false,
+  isVerifiedServiceProvider,
+  latestServiceProviderStatus,
 }: {
   initialListings: ServiceListingView[];
   startCreating?: boolean;
+  isVerifiedServiceProvider: boolean;
+  latestServiceProviderStatus: "pending" | "approved" | "denied" | null;
 }) {
   const router = useRouter();
   const [listings, setListings] = useState(initialListings);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(startCreating);
+  const [creating, setCreating] = useState(startCreating && isVerifiedServiceProvider);
 
   async function handleCreate(input: ServiceListingInput) {
     const res = await fetch("/api/service-listings", {
@@ -314,7 +405,13 @@ export function ServiceListingManager({
         )}
       </ul>
 
-      {creating ? (
+      {!isVerifiedServiceProvider ? (
+        <VerificationRequestCard
+          requestType="service_provider"
+          isVerified={false}
+          latestStatus={latestServiceProviderStatus}
+        />
+      ) : creating ? (
         <ServiceListingForm
           initial={EMPTY_FORM}
           submitLabel="Add service"

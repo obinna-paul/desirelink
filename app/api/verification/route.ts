@@ -43,7 +43,7 @@ export async function POST(req: Request) {
   const selfieUrl = typeof body?.selfieUrl === "string" ? body.selfieUrl : "";
 
   if (!isVerificationRequestType(requestType)) {
-    return NextResponse.json({ error: "requestType must be 'creator' or 'host'" }, { status: 400 });
+    return NextResponse.json({ error: "requestType must be 'creator', 'host', or 'service_provider'" }, { status: 400 });
   }
 
   const result = await submitVerificationRequest(profile.id, requestType, govIdUrl, selfieUrl);

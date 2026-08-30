@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { CalendarDays, MapPin, Users } from "lucide-react";
+import { CalendarDays, MapPin, Users, Video } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +63,13 @@ export function EventCard({
             timeStyle: "short",
           })}
         </p>
-        {location && (
+        {event.format !== "in_person" && (
+          <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+            <Video className="h-3 w-3 shrink-0" aria-hidden="true" />
+            {event.format === "hybrid" ? "In person + online" : "Online event"}
+          </p>
+        )}
+        {location && event.format !== "online" && (
           <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
             <MapPin className="h-3 w-3 shrink-0" aria-hidden="true" /> {location}
           </p>

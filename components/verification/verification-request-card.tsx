@@ -12,6 +12,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const LABELS: Record<VerificationRequestType, string> = {
   creator: "creator",
   host: "host",
+  service_provider: "service provider",
 };
 
 const FileSlot = memo(function FileSlot({

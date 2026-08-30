@@ -7,18 +7,15 @@ import { ChevronDown, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { SERVICE_CATEGORY_OPTIONS } from "@/lib/account-types";
 import {
-  EVENT_DATE_PRESETS,
-  EVENT_FORMAT_OPTIONS,
-  EVENT_PRIVACY_FILTER_OPTIONS,
-  EVENT_RADIUS_OPTIONS,
-  EVENT_TYPE_OPTIONS,
-  type EventDatePreset,
-  type EventFilters,
-  type EventFormatValue,
-  type EventPrivacyFilter,
-} from "@/lib/events";
+  SERVICE_RADIUS_OPTIONS,
+  SERVICE_SORT_OPTIONS,
+  type ServiceFilters,
+  type ServiceSortValue,
+} from "@/lib/service-listings";
 
 function ToggleChip({
   label,
@@ -49,9 +46,7 @@ function ToggleChip({
 function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </h2>
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>
       {children}
     </div>
   );
@@ -61,54 +56,54 @@ function toggleValue<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 }
 
-export function EventFiltersPanel({ initialFilters }: { initialFilters: EventFilters }) {
+export function ServiceFiltersPanel({ initialFilters }: { initialFilters: ServiceFilters }) {
   const router = useRouter();
-  const [types, setTypes] = useState<string[]>(initialFilters.types);
-  const [formats, setFormats] = useState<EventFormatValue[]>(initialFilters.formats);
-  const [datePreset, setDatePreset] = useState<EventDatePreset>(initialFilters.datePreset);
-  const [customFrom, setCustomFrom] = useState(initialFilters.customFrom);
-  const [customTo, setCustomTo] = useState(initialFilters.customTo);
+  const [categories, setCategories] = useState<string[]>(initialFilters.categories);
+  const [minPrice, setMinPrice] = useState(
+    initialFilters.minPriceCents !== null ? String(initialFilters.minPriceCents / 100) : ""
+  );
+  const [maxPrice, setMaxPrice] = useState(
+    initialFilters.maxPriceCents !== null ? String(initialFilters.maxPriceCents / 100) : ""
+  );
   const [city, setCity] = useState(initialFilters.city);
   const [radiusKm, setRadiusKm] = useState<string>(
     initialFilters.radiusKm === null ? "any" : String(initialFilters.radiusKm)
   );
-  const [privacy, setPrivacy] = useState<EventPrivacyFilter>(initialFilters.privacy);
+  const [verifiedOnly, setVerifiedOnly] = useState(initialFilters.verifiedOnly);
+  const [sort, setSort] = useState<ServiceSortValue>(initialFilters.sort);
   const [open, setOpen] = useState(false);
 
   const activeFilterCount =
-    types.length +
-    formats.length +
-    (datePreset !== "any" ? 1 : 0) +
+    categories.length +
+    (minPrice.trim() ? 1 : 0) +
+    (maxPrice.trim() ? 1 : 0) +
     (city.trim() ? 1 : 0) +
     (radiusKm !== "any" ? 1 : 0) +
-    (privacy !== "all" ? 1 : 0);
+    (verifiedOnly ? 0 : 1) +
+    (sort !== "newest" ? 1 : 0);
 
   function applyFilters() {
     const params = new URLSearchParams();
-    types.forEach((value) => params.append("type", value));
-    formats.forEach((value) => params.append("format", value));
-    params.set("date", datePreset);
-    if (datePreset === "custom") {
-      if (customFrom) params.set("from", customFrom);
-      if (customTo) params.set("to", customTo);
-    }
+    categories.forEach((value) => params.append("category", value));
+    if (minPrice.trim()) params.set("minPrice", minPrice.trim());
+    if (maxPrice.trim()) params.set("maxPrice", maxPrice.trim());
     if (city.trim()) params.set("city", city.trim());
     params.set("radius", radiusKm);
-    params.set("privacy", privacy);
-    router.push(`/events?${params.toString()}`);
+    params.set("verified", verifiedOnly ? "true" : "false");
+    params.set("sort", sort);
+    router.push(`/services?${params.toString()}`);
     setOpen(false);
   }
 
   function clearFilters() {
-    setTypes([]);
-    setFormats([]);
-    setDatePreset("any");
-    setCustomFrom("");
-    setCustomTo("");
+    setCategories([]);
+    setMinPrice("");
+    setMaxPrice("");
     setCity("");
     setRadiusKm("any");
-    setPrivacy("all");
-    router.push("/events");
+    setVerifiedOnly(true);
+    setSort("newest");
+    router.push("/services");
     setOpen(false);
   }
 
@@ -134,46 +129,42 @@ export function EventFiltersPanel({ initialFilters }: { initialFilters: EventFil
 
       <div className={cn("flex-col gap-5 border-t border-border/60 p-4 md:flex md:border-t-0", open ? "flex" : "hidden")}>
         <div className="hidden text-sm font-semibold md:block">Filters</div>
-        <FilterSection title="Type">
+        <FilterSection title="Category">
           <div className="flex flex-wrap gap-2">
-            {EVENT_TYPE_OPTIONS.map((option) => (
+            {SERVICE_CATEGORY_OPTIONS.map((option) => (
               <ToggleChip
                 key={option}
                 label={option}
-                pressed={types.includes(option)}
-                onClick={() => setTypes((prev) => toggleValue(prev, option))}
-              />
-            ))}
-          </div>
-        </FilterSection>
-
-        <FilterSection title="Format">
-          <div className="flex flex-wrap gap-2">
-            {EVENT_FORMAT_OPTIONS.map((option) => (
-              <ToggleChip
-                key={option.value}
-                label={option.label}
-                pressed={formats.includes(option.value)}
-                onClick={() => setFormats((prev) => toggleValue(prev, option.value))}
+                pressed={categories.includes(option)}
+                onClick={() => setCategories((prev) => toggleValue(prev, option))}
               />
             ))}
           </div>
         </FilterSection>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <FilterSection title="Date">
-            <Select
-              aria-label="Date"
-              value={datePreset}
-              onChange={(e) => setDatePreset(e.target.value as EventDatePreset)}
+          <FilterSection title="Min price (NGN)">
+            <Input
+              aria-label="Minimum price"
+              type="number"
+              min={0}
+              placeholder="Any"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
               className="h-11 text-sm"
-            >
-              {EVENT_DATE_PRESETS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
+            />
+          </FilterSection>
+
+          <FilterSection title="Max price (NGN)">
+            <Input
+              aria-label="Maximum price"
+              type="number"
+              min={0}
+              placeholder="Any"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              className="h-11 text-sm"
+            />
           </FilterSection>
 
           <FilterSection title="City">
@@ -194,50 +185,38 @@ export function EventFiltersPanel({ initialFilters }: { initialFilters: EventFil
               className="h-11 text-sm"
             >
               <option value="any">Any distance</option>
-              {EVENT_RADIUS_OPTIONS.map((km) => (
+              {SERVICE_RADIUS_OPTIONS.map((km) => (
                 <option key={km} value={km}>
                   Within {km} km
                 </option>
               ))}
             </Select>
           </FilterSection>
+        </div>
 
-          <FilterSection title="Visibility">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <FilterSection title="Sort by">
             <Select
-              aria-label="Visibility"
-              value={privacy}
-              onChange={(e) => setPrivacy(e.target.value as EventPrivacyFilter)}
+              aria-label="Sort by"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as ServiceSortValue)}
               className="h-11 text-sm"
             >
-              {EVENT_PRIVACY_FILTER_OPTIONS.map((option) => (
+              {SERVICE_SORT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
             </Select>
           </FilterSection>
-        </div>
 
-        {datePreset === "custom" && (
-          <FilterSection title="Custom range">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input
-                aria-label="From date"
-                type="date"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="h-11 text-sm"
-              />
-              <Input
-                aria-label="To date"
-                type="date"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
-                className="h-11 text-sm"
-              />
-            </div>
+          <FilterSection title="Verified providers only">
+            <label className="flex min-h-11 cursor-pointer items-center gap-2">
+              <Switch checked={verifiedOnly} onCheckedChange={setVerifiedOnly} />
+              <span className="text-sm text-muted-foreground">{verifiedOnly ? "On" : "Off"}</span>
+            </label>
           </FilterSection>
-        )}
+        </div>
 
         <div className="flex gap-3">
           <Button type="button" onClick={applyFilters} className="flex-1 md:flex-none">

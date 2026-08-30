@@ -14,6 +14,7 @@ import {
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getProviderServiceListings } from "@/lib/service-listings";
+import { getMyVerificationRequests } from "@/lib/verification";
 import { EventForm } from "@/components/events/event-form";
 import { FeedComposer } from "@/components/posts/feed-composer";
 import { ServiceListingManager } from "@/components/provider/ServiceListingManager";
@@ -210,21 +211,29 @@ export default async function CreatePage({
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, displayName: true },
+    select: { id: true, displayName: true, isVerifiedHost: true, isVerifiedServiceProvider: true },
   });
   if (!profile) redirect("/login");
 
   const activeType = isCreateType(searchParams.type) ? searchParams.type : "post";
-  const serviceListings =
-    activeType === "service"
-      ? await getProviderServiceListings(profile.id)
-      : [];
+  const [serviceListings, verificationRequests] = await Promise.all([
+    activeType === "service" ? getProviderServiceListings(profile.id) : Promise.resolve([]),
+    activeType === "service" || activeType === "event" ? getMyVerificationRequests(profile.id) : Promise.resolve([]),
+  ]);
+  const latestServiceProviderRequest =
+    verificationRequests.find((request) => request.requestType === "service_provider") ?? null;
+  const latestHostRequest = verificationRequests.find((request) => request.requestType === "host") ?? null;
 
   const content =
     activeType === "event" ? (
-      <EventForm />
+      <EventForm isVerifiedHost={profile.isVerifiedHost} latestHostStatus={latestHostRequest?.status ?? null} />
     ) : activeType === "service" ? (
-      <ServiceListingManager initialListings={serviceListings} startCreating />
+      <ServiceListingManager
+        initialListings={serviceListings}
+        startCreating
+        isVerifiedServiceProvider={profile.isVerifiedServiceProvider}
+        latestServiceProviderStatus={latestServiceProviderRequest?.status ?? null}
+      />
     ) : activeType === "room" ? (
       <RoomForm />
     ) : (

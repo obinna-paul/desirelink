@@ -16,6 +16,18 @@ export const EVENT_TYPE_OPTIONS = [
 
 export type EventTypeValue = (typeof EVENT_TYPE_OPTIONS)[number];
 
+export const EVENT_FORMAT_OPTIONS = [
+  { value: "in_person", label: "In person" },
+  { value: "online", label: "Online" },
+  { value: "hybrid", label: "Hybrid" },
+] as const;
+
+export type EventFormatValue = (typeof EVENT_FORMAT_OPTIONS)[number]["value"];
+
+export function isEventFormatValue(value: unknown): value is EventFormatValue {
+  return typeof value === "string" && EVENT_FORMAT_OPTIONS.some((option) => option.value === value);
+}
+
 export async function getHostEvents(profileId: string) {
   return prisma.event.findMany({
     where: { hostId: profileId },
@@ -217,6 +229,7 @@ export const EVENT_RADIUS_OPTIONS = [10, 25, 50, 100, 250] as const;
 
 export type EventFilters = {
   types: string[];
+  formats: EventFormatValue[];
   datePreset: EventDatePreset;
   customFrom: string;
   customTo: string;
@@ -246,6 +259,7 @@ export function parseEventFilters(searchParams: EventSearchParams): EventFilters
     types: toArray(searchParams.type).filter((value) =>
       EVENT_TYPE_OPTIONS.includes(value as EventTypeValue)
     ),
+    formats: toArray(searchParams.format).filter(isEventFormatValue),
     datePreset: EVENT_DATE_PRESETS.some((option) => option.value === datePreset)
       ? (datePreset as EventDatePreset)
       : "any",
@@ -327,6 +341,10 @@ export async function searchEvents(
 
   if (filters.types.length > 0) {
     where.eventType = { in: filters.types };
+  }
+
+  if (filters.formats.length > 0) {
+    where.format = { in: filters.formats };
   }
 
   if (filters.privacy === "public") {

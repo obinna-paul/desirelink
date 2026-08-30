@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
-export const VERIFICATION_REQUEST_TYPES = ["creator", "host"] as const;
+export const VERIFICATION_REQUEST_TYPES = ["creator", "host", "service_provider"] as const;
 export type VerificationRequestType = (typeof VERIFICATION_REQUEST_TYPES)[number];
 
 export function isVerificationRequestType(value: unknown): value is VerificationRequestType {
@@ -33,24 +33,20 @@ export async function submitVerificationRequest(
 
   const profile = await prisma.profile.findUnique({
     where: { id: profileId },
-    select: { isVerifiedCreator: true, isVerifiedHost: true },
+    select: { isVerifiedCreator: true, isVerifiedHost: true, isVerifiedServiceProvider: true },
   });
   if (!profile) {
     return { ok: false, status: 404, error: "Profile not found" };
   }
 
-  if (requestType === "creator") {
-    if (profile.isVerifiedCreator) {
-      return { ok: false, status: 400, error: "You're already a verified creator" };
-    }
-  } else {
-    const hostedEventCount = await prisma.event.count({ where: { hostId: profileId } });
-    if (hostedEventCount === 0) {
-      return { ok: false, status: 403, error: "Host at least one event before requesting host verification" };
-    }
-    if (profile.isVerifiedHost) {
-      return { ok: false, status: 400, error: "You're already a verified host" };
-    }
+  if (requestType === "creator" && profile.isVerifiedCreator) {
+    return { ok: false, status: 400, error: "You're already a verified creator" };
+  }
+  if (requestType === "host" && profile.isVerifiedHost) {
+    return { ok: false, status: 400, error: "You're already a verified host" };
+  }
+  if (requestType === "service_provider" && profile.isVerifiedServiceProvider) {
+    return { ok: false, status: 400, error: "You're already a verified service provider" };
   }
 
   let existingPending: { id: string } | null = null;
@@ -118,6 +114,15 @@ export type PendingVerificationRequest = Awaited<ReturnType<typeof getPendingVer
 
 export type ReviewVerificationResult = { ok: true } | { ok: false; status: number; error: string };
 
+const VERIFICATION_FIELD: Record<
+  VerificationRequestType,
+  "isVerifiedCreator" | "isVerifiedHost" | "isVerifiedServiceProvider"
+> = {
+  creator: "isVerifiedCreator",
+  host: "isVerifiedHost",
+  service_provider: "isVerifiedServiceProvider",
+};
+
 export async function approveVerificationRequest(
   requestId: string,
   reviewerId: string
@@ -137,8 +142,7 @@ export async function approveVerificationRequest(
     }),
     prisma.profile.update({
       where: { id: request.profileId },
-      data:
-        request.requestType === "creator" ? { isVerifiedCreator: true } : { isVerifiedHost: true },
+      data: { [VERIFICATION_FIELD[request.requestType]]: true },
     }),
   ]);
 

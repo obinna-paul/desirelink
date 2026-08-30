@@ -11,7 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { EVENT_TYPE_OPTIONS } from "@/lib/events";
+import { VerificationRequestCard } from "@/components/verification/verification-request-card";
+import { EVENT_FORMAT_OPTIONS, EVENT_TYPE_OPTIONS, type EventFormatValue } from "@/lib/events";
+import { cn } from "@/lib/utils";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
@@ -19,6 +21,8 @@ type FormState = {
   title: string;
   description: string;
   eventType: string;
+  format: EventFormatValue;
+  onlineUrl: string;
   startTime: string;
   endTime: string;
   venueName: string;
@@ -36,6 +40,8 @@ const EMPTY_FORM: FormState = {
   title: "",
   description: "",
   eventType: EVENT_TYPE_OPTIONS[0],
+  format: "in_person",
+  onlineUrl: "",
   startTime: "",
   endTime: "",
   venueName: "",
@@ -59,6 +65,8 @@ function eventToForm(event: Event): FormState {
     title: event.title,
     description: event.description,
     eventType: event.eventType,
+    format: (event.format as EventFormatValue) ?? "in_person",
+    onlineUrl: event.onlineUrl ?? "",
     startTime: toDatetimeLocal(new Date(event.startTime)),
     endTime: toDatetimeLocal(new Date(event.endTime)),
     venueName: event.venueName,
@@ -94,7 +102,17 @@ function FieldWrapper({
   );
 }
 
-export function EventForm({ event, eventId }: { event?: Event; eventId?: string }) {
+export function EventForm({
+  event,
+  eventId,
+  isVerifiedHost,
+  latestHostStatus,
+}: {
+  event?: Event;
+  eventId?: string;
+  isVerifiedHost: boolean;
+  latestHostStatus: "pending" | "approved" | "denied" | null;
+}) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<FormState>(event ? eventToForm(event) : EMPTY_FORM);
@@ -144,8 +162,16 @@ export function EventForm({ event, eventId }: { event?: Event; eventId?: string 
     e.preventDefault();
     setError(null);
 
-    if (!form.title.trim() || !form.venueName.trim() || !form.startTime || !form.endTime) {
+    if (!form.title.trim() || !form.startTime || !form.endTime) {
       setError("Fill in the required fields.");
+      return;
+    }
+    if (form.format !== "online" && !form.venueName.trim()) {
+      setError("Venue name is required.");
+      return;
+    }
+    if (form.format !== "in_person" && !form.onlineUrl.trim()) {
+      setError("Add a meeting link for an online or hybrid event.");
       return;
     }
 
@@ -166,6 +192,8 @@ export function EventForm({ event, eventId }: { event?: Event; eventId?: string 
       title: form.title.trim(),
       description: form.description.trim(),
       eventType: form.eventType,
+      format: form.format,
+      onlineUrl: form.format === "in_person" ? undefined : form.onlineUrl.trim(),
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       venueName: form.venueName.trim(),
@@ -195,6 +223,10 @@ export function EventForm({ event, eventId }: { event?: Event; eventId?: string 
 
     router.push("/events/manage");
     router.refresh();
+  }
+
+  if (!isVerifiedHost) {
+    return <VerificationRequestCard requestType="host" isVerified={false} latestStatus={latestHostStatus} />;
   }
 
   return (
@@ -329,52 +361,91 @@ export function EventForm({ event, eventId }: { event?: Event; eventId?: string 
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
           Location
         </h2>
-        <FieldWrapper label="Venue name" htmlFor="venueName" required>
-          <Input
-            id="venueName"
-            value={form.venueName}
-            onChange={(e) => update("venueName", e.target.value)}
-            maxLength={150}
-          />
+        <FieldWrapper label="Format" htmlFor="format" required>
+          <div className="grid grid-cols-3 gap-2">
+            {EVENT_FORMAT_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                id={option.value === "in_person" ? "format" : undefined}
+                aria-pressed={form.format === option.value}
+                onClick={() => update("format", option.value)}
+                className={cn(
+                  "min-h-11 rounded-xl border px-3 text-sm font-medium transition-colors md:rounded-lg",
+                  form.format === option.value
+                    ? "border-transparent bg-primary text-primary-foreground"
+                    : "border-border/60 bg-background text-muted-foreground hover:border-neon-pink/60 hover:text-foreground"
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </FieldWrapper>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FieldWrapper label="Address" htmlFor="address">
+
+        {form.format !== "online" && (
+          <>
+            <FieldWrapper label="Venue name" htmlFor="venueName" required>
+              <Input
+                id="venueName"
+                value={form.venueName}
+                onChange={(e) => update("venueName", e.target.value)}
+                maxLength={150}
+              />
+            </FieldWrapper>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FieldWrapper label="Address" htmlFor="address">
+                <Input
+                  id="address"
+                  value={form.address}
+                  onChange={(e) => update("address", e.target.value)}
+                  maxLength={300}
+                />
+              </FieldWrapper>
+              <FieldWrapper label="City" htmlFor="city">
+                <Input
+                  id="city"
+                  value={form.city}
+                  onChange={(e) => update("city", e.target.value)}
+                  maxLength={100}
+                />
+              </FieldWrapper>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FieldWrapper label="Latitude (optional)" htmlFor="lat">
+                <Input
+                  id="lat"
+                  type="number"
+                  step="any"
+                  value={form.lat}
+                  onChange={(e) => update("lat", e.target.value)}
+                />
+              </FieldWrapper>
+              <FieldWrapper label="Longitude (optional)" htmlFor="lng">
+                <Input
+                  id="lng"
+                  type="number"
+                  step="any"
+                  value={form.lng}
+                  onChange={(e) => update("lng", e.target.value)}
+                />
+              </FieldWrapper>
+            </div>
+          </>
+        )}
+
+        {form.format !== "in_person" && (
+          <FieldWrapper label="Meeting link" htmlFor="onlineUrl" required>
             <Input
-              id="address"
-              value={form.address}
-              onChange={(e) => update("address", e.target.value)}
-              maxLength={300}
+              id="onlineUrl"
+              type="url"
+              placeholder="https://..."
+              value={form.onlineUrl}
+              onChange={(e) => update("onlineUrl", e.target.value)}
+              maxLength={500}
             />
           </FieldWrapper>
-          <FieldWrapper label="City" htmlFor="city">
-            <Input
-              id="city"
-              value={form.city}
-              onChange={(e) => update("city", e.target.value)}
-              maxLength={100}
-            />
-          </FieldWrapper>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FieldWrapper label="Latitude (optional)" htmlFor="lat">
-            <Input
-              id="lat"
-              type="number"
-              step="any"
-              value={form.lat}
-              onChange={(e) => update("lat", e.target.value)}
-            />
-          </FieldWrapper>
-          <FieldWrapper label="Longitude (optional)" htmlFor="lng">
-            <Input
-              id="lng"
-              type="number"
-              step="any"
-              value={form.lng}
-              onChange={(e) => update("lng", e.target.value)}
-            />
-          </FieldWrapper>
-        </div>
+        )}
       </section>
 
       <section className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">

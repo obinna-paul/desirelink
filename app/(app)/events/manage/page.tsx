@@ -53,7 +53,6 @@ export default async function ManageEventsPage() {
         requestType="host"
         isVerified={profile.isVerifiedHost}
         latestStatus={latestHostRequest?.status ?? null}
-        ineligibleMessage={events.length === 0 ? "Host at least one event before requesting host verification." : undefined}
       />
     </div>
   );

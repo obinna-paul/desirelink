@@ -285,7 +285,7 @@ export function ProfileView({
 
         {section === "services" && (
           serviceListings.length > 0 ? (
-            <ServiceListingMenu listings={serviceListings} />
+            <ServiceListingMenu listings={serviceListings} providerUsername={profile.username} isOwner={isOwner} />
           ) : (
             <EmptyProfileSection
               title="No services yet"
