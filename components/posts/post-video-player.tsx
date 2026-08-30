@@ -1,25 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Volume2, VolumeX } from "lucide-react";
+import { Pause, Play, Volume2, VolumeX } from "lucide-react";
 
 export function PostVideoPlayer({ src }: { src: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
-  const [reducedMotion, setReducedMotion] = useState(false);
   const [manuallyPaused, setManuallyPaused] = useState(false);
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(query.matches);
-    const onChange = () => setReducedMotion(query.matches);
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
+  const [showPauseIcon, setShowPauseIcon] = useState(false);
 
   // React's `muted` prop only sets the HTML attribute, not the DOM property - some browsers
-  // (desktop Chrome in particular) require the actual .muted property to be true before
-  // allowing autoplay() without a user gesture, so the attribute alone isn't enough.
+  // (desktop Chrome among them) require the actual .muted property to be true before allowing
+  // autoplay() without a user gesture, and check that property rather than the attribute.
   useEffect(() => {
     const el = videoRef.current;
     if (el) el.muted = muted;
@@ -32,8 +24,8 @@ export function PostVideoPlayer({ src }: { src: string }) {
     const observer = new IntersectionObserver(
       ([entry]) => {
         const inView = entry.isIntersecting && entry.intersectionRatio >= 0.6;
-        // Autoplay-on-scroll is the whole point of a feed video, but reduced-motion users get a tap-to-play video instead of it starting on its own.
-        if (inView && !reducedMotion && !manuallyPaused) {
+        // Autoplay-on-scroll for everyone, on every device - a viewer who wants it stopped can tap to pause themselves.
+        if (inView && !manuallyPaused) {
           void el.play().catch(() => {});
         } else {
           el.pause();
@@ -43,9 +35,9 @@ export function PostVideoPlayer({ src }: { src: string }) {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [reducedMotion, manuallyPaused]);
+  }, [manuallyPaused]);
 
-  function toggleReducedMotionPlayback() {
+  function togglePlayback() {
     const el = videoRef.current;
     if (!el) return;
     if (el.paused) {
@@ -55,6 +47,8 @@ export function PostVideoPlayer({ src }: { src: string }) {
       el.pause();
       setManuallyPaused(true);
     }
+    setShowPauseIcon(true);
+    window.setTimeout(() => setShowPauseIcon(false), 500);
   }
 
   return (
@@ -70,12 +64,26 @@ export function PostVideoPlayer({ src }: { src: string }) {
         disableRemotePlayback
         controlsList="nodownload noremoteplayback noplaybackrate"
         onContextMenu={(event) => event.preventDefault()}
-        onClick={reducedMotion ? toggleReducedMotionPlayback : undefined}
-        className="h-full w-full object-cover"
+        onClick={togglePlayback}
+        className="h-full w-full cursor-pointer object-cover"
       />
+      {showPauseIcon && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/50 text-white motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-75 motion-safe:duration-200">
+            {manuallyPaused ? (
+              <Play className="h-6 w-6" aria-hidden="true" fill="currentColor" />
+            ) : (
+              <Pause className="h-6 w-6" aria-hidden="true" fill="currentColor" />
+            )}
+          </span>
+        </div>
+      )}
       <button
         type="button"
-        onClick={() => setMuted((current) => !current)}
+        onClick={(event) => {
+          event.stopPropagation();
+          setMuted((current) => !current);
+        }}
         aria-label={muted ? "Unmute video" : "Mute video"}
         aria-pressed={!muted}
         className="absolute bottom-3 left-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition-colors hover:bg-black/70"
