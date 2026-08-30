@@ -5,26 +5,22 @@ import { Heart, MessageCircle, Share2 } from "lucide-react";
 
 import { CommentsSheet } from "@/components/posts/comments-sheet";
 import { cn } from "@/lib/utils";
-import type { PostCommentView } from "@/lib/posts";
 
 export function PostActions({
   postId,
   authorUsername,
   initialCounts,
   initialViewerLiked,
-  initialComments,
 }: {
   postId: string;
   authorUsername: string;
   initialCounts: { reactions: number; comments: number; shares: number };
   initialViewerLiked: boolean;
-  initialComments: PostCommentView[];
 }) {
   const [liked, setLiked] = useState(initialViewerLiked);
   const [reactionCount, setReactionCount] = useState(initialCounts.reactions);
   const [commentCount, setCommentCount] = useState(initialCounts.comments);
   const [shareCount, setShareCount] = useState(initialCounts.shares);
-  const [comments, setComments] = useState(initialComments);
   const [sheetOpen, setSheetOpen] = useState(false);
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return `/profile/${authorUsername}`;
@@ -65,15 +61,6 @@ export function PostActions({
     if (typeof body?.count === "number") setShareCount(body.count);
   }
 
-  function handleNewComment(comment: PostCommentView, newCount: number) {
-    setComments((current) => [comment, ...current]);
-    setCommentCount(newCount);
-  }
-
-  function handleNewReply(newCount: number) {
-    setCommentCount(newCount);
-  }
-
   return (
     <div className="flex flex-col gap-3 border-t border-border/60 pt-2">
       <div className="flex items-center justify-between gap-2">
@@ -112,9 +99,7 @@ export function PostActions({
         onClose={() => setSheetOpen(false)}
         postId={postId}
         authorUsername={authorUsername}
-        comments={comments}
-        onNewComment={handleNewComment}
-        onNewReply={handleNewReply}
+        onCommentCountChange={setCommentCount}
       />
     </div>
   );

@@ -108,7 +108,6 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
               authorUsername={post.author.username}
               initialCounts={post.counts}
               initialViewerLiked={post.viewerLiked}
-              initialComments={post.comments}
             />
           </div>
           {post.content && <PostCaption content={post.content} />}

@@ -42,6 +42,110 @@ function serializeComment(comment: {
   };
 }
 
+type RawNode = {
+  id: string;
+  content: string;
+  createdAt: Date;
+  author: { id: string; username: string; displayName: string; avatarUrl: string };
+  replies?: RawNode[];
+};
+
+function normalizeThread(node: RawNode): {
+  id: string;
+  content: string;
+  createdAt: string;
+  author: { id: string; username: string; displayName: string; avatarUrl: string };
+  replies: ReturnType<typeof normalizeThread>[];
+} {
+  return {
+    id: node.id,
+    content: node.content,
+    createdAt: node.createdAt.toISOString(),
+    author: node.author,
+    replies: (node.replies ?? []).map(normalizeThread),
+  };
+}
+
+const AUTHOR_SELECT = { id: true, username: true, displayName: true, avatarUrl: true } as const;
+const PAGE_SIZE = 15;
+
+export async function GET(req: Request, { params }: { params: { postId: string } }) {
+  const session = await getServerSession(authOptions);
+  const url = new URL(req.url);
+  const cursor = url.searchParams.get("cursor");
+
+  const viewerProfile = session?.user?.id
+    ? await prisma.profile.findUnique({ where: { userId: session.user.id }, select: { id: true } })
+    : null;
+
+  let post: { id: string; authorId: string; isSubscriberOnly: boolean } | null;
+  try {
+    post = await prisma.post.findFirst({
+      where: { id: params.postId, isArchived: false },
+      select: { id: true, authorId: true, isSubscriberOnly: true },
+    });
+  } catch (error) {
+    if (!isMissingPostArchiveError(error)) throw error;
+    post = await prisma.post.findUnique({
+      where: { id: params.postId },
+      select: { id: true, authorId: true, isSubscriberOnly: true },
+    });
+  }
+  if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
+
+  if (
+    post.isSubscriberOnly &&
+    post.authorId !== viewerProfile?.id &&
+    !(viewerProfile && (await isActiveSubscriber(viewerProfile.id, post.authorId)))
+  ) {
+    return NextResponse.json({ comments: [], nextCursor: null });
+  }
+
+  const rows = await prisma.postComment.findMany({
+    where: { postId: params.postId, parentId: null },
+    orderBy: { createdAt: "desc" },
+    take: PAGE_SIZE + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+      author: { select: AUTHOR_SELECT },
+      replies: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          content: true,
+          createdAt: true,
+          author: { select: AUTHOR_SELECT },
+          replies: {
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              content: true,
+              createdAt: true,
+              author: { select: AUTHOR_SELECT },
+              replies: {
+                orderBy: { createdAt: "asc" },
+                select: { id: true, content: true, createdAt: true, author: { select: AUTHOR_SELECT } },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const hasMore = rows.length > PAGE_SIZE;
+  const page = hasMore ? rows.slice(0, PAGE_SIZE) : rows;
+  const comments = page.map(normalizeThread);
+
+  return NextResponse.json({
+    comments,
+    nextCursor: hasMore ? page[page.length - 1].id : null,
+  });
+}
+
 export async function POST(req: Request, { params }: { params: { postId: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {

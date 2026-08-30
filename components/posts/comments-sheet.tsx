@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { Send, User } from "lucide-react";
+import { Loader2, Send, User } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -15,38 +15,53 @@ import type { PostCommentView } from "@/lib/posts";
 const QUICK_REACTIONS = ["❤️", "🙌", "🔥", "👏", "😢", "😍", "😮", "😂"];
 const CLOSE_ANIMATION_MS = 240;
 const DRAG_DISMISS_THRESHOLD = 110;
+const COMMENT_TRUNCATE_LENGTH = 220;
 
 function initials(name: string) {
   return name.slice(0, 2).toUpperCase();
 }
 
-function countReplies(comments: PostCommentView[]): number {
-  return comments.reduce((total, item) => total + 1 + countReplies(item.replies), 0);
+function CommentText({ content }: { content: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = content.length > COMMENT_TRUNCATE_LENGTH;
+  const displayText = expanded || !isLong ? content : content.slice(0, COMMENT_TRUNCATE_LENGTH).trimEnd();
+
+  return (
+    <p className="mt-0.5 whitespace-pre-wrap text-[14.5px] leading-6 text-foreground">
+      {displayText}
+      {isLong && !expanded && "… "}
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          className="font-semibold text-muted-foreground hover:text-foreground"
+        >
+          {expanded ? " See less" : "See more"}
+        </button>
+      )}
+    </p>
+  );
 }
 
 function CommentThread({
   postId,
   comment,
   authorUsername,
-  depth = 0,
   onReplyPosted,
 }: {
   postId: string;
   comment: PostCommentView;
   authorUsername: string;
-  depth?: number;
-  onReplyPosted: (newCount: number) => void;
+  onReplyPosted: (newCount?: number) => void;
 }) {
   const [replying, setReplying] = useState(false);
   const [reply, setReply] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [repliesExpanded, setRepliesExpanded] = useState(depth > 0);
   const [repliesList, setRepliesList] = useState(comment.replies);
   const replyInputRef = useRef<HTMLInputElement>(null);
   const timeAgo = formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true });
   const isAuthor = comment.author.username === authorUsername;
-  const replyCount = countReplies(repliesList);
 
   useEffect(() => {
     if (replying) replyInputRef.current?.focus();
@@ -73,7 +88,6 @@ function CommentThread({
 
     setReply("");
     setReplying(false);
-    setRepliesExpanded(true);
     if (body?.comment) setRepliesList((current) => [...current, body.comment]);
     onReplyPosted(body?.count);
   }
@@ -105,7 +119,7 @@ function CommentThread({
             )}
             <span className="text-xs text-muted-foreground">{timeAgo}</span>
           </div>
-          <p className="mt-0.5 whitespace-pre-wrap text-[14.5px] leading-6 text-foreground">{comment.content}</p>
+          <CommentText content={comment.content} />
 
           <div className="mt-1 flex items-center gap-4 text-xs">
             <button
@@ -140,18 +154,7 @@ function CommentThread({
           )}
           {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
 
-          {repliesList.length > 0 && !repliesExpanded && (
-            <button
-              type="button"
-              onClick={() => setRepliesExpanded(true)}
-              className="mt-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
-            >
-              <span className="h-px w-6 bg-border" aria-hidden="true" />
-              View {replyCount} more {replyCount === 1 ? "reply" : "replies"}
-            </button>
-          )}
-
-          {repliesList.length > 0 && repliesExpanded && (
+          {repliesList.length > 0 && (
             <ul className="mt-3 flex flex-col gap-3">
               {repliesList.map((childComment) => (
                 <CommentThread
@@ -159,7 +162,6 @@ function CommentThread({
                   postId={postId}
                   comment={childComment}
                   authorUsername={authorUsername}
-                  depth={depth + 1}
                   onReplyPosted={onReplyPosted}
                 />
               ))}
@@ -176,29 +178,110 @@ export function CommentsSheet({
   onClose,
   postId,
   authorUsername,
-  comments,
-  onNewComment,
-  onNewReply,
+  onCommentCountChange,
 }: {
   open: boolean;
   onClose: () => void;
   postId: string;
   authorUsername: string;
-  comments: PostCommentView[];
-  onNewComment: (comment: PostCommentView, newCount: number) => void;
-  onNewReply: (newCount: number) => void;
+  onCommentCountChange: (count: number) => void;
 }) {
   const [rendered, setRendered] = useState(open);
   const [visible, setVisible] = useState(false);
+  const [comments, setComments] = useState<PostCommentView[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingInitial, setLoadingInitial] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [comment, setComment] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const dragState = useRef<{ startY: number; dragging: boolean } | null>(null);
+  const nextCursorRef = useRef<string | null>(null);
+  const loadingMoreRef = useRef(false);
 
   const sheetRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const sentinelRef = useRef<HTMLLIElement>(null);
   useFocusTrap(open, sheetRef);
+
+  const loadPage = useCallback(
+    async (cursor: string | null) => {
+      const url = cursor
+        ? `/api/posts/${postId}/comments?cursor=${encodeURIComponent(cursor)}`
+        : `/api/posts/${postId}/comments`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to load comments");
+      return (await res.json()) as { comments: PostCommentView[]; nextCursor: string | null };
+    },
+    [postId]
+  );
+
+  useEffect(() => {
+    nextCursorRef.current = nextCursor;
+  }, [nextCursor]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setLoadingInitial(true);
+    setLoadError(false);
+    setComments([]);
+    setNextCursor(null);
+
+    loadPage(null)
+      .then((data) => {
+        if (cancelled) return;
+        setComments(data.comments);
+        setNextCursor(data.nextCursor);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingInitial(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, postId]);
+
+  const loadMore = useCallback(() => {
+    if (loadingMoreRef.current || !nextCursorRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+
+    loadPage(nextCursorRef.current)
+      .then((data) => {
+        setComments((current) => [...current, ...data.comments]);
+        setNextCursor(data.nextCursor);
+      })
+      .catch(() => {
+        /* silently stop paginating on error; user can scroll again to retry */
+      })
+      .finally(() => {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      });
+  }, [loadPage]);
+
+  useEffect(() => {
+    if (!open) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { root: sentinel.closest("[data-comments-scroll]"), rootMargin: "200px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [open, loadMore, comments.length]);
 
   useEffect(() => {
     if (open) {
@@ -270,7 +353,8 @@ export function CommentsSheet({
     }
 
     setComment("");
-    onNewComment(body.comment, body.count ?? comments.length + 1);
+    setComments((current) => [body.comment, ...current]);
+    if (typeof body.count === "number") onCommentCountChange(body.count);
   }
 
   function insertReaction(emoji: string) {
@@ -279,7 +363,7 @@ export function CommentsSheet({
   }
 
   function handleReplyPosted(newCount?: number) {
-    onNewReply(newCount ?? countReplies(comments) + comments.length + 1);
+    if (typeof newCount === "number") onCommentCountChange(newCount);
   }
 
   if (!rendered) return null;
@@ -318,8 +402,17 @@ export function CommentsSheet({
           <p className="font-heading text-[15px] italic font-semibold">Comments</p>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-          {comments.length === 0 ? (
+        <div data-comments-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          {loadingInitial ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center gap-1 py-10 text-center">
+              <p className="text-sm font-medium text-foreground">Couldn&apos;t load comments</p>
+              <p className="text-xs text-muted-foreground">Check your connection and reopen this sheet.</p>
+            </div>
+          ) : comments.length === 0 ? (
             <div className="flex flex-col items-center gap-1 py-10 text-center">
               <p className="text-sm font-medium text-foreground">No comments yet</p>
               <p className="text-xs text-muted-foreground">Be the first to say something.</p>
@@ -335,6 +428,12 @@ export function CommentsSheet({
                   onReplyPosted={handleReplyPosted}
                 />
               ))}
+              <li ref={sentinelRef} aria-hidden="true" className="h-px" />
+              {loadingMore && (
+                <li className="flex items-center justify-center py-3">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
+                </li>
+              )}
             </ul>
           )}
         </div>
