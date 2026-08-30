@@ -11,16 +11,18 @@ export function AccountTypeSelector({
   name = "profileType",
   className,
   variant = "default",
+  options = ACCOUNT_TYPE_OPTIONS,
 }: {
   value: ProfileType;
   onChange: (value: ProfileType) => void;
   name?: string;
   className?: string;
   variant?: "default" | "auth" | "lightAuth";
+  options?: typeof ACCOUNT_TYPE_OPTIONS;
 }) {
   return (
     <div role="radiogroup" aria-label="Account type" className={cn("grid grid-cols-1 gap-3", className)}>
-      {ACCOUNT_TYPE_OPTIONS.map((option) => {
+      {options.map((option) => {
         const selected = value === option.value;
         return (
           <label

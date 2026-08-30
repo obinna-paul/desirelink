@@ -13,6 +13,7 @@ import {
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isProviderProfileType } from "@/lib/provider-types";
 import { getProviderServiceListings } from "@/lib/service-listings";
 import { getMyVerificationRequests } from "@/lib/verification";
 import { EventForm } from "@/components/events/event-form";
@@ -32,6 +33,7 @@ const createOptions: {
   href: string;
   icon: LucideIcon;
   primary?: boolean;
+  providerOnly?: boolean;
 }[] = [
   {
     type: "post",
@@ -49,6 +51,7 @@ const createOptions: {
     description: "Host something people can discover, save, and RSVP to.",
     href: "/create?type=event",
     icon: CalendarPlus,
+    providerOnly: true,
   },
   {
     type: "service",
@@ -57,6 +60,7 @@ const createOptions: {
     description: "List a paid service from your profile.",
     href: "/create?type=service",
     icon: BriefcaseBusiness,
+    providerOnly: true,
   },
   {
     type: "room",
@@ -211,11 +215,22 @@ export default async function CreatePage({
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, displayName: true, isVerifiedHost: true, isVerifiedServiceProvider: true },
+    select: {
+      id: true,
+      displayName: true,
+      isVerifiedHost: true,
+      isVerifiedServiceProvider: true,
+      profileType: true,
+    },
   });
   if (!profile) redirect("/login");
+  const isProvider = isProviderProfileType(profile.profileType);
 
   const activeType = isCreateType(searchParams.type) ? searchParams.type : "post";
+  if (!isProvider && (activeType === "event" || activeType === "service")) {
+    redirect("/create");
+  }
+  const visibleCreateOptions = createOptions.filter((option) => !option.providerOnly || isProvider);
   const [serviceListings, verificationRequests] = await Promise.all([
     activeType === "service" ? getProviderServiceListings(profile.id) : Promise.resolve([]),
     activeType === "service" || activeType === "event" ? getMyVerificationRequests(profile.id) : Promise.resolve([]),
@@ -271,9 +286,9 @@ export default async function CreatePage({
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
-          <CreateOptionCard option={createOptions[0]} activeType={activeType} layout="desktop" />
+          <CreateOptionCard option={visibleCreateOptions[0]} activeType={activeType} layout="desktop" />
           <div className="grid gap-3">
-            {createOptions.slice(1).map((option) => (
+            {visibleCreateOptions.slice(1).map((option) => (
               <CreateOptionCard key={option.type} option={option} activeType={activeType} layout="desktop" />
             ))}
           </div>
@@ -281,7 +296,7 @@ export default async function CreatePage({
       </section>
 
       <section aria-label="Creation type" className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:hidden">
-        {createOptions.map((option) => (
+        {visibleCreateOptions.map((option) => (
           <CreateOptionCard key={option.type} option={option} activeType={activeType} layout="mobile" />
         ))}
       </section>

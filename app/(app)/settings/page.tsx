@@ -1,6 +1,12 @@
 import Link from "next/link";
-import { CreditCard, ChevronRight, HelpCircle, ShieldCheck, UsersRound } from "lucide-react";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { ChevronRight, CreditCard, HelpCircle, Sparkles, ShieldCheck, UsersRound } from "lucide-react";
 
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
+import { isProviderProfileType } from "@/lib/provider-types";
 import { PageHeader } from "@/components/layout/page-header";
 
 const SETTINGS_LINKS = [
@@ -36,7 +42,20 @@ const SETTINGS_LINKS = [
   },
 ];
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const profile = await prisma.profile.findUnique({
+    where: { userId: session.user.id },
+    select: { profileType: true },
+  });
+  const isProvider = profile ? isProviderProfileType(profile.profileType) : false;
+  const accountTypeLabel =
+    ACCOUNT_TYPE_OPTIONS.find((option) => option.value === profile?.profileType)?.label ?? "Explorer";
+
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <div className="hidden md:block">
@@ -51,6 +70,29 @@ export default function SettingsPage() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Account, privacy, billing, and safety.</p>
       </div>
+
+      <div className="rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm md:rounded-xl md:p-4 md:shadow-none">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">
+            <Sparkles className="h-5 w-5 text-neon-pink" aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Account type</p>
+            <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+              You&apos;re on the {accountTypeLabel} account type.
+            </p>
+          </div>
+          {!isProvider && (
+            <Link
+              href="/settings/account-type"
+              className="flex min-h-11 shrink-0 items-center rounded-full bg-foreground px-4 text-sm font-semibold text-background transition-colors hover:bg-foreground/90"
+            >
+              Switch to Provider
+            </Link>
+          )}
+        </div>
+      </div>
+
       <ul className="flex flex-col gap-2">
         {SETTINGS_LINKS.map((link) => (
           <li key={link.href}>

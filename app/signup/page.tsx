@@ -9,9 +9,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 
 import { AuthLogo } from "@/components/auth/auth-logo";
+import { AccountTypeStep } from "@/components/auth/account-type-step";
 import { FormField } from "@/components/auth/form-field";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { Button } from "@/components/ui/button";
+import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
 import { signupSchema, type SignupInput } from "@/lib/validations/auth";
 import { cn } from "@/lib/utils";
 
@@ -22,13 +24,18 @@ const STEPS = [
     description: "Start with secure login details. Your profile setup comes after this.",
   },
   {
+    id: "account-type",
+    title: "How will you use udala?",
+    description: "Choose whether you're here to explore, or to create, host, or offer services.",
+  },
+  {
     id: "confirm",
     title: "Confirm and continue",
     description: "Next, you will land in profile settings to finish the essentials.",
   },
 ] as const;
 
-type StepIndex = 0 | 1;
+type StepIndex = 0 | 1 | 2;
 
 export default function SignupPage() {
   const router = useRouter();
@@ -41,22 +48,27 @@ export default function SignupPage() {
     handleSubmit,
     trigger,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<SignupInput>({
     resolver: zodResolver(signupSchema),
+    defaultValues: { profileType: "EXPLORER" },
   });
 
   const values = watch();
   const canGoBack = step > 0 && status === "idle";
   const currentStep = STEPS[step];
   const normalizedEmail = values.email?.trim().toLowerCase();
+  const accountTypeLabel =
+    ACCOUNT_TYPE_OPTIONS.find((option) => option.value === values.profileType)?.label ?? "Explorer";
 
   const reviewItems = useMemo(
     () => [
       { label: "Name", value: values.name || "Not set" },
       { label: "Email", value: normalizedEmail || "Not set" },
+      { label: "Account type", value: accountTypeLabel },
     ],
-    [normalizedEmail, values.name]
+    [accountTypeLabel, normalizedEmail, values.name]
   );
 
   async function goNext() {
@@ -67,7 +79,7 @@ export default function SignupPage() {
       if (!valid) return;
     }
 
-    if (step < 1) setStep((step + 1) as StepIndex);
+    if (step < STEPS.length - 1) setStep((step + 1) as StepIndex);
   }
 
   async function onSubmit(data: SignupInput) {
@@ -266,6 +278,13 @@ export default function SignupPage() {
               )}
 
               {step === 1 && (
+                <AccountTypeStep
+                  value={values.profileType ?? "EXPLORER"}
+                  onChange={(next) => setValue("profileType", next, { shouldDirty: true })}
+                />
+              )}
+
+              {step === 2 && (
                 <div className="flex flex-col gap-4">
                   <div className="rounded-xl border border-[#e0d2da] bg-[#fbf7f9] p-4">
                     {reviewItems.map((item) => (
@@ -304,7 +323,7 @@ export default function SignupPage() {
                   <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Back
                 </Button>
 
-                {step < 1 ? (
+                {step < STEPS.length - 1 ? (
                   <Button
                     type="button"
                     onClick={goNext}

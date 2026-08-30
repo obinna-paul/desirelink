@@ -5,6 +5,7 @@ import { DollarSign, Eye, Users } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isProviderProfileType } from "@/lib/provider-types";
 import { PageHeader } from "@/components/layout/page-header";
 import { DashboardTabs } from "@/components/creator/dashboard-tabs";
 import { StatCard } from "@/components/creator/stat-card";
@@ -58,6 +59,9 @@ export default async function CreatorDashboardPage({
   const profile = await prisma.profile.findUnique({ where: { userId: session.user.id } });
   if (!profile) {
     redirect("/login");
+  }
+  if (!isProviderProfileType(profile.profileType)) {
+    redirect("/");
   }
 
   const requestedTab = isCreatorDashboardTab(searchParams.tab) ? searchParams.tab : DEFAULT_CREATOR_DASHBOARD_TAB;

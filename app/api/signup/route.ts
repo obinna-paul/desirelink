@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { name, email, password } = parsed.data;
+  const { name, email, password, profileType } = parsed.data;
   const normalizedEmail = email.toLowerCase();
   const ip = getClientIp(req);
   const ipLimit = checkRateLimit(`signup:ip:${ip}`, { limit: 10, windowMs: 60 * 60 * 1000 });
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
             locationLng: 0,
             city: "",
             country: "",
-            profileType: "EXPLORER",
+            profileType,
           },
         },
       },

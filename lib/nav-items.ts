@@ -17,6 +17,7 @@ export type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+  providerOnly?: boolean;
 };
 
 export const primaryNavItems: NavItem[] = [
@@ -32,6 +33,6 @@ export const secondaryNavItems: NavItem[] = [
   { href: "/services", label: "Services", icon: Briefcase },
   { href: "/communities", label: "Communities", icon: Users },
   { href: "/wallet", label: "Wallet", icon: Wallet },
-  { href: "/creator-dashboard", label: "Creator Studio", icon: LineChart },
+  { href: "/creator-dashboard", label: "Creator Studio", icon: LineChart, providerOnly: true },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

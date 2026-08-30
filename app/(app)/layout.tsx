@@ -1,9 +1,23 @@
+import { getServerSession } from "next-auth";
+
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { isProviderProfileType } from "@/lib/provider-types";
 import { AppShell } from "@/components/layout/app-shell";
 
-export default function AppGroupLayout({
+export default async function AppGroupLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AppShell>{children}</AppShell>;
+  const session = await getServerSession(authOptions);
+  const profile = session?.user?.id
+    ? await prisma.profile.findUnique({
+        where: { userId: session.user.id },
+        select: { profileType: true },
+      })
+    : null;
+  const isProvider = profile ? isProviderProfileType(profile.profileType) : false;
+
+  return <AppShell isProvider={isProvider}>{children}</AppShell>;
 }

@@ -23,11 +23,11 @@ export default async function ProviderEarningsPage() {
 
   const earnings = await getProviderEarningsDashboard(profile.id);
   if (!earnings) {
-    redirect("/creator-dashboard");
+    redirect("/");
   }
 
   return (
-    <AppShell>
+    <AppShell isProvider>
       <ProviderEarningsDashboard data={earnings} providerId={profile.id} />
     </AppShell>
   );

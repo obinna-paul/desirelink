@@ -6,12 +6,13 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { primaryNavItems } from "@/lib/nav-items";
 
-export function BottomNav() {
+export function BottomNav({ isProvider = false }: { isProvider?: boolean }) {
   const pathname = usePathname();
+  const items = primaryNavItems.filter((item) => !item.providerOnly || isProvider);
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 flex min-h-16 items-center justify-around border-t border-border/60 bg-background px-1 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] pt-1 shadow-[0_-10px_30px_rgba(15,10,18,0.08)] md:hidden">
-      {primaryNavItems.map((item) => {
+      {items.map((item) => {
         const active = pathname === item.href;
         const Icon = item.icon;
 

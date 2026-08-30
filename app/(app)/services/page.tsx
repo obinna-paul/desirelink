@@ -5,6 +5,7 @@ import { BriefcaseBusiness } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isProviderProfileType } from "@/lib/provider-types";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { ServiceListingGrid } from "@/components/home/service-listing-grid";
@@ -29,8 +30,9 @@ export default async function ServicesPage({
 
   const viewerProfile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, locationLat: true, locationLng: true },
+    select: { id: true, locationLat: true, locationLng: true, profileType: true },
   });
+  const isProvider = viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false;
 
   const filters = parseServiceFilters(searchParams);
   const { listings, note } = await searchServiceListings(filters, viewerProfile);
@@ -45,13 +47,15 @@ export default async function ServicesPage({
         <p className="mt-1 text-sm text-muted-foreground">Find a verified provider near you.</p>
       </div>
 
-      <div>
-        <Button asChild variant="outline" className="gap-1.5">
-          <Link href="/create?type=service">
-            <BriefcaseBusiness className="h-4 w-4" aria-hidden="true" /> List a service
-          </Link>
-        </Button>
-      </div>
+      {isProvider && (
+        <div>
+          <Button asChild variant="outline" className="gap-1.5">
+            <Link href="/create?type=service">
+              <BriefcaseBusiness className="h-4 w-4" aria-hidden="true" /> List a service
+            </Link>
+          </Button>
+        </div>
+      )}
 
       <ServiceFiltersPanel initialFilters={filters} />
 

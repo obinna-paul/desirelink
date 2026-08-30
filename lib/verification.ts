@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { isProviderProfileType } from "@/lib/provider-types";
 
 export const VERIFICATION_REQUEST_TYPES = ["creator", "host", "service_provider"] as const;
 export type VerificationRequestType = (typeof VERIFICATION_REQUEST_TYPES)[number];
@@ -33,10 +34,19 @@ export async function submitVerificationRequest(
 
   const profile = await prisma.profile.findUnique({
     where: { id: profileId },
-    select: { isVerifiedCreator: true, isVerifiedHost: true, isVerifiedServiceProvider: true },
+    select: {
+      profileType: true,
+      isVerifiedCreator: true,
+      isVerifiedHost: true,
+      isVerifiedServiceProvider: true,
+    },
   });
   if (!profile) {
     return { ok: false, status: 404, error: "Profile not found" };
+  }
+
+  if (!isProviderProfileType(profile.profileType)) {
+    return { ok: false, status: 403, error: "Switch to a provider account before verifying" };
   }
 
   if (requestType === "creator" && profile.isVerifiedCreator) {

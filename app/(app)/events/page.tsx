@@ -5,6 +5,7 @@ import { CalendarPlus, ListChecks } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isProviderProfileType } from "@/lib/provider-types";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { EventGrid } from "@/components/events/event-grid";
@@ -31,8 +32,9 @@ export default async function EventsPage({
 
   const viewerProfile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, locationLat: true, locationLng: true },
+    select: { id: true, locationLat: true, locationLng: true, profileType: true },
   });
+  const isProvider = viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false;
 
   const filters = parseEventFilters(searchParams);
   const [{ events, note }, recommendedEvents] = await Promise.all([
@@ -56,18 +58,20 @@ export default async function EventsPage({
         <p className="mt-1 text-sm text-muted-foreground">Find gatherings worth showing up for.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:gap-3">
-        <Button asChild className="gap-1.5">
-          <Link href="/events/new">
-            <CalendarPlus className="h-4 w-4" aria-hidden="true" /> Host an event
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="gap-1.5">
-          <Link href="/events/manage">
-            <ListChecks className="h-4 w-4" aria-hidden="true" /> Manage your events
-          </Link>
-        </Button>
-      </div>
+      {isProvider && (
+        <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:gap-3">
+          <Button asChild className="gap-1.5">
+            <Link href="/events/new">
+              <CalendarPlus className="h-4 w-4" aria-hidden="true" /> Host an event
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-1.5">
+            <Link href="/events/manage">
+              <ListChecks className="h-4 w-4" aria-hidden="true" /> Manage your events
+            </Link>
+          </Button>
+        </div>
+      )}
 
       <RecommendedEventsBanner recommendations={recommendedEvents ?? []} />
 

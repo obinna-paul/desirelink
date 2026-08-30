@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { updateProfileSchema, type UpdateProfileInput } from "@/lib/validations/profile";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
 import { SERVICE_CATEGORY_OPTIONS } from "@/lib/account-types";
+import { isProviderProfileType } from "@/lib/provider-types";
 
 type BooleanFieldName =
   | "isVerified"
@@ -57,6 +58,7 @@ const EDIT_SECTIONS: {
   label: string;
   description: string;
   icon: LucideIcon;
+  providerOnly?: boolean;
 }[] = [
   { id: "basics", label: "Basics", description: "Name, bio, identity", icon: UserRound },
   { id: "photos", label: "Photos", description: "Profile image", icon: Camera },
@@ -64,9 +66,9 @@ const EDIT_SECTIONS: {
   { id: "privacy", label: "Privacy", description: "Search, location, incognito", icon: Lock },
   { id: "availability", label: "Availability", description: "Chat and meet status", icon: Bell },
   { id: "desires", label: "Preferences", description: "Recommendation taste", icon: Sparkles },
-  { id: "services", label: "Services", description: "What you offer", icon: Store },
-  { id: "verification", label: "Verification", description: "Trust signals", icon: ShieldCheck },
-  { id: "monetization", label: "Monetization", description: "Premium and payouts", icon: WalletCards },
+  { id: "services", label: "Services", description: "What you offer", icon: Store, providerOnly: true },
+  { id: "verification", label: "Verification", description: "Trust signals", icon: ShieldCheck, providerOnly: true },
+  { id: "monetization", label: "Monetization", description: "Premium and payouts", icon: WalletCards, providerOnly: true },
 ];
 
 function FieldWrapper({
@@ -226,7 +228,9 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
   const serviceCategories = watch("serviceCategories") ?? [];
   const locationLat = watch("locationLat");
   const locationLng = watch("locationLng");
-  const activeMeta = EDIT_SECTIONS.find((section) => section.id === activeSection) ?? EDIT_SECTIONS[0];
+  const isProvider = isProviderProfileType(profile.profileType);
+  const visibleSections = EDIT_SECTIONS.filter((section) => !section.providerOnly || isProvider);
+  const activeMeta = visibleSections.find((section) => section.id === activeSection) ?? visibleSections[0];
 
   function toggleServiceCategory(category: string) {
     const next = serviceCategories.includes(category)
@@ -517,7 +521,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
     <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 lg:grid-cols-[256px_minmax(0,1fr)]">
       <aside className="min-w-0">
         <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 lg:mx-0 lg:block lg:space-y-2 lg:overflow-visible lg:px-0 lg:pb-0">
-          {EDIT_SECTIONS.map((section) => (
+          {visibleSections.map((section) => (
             <SectionButton
               key={section.id}
               section={section}

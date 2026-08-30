@@ -6,9 +6,11 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { primaryNavItems, secondaryNavItems } from "@/lib/nav-items";
 
-export function SidebarNav() {
+export function SidebarNav({ isProvider = false }: { isProvider?: boolean }) {
   const pathname = usePathname();
-  const items = [...primaryNavItems, ...secondaryNavItems];
+  const items = [...primaryNavItems, ...secondaryNavItems].filter(
+    (item) => !item.providerOnly || isProvider
+  );
 
   return (
     <aside
