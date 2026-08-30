@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Track } from "livekit-client";
+import { ConnectionState, Track } from "livekit-client";
 import type { PresenceChannel } from "pusher-js";
 import {
   ConnectionStateToast,
@@ -11,6 +11,7 @@ import {
   ParticipantTile,
   RoomAudioRenderer,
   TrackToggle,
+  useConnectionState,
   useLocalParticipant,
   useTracks,
 } from "@livekit/components-react";
@@ -20,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { GiftPicker, type SendGiftOutcome } from "@/components/hearts/gift-picker";
 import { FloatingHeartsLayer } from "@/components/live/floating-hearts";
+import { LiveOnboarding } from "@/components/live/live-onboarding";
 import { SubscribeChip } from "@/components/live/subscribe-chip";
 import { getPusherClient } from "@/lib/pusher-client";
 import { cn } from "@/lib/utils";
@@ -69,6 +71,27 @@ function VideoGrid() {
     <GridLayout tracks={tracks} style={{ height: "100%" }}>
       <ParticipantTile />
     </GridLayout>
+  );
+}
+
+/** Mirrors ConnectionStateToast's visual message for screen reader users - one atomic status, not a per-tick live region. */
+function ConnectionAnnouncer() {
+  const state = useConnectionState();
+  const label =
+    state === ConnectionState.Connecting
+      ? "Connecting to the live stream"
+      : state === ConnectionState.Reconnecting || state === ConnectionState.SignalReconnecting
+        ? "Reconnecting to the live stream"
+        : state === ConnectionState.Disconnected
+          ? "Disconnected from the live stream"
+          : state === ConnectionState.Connected
+            ? "Connected"
+            : null;
+
+  return (
+    <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+      {label}
+    </div>
   );
 }
 
@@ -341,6 +364,7 @@ export function LiveRoom({
           <VideoGrid />
           <RoomAudioRenderer />
           <ConnectionStateToast />
+          <ConnectionAnnouncer />
 
           {!isHost && <FloatingHeartsLayer onDoubleTap={sendReaction} remoteReactionTick={remoteReactionTick} />}
 
@@ -433,19 +457,21 @@ export function LiveRoom({
             </div>
           )}
 
-          {/* Mobile-only: chat fades over the video like a live ticker. */}
+          {/* Mobile-only: chat fades over the video like a live ticker. Sits higher in landscape to clear the floating footer below. */}
           <div
             ref={tickerRef}
-            className="pointer-events-none absolute inset-x-0 bottom-0 flex max-h-40 flex-col gap-1 overflow-y-auto p-3 text-sm [mask-image:linear-gradient(to_top,black_60%,transparent)] lg:hidden"
+            className="pointer-events-none absolute inset-x-0 bottom-0 flex max-h-40 flex-col gap-1 overflow-y-auto p-3 text-sm [mask-image:linear-gradient(to_top,black_60%,transparent)] landscape:bottom-24 landscape:max-h-24 lg:hidden"
           >
             {messages.slice(-30).map((message) => (
               <ChatBubble key={message.id} message={message} dense />
             ))}
           </div>
+
+          {!isHost && <LiveOnboarding />}
         </div>
 
-        {/* Mobile-only footer: controls, gifting, and the composer, stacked under the video. */}
-        <div className="flex flex-col gap-2 border-t border-white/10 bg-black/90 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 lg:hidden">
+        {/* Mobile-only footer: controls, gifting, and the composer, stacked under the video in portrait. In landscape there's little vertical room, so it floats over the video instead of squeezing it. */}
+        <div className="flex flex-col gap-2 border-t border-white/10 bg-black/90 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 landscape:absolute landscape:inset-x-0 landscape:bottom-0 landscape:border-t-0 landscape:bg-gradient-to-t landscape:from-black/95 landscape:via-black/80 landscape:to-transparent landscape:pt-8 lg:hidden">
           {isHost && (
             <HostControls initialCameraEnabled={initialCameraEnabled} initialMicEnabled={initialMicEnabled} />
           )}
