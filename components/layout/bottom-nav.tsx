@@ -15,35 +15,34 @@ export function BottomNav({ isProvider = false }: { isProvider?: boolean }) {
       {items.map((item) => {
         const active = pathname === item.href;
         const Icon = item.icon;
-        const isCreate = item.href === "/create";
-
-        if (isCreate) {
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-label={item.label}
-              className="flex flex-1 flex-col items-center justify-center"
-            >
-              <span className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lift">
-                <Icon className="h-6 w-6" aria-hidden="true" />
-              </span>
-            </Link>
-          );
-        }
 
         return (
           <Link
             key={item.href}
             href={item.href}
             aria-label={item.label}
-            className={cn(
-              "label-caps flex min-h-14 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-1.5 text-[9px] transition-colors",
-              active ? "text-primary" : "text-muted-foreground"
-            )}
+            className="flex flex-1 flex-col items-center justify-center py-1"
           >
-            <Icon className="h-5 w-5" aria-hidden="true" strokeWidth={active ? 2.5 : 2} />
-            <span className="truncate">{item.label}</span>
+            <span
+              className={cn(
+                "flex flex-col items-center gap-1 rounded-2xl px-3 py-1.5 transition-colors",
+                active && "bg-accent-tint"
+              )}
+            >
+              <Icon
+                className={cn("h-5 w-5", active ? "text-primary" : "text-muted-foreground")}
+                aria-hidden="true"
+                strokeWidth={2}
+              />
+              <span
+                className={cn(
+                  "truncate text-[10px] font-light",
+                  active ? "text-primary" : "text-muted-foreground"
+                )}
+              >
+                {item.label}
+              </span>
+            </span>
           </Link>
         );
       })}
