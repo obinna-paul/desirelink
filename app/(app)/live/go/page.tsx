@@ -38,7 +38,7 @@ export default async function GoLivePage() {
       </div>
 
       {isLiveKitConfigured() ? (
-        <GoLiveStaging defaultTitle={`${profile.displayName}'s live stream`} hostName={profile.displayName} />
+        <GoLiveStaging defaultTitle={`${profile.displayName}'s live stream`} />
       ) : (
         <p className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
           Live streaming isn&apos;t configured on this deployment yet.

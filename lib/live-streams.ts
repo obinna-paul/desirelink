@@ -80,7 +80,13 @@ export async function getActiveStreamForProvider(providerId: string) {
 export type JoinLiveStreamResult =
   | {
       ok: true;
-      stream: { id: string; title: string; provider: { id: string; username: string; displayName: string; avatarUrl: string } };
+      stream: {
+        id: string;
+        title: string;
+        startedAt: string;
+        totalHeartsReceived: number;
+        provider: { id: string; username: string; displayName: string; avatarUrl: string };
+      };
       token: string;
       livekitUrl: string;
       isHost: boolean;
@@ -100,6 +106,8 @@ export async function joinLiveStream(streamId: string, viewerId: string, viewerN
       title: true,
       status: true,
       roomName: true,
+      startedAt: true,
+      totalHeartsReceived: true,
       provider: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
     },
   });
@@ -118,7 +126,13 @@ export async function joinLiveStream(streamId: string, viewerId: string, viewerN
 
   return {
     ok: true,
-    stream: { id: stream.id, title: stream.title, provider: stream.provider },
+    stream: {
+      id: stream.id,
+      title: stream.title,
+      startedAt: stream.startedAt.toISOString(),
+      totalHeartsReceived: stream.totalHeartsReceived,
+      provider: stream.provider,
+    },
     token,
     livekitUrl: getLiveKitUrl(),
     isHost,

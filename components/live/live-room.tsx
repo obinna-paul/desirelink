@@ -14,17 +14,21 @@ import {
   useLocalParticipant,
   useTracks,
 } from "@livekit/components-react";
-import { Heart, SwitchCamera, Users, X } from "lucide-react";
+import { Heart, Radio, SwitchCamera, Users, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { GiftPicker, type SendGiftOutcome } from "@/components/hearts/gift-picker";
+import { FloatingHeartsLayer } from "@/components/live/floating-hearts";
+import { SubscribeChip } from "@/components/live/subscribe-chip";
 import { getPusherClient } from "@/lib/pusher-client";
 import { cn } from "@/lib/utils";
+import type { PublicTierView } from "@/lib/tiers";
 import {
   liveStreamChannelName,
   LIVE_CHAT_MESSAGE_EVENT,
   LIVE_GIFT_SENT_EVENT,
+  LIVE_REACTION_EVENT,
   LIVE_STREAM_ENDED_EVENT,
 } from "@/lib/live-stream-channels";
 
@@ -36,9 +40,28 @@ type ChatMessage = {
 };
 
 type GiftEvent = { hearts: number; sender: { displayName: string; avatarUrl: string } };
+type CelebrationGift = GiftEvent & { id: number };
 
 const CONTROL_PILL =
   "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition-colors";
+
+function formatElapsed(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+  return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+function LiveBadge() {
+  return (
+    <span className="flex items-center gap-1 rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-destructive-foreground">
+      <Radio className="h-2.5 w-2.5 motion-safe:animate-pulse" aria-hidden="true" />
+      Live
+    </span>
+  );
+}
 
 function VideoGrid() {
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }]);
@@ -96,39 +119,92 @@ function HostControls({
   );
 }
 
+function ChatBubble({ message, dense = false }: { message: ChatMessage; dense?: boolean }) {
+  return (
+    <div className={cn("flex items-start gap-2", dense && "drop-shadow")}>
+      {!dense && (
+        <Avatar className="h-7 w-7 shrink-0 border border-white/20">
+          <AvatarImage src={message.sender.avatarUrl} alt="" />
+          <AvatarFallback className="text-[10px]">{message.sender.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
+        </Avatar>
+      )}
+      <p className={cn("min-w-0 break-words", dense ? "text-sm" : "text-sm leading-snug")}>
+        <span className="font-semibold">{message.sender.displayName}</span>{" "}
+        <span className={dense ? "" : "text-white/90"}>{message.content}</span>
+      </p>
+    </div>
+  );
+}
+
 export function LiveRoom({
   streamId,
   token,
   livekitUrl,
   isHost,
   title,
+  startedAt,
+  initialHeartsTotal,
   provider,
   viewerHeartsBalance,
   initialCameraEnabled = true,
   initialMicEnabled = true,
+  tiers = [],
 }: {
   streamId: string;
   token: string;
   livekitUrl: string;
   isHost: boolean;
   title: string;
-  provider: { username: string; displayName: string; avatarUrl: string };
+  startedAt: string;
+  initialHeartsTotal: number;
+  provider: { id: string; username: string; displayName: string; avatarUrl: string };
   viewerHeartsBalance: number;
   initialCameraEnabled?: boolean;
   initialMicEnabled?: boolean;
+  tiers?: PublicTierView[];
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [content, setContent] = useState("");
   const [viewerCount, setViewerCount] = useState<number | null>(null);
-  const [recentGift, setRecentGift] = useState<GiftEvent | null>(null);
+  const [peakViewers, setPeakViewers] = useState(0);
+  const [heartsTotal, setHeartsTotal] = useState(initialHeartsTotal);
+  const [giftQueue, setGiftQueue] = useState<CelebrationGift[]>([]);
+  const [activeCelebration, setActiveCelebration] = useState<CelebrationGift | null>(null);
+  const [remoteReactionTick, setRemoteReactionTick] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(() =>
+    Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000))
+  );
   const [ended, setEnded] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const tickerRef = useRef<HTMLDivElement>(null);
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
+  const giftIdRef = useRef(0);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+    tickerRef.current?.scrollTo({ top: tickerRef.current.scrollHeight });
+    sidebarScrollRef.current?.scrollTo({ top: sidebarScrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (viewerCount !== null) setPeakViewers((peak) => Math.max(peak, viewerCount));
+  }, [viewerCount]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startedAt]);
+
+  useEffect(() => {
+    if (activeCelebration || giftQueue.length === 0) return;
+    const [next, ...rest] = giftQueue;
+    setActiveCelebration(next);
+    setGiftQueue(rest);
+    const timeout = setTimeout(() => setActiveCelebration(null), 3200);
+    return () => clearTimeout(timeout);
+  }, [giftQueue, activeCelebration]);
 
   useEffect(() => {
     const client = getPusherClient();
@@ -145,8 +221,11 @@ export function LiveRoom({
       setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
     }
     function onGift(gift: GiftEvent) {
-      setRecentGift(gift);
-      setTimeout(() => setRecentGift((current) => (current === gift ? null : current)), 4000);
+      setHeartsTotal((total) => total + gift.hearts);
+      setGiftQueue((prev) => [...prev, { ...gift, id: giftIdRef.current++ }]);
+    }
+    function onReaction() {
+      setRemoteReactionTick((tick) => tick + 1);
     }
     function onEnded() {
       setEnded(true);
@@ -154,11 +233,13 @@ export function LiveRoom({
 
     channel.bind(LIVE_CHAT_MESSAGE_EVENT, onChatMessage);
     channel.bind(LIVE_GIFT_SENT_EVENT, onGift);
+    channel.bind(LIVE_REACTION_EVENT, onReaction);
     channel.bind(LIVE_STREAM_ENDED_EVENT, onEnded);
 
     return () => {
       channel.unbind(LIVE_CHAT_MESSAGE_EVENT, onChatMessage);
       channel.unbind(LIVE_GIFT_SENT_EVENT, onGift);
+      channel.unbind(LIVE_REACTION_EVENT, onReaction);
       channel.unbind(LIVE_STREAM_ENDED_EVENT, onEnded);
       client.unsubscribe(channelName);
     };
@@ -195,6 +276,10 @@ export function LiveRoom({
     return { ok: true, heartsBalance: responseBody.heartsBalance };
   }
 
+  function sendReaction() {
+    void fetch(`/api/live/${streamId}/react`, { method: "POST" });
+  }
+
   function handleEndClick() {
     if (!confirmEnd) {
       setConfirmEnd(true);
@@ -206,6 +291,21 @@ export function LiveRoom({
       router.push("/");
     })();
   }
+
+  const composer = (
+    <form onSubmit={sendChat} className="flex gap-2">
+      <input
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="Send a message…"
+        maxLength={300}
+        className="flex-1 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none lg:border-border lg:bg-secondary lg:text-foreground lg:placeholder:text-muted-foreground"
+      />
+      <Button type="submit" size="sm" disabled={!content.trim()}>
+        Send
+      </Button>
+    </form>
+  );
 
   if (ended) {
     return (
@@ -219,7 +319,10 @@ export function LiveRoom({
   }
 
   return (
-    <div data-lk-theme="default" className="fixed inset-0 z-50 flex flex-col bg-black text-white">
+    <div
+      data-lk-theme="default"
+      className="fixed inset-0 z-50 flex flex-col bg-black text-white lg:static lg:inset-auto lg:z-auto lg:mx-auto lg:my-4 lg:h-[calc(100vh-7rem)] lg:max-w-6xl lg:flex-row lg:gap-4 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-4"
+    >
       <LiveKitRoom
         serverUrl={livekitUrl}
         token={token}
@@ -227,31 +330,61 @@ export function LiveRoom({
         video={isHost && initialCameraEnabled}
         audio={isHost && initialMicEnabled}
         onDisconnected={() => router.push("/")}
-        className="flex flex-1 flex-col"
+        className="flex flex-1 flex-col lg:flex-row lg:gap-4"
       >
-        <div className="relative flex-1 overflow-hidden">
+        <div
+          className={cn(
+            "relative flex-1 overflow-hidden lg:flex-[2] lg:rounded-xl",
+            "[&_.lk-toast]:!top-[calc(env(safe-area-inset-top)+4.5rem)] lg:[&_.lk-toast]:!top-16"
+          )}
+        >
           <VideoGrid />
           <RoomAudioRenderer />
           <ConnectionStateToast />
 
-          <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-3 bg-gradient-to-b from-black/70 to-transparent px-3 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
-            <div className="flex min-w-0 items-center gap-2">
+          {!isHost && <FloatingHeartsLayer onDoubleTap={sendReaction} remoteReactionTick={remoteReactionTick} />}
+
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 bg-gradient-to-b from-black/70 to-transparent px-3 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] lg:pt-3">
+            <div className="flex min-w-0 items-start gap-2">
               <Avatar className="h-9 w-9 shrink-0 border border-white/30">
                 <AvatarImage src={provider.avatarUrl} alt="" />
                 <AvatarFallback>{provider.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">{provider.displayName}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="truncate text-sm font-semibold">{provider.displayName}</p>
+                  <LiveBadge />
+                </div>
                 <p className="truncate text-xs text-white/70">{title}</p>
+                {!isHost && (
+                  <div className="pointer-events-auto mt-1">
+                    <SubscribeChip providerId={provider.id} providerUsername={provider.username} tiers={tiers} />
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <span className="flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-xs">
-                <Users className="h-3.5 w-3.5" aria-hidden="true" />
-                {viewerCount ?? "—"}
+              <span
+                className="flex items-center gap-2 rounded-full bg-white/15 px-2 py-1 text-xs tabular-nums"
+                aria-label={`${viewerCount ?? 0} watching now, peak ${peakViewers}`}
+              >
+                <span className="flex items-center gap-1">
+                  <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                  {viewerCount ?? "—"}
+                </span>
+                <span className="text-white/50" aria-hidden="true">
+                  ·
+                </span>
+                <span aria-hidden="true">{formatElapsed(elapsedSeconds)}</span>
               </span>
               {isHost ? (
-                <Button type="button" size="sm" variant="destructive" onClick={handleEndClick}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleEndClick}
+                  className="pointer-events-auto"
+                >
                   {confirmEnd ? "Tap to confirm" : "End"}
                 </Button>
               ) : (
@@ -259,7 +392,7 @@ export function LiveRoom({
                   type="button"
                   aria-label="Leave stream"
                   onClick={() => router.push("/")}
-                  className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/25"
+                  className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/25"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden="true" />
                   Leave
@@ -268,45 +401,77 @@ export function LiveRoom({
             </div>
           </div>
 
-          {recentGift && (
-            <div className="absolute bottom-24 left-3 flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-sm">
-              <Heart className="h-4 w-4 text-neon-pink" aria-hidden="true" fill="currentColor" />
-              <span>
-                <span className="font-semibold">{recentGift.sender.displayName}</span> sent {recentGift.hearts} hearts
-              </span>
+          <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+            {activeCelebration &&
+              `${activeCelebration.sender.displayName} sent ${activeCelebration.hearts} hearts`}
+          </div>
+
+          {activeCelebration && (
+            <div
+              key={activeCelebration.id}
+              className="pointer-events-none absolute inset-x-0 top-1/3 flex justify-center px-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 motion-safe:duration-300"
+            >
+              <div className="flex items-center gap-3 rounded-2xl bg-black/70 px-4 py-3 shadow-lg backdrop-blur">
+                <Avatar className="h-10 w-10 border-2 border-neon-pink">
+                  <AvatarImage src={activeCelebration.sender.avatarUrl} alt="" />
+                  <AvatarFallback>{activeCelebration.sender.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-sm font-semibold">{activeCelebration.sender.displayName}</p>
+                  <p className="flex items-center gap-1 text-lg font-bold text-neon-pink">
+                    <Heart className="h-5 w-5" aria-hidden="true" fill="currentColor" /> {activeCelebration.hearts}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
+          {heartsTotal > 0 && (
+            <div className="pointer-events-none absolute bottom-24 right-3 flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs tabular-nums lg:bottom-3">
+              <Heart className="h-3.5 w-3.5 text-neon-pink" aria-hidden="true" fill="currentColor" />
+              {heartsTotal.toLocaleString()}
+            </div>
+          )}
+
+          {/* Mobile-only: chat fades over the video like a live ticker. */}
           <div
-            ref={scrollRef}
-            className="pointer-events-none absolute inset-x-0 bottom-0 flex max-h-40 flex-col gap-1 overflow-y-auto p-3 text-sm [mask-image:linear-gradient(to_top,black_60%,transparent)]"
+            ref={tickerRef}
+            className="pointer-events-none absolute inset-x-0 bottom-0 flex max-h-40 flex-col gap-1 overflow-y-auto p-3 text-sm [mask-image:linear-gradient(to_top,black_60%,transparent)] lg:hidden"
           >
             {messages.slice(-30).map((message) => (
-              <p key={message.id} className="drop-shadow">
-                <span className="font-semibold">{message.sender.displayName}: </span>
-                {message.content}
-              </p>
+              <ChatBubble key={message.id} message={message} dense />
             ))}
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-white/10 bg-black/90 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3">
+        {/* Mobile-only footer: controls, gifting, and the composer, stacked under the video. */}
+        <div className="flex flex-col gap-2 border-t border-white/10 bg-black/90 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 lg:hidden">
           {isHost && (
             <HostControls initialCameraEnabled={initialCameraEnabled} initialMicEnabled={initialMicEnabled} />
           )}
           {!isHost && <GiftPicker initialBalance={viewerHeartsBalance} onSend={sendGift} theme="dark" />}
-          <form onSubmit={sendChat} className="flex gap-2">
-            <input
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Send a message…"
-              maxLength={300}
-              className="flex-1 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none"
-            />
-            <Button type="submit" size="sm" disabled={!content.trim()}>
-              Send
-            </Button>
-          </form>
+          {composer}
+        </div>
+
+        {/* Desktop-only: a persistent side panel — chat history, gifting, and controls all stay visible next to the video. */}
+        <div className="hidden lg:flex lg:w-[340px] lg:shrink-0 lg:flex-col lg:overflow-hidden lg:rounded-xl lg:border lg:border-border/60 lg:bg-background lg:text-foreground">
+          <div className="border-b border-border/60 px-3 py-2.5">
+            <p className="text-sm font-semibold">Live chat</p>
+          </div>
+          <div ref={sidebarScrollRef} className="flex flex-1 flex-col gap-3 overflow-y-auto px-3 py-3">
+            {messages.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Messages will show up here.</p>
+            ) : (
+              messages.map((message) => <ChatBubble key={message.id} message={message} />)
+            )}
+          </div>
+          <div className="flex flex-col gap-2 border-t border-border/60 p-3">
+            {isHost && (
+              <HostControls initialCameraEnabled={initialCameraEnabled} initialMicEnabled={initialMicEnabled} />
+            )}
+            {!isHost && <GiftPicker initialBalance={viewerHeartsBalance} onSend={sendGift} theme="light" />}
+            {composer}
+          </div>
         </div>
       </LiveKitRoom>
     </div>

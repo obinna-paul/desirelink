@@ -71,6 +71,16 @@ const config: Config = {
         xl: "0.875rem",
         "2xl": "1rem",
       },
+      keyframes: {
+        "float-heart": {
+          "0%": { transform: "translateY(0) scale(0.7)", opacity: "0" },
+          "15%": { opacity: "1" },
+          "100%": { transform: "translateY(-140px) scale(1.15)", opacity: "0" },
+        },
+      },
+      animation: {
+        "float-heart": "float-heart 1.6s ease-out forwards",
+      },
     },
   },
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],

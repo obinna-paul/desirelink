@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { joinLiveStream } from "@/lib/live-streams";
+import { getPublicTiers } from "@/lib/tiers";
 import { LiveRoom } from "@/components/live/live-room";
 
 export default async function LiveStreamPage({
@@ -31,6 +32,8 @@ export default async function LiveStreamPage({
     redirect("/");
   }
 
+  const tiers = result.isHost ? [] : await getPublicTiers(result.stream.provider.id, profile.id);
+
   return (
     <LiveRoom
       streamId={result.stream.id}
@@ -38,10 +41,13 @@ export default async function LiveStreamPage({
       livekitUrl={result.livekitUrl}
       isHost={result.isHost}
       title={result.stream.title}
+      startedAt={result.stream.startedAt}
+      initialHeartsTotal={result.stream.totalHeartsReceived}
       provider={result.stream.provider}
       viewerHeartsBalance={profile.heartsBalance}
       initialCameraEnabled={searchParams.cam !== "0"}
       initialMicEnabled={searchParams.mic !== "0"}
+      tiers={tiers}
     />
   );
 }

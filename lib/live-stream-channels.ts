@@ -12,3 +12,5 @@ export function liveStreamChannelName(streamId: string): string {
 export const LIVE_CHAT_MESSAGE_EVENT = "chat-message";
 export const LIVE_GIFT_SENT_EVENT = "gift-sent";
 export const LIVE_STREAM_ENDED_EVENT = "stream-ended";
+/** A free, zero-cost reaction (double-tap-to-heart) — purely a broadcast moment, never persisted. */
+export const LIVE_REACTION_EVENT = "reaction";
