@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
 import { EVENT_TYPE_OPTIONS } from "@/lib/events";
 import { MAX_POST_MEDIA_ITEMS, type PostMediaItem } from "@/lib/post-shared";
 import type { PostView } from "@/lib/posts";
@@ -24,6 +25,8 @@ type ComposerMode = "standard" | "event";
 type UploadedMedia = PostMediaItem & {
   metadataDetected: boolean;
 };
+
+type PendingCrop = { file: File; metadataDetected: boolean };
 
 type EventFormState = {
   title: string;
@@ -51,41 +54,6 @@ const emptyEventForm: EventFormState = {
   isPrivate: false,
 };
 
-function imageHasUsableCanvasType(file: File) {
-  return file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/webp";
-}
-
-async function stripImageMetadata(file: File): Promise<File> {
-  if (!imageHasUsableCanvasType(file)) return file;
-
-  const objectUrl = URL.createObjectURL(file);
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("Image could not be read"));
-      img.src = objectUrl;
-    });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = image.naturalWidth;
-    canvas.height = image.naturalHeight;
-    const context = canvas.getContext("2d");
-    if (!context) return file;
-
-    context.drawImage(image, 0, 0);
-
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, file.type, 0.92);
-    });
-    if (!blob) return file;
-
-    return new File([blob], file.name, { type: file.type, lastModified: Date.now() });
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-}
-
 export function PostComposer({
   creatorDisplayName,
   onCreated,
@@ -105,6 +73,7 @@ export function PostComposer({
   const [pendingFindings, setPendingFindings] = useState<PiiFinding[]>([]);
   const [showPiiWarning, setShowPiiWarning] = useState(false);
   const [piiAcknowledged, setPiiAcknowledged] = useState(false);
+  const [cropQueue, setCropQueue] = useState<PendingCrop[]>([]);
   const piiDialogRef = useRef<HTMLDivElement>(null);
 
   useFocusTrap(showPiiWarning, piiDialogRef);
@@ -136,18 +105,37 @@ export function PostComposer({
     [mediaItems]
   );
 
+  async function uploadFile(file: File, metadataDetected: boolean) {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload/post-media", { method: "POST", body: formData });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error ?? "Upload failed. Please try again.");
+        return;
+      }
+      setMediaItems((prev) => [...prev, { ...body.media, metadataDetected }]);
+    } catch {
+      setError("Upload failed. Please try again.");
+    }
+  }
+
   async function handleFiles(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0) return;
 
-    if (mediaItems.length + files.length > MAX_POST_MEDIA_ITEMS) {
+    if (mediaItems.length + cropQueue.length + files.length > MAX_POST_MEDIA_ITEMS) {
       setError(`Up to ${MAX_POST_MEDIA_ITEMS} media items per post.`);
       event.target.value = "";
       return;
     }
 
     setError(null);
-    setUploading(true);
+
+    const videosToUpload: File[] = [];
+    const imagesToReview: PendingCrop[] = [];
 
     for (const file of files) {
       const isImage = file.type.startsWith("image/");
@@ -165,32 +153,44 @@ export function PostComposer({
         continue;
       }
 
-      try {
-        const buffer = await file.arrayBuffer();
-        const metadataDetected = isImage ? hasImageMetadataSignature(buffer) : false;
-        // Future vision-based PII scanning can run here before upload.
-        const sanitizedFile = isImage ? await stripImageMetadata(file) : file;
-        if (isImage && sanitizedFile.size > MAX_IMAGE_FILE_SIZE) {
-          setError("Each image must be under 8MB after metadata stripping.");
-          continue;
-        }
-        const formData = new FormData();
-        formData.append("file", sanitizedFile);
-
-        const res = await fetch("/api/upload/post-media", { method: "POST", body: formData });
-        const body = await res.json().catch(() => null);
-        if (!res.ok) {
-          setError(body?.error ?? "Upload failed. Please try again.");
-          continue;
-        }
-        setMediaItems((prev) => [...prev, { ...body.media, metadataDetected }]);
-      } catch {
-        setError("Upload failed. Please try again.");
+      if (isVideo) {
+        videosToUpload.push(file);
+        continue;
       }
+
+      // Future vision-based PII scanning can run here before upload.
+      const metadataDetected = hasImageMetadataSignature(await file.arrayBuffer());
+      imagesToReview.push({ file, metadataDetected });
     }
 
-    setUploading(false);
+    if (videosToUpload.length > 0) {
+      setUploading(true);
+      for (const file of videosToUpload) {
+        await uploadFile(file, false);
+      }
+      setUploading(false);
+    }
+
+    // Every image goes through the crop/adjust screen - defaulting to "Original" so a quick tap moves on unchanged.
+    if (imagesToReview.length > 0) {
+      setCropQueue((prev) => [...prev, ...imagesToReview]);
+    }
+
     event.target.value = "";
+  }
+
+  async function handleCropConfirm({ file }: { file: File }) {
+    const metadataDetected = cropQueue[0]?.metadataDetected ?? false;
+    setCropQueue((prev) => prev.slice(1));
+    setUploading(true);
+    // The crop dialog's canvas re-draw already strips metadata, but that "images had metadata markers" note stays informative either way.
+    // The server re-reads width/height from the uploaded (already-cropped) file, so the dialog's own values aren't needed here.
+    await uploadFile(file, metadataDetected);
+    setUploading(false);
+  }
+
+  function handleCropCancel() {
+    setCropQueue((prev) => prev.slice(1));
   }
 
   function removeImage(url: string) {
@@ -277,6 +277,7 @@ export function PostComposer({
   }
 
   return (
+    <>
     <form
       onSubmit={handleSubmit}
       className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm md:rounded-xl md:p-4 md:shadow-none"
@@ -583,5 +584,15 @@ export function PostComposer({
         </div>
       )}
     </form>
+
+    {cropQueue.length > 0 && (
+      <ImageCropDialog
+        key={cropQueue[0].file.name + cropQueue[0].file.lastModified}
+        file={cropQueue[0].file}
+        onCancel={handleCropCancel}
+        onConfirm={handleCropConfirm}
+      />
+    )}
+    </>
   );
 }

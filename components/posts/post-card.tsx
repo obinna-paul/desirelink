@@ -46,8 +46,8 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
   const initials = post.author.displayName.slice(0, 2).toUpperCase();
 
   return (
-    <article className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-3 shadow-sm md:rounded-xl md:p-4 md:shadow-card">
-      <div className="flex items-center justify-between gap-2">
+    <article className="-mx-3 flex flex-col gap-3 border-b border-border/60 bg-card pb-3 md:mx-0 md:gap-3 md:rounded-xl md:border md:pb-4 md:shadow-card">
+      <div className="flex items-center justify-between gap-2 px-3 pt-3 md:px-4 md:pt-4">
         {showAuthor ? (
           <Link href={`/profile/${post.author.username}`} className="flex min-w-0 items-center gap-2.5">
             <Avatar className="h-10 w-10 border border-border">
@@ -87,19 +87,30 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
       </div>
 
       {post.locked ? (
-        <LockedPostBody reason={post.lockReason} />
+        <div className="px-3 md:px-4">
+          <LockedPostBody reason={post.lockReason} />
+        </div>
       ) : (
         <>
-          {post.content && <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>}
+          {post.content && (
+            <p className="whitespace-pre-wrap px-3 text-sm leading-6 md:px-4">{post.content}</p>
+          )}
+          {/* Media is intentionally NOT wrapped in the card's own horizontal padding - it goes edge-to-edge on mobile, Instagram-style. */}
           <PostMediaCarousel media={post.mediaItems} />
-          {post.event && <PostEventAttachment event={post.event} />}
-          <PostActions
-            postId={post.id}
-            authorUsername={post.author.username}
-            initialCounts={post.counts}
-            initialViewerLiked={post.viewerLiked}
-            initialComments={post.comments}
-          />
+          {post.event && (
+            <div className="px-3 md:px-4">
+              <PostEventAttachment event={post.event} />
+            </div>
+          )}
+          <div className="px-3 md:px-4">
+            <PostActions
+              postId={post.id}
+              authorUsername={post.author.username}
+              initialCounts={post.counts}
+              initialViewerLiked={post.viewerLiked}
+              initialComments={post.comments}
+            />
+          </div>
         </>
       )}
     </article>

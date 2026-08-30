@@ -6,7 +6,7 @@ import { PresencePing } from "@/components/layout/presence-ping";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white dark:bg-background md:bg-background">
       <PresencePing />
       <TopBar />
       <div className="mx-auto flex w-full max-w-[1600px]">

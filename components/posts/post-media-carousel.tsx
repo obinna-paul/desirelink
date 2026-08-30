@@ -5,7 +5,8 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { PostMediaItem } from "@/lib/post-shared";
+import { feedMediaAspectRatio, type PostMediaItem } from "@/lib/post-shared";
+import { PostVideoPlayer } from "@/components/posts/post-video-player";
 
 export function PostMediaCarousel({ media }: { media: PostMediaItem[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -19,17 +20,10 @@ export function PostMediaCarousel({ media }: { media: PostMediaItem[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/60 bg-secondary md:rounded-lg">
-      <div className="relative aspect-[4/5] w-full sm:aspect-square">
+    <div className="overflow-hidden">
+      <div className="relative w-full bg-black" style={{ aspectRatio: feedMediaAspectRatio(active) }}>
         {active.type === "video" ? (
-          <video
-            key={active.url}
-            src={active.url}
-            controls
-            playsInline
-            preload="metadata"
-            className="h-full w-full bg-black object-contain"
-          />
+          <PostVideoPlayer key={active.url} src={active.url} />
         ) : (
           <Image
             src={active.url}
