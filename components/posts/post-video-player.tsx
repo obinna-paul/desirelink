@@ -17,6 +17,14 @@ export function PostVideoPlayer({ src }: { src: string }) {
     return () => query.removeEventListener("change", onChange);
   }, []);
 
+  // React's `muted` prop only sets the HTML attribute, not the DOM property - some browsers
+  // (desktop Chrome in particular) require the actual .muted property to be true before
+  // allowing autoplay() without a user gesture, so the attribute alone isn't enough.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (el) el.muted = muted;
+  }, [muted]);
+
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
