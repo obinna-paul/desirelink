@@ -59,6 +59,25 @@ export async function getProfileEvents(profileId: string, viewerProfileId: strin
   });
 }
 
+/** Upcoming events this profile RSVP'd "going" to. Private events only show to the profile's own owner. */
+export async function getAttendingEvents(
+  profileId: string,
+  viewerProfileId: string | null,
+  limit = 30
+): Promise<UpcomingEvent[]> {
+  const isSelf = viewerProfileId === profileId;
+  return prisma.event.findMany({
+    where: {
+      endTime: { gt: new Date() },
+      rsvps: { some: { userId: profileId, status: "going" } },
+      ...(isSelf ? {} : { isPrivate: false }),
+    },
+    orderBy: { startTime: "asc" },
+    take: limit,
+    include: eventCardInclude,
+  });
+}
+
 type ViewerProfile = {
   id: string;
   locationLat: number;

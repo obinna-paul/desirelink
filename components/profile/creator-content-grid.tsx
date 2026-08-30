@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { EmptyProfileSection } from "@/components/profile/profile-view";
+import { EmptyProfileSection } from "@/components/profile/empty-profile-section";
 import { PostGridTile, ServiceGridTile } from "@/components/profile/profile-grid-tiles";
 import { PostLightbox } from "@/components/profile/post-lightbox";
 import { ServiceSummaryModal } from "@/components/profile/service-summary-modal";

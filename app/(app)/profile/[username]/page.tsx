@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
-import { ProfileView } from "@/components/profile/profile-view";
+import { ExplorerProfileView } from "@/components/profile/explorer-profile-view";
 import { CreatorProfileView } from "@/components/profile/creator-profile-view";
 import { getCreatorProfilePosts } from "@/lib/posts";
 import { getCreatorStats } from "@/lib/creator";
@@ -16,7 +16,7 @@ import { confirmProviderPayment } from "@/lib/providers";
 import { getProviderServiceListings } from "@/lib/service-listings";
 import { trackContentView, trackProfileView as trackPremiumProfileView, trackServiceView } from "@/lib/rewards/tracking";
 import { isPremiumUser, recordProfileVisit } from "@/lib/premium";
-import { getProfileEvents } from "@/lib/events";
+import { getAttendingEvents, getProfileEvents } from "@/lib/events";
 import { isProviderProfileType } from "@/lib/provider-types";
 
 export default async function PublicProfilePage({
@@ -71,11 +71,12 @@ export default async function PublicProfilePage({
   const viewerOrOwnerId = isOwner ? profile.id : (viewerProfile?.id ?? null);
   const isProvider = isProviderProfileType(profile.profileType);
 
-  const [posts, tiers, serviceListings, events, stats] = await Promise.all([
+  const [posts, tiers, serviceListings, events, attendingEvents, stats] = await Promise.all([
     getCreatorProfilePosts(profile.id, viewerOrOwnerId),
     getPublicTiers(profile.id, viewerOrOwnerId),
     getProviderServiceListings(profile.id),
     getProfileEvents(profile.id, viewerOrOwnerId),
+    getAttendingEvents(profile.id, viewerOrOwnerId),
     isProvider ? getCreatorStats(profile.id) : Promise.resolve(null),
   ]);
 
@@ -123,17 +124,13 @@ export default async function PublicProfilePage({
           stats={stats}
         />
       ) : (
-        <ProfileView
+        <ExplorerProfileView
           profile={profile}
           desires={desires}
           posts={posts}
-          tiers={tiers}
-          serviceListings={serviceListings}
-          events={events}
+          events={attendingEvents}
           isOwner={isOwner}
-          isPremium={profileIsPremium}
           canMessage={!isOwner && Boolean(viewerProfile)}
-          viewerHeartsBalance={viewerProfile?.heartsBalance ?? 0}
           canModerate={!isOwner && Boolean(viewerProfile)}
           reviewSummary={reviewSummary}
           reviews={reviews}

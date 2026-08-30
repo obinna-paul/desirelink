@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Desire, Profile } from "@prisma/client";
 import {
-  BadgeCheck,
   Briefcase,
   CalendarDays,
   Camera,
@@ -13,7 +12,6 @@ import {
   MapPin,
   MessageCircle,
   Pencil,
-  ShieldCheck,
   Star,
   type LucideIcon,
 } from "lucide-react";
@@ -21,10 +19,11 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
 import { PreferencesSummary } from "@/components/profile/preferences-summary";
-import { EmptyProfileSection } from "@/components/profile/profile-view";
+import { EmptyProfileSection } from "@/components/profile/empty-profile-section";
+import { VerificationBadge } from "@/components/profile/verification-badge";
+import { ProfileSectionTab } from "@/components/profile/profile-section-tab";
 import { BannerUploader } from "@/components/profile/banner-uploader";
 import { ShareProfileButton } from "@/components/profile/share-profile-button";
 import { PostGridSection, ServiceGridSection, GRID_CLASSNAME } from "@/components/profile/creator-content-grid";
@@ -61,56 +60,6 @@ function normalizeSection(section?: string): CreatorSection {
 
 function sectionHref(profileHref: string, section: CreatorSection) {
   return section === "free" ? profileHref : `${profileHref}?section=${section}`;
-}
-
-function CreatorSectionTab({ href, label, icon: Icon, isActive }: { href: string; label: string; icon: LucideIcon; isActive: boolean }) {
-  return (
-    <Link
-      href={href}
-      aria-current={isActive ? "page" : undefined}
-      className={cn(
-        "inline-flex h-11 min-w-max items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold transition-colors md:h-12 md:rounded-none md:border-b-2 md:px-3",
-        isActive
-          ? "bg-foreground text-background md:border-foreground md:bg-transparent md:text-foreground"
-          : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground md:border-transparent md:bg-transparent"
-      )}
-    >
-      <Icon className="h-4 w-4" aria-hidden="true" />
-      {label}
-    </Link>
-  );
-}
-
-function VerificationDisclosure({ profile }: { profile: Profile }) {
-  const badges = [
-    profile.isVerified && "Identity verified",
-    profile.isVerifiedCreator && "Content verified",
-    profile.isVerifiedHost && "Host verified",
-    profile.isVerifiedServiceProvider && "Service provider verified",
-    profile.isTrustedMember && "Trusted member",
-  ].filter(Boolean) as string[];
-
-  if (badges.length === 0) return null;
-
-  return (
-    <span className="relative inline-block align-middle">
-      <details className="group">
-        <summary className="flex h-6 w-6 cursor-pointer list-none items-center justify-center text-primary [&::-webkit-details-marker]:hidden">
-          <BadgeCheck className="h-5 w-5 fill-primary text-primary-foreground" aria-hidden="true" />
-          <span className="sr-only">Show verification details</span>
-        </summary>
-        <div className="absolute left-0 top-full z-10 mt-2 w-64 rounded-xl border border-border/70 bg-card p-3 shadow-lg">
-          <ul className="flex flex-col gap-1.5">
-            {badges.map((label) => (
-              <li key={label} className="flex items-center gap-2 text-xs font-medium text-foreground">
-                <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" /> {label}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </details>
-    </span>
-  );
 }
 
 export function CreatorProfileView({
@@ -209,7 +158,7 @@ export function CreatorProfileView({
                 <h1 className="min-w-0 truncate font-heading text-2xl font-semibold tracking-tight md:text-3xl">
                   {profile.displayName}
                 </h1>
-                <VerificationDisclosure profile={profile} />
+                <VerificationBadge profile={profile} />
                 {isPremium && <PremiumBadge />}
               </div>
 
@@ -393,7 +342,7 @@ export function CreatorProfileView({
         className="-mx-3 flex min-w-0 gap-2 overflow-x-auto px-3 pb-1 md:mx-0 md:gap-6 md:border-b md:border-border/70 md:px-0 md:pb-0"
       >
         {CREATOR_SECTIONS.map((item) => (
-          <CreatorSectionTab
+          <ProfileSectionTab
             key={item.id}
             href={sectionHref(profileHref, item.id)}
             label={item.label}
