@@ -80,7 +80,7 @@ export function LiveRingRow({
             <Avatar className="h-full w-full">
               <AvatarImage src={self.avatarUrl} alt="" />
               <AvatarFallback>
-                <Video className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <Video className="h-4 w-4 text-primary" aria-hidden="true" />
               </AvatarFallback>
             </Avatar>
           </div>
