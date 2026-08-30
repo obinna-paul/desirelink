@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
 
-import { IMAGE_CROP_PRESETS, type ImageCropPresetId } from "@/lib/post-shared";
+import { IMAGE_CROP_PRESETS } from "@/lib/post-shared";
 import { cn } from "@/lib/utils";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 
@@ -11,6 +11,7 @@ const OUTPUT_MAX_DIMENSION = 1440;
 
 type Offset = { x: number; y: number };
 type DragState = { pointerId: number; startX: number; startY: number; startOffset: Offset } | null;
+type CropPreset = { id: string; label: string; ratio: number | null };
 
 /**
  * Instagram-style "pick a ratio, then pan/zoom to fit" cropper. The image
@@ -22,12 +23,18 @@ export function ImageCropDialog({
   file,
   onCancel,
   onConfirm,
+  presets = IMAGE_CROP_PRESETS,
+  shape = "square",
+  title = "Adjust photo",
 }: {
   file: File;
   onCancel: () => void;
   onConfirm: (result: { file: File; width: number; height: number }) => void;
+  presets?: readonly CropPreset[];
+  shape?: "square" | "circle";
+  title?: string;
 }) {
-  const [presetId, setPresetId] = useState<ImageCropPresetId>("original");
+  const [presetId, setPresetId] = useState<string>(presets[0].id);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -64,7 +71,7 @@ export function ImageCropDialog({
     return () => observer.disconnect();
   }, []);
 
-  const preset = IMAGE_CROP_PRESETS.find((option) => option.id === presetId) ?? IMAGE_CROP_PRESETS[0];
+  const preset = presets.find((option) => option.id === presetId) ?? presets[0];
   const isCroppable = preset.ratio !== null;
   const targetRatio = preset.ratio ?? (naturalSize ? naturalSize.width / naturalSize.height : 1);
   const frameHeight = frameWidth / targetRatio;
@@ -168,7 +175,7 @@ export function ImageCropDialog({
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
           <h2 id="crop-dialog-title" className="text-sm font-semibold">
-            Adjust photo
+            {title}
           </h2>
           <button
             type="button"
@@ -205,6 +212,13 @@ export function ImageCropDialog({
                 }}
               />
             )}
+            {shape === "circle" && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 rounded-full"
+                style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)" }}
+              />
+            )}
           </div>
         </div>
 
@@ -221,22 +235,24 @@ export function ImageCropDialog({
               className="w-full accent-primary"
             />
           )}
-          <div className="flex items-center justify-center gap-2">
-            {IMAGE_CROP_PRESETS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setPresetId(option.id)}
-                aria-pressed={presetId === option.id}
-                className={cn(
-                  "rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
-                  presetId === option.id ? "bg-white text-black" : "bg-white/10 text-white hover:bg-white/20"
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          {presets.length > 1 && (
+            <div className="flex items-center justify-center gap-2">
+              {presets.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setPresetId(option.id)}
+                  aria-pressed={presetId === option.id}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+                    presetId === option.id ? "bg-white text-black" : "bg-white/10 text-white hover:bg-white/20"
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

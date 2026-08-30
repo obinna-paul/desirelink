@@ -4,9 +4,11 @@ import { useRef, useState } from "react";
 import { Camera, Loader2 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
 import { cn } from "@/lib/utils";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const AVATAR_CROP_PRESETS = [{ id: "square", label: "Square", ratio: 1 }] as const;
 
 export function AvatarUploader({
   defaultUrl,
@@ -21,8 +23,9 @@ export function AvatarUploader({
   const [preview, setPreview] = useState(defaultUrl);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -37,6 +40,12 @@ export function AvatarUploader({
       return;
     }
 
+    setPendingFile(file);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  async function handleCropConfirm({ file }: { file: File; width: number; height: number }) {
+    setPendingFile(null);
     setPreview(URL.createObjectURL(file));
     setUploading(true);
 
@@ -58,6 +67,10 @@ export function AvatarUploader({
     } finally {
       setUploading(false);
     }
+  }
+
+  function handleCropCancel() {
+    setPendingFile(null);
   }
 
   return (
@@ -94,6 +107,17 @@ export function AvatarUploader({
         />
         {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
+      {pendingFile && (
+        <ImageCropDialog
+          key={pendingFile.name + pendingFile.lastModified}
+          file={pendingFile}
+          presets={AVATAR_CROP_PRESETS}
+          shape="circle"
+          title="Adjust your photo"
+          onCancel={handleCropCancel}
+          onConfirm={handleCropConfirm}
+        />
+      )}
     </div>
   );
 }
