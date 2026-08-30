@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/layout/page-header";
 import { PostList } from "@/components/posts/post-list";
 import { LiveRingRow } from "@/components/home/live-ring-row";
 import { getPublicFeedPosts } from "@/lib/posts";
@@ -36,9 +35,6 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col gap-3 md:gap-5">
-      <div className="hidden md:block">
-        <PageHeader title="Home" description="Public posts from the udala community." />
-      </div>
       <LiveRingRow
         initialRing={ring}
         self={
