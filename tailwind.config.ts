@@ -11,6 +11,7 @@ const config: Config = {
     fontFamily: {
       sans: ["var(--font-sans)", "system-ui", "sans-serif"],
       heading: ["var(--font-heading)", "Georgia", "serif"],
+      brand: ["var(--font-brand)", "system-ui", "sans-serif"],
     },
     container: {
       center: true,

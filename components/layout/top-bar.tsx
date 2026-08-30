@@ -39,7 +39,7 @@ export async function TopBar() {
           </div>
 
           <Link href="/" className="flex min-h-11 items-center justify-center" aria-label="udala home">
-            <span className="font-heading text-2xl italic font-semibold tracking-tight text-primary">udala</span>
+            <span className="font-brand text-2xl font-semibold tracking-tight text-primary">udala</span>
           </Link>
 
           <div className="flex items-center justify-end gap-1">
@@ -60,7 +60,7 @@ export async function TopBar() {
           href="/"
           className="flex min-h-11 min-w-0 items-center gap-2 text-xl font-bold tracking-tight"
         >
-          <span className="font-heading italic text-primary">udala</span>
+          <span className="font-brand text-primary">udala</span>
         </Link>
 
         <div className="flex items-center gap-1 md:gap-2">

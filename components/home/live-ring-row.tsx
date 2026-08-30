@@ -59,7 +59,6 @@ export function LiveRingRow({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <p className="font-heading px-3 text-sm italic font-medium md:px-0">Live Now</p>
       <div className="flex min-h-20 gap-2 overflow-x-auto px-3 py-1 md:px-0" aria-label="Live and online now">
         {entries.map((entry) => (
           <Link
@@ -82,7 +81,7 @@ export function LiveRingRow({
                 </AvatarFallback>
               </Avatar>
             </div>
-            <span className="text-[10px] font-semibold text-foreground">Host</span>
+            <span className="text-[10px] font-semibold text-foreground">Go live</span>
           </Link>
         )}
       </div>

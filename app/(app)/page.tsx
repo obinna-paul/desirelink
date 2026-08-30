@@ -1,7 +1,5 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getServerSession } from "next-auth";
-import { ArrowRight, Sparkles } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -39,16 +37,6 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col gap-3 md:gap-5">
-      {isProvider && (
-        <Link
-          href="/creator-dashboard"
-          className="flex items-center gap-3 rounded-2xl border border-accent-tint-border bg-accent-tint px-4 py-3 text-primary"
-        >
-          <Sparkles className="h-5 w-5 shrink-0" aria-hidden="true" />
-          <span className="label-caps flex-1 text-[11px]">Creator Studio · view earnings &amp; subscribers</span>
-          <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
-        </Link>
-      )}
       <LiveRingRow
         initialRing={ring}
         self={

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope, Newsreader } from "next/font/google";
+import { Manrope, Newsreader, Outfit } from "next/font/google";
 import "./globals.css";
 import "@livekit/components-styles";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ const newsreader = Newsreader({
   style: ["normal", "italic"],
   variable: "--font-heading",
 });
+const outfit = Outfit({ subsets: ["latin"], weight: ["600", "700"], variable: "--font-brand" });
 
 export const metadata: Metadata = {
   applicationName: "udala",
@@ -47,7 +48,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("font-sans", manrope.variable, newsreader.variable)}
+      className={cn("font-sans", manrope.variable, newsreader.variable, outfit.variable)}
       suppressHydrationWarning
     >
       <body className="antialiased">

@@ -36,11 +36,11 @@ export function AuthLogo({
           className="absolute inset-0 bg-contain bg-center bg-no-repeat"
           style={{ backgroundImage: `url(${logoUrl})` }}
         />
-        <span className="font-heading text-lg font-semibold text-[#8f2ff0]">U</span>
+        <span className="font-brand text-lg font-semibold text-[#8f2ff0]">U</span>
       </span>
       <span
         className={cn(
-          "font-heading font-semibold tracking-tight",
+          "font-brand font-semibold tracking-tight",
           compact ? "text-xl" : "text-2xl",
           variant === "dark" ? "text-white" : "text-[#211720]"
         )}

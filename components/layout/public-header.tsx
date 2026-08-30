@@ -11,7 +11,7 @@ export function PublicHeader() {
         <span className="h-8 w-8 shrink-0 overflow-hidden rounded-lg">
           <BrandLogo className="h-full w-full" priority alt="" />
         </span>
-        <span className="font-heading text-lg font-bold text-primary">
+        <span className="font-brand text-lg font-bold text-primary">
           udala
         </span>
       </Link>
