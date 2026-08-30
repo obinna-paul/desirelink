@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/layout/page-header";
 import { ExplorerProfileView } from "@/components/profile/explorer-profile-view";
 import { CreatorProfileView } from "@/components/profile/creator-profile-view";
 import { getCreatorProfilePosts } from "@/lib/posts";
@@ -99,9 +98,6 @@ export default async function PublicProfilePage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader title={profile.displayName} description={`@${profile.username}`} />
-      </div>
       {isProvider && stats ? (
         <CreatorProfileView
           profile={profile}

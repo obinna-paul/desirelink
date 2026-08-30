@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/layout/page-header";
 import { ProfileGrid } from "@/components/home/profile-grid";
 import { DiscoverFiltersPanel } from "@/components/discover/discover-filters";
 import {
@@ -52,14 +51,6 @@ export default async function DiscoverPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader title="Discover" description="Meet creators on udala." />
-      </div>
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Discover</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Meet creators on udala.</p>
-      </div>
-
       <DiscoverFiltersPanel initialFilters={filters} isPremium={viewerIsPremium} />
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/60 bg-card px-4 py-3 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:px-0 md:py-0 md:shadow-none">

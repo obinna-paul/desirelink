@@ -6,7 +6,6 @@ import { CalendarPlus, ListChecks } from "lucide-react";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
-import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { EventGrid } from "@/components/events/event-grid";
 import { EventFiltersPanel } from "@/components/events/event-filters";
@@ -44,20 +43,6 @@ export default async function EventsPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader
-          title="Events"
-          description="Find and host in-person and virtual gatherings."
-        />
-      </div>
-
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-          Events
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Find gatherings worth showing up for.</p>
-      </div>
-
       {isProvider && (
         <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:gap-3">
           <Button asChild className="gap-1.5">

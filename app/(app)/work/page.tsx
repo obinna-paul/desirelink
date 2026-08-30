@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 import { Briefcase, CalendarDays } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
-import { PageHeader } from "@/components/layout/page-header";
 
 const OPTIONS = [
   {
@@ -29,13 +28,6 @@ export default async function WorkHubPage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader title="Events & Services" description="Find things happening near you, or book a paid service." />
-      </div>
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Events & Services</h1>
-      </div>
-
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {OPTIONS.map((option) => {
           const Icon = option.icon;

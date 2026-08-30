@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
-import { PageHeader } from "@/components/layout/page-header";
 import { PreferencesEditor } from "@/components/preferences/preferences-editor";
 import { EditProfileForm } from "@/components/profile/edit-profile-form";
 import { PartnerLinkPanel } from "@/components/profile/partner-link-panel";
@@ -44,15 +43,6 @@ export default async function EditProfilePage() {
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader title="Edit Profile" description="Update how others see you on udala." />
-      </div>
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-          Edit profile
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Basics, privacy, verification, and preferences.</p>
-      </div>
       <div className="hidden md:block xl:hidden">
         <ProfileSetupActions profile={profile} />
       </div>

@@ -6,7 +6,6 @@ import { Lock, Users2 } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { SectionTab } from "@/components/layout/section-tab";
 import { JoinButton } from "@/components/rooms/join-button";
@@ -67,10 +66,6 @@ export default async function RoomDetailPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader title={room.name} description={room.isPrivate ? "Private room" : "Public room"} />
-      </div>
-
       <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm md:rounded-xl md:shadow-none">
         <div className="relative flex h-44 w-full items-center justify-center overflow-hidden bg-secondary md:h-40">
           {room.coverImageUrl ? (
@@ -88,7 +83,7 @@ export default async function RoomDetailPage({
         </div>
 
         <div className="flex flex-col gap-4 p-4 md:p-5">
-          <div className="md:hidden">
+          <div>
             <h1 className="font-heading text-2xl font-semibold leading-tight text-foreground">
               {room.name}
             </h1>

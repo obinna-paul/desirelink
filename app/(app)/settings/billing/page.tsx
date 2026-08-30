@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/layout/page-header";
 import { getBillingOverview } from "@/lib/billing";
 import { confirmProviderPayment } from "@/lib/providers";
 import { formatCents } from "@/lib/creator";
@@ -35,16 +34,6 @@ export default async function BillingSettingsPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader title="Billing" description="Payment methods, premium status, subscriptions, and billing history." />
-      </div>
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-          Billing
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Premium, cards, subscriptions, and history.</p>
-      </div>
-
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold">udala premium</h2>
         {overview.premium ? (

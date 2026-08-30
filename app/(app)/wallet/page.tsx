@@ -5,7 +5,6 @@ import { formatDistanceToNow } from "date-fns";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/layout/page-header";
 import { getWalletOverview, MINIMUM_WITHDRAWAL_CENTS, WALLET_WITHDRAWAL_FEE_RATE } from "@/lib/wallet";
 import { confirmHeartsPurchase } from "@/lib/hearts";
 import { formatCents } from "@/lib/creator";
@@ -43,14 +42,6 @@ export default async function WalletPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader title="Wallet" description="Buy hearts to send gifts, and withdraw what you've earned." />
-      </div>
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl italic font-semibold tracking-tight">Wallet</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Hearts, gifts, and payouts.</p>
-      </div>
-
       <div className="rounded-2xl bg-foreground p-5 text-background">
         {overview.isProvider ? (
           <>

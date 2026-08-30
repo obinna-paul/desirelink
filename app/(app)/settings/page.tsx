@@ -7,8 +7,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
 import { isProviderProfileType } from "@/lib/provider-types";
-import { PageHeader } from "@/components/layout/page-header";
-
 const SETTINGS_LINKS = [
   {
     href: "/settings/circles",
@@ -58,19 +56,6 @@ export default async function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader
-          title="Settings"
-          description="Manage your account, privacy, and safety preferences."
-        />
-      </div>
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-          Settings
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Account, privacy, billing, and safety.</p>
-      </div>
-
       <div className="rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm md:rounded-xl md:p-4 md:shadow-none">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">

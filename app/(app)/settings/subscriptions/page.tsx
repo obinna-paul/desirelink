@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/layout/page-header";
 import { SubscriptionsList } from "@/components/settings/subscriptions-list";
 import { getMySubscriptions } from "@/lib/legacy-checkout";
 
@@ -25,18 +24,6 @@ export default async function SubscriptionsSettingsPage() {
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader
-          title="Subscriptions"
-          description="Manage the creators you support."
-        />
-      </div>
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-          Subscriptions
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Creators and providers you support.</p>
-      </div>
       <SubscriptionsList initialSubscriptions={subscriptions} />
     </div>
   );

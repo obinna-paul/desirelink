@@ -6,7 +6,6 @@ import { BriefcaseBusiness } from "lucide-react";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
-import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { ServiceListingGrid } from "@/components/home/service-listing-grid";
 import { ServiceFiltersPanel } from "@/components/services/service-filters";
@@ -39,14 +38,6 @@ export default async function ServicesPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader title="Services" description="Find and book a paid service from a verified provider." />
-      </div>
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl italic font-semibold tracking-tight text-foreground">Services</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Find a verified provider near you.</p>
-      </div>
-
       {isProvider && (
         <div>
           <Button asChild variant="outline" className="gap-1.5">

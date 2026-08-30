@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/layout/page-header";
 import { GoLiveStaging } from "@/components/live/go-live-staging";
 import { getActiveStreamForProvider } from "@/lib/live-streams";
 import { isProviderProfileType } from "@/lib/provider-types";
@@ -30,13 +29,6 @@ export default async function GoLivePage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader title="Go live" description="Start a live stream your subscribers and viewers can join." />
-      </div>
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Go live</h1>
-      </div>
-
       {isLiveKitConfigured() ? (
         <GoLiveStaging defaultTitle={`${profile.displayName}'s live stream`} />
       ) : (

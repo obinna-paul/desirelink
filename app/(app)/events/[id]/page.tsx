@@ -7,7 +7,6 @@ import { CalendarDays, Lock, MapPin, Pencil, Users, UserPlus, Video } from "luci
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/layout/page-header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,10 +76,6 @@ export default async function EventDetailPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader title={event.title} description={event.eventType} />
-      </div>
-
       <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm md:rounded-xl md:shadow-none">
         <div className="relative flex h-52 w-full items-center justify-center overflow-hidden bg-secondary md:h-56">
           {event.coverImageUrl ? (
@@ -98,7 +93,7 @@ export default async function EventDetailPage({
         </div>
 
         <div className="flex flex-col gap-4 p-4 md:p-5">
-          <div className="md:hidden">
+          <div>
             <h1 className="font-heading text-2xl font-semibold leading-tight text-foreground">
               {event.title}
             </h1>

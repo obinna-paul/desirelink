@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { ChevronRight, Flag, ShieldOff } from "lucide-react";
 
-import { PageHeader } from "@/components/layout/page-header";
-
 const SAFETY_LINKS = [
   {
     href: "/safety/blocked",
@@ -21,18 +19,6 @@ const SAFETY_LINKS = [
 export default function SafetyCenterPage() {
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader
-          title="Safety Center"
-          description="Tools to help you stay in control of who can reach you."
-        />
-      </div>
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-          Safety
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Control blocks, reports, and reachability.</p>
-      </div>
       <ul className="flex flex-col gap-2">
         {SAFETY_LINKS.map((link) => (
           <li key={link.href}>

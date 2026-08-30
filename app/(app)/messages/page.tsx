@@ -5,7 +5,6 @@ import { ChevronLeft } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/layout/page-header";
 import { ConversationList } from "@/components/messages/conversation-list";
 import { ChatWindow } from "@/components/messages/chat-window";
 import { getConversation, getConversations } from "@/lib/messages";
@@ -53,13 +52,6 @@ export default async function MessagesPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="hidden md:block">
-        <PageHeader title="Messages" description="Direct conversations with your connections." />
-      </div>
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Messages</h1>
-      </div>
-
       <div className="flex h-[calc(100dvh-12rem)] min-h-[500px] overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm md:h-[calc(100vh-14rem)] md:min-h-[420px] md:rounded-xl md:shadow-none">
         <div
           className={cn(

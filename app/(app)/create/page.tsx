@@ -6,7 +6,6 @@ import {
   BriefcaseBusiness,
   CalendarPlus,
   ImagePlus,
-  Sparkles,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -247,35 +246,8 @@ export default async function CreatePage({
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 md:gap-6">
-      <div className="md:hidden">
-        <h1 className="font-heading text-2xl italic font-semibold tracking-tight text-foreground">
-          Create
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Start with a post, or create an event, service, or room.
-        </p>
-      </div>
-
       <section className="hidden md:block">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
-            <div className="label-caps inline-flex items-center gap-2 rounded-full border border-accent-tint-border bg-accent-tint px-3 py-1 text-[11px] text-primary">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              Publishing studio
-            </div>
-            <h1 className="font-heading mt-4 text-4xl italic font-semibold tracking-tight text-foreground">
-              What are you creating today?
-            </h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              Start with a feed post, or switch into an event, service, or room without leaving the flow.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-card">
-            <span className="font-semibold text-foreground">Post is primary.</span> The rest are creation paths.
-          </div>
-        </div>
-
-        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
           <CreateOptionCard option={visibleCreateOptions[0]} activeType={activeType} layout="desktop" />
           <div className="grid gap-3">
             {visibleCreateOptions.slice(1).map((option) => (
@@ -292,19 +264,6 @@ export default async function CreatePage({
       </section>
 
       <section className="flex flex-col gap-4">
-        <div className="hidden items-end justify-between md:flex">
-          <div>
-            <p className="label-caps text-[11px] text-primary">
-              {activeType === "post" ? "Compose" : "Create"}
-            </p>
-            <h2 className="font-heading mt-1 text-2xl italic font-semibold tracking-tight text-foreground">
-              {createOptions.find((option) => option.type === activeType)?.label}
-            </h2>
-          </div>
-          <p className="max-w-sm text-right text-sm leading-6 text-muted-foreground">
-            {createOptions.find((option) => option.type === activeType)?.description}
-          </p>
-        </div>
         <div>{content}</div>
       </section>
     </div>
