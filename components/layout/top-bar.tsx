@@ -28,7 +28,7 @@ export async function TopBar() {
   const initials = profile?.displayName ? profile.displayName.slice(0, 2).toUpperCase() : "YOU";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/82 md:flex md:h-16 md:items-center md:justify-between md:px-7 md:py-0">
+    <header className="sticky top-0 z-40 bg-background/95 px-3 py-1.5 backdrop-blur supports-[backdrop-filter]:bg-background/82 md:flex md:h-14 md:items-center md:justify-between md:px-7 md:py-0">
       <div className="flex flex-col gap-2 md:hidden">
         <div className="flex min-h-11 items-center justify-between gap-3">
           <Link href="/" className="flex min-h-11 min-w-0 items-center gap-2" aria-label="udala home">

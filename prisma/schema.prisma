@@ -246,11 +246,13 @@ model Profile {
   payoutSetupUpdatedAt DateTime?
 
   /**
-   * Spendable hearts balance, purchased with real money and spent sending gifts in live streams.
+   * Spendable hearts balance, purchased with real money and spent sending gift hearts to providers.
    */
   heartsBalance      Int       @default(0)
   /**
-   * Withdrawable cash balance from gifts received while live, separate from the monthly rewards pool (ProviderEarning).
+   * Withdrawable cash balance from all provider earnings — gift hearts, tier subscriptions, and the
+   * monthly rewards pool all credit this at their full value; a fee is only taken at withdrawal (see
+   * WALLET_WITHDRAWAL_FEE_RATE in lib/wallet.ts).
    */
   walletBalanceCents Int       @default(0)
   /**
@@ -933,23 +935,26 @@ model LiveStream {
 }
 
 model Gift {
-  id                 String     @id @default(cuid())
-  streamId           String
-  stream             LiveStream @relation(fields: [streamId], references: [id], onDelete: Cascade)
-  senderId           String
-  sender             Profile    @relation("GiftSender", fields: [senderId], references: [id], onDelete: Cascade)
-  receiverId         String
-  receiver           Profile    @relation("GiftReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-  hearts             Int
+  id         String      @id @default(cuid())
   /**
-   * Cash value of the hearts at the platform's fixed conversion rate, before the platform's revenue-share cut.
+   * Set only when context is "live_stream" — hearts can also be sent from a provider's profile or from a chat.
    */
-  valueCents         Int
+  streamId   String?
+  stream     LiveStream? @relation(fields: [streamId], references: [id], onDelete: SetNull)
+  senderId   String
+  sender     Profile     @relation("GiftSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String
+  receiver   Profile     @relation("GiftReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  hearts     Int
   /**
-   * Portion of valueCents credited to the receiver's withdrawable wallet balance.
+   * Cash value of the hearts at the platform's fixed conversion rate. Credited to the receiver's wallet in full — the platform takes its cut as a fee when the wallet is withdrawn, not here.
    */
-  providerShareCents Int
-  createdAt          DateTime   @default(now())
+  valueCents Int
+  /**
+   * Where this gift was sent from: "live_stream" | "profile" | "chat".
+   */
+  context    String      @default("live_stream")
+  createdAt  DateTime    @default(now())
 
   @@index([streamId])
   @@index([senderId])
@@ -974,7 +979,18 @@ model WalletWithdrawal {
   id              String    @id @default(cuid())
   providerId      String
   provider        Profile   @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  /**
+   * Gross amount debited from the wallet, before the withdrawal fee.
+   */
   amountCents     Int
+  /**
+   * Platform fee taken at withdrawal time (see WALLET_WITHDRAWAL_FEE_RATE in lib/wallet.ts).
+   */
+  feeCents        Int       @default(0)
+  /**
+   * amountCents - feeCents — what actually gets transferred to the provider's bank.
+   */
+  netAmountCents  Int       @default(0)
   status          String    @default("pending") // pending | processing | paid | failed
   payoutReference String?
   paidAt          DateTime?

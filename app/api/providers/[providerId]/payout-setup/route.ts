@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { paymentProvider } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
-import { getProviderPayoutBalance, MINIMUM_PAYOUT_CENTS } from "@/lib/payouts";
+import { MINIMUM_WITHDRAWAL_CENTS } from "@/lib/wallet";
 import { isProviderProfileType } from "@/lib/provider-types";
 
 async function getAuthorizedProvider(providerId: string) {
@@ -74,7 +74,11 @@ export async function GET(_req: Request, { params }: { params: { providerId: str
     }
   }
 
-  const balanceCents = await getProviderPayoutBalance(params.providerId);
+  const walletProfile = await prisma.profile.findUniqueOrThrow({
+    where: { id: params.providerId },
+    select: { walletBalanceCents: true },
+  });
+
   return NextResponse.json({
     payout: {
       status: profile.payoutSetupStatus,
@@ -85,8 +89,8 @@ export async function GET(_req: Request, { params }: { params: { providerId: str
       country: profile.payoutCountry,
       currency: profile.payoutCurrency,
       updatedAt: profile.payoutSetupUpdatedAt?.toISOString() ?? null,
-      balanceCents,
-      minimumPayoutCents: MINIMUM_PAYOUT_CENTS,
+      balanceCents: walletProfile.walletBalanceCents,
+      minimumPayoutCents: MINIMUM_WITHDRAWAL_CENTS,
     },
   });
 }

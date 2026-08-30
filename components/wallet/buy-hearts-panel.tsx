@@ -59,7 +59,8 @@ export function BuyHeartsPanel() {
       </div>
       {pendingId && <p className="text-xs text-muted-foreground">Starting checkout…</p>}
       <p className="text-xs text-muted-foreground">
-        Hearts are non-refundable and spent by sending gifts in live streams.
+        Hearts are non-refundable and spent by sending gifts to providers — on their profile, in chat, or during a
+        live stream.
       </p>
     </div>
   );

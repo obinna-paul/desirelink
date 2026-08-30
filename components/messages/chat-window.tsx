@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { ShieldX, Send } from "lucide-react";
+import { ShieldX, Send, Heart } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { PremiumBadge } from "@/components/premium/premium-badge";
 import { PremiumUpsell } from "@/components/premium/premium-upsell";
+import { GiftPicker, type SendGiftOutcome } from "@/components/hearts/gift-picker";
 import { cn } from "@/lib/utils";
 import { getPusherClient } from "@/lib/pusher-client";
+import { isProviderProfileType } from "@/lib/provider-types";
 import {
   getConversationChannelName,
   MESSAGES_READ_EVENT,
@@ -47,11 +49,13 @@ export function ChatWindow({
   counterpart,
   initialMessages,
   blocked = false,
+  viewerHeartsBalance = 0,
 }: {
   viewerProfileId: string;
   counterpart: ConversationParticipant;
   initialMessages: Message[];
   blocked?: boolean;
+  viewerHeartsBalance?: number;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -60,8 +64,23 @@ export function ChatWindow({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [premiumUpsell, setPremiumUpsell] = useState<string | null>(null);
+  const [giftPickerOpen, setGiftPickerOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { data: messageLimit, mutate: refreshMessageLimit } = useSWR("/api/messages/limits", fetcher);
+  const counterpartIsProvider = isProviderProfileType(counterpart.profileType);
+
+  async function sendHearts(hearts: number): Promise<SendGiftOutcome> {
+    const res = await fetch(`/api/providers/${counterpart.id}/gift`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hearts, context: "chat" }),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      return { ok: false, error: body?.error ?? "Couldn't send that gift." };
+    }
+    return { ok: true, heartsBalance: body.heartsBalance };
+  }
 
   const isNewConversation = messages.length === 0;
 
@@ -155,8 +174,29 @@ export function ChatWindow({
             <p className="text-xs text-muted-foreground">@{counterpart.username}</p>
           </div>
         </div>
-        <ReportDialog targetType="profile" targetId={counterpart.id} label={`Report ${counterpart.displayName}`} variant="icon" />
+        <div className="flex items-center gap-1.5">
+          {counterpartIsProvider && !blocked && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              aria-pressed={giftPickerOpen}
+              onClick={() => setGiftPickerOpen((open) => !open)}
+            >
+              <Heart className="h-3.5 w-3.5 text-neon-pink" aria-hidden="true" fill="currentColor" />
+              Send hearts
+            </Button>
+          )}
+          <ReportDialog targetType="profile" targetId={counterpart.id} label={`Report ${counterpart.displayName}`} variant="icon" />
+        </div>
       </div>
+
+      {giftPickerOpen && counterpartIsProvider && (
+        <div className="border-b border-border/60 bg-secondary/30 px-3 py-3 md:px-4">
+          <GiftPicker initialBalance={viewerHeartsBalance} onSend={sendHearts} />
+        </div>
+      )}
 
       {blocked && (
         <p className="flex items-center gap-1.5 border-b border-border/60 bg-secondary/60 px-4 py-2 text-xs text-muted-foreground">

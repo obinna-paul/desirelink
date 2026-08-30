@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { creditProviderWallet } from "@/lib/wallet";
 import type { WebhookEvent, WebhookPaymentMethod } from "./types";
 
 function activeProviderName(): string {
@@ -73,6 +74,7 @@ async function handleProviderTierEvent(event: WebhookEvent): Promise<void> {
     });
     if (event.paymentMethod) await upsertPaymentMethod(pending.subscriberId, event.paymentMethod);
     await recordTransaction(pending.subscriberId, event, { status: "succeeded", providerSubscriptionId: pendingId });
+    await creditProviderWallet(pending.providerId, event.amountCents ?? 0);
   } else {
     await prisma.providerSubscription.update({ where: { id: pendingId }, data: { status: "failed" } });
     await recordTransaction(pending.subscriberId, event, { status: "failed", providerSubscriptionId: pendingId });

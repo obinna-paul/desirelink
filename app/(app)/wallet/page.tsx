@@ -6,13 +6,18 @@ import { formatDistanceToNow } from "date-fns";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
-import { getWalletOverview } from "@/lib/wallet";
+import { getWalletOverview, MINIMUM_WITHDRAWAL_CENTS, WALLET_WITHDRAWAL_FEE_RATE } from "@/lib/wallet";
 import { confirmHeartsPurchase } from "@/lib/hearts";
 import { formatCents } from "@/lib/creator";
 import { BuyHeartsPanel } from "@/components/wallet/buy-hearts-panel";
 import { WithdrawWalletButton } from "@/components/wallet/withdraw-wallet-button";
 import { PayoutSetup } from "@/components/provider/PayoutSetup";
-import { MINIMUM_PAYOUT_CENTS } from "@/lib/payouts";
+
+const GIFT_CONTEXT_LABEL: Record<string, string> = {
+  live_stream: "during your live stream",
+  profile: "on your profile",
+  chat: "in chat",
+};
 
 export default async function WalletPage({
   searchParams,
@@ -60,11 +65,14 @@ export default async function WalletPage({
         {overview.isProvider && (
           <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card p-4">
             <div>
-              <p className="text-xs text-muted-foreground">Withdrawable gift earnings</p>
+              <p className="text-xs text-muted-foreground">Wallet balance</p>
               <p className="text-lg font-semibold">{formatCents(overview.walletBalanceCents)}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                A {Math.round(WALLET_WITHDRAWAL_FEE_RATE * 100)}% fee applies at withdrawal.
+              </p>
             </div>
             <WithdrawWalletButton
-              disabled={!overview.payoutReady || overview.walletBalanceCents < MINIMUM_PAYOUT_CENTS}
+              disabled={!overview.payoutReady || overview.walletBalanceCents < MINIMUM_WITHDRAWAL_CENTS}
             />
           </div>
         )}
@@ -87,7 +95,7 @@ export default async function WalletPage({
           <h2 className="text-sm font-semibold">Gifts received</h2>
           {overview.giftsReceived.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-              No gifts yet — they show up here the moment a viewer sends one during your live stream.
+              No gifts yet — they show up here the moment someone sends you one.
             </div>
           ) : (
             <ul className="flex flex-col gap-2">
@@ -98,11 +106,10 @@ export default async function WalletPage({
                 >
                   <span>
                     <span className="font-medium">{gift.sender.displayName}</span> sent {gift.hearts.toLocaleString()}{" "}
-                    hearts
+                    hearts {GIFT_CONTEXT_LABEL[gift.context] ?? ""}
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {formatCents(gift.providerShareCents)} &middot;{" "}
-                    {formatDistanceToNow(gift.createdAt, { addSuffix: true })}
+                    {formatCents(gift.valueCents)} &middot; {formatDistanceToNow(gift.createdAt, { addSuffix: true })}
                   </span>
                 </li>
               ))}
@@ -111,11 +118,36 @@ export default async function WalletPage({
         </section>
       )}
 
+      {overview.isProvider && overview.withdrawals.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold">Withdrawal history</h2>
+          <ul className="flex flex-col gap-2">
+            {overview.withdrawals.map((withdrawal) => (
+              <li
+                key={withdrawal.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card p-3 text-sm"
+              >
+                <span>
+                  {formatCents(withdrawal.netAmountCents)} sent{" "}
+                  <span className="text-xs text-muted-foreground">
+                    (from {formatCents(withdrawal.amountCents)}, {formatCents(withdrawal.feeCents)} fee)
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs capitalize text-muted-foreground">
+                  {withdrawal.status} &middot; {formatDistanceToNow(withdrawal.createdAt, { addSuffix: true })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold">Gifts sent</h2>
         {overview.giftsSent.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-            You haven&apos;t sent any gifts yet. Join a live stream to send one.
+            You haven&apos;t sent any gifts yet. Visit a provider&apos;s profile, chat with them, or join their live
+            stream to send one.
           </div>
         ) : (
           <ul className="flex flex-col gap-2">

@@ -35,7 +35,7 @@ export default async function HomePage() {
   ]);
 
   return (
-    <div className="flex flex-col gap-4 md:gap-6">
+    <div className="flex flex-col gap-3 md:gap-5">
       <div className="hidden md:block">
         <PageHeader title="Home" description="Public posts from the udala community." />
       </div>

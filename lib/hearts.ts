@@ -3,7 +3,89 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 import { processPaymentEvent } from "@/lib/payments/webhook-handler";
-import { getHeartPackage } from "@/lib/hearts-shared";
+import { getHeartPackage, HEART_UNIT_PRICE_CENTS } from "@/lib/hearts-shared";
+import { isProviderProfileType } from "@/lib/provider-types";
+
+export type GiftContext = "live_stream" | "profile" | "chat";
+
+const MAX_HEARTS_PER_GIFT = 10_000;
+
+export type SendHeartsResult =
+  | {
+      ok: true;
+      heartsBalance: number;
+      hearts: number;
+      giftId: string;
+      sender: { username: string; displayName: string; avatarUrl: string };
+    }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Moves hearts from sender to receiver and credits the receiver's wallet at
+ * full value — the platform's cut is taken only when the wallet is withdrawn
+ * (see WALLET_WITHDRAWAL_FEE_RATE in lib/wallet.ts), not here. Shared by
+ * every place a gift can be sent: during a live stream (lib/live-streams.ts),
+ * from a provider's profile, or from a chat thread.
+ */
+export async function settleGift(params: {
+  senderId: string;
+  receiverId: string;
+  hearts: number;
+  context: GiftContext;
+  streamId?: string | null;
+}): Promise<SendHeartsResult> {
+  const { senderId, receiverId, hearts, context, streamId = null } = params;
+
+  if (!Number.isInteger(hearts) || hearts <= 0 || hearts > MAX_HEARTS_PER_GIFT) {
+    return { ok: false, status: 400, error: "Invalid gift amount." };
+  }
+  if (senderId === receiverId) {
+    return { ok: false, status: 400, error: "You can't send yourself a gift." };
+  }
+
+  const sender = await prisma.profile.findUnique({
+    where: { id: senderId },
+    select: { heartsBalance: true, username: true, displayName: true, avatarUrl: true },
+  });
+  if (!sender || sender.heartsBalance < hearts) {
+    return { ok: false, status: 402, error: "Not enough hearts. Buy more to keep sending gifts." };
+  }
+
+  const valueCents = hearts * HEART_UNIT_PRICE_CENTS;
+
+  const [updatedSender, , gift] = await prisma.$transaction([
+    prisma.profile.update({
+      where: { id: senderId },
+      data: { heartsBalance: { decrement: hearts } },
+      select: { heartsBalance: true },
+    }),
+    prisma.profile.update({ where: { id: receiverId }, data: { walletBalanceCents: { increment: valueCents } } }),
+    prisma.gift.create({ data: { streamId, senderId, receiverId, hearts, valueCents, context } }),
+  ]);
+
+  return {
+    ok: true,
+    heartsBalance: updatedSender.heartsBalance,
+    hearts,
+    giftId: gift.id,
+    sender: { username: sender.username, displayName: sender.displayName, avatarUrl: sender.avatarUrl },
+  };
+}
+
+/** Sends hearts directly to a provider outside a live stream — from their profile, or from a chat thread. */
+export async function sendHeartsToProvider(
+  senderId: string,
+  receiverId: string,
+  hearts: number,
+  context: "profile" | "chat"
+): Promise<SendHeartsResult> {
+  const receiver = await prisma.profile.findUnique({ where: { id: receiverId }, select: { profileType: true } });
+  if (!receiver || !isProviderProfileType(receiver.profileType)) {
+    return { ok: false, status: 400, error: "Hearts can only be sent to providers." };
+  }
+
+  return settleGift({ senderId, receiverId, hearts, context });
+}
 
 async function getOrCreatePaymentCustomerId(profileId: string, existingCustomerId: string | null): Promise<string> {
   if (existingCustomerId) return existingCustomerId;

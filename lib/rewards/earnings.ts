@@ -70,8 +70,8 @@ function giftRevenueWhere(providerId: string, start?: Date, end?: Date) {
   };
 }
 
-function sumGiftShares(items: { providerShareCents: number }[]) {
-  return items.reduce((sum, item) => sum + item.providerShareCents, 0);
+function sumGiftShares(items: { valueCents: number }[]) {
+  return items.reduce((sum, item) => sum + item.valueCents, 0);
 }
 
 export async function getProviderEarningsHistory(providerId: string) {
@@ -217,14 +217,14 @@ export async function getProviderEarningsDashboard(providerId: string) {
       where: eventRevenueWhere(providerId, lastMonth.start, lastMonth.end),
       select: { amountCents: true },
     }),
-    prisma.gift.findMany({ where: giftRevenueWhere(providerId), select: { providerShareCents: true } }),
+    prisma.gift.findMany({ where: giftRevenueWhere(providerId), select: { valueCents: true } }),
     prisma.gift.findMany({
       where: giftRevenueWhere(providerId, thisMonth.start, thisMonth.end),
-      select: { providerShareCents: true },
+      select: { valueCents: true },
     }),
     prisma.gift.findMany({
       where: giftRevenueWhere(providerId, lastMonth.start, lastMonth.end),
-      select: { providerShareCents: true },
+      select: { valueCents: true },
     }),
     getProviderEarningsHistory(providerId),
     getCurrentMonthEstimate(providerId, profile.profileType, profile.isMonetized),
@@ -242,7 +242,7 @@ export async function getProviderEarningsDashboard(providerId: string) {
     }),
     prisma.gift.findMany({
       where: giftRevenueWhere(providerId, firstBucketStart, buckets[buckets.length - 1].end),
-      select: { providerShareCents: true, createdAt: true },
+      select: { valueCents: true, createdAt: true },
     }),
     prisma.engagementMetric.findMany({
       where: { providerId, createdAt: { gte: firstBucketStart, lt: buckets[buckets.length - 1].end } },
@@ -281,7 +281,7 @@ export async function getProviderEarningsDashboard(providerId: string) {
         : rewardsHistory.find((entry) => entry.month === bucket.key)?.amountCents ?? 0;
     const giftCents = monthlyGifts
       .filter((gift) => gift.createdAt >= bucket.start && gift.createdAt < bucket.end)
-      .reduce((sum, gift) => sum + gift.providerShareCents, 0);
+      .reduce((sum, gift) => sum + gift.valueCents, 0);
     const eventCents = monthlyEventTransactions
       .filter((tx) => tx.createdAt >= bucket.start && tx.createdAt < bucket.end)
       .reduce((sum, tx) => sum + tx.amountCents, 0);

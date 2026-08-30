@@ -6,6 +6,7 @@ import { countActivePremiumSubscriptionsInRange, PREMIUM_SUBSCRIPTION_PRICE_CENT
 import { calculatePoints, distributePool } from "@/lib/rewards/points";
 import { recordMonthStartRetentionSnapshot } from "@/lib/rewards/tracking";
 import { isCronAuthorized } from "@/lib/security/cron";
+import { creditProviderWallet } from "@/lib/wallet";
 
 const REWARDS_POOL_SHARE = 0.7;
 
@@ -88,11 +89,18 @@ async function runMonthlyRewards() {
   const earnings = await Promise.all(
     Array.from(payouts.entries()).map(async ([providerId, amountCents]) => {
       const points = pointsByProvider.get(providerId) ?? 0;
+
+      // Never double-credit: once a month's pool share has been credited to
+      // the wallet, a re-run of this cron for the same month must be a no-op.
+      const existing = await prisma.providerEarning.findUnique({ where: { providerId_month: { providerId, month } } });
+      if (existing?.status === "credited") return existing;
+
       const earning = await prisma.providerEarning.upsert({
         where: { providerId_month: { providerId, month } },
-        create: { providerId, month, points, amountCents, status: "pending" },
-        update: { points, amountCents, status: "pending" },
+        create: { providerId, month, points, amountCents, status: "credited" },
+        update: { points, amountCents, status: "credited" },
       });
+      await creditProviderWallet(providerId, amountCents);
       await notifyProviderEarnings(providerId, month, amountCents, points);
       return earning;
     })

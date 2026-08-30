@@ -1,3 +1,5 @@
+import type { ProfileType } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { triggerEvent } from "@/lib/pusher-server";
 import { isBlockedEitherWay } from "@/lib/block";
@@ -51,6 +53,7 @@ const counterpartSelect = {
   username: true,
   displayName: true,
   avatarUrl: true,
+  profileType: true,
 } as const;
 
 export type ConversationParticipant = {
@@ -58,6 +61,7 @@ export type ConversationParticipant = {
   username: string;
   displayName: string;
   avatarUrl: string;
+  profileType: ProfileType;
 };
 
 export type ConversationSummary = {

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 import { processPaymentEvent } from "@/lib/payments/webhook-handler";
 import { getProviderProfile } from "@/lib/provider-types";
+import { creditProviderWallet } from "@/lib/wallet";
 
 export { PROVIDER_PROFILE_TYPES, isProviderProfileType, getProviderProfile } from "@/lib/provider-types";
 
@@ -128,6 +129,7 @@ export async function subscribeToProvider(
     await prisma.transaction.create({
       data: { userId: subscriberId, tierId, amountCents: tier.priceCents, status: "succeeded", provider: "card" },
     });
+    await creditProviderWallet(providerId, tier.priceCents);
     return { ok: true, state: "subscribed" };
   }
 

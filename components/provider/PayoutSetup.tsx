@@ -79,7 +79,7 @@ export function PayoutSetup({ providerId }: { providerId: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold">Payout setup</h2>
-          <p className="text-xs text-muted-foreground">Monthly Paystack payouts run net 15 days.</p>
+          <p className="text-xs text-muted-foreground">Withdraw your wallet balance to your bank anytime — a 10% fee applies at withdrawal.</p>
         </div>
         <Badge variant={payout?.status === "verified" ? "neon" : "outline"}>
           {isLoading ? "checking" : payout?.status ?? "not_started"}
@@ -88,18 +88,18 @@ export function PayoutSetup({ providerId }: { providerId: string }) {
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-border/60 bg-secondary/35 p-3">
-          <p className="text-xs text-muted-foreground">Accumulated balance</p>
+          <p className="text-xs text-muted-foreground">Wallet balance</p>
           <p className="mt-1 text-lg font-semibold">{formatCents(payout?.balanceCents ?? 0)}</p>
         </div>
         <div className="rounded-xl border border-border/60 bg-secondary/35 p-3">
-          <p className="text-xs text-muted-foreground">Minimum payout</p>
+          <p className="text-xs text-muted-foreground">Minimum withdrawal</p>
           <p className="mt-1 text-lg font-semibold">{formatCents(payout?.minimumPayoutCents ?? 1000)}</p>
         </div>
         <div className="rounded-xl border border-border/60 bg-secondary/35 p-3">
-          <p className="text-xs text-muted-foreground">Threshold</p>
+          <p className="text-xs text-muted-foreground">Status</p>
           <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
             {meetsThreshold && <CheckCircle2 className="h-4 w-4 text-neon-cyan" aria-hidden="true" />}
-            {meetsThreshold ? "Ready for next payout" : "Rolls over until eligible"}
+            {meetsThreshold ? "Ready to withdraw" : "Below minimum"}
           </p>
         </div>
       </div>

@@ -3,7 +3,7 @@
  * client (buy-hearts UI, gift picker) — no server-only imports here.
  */
 
-/** 1 heart = 1 cent of real money, before the platform's revenue-share cut on gifts (see GIFT_PROVIDER_SHARE in lib/live-streams.ts). */
+/** 1 heart = 1 cent of real money, credited to the receiving provider's wallet in full (the platform's cut is only taken at withdrawal — see WALLET_WITHDRAWAL_FEE_RATE in lib/wallet.ts). */
 export const HEART_UNIT_PRICE_CENTS = 1;
 
 export type HeartPackage = { id: string; hearts: number; priceCents: number };
@@ -20,5 +20,5 @@ export function getHeartPackage(id: string): HeartPackage | undefined {
   return HEART_PACKAGES.find((pkg) => pkg.id === id);
 }
 
-/** Quick-send presets shown as tappable gift buttons during a live stream. */
+/** Quick-send presets shown as tappable gift buttons — in a live stream, on a provider's profile, or in chat. */
 export const GIFT_PRESETS = [1, 10, 50, 100, 500] as const;

@@ -12,10 +12,10 @@ import {
   useTracks,
 } from "@livekit/components-react";
 import { Heart, Users, X } from "lucide-react";
-import Link from "next/link";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { GiftPicker, type SendGiftOutcome } from "@/components/hearts/gift-picker";
 import { getPusherClient } from "@/lib/pusher-client";
 import {
   liveStreamChannelName,
@@ -23,8 +23,6 @@ import {
   LIVE_GIFT_SENT_EVENT,
   LIVE_STREAM_ENDED_EVENT,
 } from "@/lib/live-stream-channels";
-import { GIFT_PRESETS } from "@/lib/hearts-shared";
-import { cn } from "@/lib/utils";
 
 type ChatMessage = {
   id: string;
@@ -66,8 +64,6 @@ export function LiveRoom({
   const [content, setContent] = useState("");
   const [viewerCount, setViewerCount] = useState<number | null>(null);
   const [recentGift, setRecentGift] = useState<GiftEvent | null>(null);
-  const [heartsBalance, setHeartsBalance] = useState(viewerHeartsBalance);
-  const [giftError, setGiftError] = useState<string | null>(null);
   const [ended, setEnded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -121,8 +117,7 @@ export function LiveRoom({
     });
   }
 
-  async function sendGift(hearts: number) {
-    setGiftError(null);
+  async function sendGift(hearts: number): Promise<SendGiftOutcome> {
     const res = await fetch(`/api/live/${streamId}/gift`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -130,10 +125,9 @@ export function LiveRoom({
     });
     const responseBody = await res.json().catch(() => null);
     if (!res.ok) {
-      setGiftError(responseBody?.error ?? "Couldn't send that gift.");
-      return;
+      return { ok: false, error: responseBody?.error ?? "Couldn't send that gift." };
     }
-    setHeartsBalance(responseBody.heartsBalance);
+    return { ok: true, heartsBalance: responseBody.heartsBalance };
   }
 
   async function endStream() {
@@ -218,34 +212,7 @@ export function LiveRoom({
         </div>
 
         <div className="flex flex-col gap-2 border-t border-white/10 bg-black/90 p-3">
-          {giftError && (
-            <p role="alert" className="text-xs text-destructive-foreground">
-              {giftError}{" "}
-              <Link href="/wallet" className="underline">
-                Buy hearts
-              </Link>
-            </p>
-          )}
-          {!isHost && (
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex gap-1.5">
-                {GIFT_PRESETS.map((hearts) => (
-                  <button
-                    key={hearts}
-                    type="button"
-                    onClick={() => sendGift(hearts)}
-                    className={cn(
-                      "flex items-center gap-1 rounded-full border border-white/20 px-2.5 py-1.5 text-xs font-semibold transition-colors hover:bg-white/10"
-                    )}
-                  >
-                    <Heart className="h-3.5 w-3.5 text-neon-pink" aria-hidden="true" fill="currentColor" />
-                    {hearts}
-                  </button>
-                ))}
-              </div>
-              <span className="shrink-0 text-xs text-white/70">{heartsBalance.toLocaleString()} hearts</span>
-            </div>
-          )}
+          {!isHost && <GiftPicker initialBalance={viewerHeartsBalance} onSend={sendGift} theme="dark" />}
           <form onSubmit={sendChat} className="flex gap-2">
             <input
               value={content}

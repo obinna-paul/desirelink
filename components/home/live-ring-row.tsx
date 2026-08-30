@@ -29,14 +29,14 @@ function RingAvatar({
   isLive: boolean;
 }) {
   return (
-    <div className={cn("relative h-16 w-16 shrink-0 rounded-full p-[2.5px] ring-2 ring-offset-2 ring-offset-background", ringClassName)}>
+    <div className={cn("relative h-12 w-12 shrink-0 rounded-full p-[2px] ring-2", ringClassName)}>
       <Avatar className="h-full w-full">
         <AvatarImage src={avatarUrl} alt="" />
-        <AvatarFallback className="text-sm font-semibold">{displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
+        <AvatarFallback className="text-xs font-semibold">{displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
       </Avatar>
       {isLive && (
-        <span className="absolute -bottom-1 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-full bg-destructive px-1.5 py-0.5 text-[9px] font-bold uppercase text-destructive-foreground">
-          <Radio className="h-2.5 w-2.5" aria-hidden="true" />
+        <span className="absolute -bottom-1 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-full bg-destructive px-1 py-px text-[7px] font-bold uppercase text-destructive-foreground">
+          <Radio className="h-2 w-2" aria-hidden="true" />
           Live
         </span>
       )}
@@ -57,12 +57,12 @@ export function LiveRingRow({
   if (entries.length === 0 && !self?.isProvider) return null;
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-1" aria-label="Live and online now">
+    <div className="flex gap-2 overflow-x-auto" aria-label="Live and online now">
       {entries.map((entry, index) => (
         <Link
           key={entry.id}
           href={entry.isLive ? `/live/${entry.streamId}` : `/profile/${entry.username}`}
-          className="flex w-16 shrink-0 flex-col items-center gap-1.5"
+          className="flex w-14 shrink-0 flex-col items-center gap-1"
         >
           <RingAvatar
             avatarUrl={entry.avatarUrl}
@@ -70,21 +70,21 @@ export function LiveRingRow({
             ringClassName={RING_COLORS[index % RING_COLORS.length]}
             isLive={entry.isLive}
           />
-          <span className="w-full truncate text-center text-[11px] text-muted-foreground">{entry.displayName}</span>
+          <span className="w-full truncate text-center text-[10px] text-muted-foreground">{entry.displayName}</span>
         </Link>
       ))}
 
       {self?.isProvider && (
-        <Link href="/live/go" className="flex w-16 shrink-0 flex-col items-center gap-1.5">
-          <div className="relative h-16 w-16 shrink-0 rounded-full p-[2.5px] ring-2 ring-border ring-offset-2 ring-offset-background">
+        <Link href="/live/go" className="flex w-14 shrink-0 flex-col items-center gap-1">
+          <div className="relative h-12 w-12 shrink-0 rounded-full p-[2px] ring-2 ring-border">
             <Avatar className="h-full w-full">
               <AvatarImage src={self.avatarUrl} alt="" />
               <AvatarFallback>
-                <Video className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+                <Video className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </AvatarFallback>
             </Avatar>
           </div>
-          <span className="text-[11px] font-semibold text-foreground">Host</span>
+          <span className="text-[10px] font-semibold text-foreground">Host</span>
         </Link>
       )}
     </div>

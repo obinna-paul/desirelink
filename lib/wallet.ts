@@ -2,18 +2,34 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
-import { MINIMUM_PAYOUT_CENTS } from "@/lib/payouts";
 import { isProviderProfileType } from "@/lib/provider-types";
 
+/** Minimum wallet balance a provider can withdraw at once. */
+export const MINIMUM_WITHDRAWAL_CENTS = 1000;
+
+/**
+ * Flat platform fee taken only at withdrawal time. Every earning — gift
+ * hearts, tier subscriptions, and the monthly rewards pool — credits the
+ * wallet at its full value; the provider sees and keeps 100% until they
+ * choose to cash out, at which point this cut is taken from the withdrawal.
+ */
+export const WALLET_WITHDRAWAL_FEE_RATE = 0.1;
+
+/** Credits a provider's withdrawable wallet balance by the full amount of an earning — never reduced upfront. */
+export async function creditProviderWallet(providerId: string, amountCents: number): Promise<void> {
+  if (amountCents <= 0) return;
+  await prisma.profile.update({ where: { id: providerId }, data: { walletBalanceCents: { increment: amountCents } } });
+}
+
 export type WithdrawWalletResult =
-  | { ok: true; status: "success" | "pending"; amountCents: number }
+  | { ok: true; status: "success" | "pending"; amountCents: number; feeCents: number; netAmountCents: number }
   | { ok: false; status: number; error: string };
 
 /**
- * Withdraws a provider's full gift-wallet balance (walletBalanceCents) on
- * demand, using the same payout recipient set up for the monthly rewards
- * payout (lib/payouts.ts) — gifts are a separate, running ledger, so this
- * moves independently of the monthly cron.
+ * Withdraws a provider's full wallet balance on demand — the wallet unifies
+ * every earning source (gift hearts, tier subscriptions, and the monthly
+ * rewards pool; see creditProviderWallet's callers), so there's exactly one
+ * withdrawal flow and one fee, applied here rather than per-earning.
  */
 export async function withdrawWalletBalance(providerId: string): Promise<WithdrawWalletResult> {
   const profile = await prisma.profile.findUnique({
@@ -26,23 +42,26 @@ export async function withdrawWalletBalance(providerId: string): Promise<Withdra
   if (!profile.payoutRecipientCode || profile.payoutSetupStatus !== "verified") {
     return { ok: false, status: 400, error: "Set up your payout details before withdrawing." };
   }
-  if (profile.walletBalanceCents < MINIMUM_PAYOUT_CENTS) {
+  if (profile.walletBalanceCents < MINIMUM_WITHDRAWAL_CENTS) {
     return {
       ok: false,
       status: 400,
-      error: `Minimum withdrawal is $${(MINIMUM_PAYOUT_CENTS / 100).toFixed(2)}.`,
+      error: `Minimum withdrawal is $${(MINIMUM_WITHDRAWAL_CENTS / 100).toFixed(2)}.`,
     };
   }
 
   const amountCents = profile.walletBalanceCents;
+  const feeCents = Math.round(amountCents * WALLET_WITHDRAWAL_FEE_RATE);
+  const netAmountCents = amountCents - feeCents;
+
   const withdrawal = await prisma.walletWithdrawal.create({
-    data: { providerId, amountCents, status: "pending" },
+    data: { providerId, amountCents, feeCents, netAmountCents, status: "pending" },
   });
 
   const transfer = await paymentProvider.createPayoutTransfer(
     profile.payoutRecipientCode,
-    amountCents,
-    `udala live gift withdrawal for ${profile.displayName}`,
+    netAmountCents,
+    `udala wallet withdrawal for ${profile.displayName}`,
     { providerId, withdrawalId: withdrawal.id }
   );
 
@@ -66,7 +85,7 @@ export async function withdrawWalletBalance(providerId: string): Promise<Withdra
     }),
   ]);
 
-  return { ok: true, status: transfer.status, amountCents };
+  return { ok: true, status: transfer.status, amountCents, feeCents, netAmountCents };
 }
 
 export async function getWalletOverview(profileId: string) {
@@ -98,7 +117,8 @@ export async function getWalletOverview(profileId: string) {
           select: {
             id: true,
             hearts: true,
-            providerShareCents: true,
+            valueCents: true,
+            context: true,
             createdAt: true,
             sender: { select: { displayName: true, avatarUrl: true } },
           },
@@ -120,7 +140,15 @@ export async function getWalletOverview(profileId: string) {
           where: { providerId: profileId },
           orderBy: { createdAt: "desc" },
           take: 10,
-          select: { id: true, amountCents: true, status: true, createdAt: true, paidAt: true },
+          select: {
+            id: true,
+            amountCents: true,
+            feeCents: true,
+            netAmountCents: true,
+            status: true,
+            createdAt: true,
+            paidAt: true,
+          },
         })
       : Promise.resolve([]),
   ]);

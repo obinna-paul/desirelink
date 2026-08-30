@@ -44,7 +44,9 @@ export function PayoutHistory({ providerId, payouts }: { providerId: string; pay
                   <td className="py-2 pr-4 tabular-nums">{payout.points}</td>
                   <td className="py-2 pr-4 tabular-nums">{formatCents(payout.amountCents)}</td>
                   <td className="py-2 pr-4">
-                    <Badge variant={payout.status === "paid" ? "neon" : "outline"}>{payout.status}</Badge>
+                    <Badge variant={payout.status === "paid" || payout.status === "credited" ? "neon" : "outline"}>
+                      {payout.status}
+                    </Badge>
                   </td>
                   <td className="py-2">
                     <Button asChild variant="outline" size="sm" className="gap-1.5">

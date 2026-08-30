@@ -22,6 +22,8 @@ import { ReportDialog } from "@/components/safety/report-dialog";
 import { ReviewDialog } from "@/components/reviews/review-dialog";
 import { ReviewsSection } from "@/components/reviews/reviews-section";
 import { TierMenu } from "@/components/provider/TierMenu";
+import { SendHeartsButton } from "@/components/hearts/send-hearts-button";
+import { isProviderProfileType } from "@/lib/provider-types";
 import { ServiceListingMenu } from "@/components/provider/ServiceListingMenu";
 import { PremiumBadge } from "@/components/premium/premium-badge";
 import { ProfileViewersPanel } from "@/components/premium/profile-viewers-panel";
@@ -119,6 +121,7 @@ export function ProfileView({
   reviews,
   reviewableContexts = [],
   visibleProfileFields = ALL_PROFILE_FIELD_NAMES,
+  viewerHeartsBalance = 0,
 }: {
   profile: Profile & {
     partner: { username: string; displayName: string; avatarUrl: string } | null;
@@ -138,6 +141,7 @@ export function ProfileView({
   reviews?: ReviewData[];
   reviewableContexts?: ReviewableContext[];
   visibleProfileFields?: ProfileFieldName[];
+  viewerHeartsBalance?: number;
 }) {
   const initials = profile.displayName.slice(0, 2).toUpperCase();
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
@@ -220,6 +224,9 @@ export function ProfileView({
                       <MessageCircle className="h-4 w-4" aria-hidden="true" /> Message
                     </Link>
                   </Button>
+                )}
+                {!isOwner && isProviderProfileType(profile.profileType) && (
+                  <SendHeartsButton providerId={profile.id} initialBalance={viewerHeartsBalance} />
                 )}
                 {reviewableContexts.length > 0 && (
                   <ReviewDialog

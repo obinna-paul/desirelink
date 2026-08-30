@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 import { PREMIUM_SUBSCRIPTION_PRICE_CENTS } from "@/lib/premium";
+import { creditProviderWallet } from "@/lib/wallet";
 
 /**
  * Dunning policy for failed recurring payments, applied by
@@ -259,6 +260,7 @@ async function processProviderSubscription(
     await prisma.transaction.create({
       data: { userId: sub.subscriberId, tierId: sub.tierId, providerSubscriptionId: sub.id, amountCents: tier.priceCents, status: "succeeded", provider: "card" },
     });
+    await creditProviderWallet(sub.providerId, tier.priceCents);
     return "renewed";
   }
 
