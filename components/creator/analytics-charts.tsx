@@ -38,7 +38,7 @@ function ChartCard({
   rows: { label: string; value: string }[];
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
       <div>
         <h3 className="text-sm font-semibold">{title}</h3>
         <p className="text-xs text-muted-foreground">{description}</p>
@@ -49,7 +49,7 @@ function ChartCard({
         <table className="mt-2 w-full border-collapse text-left">
           <caption className="sr-only">{tableCaption}</caption>
           <thead>
-            <tr className="border-b border-border/60">
+            <tr className="border-b border-border">
               <th scope="col" className="py-1 pr-4 font-medium">
                 Month
               </th>
@@ -100,9 +100,9 @@ export function SubscriberGrowthChart({ data }: { data: GrowthPoint[] }) {
           <Line
             type="monotone"
             dataKey="subscribers"
-            stroke="hsl(var(--neon-cyan))"
+            stroke="hsl(var(--primary))"
             strokeWidth={2}
-            dot={{ r: 4, fill: "hsl(var(--neon-cyan))", stroke: "hsl(var(--card))", strokeWidth: 2 }}
+            dot={{ r: 4, fill: "hsl(var(--primary))", stroke: "hsl(var(--card))", strokeWidth: 2 }}
             activeDot={{ r: 5, stroke: "hsl(var(--card))", strokeWidth: 2 }}
           />
         </LineChart>
@@ -140,7 +140,7 @@ export function EarningsChart({ data }: { data: EarningsPoint[] }) {
             cursor={{ fill: "hsl(var(--muted))" }}
             formatter={(value) => [`₦${Number(value).toFixed(2)}`, "Earnings"]}
           />
-          <Bar dataKey="earnings" fill="hsl(var(--neon-pink))" radius={[4, 4, 0, 0]} maxBarSize={24} />
+          <Bar dataKey="earnings" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={24} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>
@@ -176,7 +176,7 @@ export function RewardsEarningsChart({ data }: { data: RewardsPoint[] }) {
             cursor={{ fill: "hsl(var(--muted))" }}
             formatter={(value) => [`₦${Number(value).toFixed(2)}`, "Payout"]}
           />
-          <Bar dataKey="amount" fill="hsl(var(--neon-cyan))" radius={[4, 4, 0, 0]} maxBarSize={24} />
+          <Bar dataKey="amount" fill="hsl(var(--accent-soft))" radius={[4, 4, 0, 0]} maxBarSize={24} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>

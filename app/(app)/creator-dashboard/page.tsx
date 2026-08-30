@@ -76,7 +76,7 @@ export default async function CreatorDashboardPage({
         />
       </div>
       <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+        <h1 className="font-heading text-2xl italic font-semibold tracking-tight text-foreground">
           Dashboard
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Fans, revenue, tiers, and insights.</p>
@@ -109,7 +109,7 @@ async function OverviewTab({ profileId }: { profileId: string }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:gap-4">
       <StatCard label="Active Fans" value={String(stats.subscriberCount)} icon={Users} />
-      <StatCard label="Total revenue" value={formatCents(stats.totalRevenueCents)} icon={DollarSign} />
+      <StatCard label="Total revenue" value={formatCents(stats.totalRevenueCents)} icon={DollarSign} highlight />
       <StatCard label="Profile views" value={stats.profileViews.toLocaleString()} icon={Eye} />
     </div>
   );

@@ -1,22 +1,38 @@
 import type { LucideIcon } from "lucide-react";
 
+import { cn } from "@/lib/utils";
+
 export function StatCard({
   label,
   value,
   icon: Icon,
+  highlight = false,
 }: {
   label: string;
   value: string;
   icon: LucideIcon;
+  highlight?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">
-        <Icon className="h-5 w-5 text-neon-pink" aria-hidden="true" />
+    <div
+      className={cn(
+        "flex items-center gap-3 rounded-2xl border p-4 shadow-card md:rounded-xl",
+        highlight ? "border-transparent bg-foreground text-background" : "border-border bg-card"
+      )}
+    >
+      <span
+        className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+          highlight ? "bg-background/10" : "bg-accent-tint text-primary"
+        )}
+      >
+        <Icon className="h-5 w-5" aria-hidden="true" />
       </span>
       <div className="min-w-0">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className="truncate text-2xl font-semibold md:text-xl">{value}</p>
+        <p className={cn("label-caps text-[10px]", highlight ? "text-background/60" : "text-muted-foreground")}>
+          {label}
+        </p>
+        <p className="font-heading truncate text-2xl italic font-semibold md:text-xl">{value}</p>
       </div>
     </div>
   );

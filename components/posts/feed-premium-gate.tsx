@@ -11,11 +11,11 @@ import { Button } from "@/components/ui/button";
  */
 export function FeedPremiumGate({ count }: { count: number }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-border/60 bg-card p-6 text-center shadow-sm md:rounded-xl md:p-8">
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-secondary">
-        <Lock className="h-5 w-5 text-neon-pink" aria-hidden="true" />
+    <div className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-6 text-center shadow-card md:rounded-xl md:p-8">
+      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-tint">
+        <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
       </span>
-      <p className="text-sm font-semibold">You&apos;ve reached today&apos;s free provider posts</p>
+      <p className="font-heading text-base italic font-medium">You&apos;ve reached today&apos;s free provider posts</p>
       <p className="max-w-sm text-xs leading-5 text-muted-foreground">
         {count > 1
           ? `${count} more provider posts are waiting. Upgrade to Premium for unlimited access to provider content.`

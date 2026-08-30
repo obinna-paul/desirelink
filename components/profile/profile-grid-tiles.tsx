@@ -23,7 +23,7 @@ function TileShell({
   ariaLabel: string;
 }) {
   const className =
-    "group relative aspect-square w-full overflow-hidden rounded-md bg-secondary transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:rounded-lg";
+    "group relative aspect-square w-full overflow-hidden rounded-lg bg-muted transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:rounded-xl";
 
   if (href) {
     return (
@@ -52,9 +52,9 @@ export function PostGridTile({ post, onOpen }: { post: PostView; onOpen: (post: 
   if (post.locked) {
     return (
       <TileShell onClick={() => onOpen(post)} ariaLabel="Locked post. Subscribe to view.">
-        <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-muted px-3 text-center">
-          <Lock className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-          <span className="text-xs font-semibold text-muted-foreground">Subscribe to view</span>
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-accent-tint px-3 text-center">
+          <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
+          <span className="label-caps text-[10px] text-primary">Subscribe to view</span>
         </div>
       </TileShell>
     );

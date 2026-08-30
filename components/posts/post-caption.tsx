@@ -10,7 +10,7 @@ export function PostCaption({ content }: { content: string }) {
   const displayText = expanded || !isLong ? content : content.slice(0, TRUNCATE_LENGTH).trimEnd();
 
   return (
-    <p className="whitespace-pre-wrap px-3 text-sm leading-6 md:px-4">
+    <p className="font-heading whitespace-pre-wrap px-3 text-[14.5px] italic leading-6 md:px-4">
       {displayText}
       {isLong && (expanded ? " " : "… ")}
       {isLong && (

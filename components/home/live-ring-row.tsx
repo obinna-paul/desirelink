@@ -8,8 +8,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import type { LiveRingEntry } from "@/lib/live-streams";
 
-const RING_COLORS = ["ring-primary", "ring-neon-pink", "ring-neon-cyan"];
-
 async function fetcher(url: string) {
   const res = await fetch(url);
   if (!res.ok) throw new Error("Couldn't load live streams.");
@@ -20,16 +18,19 @@ async function fetcher(url: string) {
 function RingAvatar({
   avatarUrl,
   displayName,
-  ringClassName,
   isLive,
 }: {
   avatarUrl: string;
   displayName: string;
-  ringClassName: string;
   isLive: boolean;
 }) {
   return (
-    <div className={cn("relative h-12 w-12 shrink-0 rounded-full p-[2px] ring-2", ringClassName)}>
+    <div
+      className={cn(
+        "relative h-12 w-12 shrink-0 rounded-full p-[2px] ring-2",
+        isLive ? "ring-primary" : "ring-border"
+      )}
+    >
       <Avatar className="h-full w-full">
         <AvatarImage src={avatarUrl} alt="" />
         <AvatarFallback className="text-xs font-semibold">{displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
@@ -57,36 +58,34 @@ export function LiveRingRow({
   if (entries.length === 0 && !self?.isProvider) return null;
 
   return (
-    <div className="flex min-h-20 gap-2 overflow-x-auto py-1" aria-label="Live and online now">
-      {entries.map((entry, index) => (
-        <Link
-          key={entry.id}
-          href={entry.isLive ? `/live/${entry.streamId}` : `/profile/${entry.username}`}
-          className="flex w-14 shrink-0 flex-col items-center gap-1"
-        >
-          <RingAvatar
-            avatarUrl={entry.avatarUrl}
-            displayName={entry.displayName}
-            ringClassName={RING_COLORS[index % RING_COLORS.length]}
-            isLive={entry.isLive}
-          />
-          <span className="w-full truncate text-center text-[10px] text-muted-foreground">{entry.displayName}</span>
-        </Link>
-      ))}
+    <div className="flex flex-col gap-1.5">
+      <p className="font-heading px-3 text-sm italic font-medium md:px-0">Live Now</p>
+      <div className="flex min-h-20 gap-2 overflow-x-auto px-3 py-1 md:px-0" aria-label="Live and online now">
+        {entries.map((entry) => (
+          <Link
+            key={entry.id}
+            href={entry.isLive ? `/live/${entry.streamId}` : `/profile/${entry.username}`}
+            className="flex w-14 shrink-0 flex-col items-center gap-1"
+          >
+            <RingAvatar avatarUrl={entry.avatarUrl} displayName={entry.displayName} isLive={entry.isLive} />
+            <span className="w-full truncate text-center text-[10px] text-muted-foreground">{entry.displayName}</span>
+          </Link>
+        ))}
 
-      {self?.isProvider && (
-        <Link href="/live/go" className="flex w-14 shrink-0 flex-col items-center gap-1">
-          <div className="relative h-12 w-12 shrink-0 rounded-full p-[2px] ring-2 ring-border">
-            <Avatar className="h-full w-full">
-              <AvatarImage src={self.avatarUrl} alt="" />
-              <AvatarFallback>
-                <Video className="h-4 w-4 text-primary" aria-hidden="true" />
-              </AvatarFallback>
-            </Avatar>
-          </div>
-          <span className="text-[10px] font-semibold text-foreground">Host</span>
-        </Link>
-      )}
+        {self?.isProvider && (
+          <Link href="/live/go" className="flex w-14 shrink-0 flex-col items-center gap-1">
+            <div className="relative h-12 w-12 shrink-0 rounded-full p-[2px] ring-2 ring-border">
+              <Avatar className="h-full w-full">
+                <AvatarImage src={self.avatarUrl} alt="" />
+                <AvatarFallback>
+                  <Video className="h-4 w-4 text-primary" aria-hidden="true" />
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            <span className="text-[10px] font-semibold text-foreground">Host</span>
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

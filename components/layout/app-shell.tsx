@@ -12,12 +12,14 @@ export function AppShell({
   isProvider?: boolean;
 }) {
   return (
-    <div className="min-h-screen bg-white dark:bg-background md:bg-background">
+    <div
+      className={`min-h-screen bg-background${isProvider ? "" : " theme-olive"}`}
+    >
       <PresencePing />
       <TopBar />
       <div className="mx-auto flex w-full max-w-[1600px]">
         <SidebarNav isProvider={isProvider} />
-        <main className="mx-auto min-w-0 flex-1 px-3 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:mx-0 md:px-7 md:pb-7 md:pt-4">
+        <main className="mx-auto min-w-0 flex-1 px-3 py-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:mx-0 md:px-7 md:pb-7 md:pt-4">
           {children}
         </main>
         <RightRail />

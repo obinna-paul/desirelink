@@ -43,7 +43,7 @@ export default async function ServicesPage({
         <PageHeader title="Services" description="Find and book a paid service from a verified provider." />
       </div>
       <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">Services</h1>
+        <h1 className="font-heading text-2xl italic font-semibold tracking-tight text-foreground">Services</h1>
         <p className="mt-1 text-sm text-muted-foreground">Find a verified provider near you.</p>
       </div>
 
@@ -59,7 +59,7 @@ export default async function ServicesPage({
 
       <ServiceFiltersPanel initialFilters={filters} />
 
-      <div className="rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+      <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-card md:border-0 md:bg-transparent md:p-0 md:shadow-none">
         {listings.length} {listings.length === 1 ? "service" : "services"} found
       </div>
 

@@ -11,7 +11,7 @@ export function DashboardTabs({
   tabs?: readonly { value: CreatorDashboardTab; label: string }[];
 }) {
   return (
-    <nav className="-mx-3 overflow-x-auto px-3 md:mx-0 md:border-b md:border-border/60 md:px-0">
+    <nav className="-mx-3 overflow-x-auto px-3 md:mx-0 md:border-b md:border-border md:px-0">
       <ul className="flex w-max gap-2 md:w-full md:flex-wrap md:gap-6">
         {tabs.map((tab) => {
           const isActive = tab.value === activeTab;
@@ -21,10 +21,10 @@ export function DashboardTabs({
                 href={`/creator-dashboard?tab=${tab.value}`}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "inline-flex h-10 items-center whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-colors md:h-11 md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-2",
+                  "label-caps inline-flex h-10 items-center whitespace-nowrap rounded-full border px-4 text-[11px] transition-colors md:h-11 md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-2",
                   isActive
-                    ? "border-primary bg-primary text-primary-foreground md:bg-transparent md:text-foreground"
-                    : "border-border/60 bg-card text-muted-foreground hover:text-foreground md:border-transparent md:bg-transparent"
+                    ? "border-primary bg-primary text-primary-foreground md:bg-transparent md:text-primary"
+                    : "border-border bg-card text-muted-foreground hover:text-foreground md:border-transparent md:bg-transparent"
                 )}
               >
                 {tab.label}

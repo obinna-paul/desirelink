@@ -39,8 +39,8 @@ function ServiceListingCard({
   const isOwnListing = viewerProfileId === provider.id;
 
   return (
-    <article className="flex min-h-full flex-col gap-3 rounded-2xl border border-border/60 bg-card shadow-sm transition-colors hover:border-primary/30 md:rounded-xl">
-      <div className="relative aspect-video w-full overflow-hidden rounded-t-2xl bg-secondary md:rounded-t-xl">
+    <article className="flex min-h-full flex-col gap-3 rounded-2xl border border-border bg-card shadow-card transition-colors hover:border-primary/30 md:rounded-xl">
+      <div className="relative aspect-video w-full overflow-hidden rounded-t-2xl bg-avatar-placeholder md:rounded-t-xl">
         {listing.coverImageUrl ? (
           <Image src={listing.coverImageUrl} alt="" fill sizes="(min-width: 768px) 33vw, 100vw" className="object-cover" />
         ) : (
@@ -79,8 +79,8 @@ function ServiceListingCard({
 
         <div className="flex flex-1 flex-col gap-2">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="text-base font-semibold leading-snug">{listing.title}</h2>
-            <Badge variant="outline" className="shrink-0">
+            <h2 className="font-heading text-base italic font-semibold leading-snug">{listing.title}</h2>
+            <Badge variant="tint" className="label-caps shrink-0">
               {listing.category}
             </Badge>
           </div>
@@ -89,12 +89,12 @@ function ServiceListingCard({
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3">
+        <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
           <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Clock className="h-4 w-4" aria-hidden="true" />
             {formatDuration(listing.durationMinutes)}
           </span>
-          <span className="text-sm font-semibold text-foreground">{formatCents(listing.priceCents)}</span>
+          <span className="font-heading text-sm font-semibold text-foreground">{formatCents(listing.priceCents)}</span>
         </div>
 
         {!isOwnListing && viewerProfileId && (
@@ -120,7 +120,7 @@ export function ServiceListingGrid({
 }) {
   if (listings.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 p-8 text-center text-sm text-muted-foreground md:rounded-xl md:p-10">
+      <div className="rounded-2xl border border-dashed border-border bg-card/60 p-8 text-center text-sm text-muted-foreground md:rounded-xl md:p-10">
         {emptyMessage}
       </div>
     );

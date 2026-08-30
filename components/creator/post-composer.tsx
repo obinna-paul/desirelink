@@ -280,16 +280,16 @@ export function PostComposer({
     <>
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm md:rounded-xl md:p-4 md:shadow-none"
+      className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3.5 shadow-card md:rounded-xl md:p-4 md:shadow-none"
     >
-      <div className="grid grid-cols-2 gap-2 rounded-full bg-secondary/60 p-1">
+      <div className="grid grid-cols-2 gap-2 rounded-full bg-muted p-1">
         <button
           type="button"
           aria-pressed={mode === "standard"}
           onClick={() => setMode("standard")}
           className={cn(
-            "min-h-10 rounded-full text-sm font-semibold transition-colors",
-            mode === "standard" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            "label-caps min-h-10 rounded-full text-[11px] transition-colors",
+            mode === "standard" ? "bg-card text-primary shadow-card" : "text-muted-foreground hover:text-foreground"
           )}
         >
           Post
@@ -299,8 +299,8 @@ export function PostComposer({
           aria-pressed={mode === "event"}
           onClick={() => setMode("event")}
           className={cn(
-            "min-h-10 rounded-full text-sm font-semibold transition-colors",
-            mode === "event" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            "label-caps min-h-10 rounded-full text-[11px] transition-colors",
+            mode === "event" ? "bg-card text-primary shadow-card" : "text-muted-foreground hover:text-foreground"
           )}
         >
           Event
@@ -324,7 +324,7 @@ export function PostComposer({
       />
 
       {mode === "event" && (
-        <section className="grid grid-cols-1 gap-3 rounded-2xl border border-border/60 bg-background/50 p-3 md:grid-cols-2">
+        <section className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-background/50 p-3 md:grid-cols-2">
           <div className="md:col-span-2">
             <label htmlFor="feed-event-title" className="text-xs font-medium text-muted-foreground">
               Event title
@@ -435,9 +435,9 @@ export function PostComposer({
               className="mt-1 h-11"
             />
           </div>
-          <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card px-3 text-sm md:col-span-2">
+          <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-2xl border border-border bg-card px-3 text-sm md:col-span-2">
             <span className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-neon-pink" aria-hidden="true" />
+              <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
               Private event
             </span>
             <Switch
@@ -449,8 +449,8 @@ export function PostComposer({
       )}
 
       {(strippedImageCount > 0 || mediaItems.length > 0) && (
-        <div className="flex items-start gap-2 rounded-2xl border border-border/60 bg-secondary/40 p-3 text-xs text-muted-foreground md:rounded-lg">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-neon-cyan" aria-hidden="true" />
+        <div className="flex items-start gap-2 rounded-2xl border border-border bg-muted/60 p-3 text-xs text-muted-foreground md:rounded-lg">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-trust" aria-hidden="true" />
           <p>
             {strippedImageCount > 0
               ? `${strippedImageCount} uploaded ${strippedImageCount === 1 ? "image had" : "images had"} metadata markers and ${strippedImageCount === 1 ? "was" : "were"} re-encoded before upload.`
@@ -464,7 +464,7 @@ export function PostComposer({
           {mediaItems.map((item) => (
             <div
               key={item.url}
-              className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border/60 bg-secondary sm:h-20 sm:w-20 sm:rounded-lg"
+              className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border bg-secondary sm:h-20 sm:w-20 sm:rounded-lg"
             >
               {item.type === "video" ? (
                 <div className="flex h-full w-full items-center justify-center bg-black text-white">
@@ -509,7 +509,12 @@ export function PostComposer({
             className="hidden"
             onChange={handleFiles}
           />
-          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+          <label
+            className={cn(
+              "flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-3 text-sm transition-colors",
+              isSubscriberOnly ? "bg-accent-tint text-primary" : "text-muted-foreground"
+            )}
+          >
             <Switch checked={isSubscriberOnly} onCheckedChange={setIsSubscriberOnly} />
             Fans only
           </label>
@@ -534,7 +539,7 @@ export function PostComposer({
             aria-modal="true"
             aria-labelledby="pii-warning-title"
             aria-describedby="pii-warning-description"
-            className="w-full max-w-md rounded-2xl border border-border/60 bg-card p-5 shadow-lg focus:outline-none md:rounded-xl"
+            className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-lg focus:outline-none md:rounded-xl"
           >
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">
@@ -554,7 +559,7 @@ export function PostComposer({
               {pendingFindings.map((finding) => (
                 <li
                   key={finding.type}
-                  className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/40 px-3 py-2 text-sm md:rounded-lg"
+                  className="flex items-center justify-between rounded-2xl border border-border bg-background/40 px-3 py-2 text-sm md:rounded-lg"
                 >
                   <span>{finding.label}</span>
                   <span className="text-xs text-muted-foreground">

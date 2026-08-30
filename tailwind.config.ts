@@ -10,7 +10,7 @@ const config: Config = {
   theme: {
     fontFamily: {
       sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-      heading: ["var(--font-heading)", "var(--font-sans)", "system-ui", "sans-serif"],
+      heading: ["var(--font-heading)", "Georgia", "serif"],
     },
     container: {
       center: true,
@@ -59,6 +59,13 @@ const config: Config = {
           pink: "hsl(var(--neon-pink))",
           cyan: "hsl(var(--neon-cyan))",
         },
+        "avatar-placeholder": "hsl(var(--avatar-placeholder))",
+        trust: "hsl(var(--trust))",
+        "accent-soft": "hsl(var(--accent-soft))",
+        "accent-tint": {
+          DEFAULT: "hsl(var(--accent-tint))",
+          border: "hsl(var(--accent-tint-border))",
+        },
       },
       boxShadow: {
         card: "var(--shadow-card)",
@@ -66,10 +73,10 @@ const config: Config = {
       },
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
-        xl: "0.875rem",
-        "2xl": "1rem",
+        md: "calc(var(--radius) - 4px)",
+        sm: "calc(var(--radius) - 6px)",
+        xl: "1.375rem",
+        "2xl": "1.75rem",
       },
       keyframes: {
         "float-heart": {

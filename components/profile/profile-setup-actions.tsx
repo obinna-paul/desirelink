@@ -174,7 +174,7 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
     .filter((action): action is (typeof actions)[number] => Boolean(action));
 
   return (
-    <section className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm md:shadow-card">
+    <section className="rounded-2xl border border-border bg-card p-4 shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">Quick actions</p>
@@ -182,13 +182,13 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
             Finish the setup items that affect trust, matching, and profile completeness.
           </p>
         </div>
-        <span className="rounded-full border border-neon-pink/30 bg-neon-pink/10 px-2.5 py-1 text-xs font-semibold text-neon-pink">
-          {progress}%
+        <span className="label-caps rounded-full border border-accent-tint-border bg-accent-tint px-2.5 py-1 text-primary">
+          {completed}/{actions.length}
         </span>
       </div>
 
       <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-neon-pink transition-[width]" style={{ width: `${progress}%` }} />
+        <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress}%` }} />
       </div>
 
       <div className="mt-4 flex flex-col gap-2">
@@ -202,7 +202,7 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
               aria-hidden={isExiting}
               tabIndex={isExiting ? -1 : undefined}
               className={cn(
-                "group flex max-h-24 min-h-[58px] items-center gap-3 overflow-hidden rounded-xl border border-border/60 bg-background/45 px-3 py-2.5 transition-[max-height,min-height,opacity,transform,margin,padding,border-color,background-color] duration-300 ease-out hover:border-neon-pink/40 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring motion-reduce:transition-none",
+                "group flex max-h-24 min-h-[58px] items-center gap-3 overflow-hidden rounded-xl border border-border bg-muted/60 px-3 py-2.5 transition-[max-height,min-height,opacity,transform,margin,padding,border-color,background-color] duration-300 ease-out hover:border-primary/40 hover:bg-accent-tint/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring motion-reduce:transition-none",
                 isExiting && "pointer-events-none max-h-0 -translate-x-8 border-transparent py-0 opacity-0"
               )}
             >
@@ -211,7 +211,7 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
                   "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border",
                   action.done
                     ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    : "border-neon-pink/25 bg-neon-pink/10 text-neon-pink"
+                    : "border-accent-tint-border bg-accent-tint text-primary"
                 )}
               >
                 {action.done ? <Check className="h-4 w-4" aria-hidden="true" /> : <Icon className="h-4 w-4" aria-hidden="true" />}
@@ -229,8 +229,8 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
         )}
       </div>
 
-      <div className="mt-4 flex items-start gap-2 rounded-xl border border-border/60 bg-background/45 p-3 text-xs leading-5 text-muted-foreground">
-        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neon-pink" aria-hidden="true" />
+      <div className="mt-4 flex items-start gap-2 rounded-xl border border-border bg-muted/60 p-3 text-xs leading-5 text-muted-foreground">
+        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
         <p>Location can stay approximate. Exact location remains off unless you enable it.</p>
       </div>
     </section>

@@ -49,9 +49,9 @@ export function BuyHeartsPanel() {
             type="button"
             disabled={pendingId !== null}
             onClick={() => buy(pkg.id)}
-            className="flex flex-col items-center gap-1 rounded-2xl border border-border/60 bg-card p-4 text-center transition-colors hover:border-primary disabled:opacity-60"
+            className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-card p-4 text-center transition-colors hover:border-primary disabled:opacity-60"
           >
-            <Heart className="h-5 w-5 text-neon-pink" aria-hidden="true" fill="currentColor" />
+            <Heart className="h-5 w-5 text-primary" aria-hidden="true" fill="currentColor" />
             <span className="text-sm font-semibold">{pkg.hearts.toLocaleString()}</span>
             <span className="text-xs text-muted-foreground">{formatCents(pkg.priceCents)}</span>
           </button>

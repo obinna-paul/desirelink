@@ -4,60 +4,150 @@
 
 @layer base {
   :root {
-    --background: 40 18% 94%;
-    --foreground: 260 16% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 260 16% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 260 16% 10%;
-    --primary: 276 72% 45%;
+    /* Warm & editorial — base neutrals (clay is the default/Provider accent) */
+    --background: 35 40% 94%;
+    --foreground: 30 16% 12%;
+    --card: 36 100% 99%;
+    --card-foreground: 30 16% 12%;
+    --popover: 36 100% 99%;
+    --popover-foreground: 30 16% 12%;
+    --primary: 17 53% 47%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 42 17% 90%;
-    --secondary-foreground: 260 15% 14%;
-    --muted: 42 17% 91%;
-    --muted-foreground: 260 7% 38%;
-    --accent: 42 18% 88%;
-    --accent-foreground: 260 15% 14%;
+    --secondary: 29 55% 90%;
+    --secondary-foreground: 30 16% 12%;
+    --muted: 36 30% 92%;
+    --muted-foreground: 27 7% 51%;
+    --accent: 36 30% 90%;
+    --accent-foreground: 30 16% 12%;
     --destructive: 0 72% 42%;
     --destructive-foreground: 0 0% 100%;
-    --border: 38 14% 82%;
-    --input: 38 14% 76%;
-    --ring: 276 72% 45%;
-    --radius: 0.75rem;
+    --border: 36 29% 87%;
+    --input: 36 25% 80%;
+    --ring: 17 53% 47%;
+    --radius: 1.25rem;
 
-    --sidebar: 40 18% 96%;
+    --sidebar: 35 40% 96%;
+    --avatar-placeholder: 34 21% 81%;
+    --trust: 162 40% 31%;
+
+    /* Accent-palette system: clay (default) / olive (Explorer) / plum / gold */
+    --accent-soft: 23 56% 65%;
+    --accent-tint: 29 55% 90%;
+    --accent-tint-border: 28 54% 79%;
+
     --neon-pink: 335 70% 42%;
     --neon-cyan: 190 65% 32%;
-    --shadow-card: 0 12px 28px hsl(35 12% 20% / 0.08);
-    --shadow-lift: 0 12px 28px hsl(35 12% 20% / 0.14);
+    --shadow-card: 0 12px 28px hsl(30 40% 10% / 0.08);
+    --shadow-lift: 0 12px 28px hsl(30 40% 10% / 0.14);
+  }
+
+  /* Explicit clay reset, for Provider-branded content nested inside an Explorer's olive-themed shell */
+  .theme-clay {
+    --primary: 17 53% 47%;
+    --ring: 17 53% 47%;
+    --secondary: 29 55% 90%;
+    --accent-soft: 23 56% 65%;
+    --accent-tint: 29 55% 90%;
+    --accent-tint-border: 28 54% 79%;
+  }
+
+  .dark .theme-clay {
+    --primary: 17 55% 52%;
+    --ring: 17 55% 52%;
+    --secondary: 20 26% 18%;
+    --accent-soft: 23 55% 70%;
+    --accent-tint: 20 26% 18%;
+    --accent-tint-border: 20 28% 30%;
+  }
+
+  /* Explorer surfaces use the olive accent instead of clay */
+  .theme-olive {
+    --primary: 64 32% 36%;
+    --ring: 64 32% 36%;
+    --secondary: 60 28% 89%;
+    --accent-soft: 66 22% 58%;
+    --accent-tint: 60 28% 89%;
+    --accent-tint-border: 64 33% 71%;
+  }
+
+  .theme-plum {
+    --primary: 320 24% 39%;
+    --ring: 320 24% 39%;
+    --secondary: 321 29% 91%;
+    --accent-soft: 325 19% 62%;
+    --accent-tint: 321 29% 91%;
+    --accent-tint-border: 325 27% 78%;
+  }
+
+  .theme-gold {
+    --primary: 39 70% 39%;
+    --ring: 39 70% 39%;
+    --secondary: 41 57% 87%;
+    --accent-soft: 40 56% 60%;
+    --accent-tint: 41 57% 87%;
+    --accent-tint-border: 40 59% 70%;
   }
 
   .dark {
-    --background: 0 0% 0%;
-    --foreground: 0 0% 96%;
-    --card: 0 0% 4%;
-    --card-foreground: 0 0% 96%;
-    --popover: 0 0% 5%;
-    --popover-foreground: 0 0% 96%;
-    --primary: 276 72% 55%;
+    --background: 30 10% 7%;
+    --foreground: 35 25% 94%;
+    --card: 30 9% 11%;
+    --card-foreground: 35 25% 94%;
+    --popover: 30 9% 11%;
+    --popover-foreground: 35 25% 94%;
+    --primary: 17 55% 52%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 8%;
-    --secondary-foreground: 0 0% 92%;
-    --muted: 0 0% 9%;
-    --muted-foreground: 0 0% 66%;
-    --accent: 0 0% 11%;
-    --accent-foreground: 0 0% 96%;
-    --destructive: 0 72% 51%;
+    --secondary: 20 26% 18%;
+    --secondary-foreground: 35 25% 94%;
+    --muted: 30 8% 16%;
+    --muted-foreground: 30 8% 62%;
+    --accent: 30 8% 16%;
+    --accent-foreground: 35 25% 94%;
+    --destructive: 0 65% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 18%;
-    --input: 0 0% 20%;
-    --ring: 276 72% 55%;
+    --border: 30 8% 20%;
+    --input: 30 8% 24%;
+    --ring: 17 55% 52%;
 
-    --sidebar: 0 0% 5%;
+    --sidebar: 30 9% 9%;
+    --avatar-placeholder: 30 8% 28%;
+    --trust: 162 35% 46%;
+
+    --accent-soft: 23 55% 70%;
+    --accent-tint: 20 26% 18%;
+    --accent-tint-border: 20 28% 30%;
+
     --neon-pink: 335 74% 68%;
     --neon-cyan: 190 46% 61%;
     --shadow-card: 0 12px 28px hsl(0 0% 0% / 0.32);
     --shadow-lift: 0 12px 28px hsl(0 0% 0% / 0.46);
+  }
+
+  .dark .theme-olive {
+    --primary: 66 28% 46%;
+    --ring: 66 28% 46%;
+    --secondary: 64 18% 16%;
+    --accent-soft: 66 24% 66%;
+    --accent-tint: 64 18% 16%;
+    --accent-tint-border: 64 20% 28%;
+  }
+
+  .dark .theme-plum {
+    --primary: 322 26% 50%;
+    --ring: 322 26% 50%;
+    --secondary: 322 18% 17%;
+    --accent-soft: 325 24% 70%;
+    --accent-tint: 322 18% 17%;
+    --accent-tint-border: 322 20% 29%;
+  }
+
+  .dark .theme-gold {
+    --primary: 40 60% 48%;
+    --ring: 40 60% 48%;
+    --secondary: 40 28% 16%;
+    --accent-soft: 42 55% 66%;
+    --accent-tint: 40 28% 16%;
+    --accent-tint-border: 40 30% 28%;
   }
 
   * {
@@ -72,5 +162,9 @@
   h2,
   h3 {
     @apply font-heading;
+  }
+
+  .label-caps {
+    @apply font-sans font-bold uppercase tracking-[0.06em];
   }
 }

@@ -96,30 +96,30 @@ function CreateOptionCard({
         className={cn(
           "group flex min-h-[104px] items-center gap-4 rounded-2xl border p-4 transition-[background,border-color,box-shadow,transform] hover:-translate-y-0.5",
           isActive
-            ? "border-foreground bg-foreground text-background shadow-lift"
-            : "border-border/70 bg-card text-foreground shadow-sm hover:border-primary/35 hover:shadow-lift"
+            ? "border-transparent bg-primary text-primary-foreground shadow-lift"
+            : "border-border bg-card text-foreground shadow-card hover:border-primary/35 hover:shadow-lift"
         )}
       >
         <span
           className={cn(
             "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border",
             isActive
-              ? "border-background/20 bg-background/10"
-              : "border-border/70 bg-secondary text-primary"
+              ? "border-white/25 bg-white/15"
+              : "border-accent-tint-border bg-accent-tint text-primary"
           )}
         >
           <Icon className="h-5 w-5" aria-hidden />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-heading text-xl font-semibold tracking-tight">{option.label}</span>
-          <span className={cn("mt-1 block text-sm leading-5", isActive ? "text-background/72" : "text-muted-foreground")}>
+          <span className="font-heading block text-xl italic font-semibold tracking-tight">{option.label}</span>
+          <span className={cn("mt-1 block text-sm leading-5", isActive ? "text-primary-foreground/75" : "text-muted-foreground")}>
             {option.description}
           </span>
         </span>
         <span
           className={cn(
             "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-transform group-hover:translate-x-0.5",
-            isActive ? "bg-background/15" : "bg-secondary text-muted-foreground"
+            isActive ? "bg-white/15" : "bg-accent-tint text-muted-foreground"
           )}
         >
           <ArrowRight className="h-4 w-4" aria-hidden />
@@ -136,10 +136,8 @@ function CreateOptionCard({
         "group relative flex overflow-hidden rounded-[22px] border p-4 transition-[background,border-color,box-shadow,transform] hover:-translate-y-0.5 md:rounded-2xl",
         layout === "desktop" ? "min-h-[332px] p-6" : "min-h-[132px]",
         isActive
-          ? option.primary
-            ? "border-transparent bg-primary text-primary-foreground shadow-lift"
-            : "border-foreground bg-foreground text-background shadow-lift"
-          : "border-border/70 bg-card text-foreground shadow-sm hover:border-primary/35 hover:shadow-lift"
+          ? "border-transparent bg-primary text-primary-foreground shadow-lift"
+          : "border-border bg-card text-foreground shadow-card hover:border-primary/35 hover:shadow-lift"
       )}
     >
       {option.primary && (
@@ -153,23 +151,15 @@ function CreateOptionCard({
           <span
             className={cn(
               "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border",
-              isActive
-                ? option.primary
-                  ? "border-white/25 bg-white/15 text-white"
-                  : "border-background/20 bg-background/10"
-                : "border-border/70 bg-background text-primary"
+              isActive ? "border-white/25 bg-white/15" : "border-accent-tint-border bg-accent-tint text-primary"
             )}
           >
             <Icon className="h-5 w-5" aria-hidden />
           </span>
           <span
             className={cn(
-              "rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em]",
-              isActive
-                ? option.primary
-                  ? "bg-white/15 text-white"
-                  : "bg-background/10 text-background/80"
-                : "bg-secondary text-muted-foreground"
+              "label-caps rounded-full px-2.5 py-1 text-[11px]",
+              isActive ? "bg-white/15 text-white" : "bg-accent-tint text-primary"
             )}
           >
             {option.eyebrow}
@@ -177,7 +167,7 @@ function CreateOptionCard({
         </span>
 
         <span className="block min-w-0">
-          <span className={cn("block font-heading text-2xl font-semibold", layout === "desktop" ? "md:text-4xl" : "")}>
+          <span className={cn("font-heading block italic text-2xl font-semibold", layout === "desktop" ? "md:text-4xl" : "")}>
             {option.label}
           </span>
           <span
@@ -258,7 +248,7 @@ export default async function CreatePage({
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 md:gap-6">
       <div className="md:hidden">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+        <h1 className="font-heading text-2xl italic font-semibold tracking-tight text-foreground">
           Create
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -269,18 +259,18 @@ export default async function CreatePage({
       <section className="hidden md:block">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-semibold text-muted-foreground shadow-sm">
-              <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+            <div className="label-caps inline-flex items-center gap-2 rounded-full border border-accent-tint-border bg-accent-tint px-3 py-1 text-[11px] text-primary">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
               Publishing studio
             </div>
-            <h1 className="mt-4 font-heading text-4xl font-semibold tracking-tight text-foreground">
+            <h1 className="font-heading mt-4 text-4xl italic font-semibold tracking-tight text-foreground">
               What are you creating today?
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
               Start with a feed post, or switch into an event, service, or room without leaving the flow.
             </p>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm">
+          <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-card">
             <span className="font-semibold text-foreground">Post is primary.</span> The rest are creation paths.
           </div>
         </div>
@@ -304,10 +294,10 @@ export default async function CreatePage({
       <section className="flex flex-col gap-4">
         <div className="hidden items-end justify-between md:flex">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+            <p className="label-caps text-[11px] text-primary">
               {activeType === "post" ? "Compose" : "Create"}
             </p>
-            <h2 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground">
+            <h2 className="font-heading mt-1 text-2xl italic font-semibold tracking-tight text-foreground">
               {createOptions.find((option) => option.type === activeType)?.label}
             </h2>
           </div>

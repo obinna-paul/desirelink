@@ -35,7 +35,7 @@ function ToggleChip({
         "inline-flex min-h-11 items-center rounded-full border px-3 text-sm transition-colors",
         pressed
           ? "border-transparent bg-primary text-primary-foreground"
-          : "border-border/60 bg-card text-muted-foreground hover:border-neon-pink/60 hover:text-foreground"
+          : "border-border bg-card text-muted-foreground hover:border-primary/60 hover:text-foreground"
       )}
     >
       {label}
@@ -108,7 +108,7 @@ export function ServiceFiltersPanel({ initialFilters }: { initialFilters: Servic
   }
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card shadow-sm md:rounded-xl md:shadow-none">
+    <section className="rounded-2xl border border-border bg-card shadow-sm md:rounded-xl md:shadow-none">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
@@ -127,7 +127,7 @@ export function ServiceFiltersPanel({ initialFilters }: { initialFilters: Servic
         <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} aria-hidden="true" />
       </button>
 
-      <div className={cn("flex-col gap-5 border-t border-border/60 p-4 md:flex md:border-t-0", open ? "flex" : "hidden")}>
+      <div className={cn("flex-col gap-5 border-t border-border p-4 md:flex md:border-t-0", open ? "flex" : "hidden")}>
         <div className="hidden text-sm font-semibold md:block">Filters</div>
         <FilterSection title="Category">
           <div className="flex flex-wrap gap-2">

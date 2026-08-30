@@ -13,31 +13,33 @@ import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import type { PostView } from "@/lib/posts";
 
-function LockedPostBody({ reason }: { reason: PostView["lockReason"] }) {
+function LockedPostBody({
+  reason,
+  authorUsername,
+}: {
+  reason: PostView["lockReason"];
+  authorUsername: string;
+}) {
   const isPremiumLimit = reason === "premium_provider_limit";
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border/60 md:rounded-lg">
-      <div aria-hidden="true" className="select-none space-y-2 p-4 blur-sm">
-        <div className="h-3 w-3/4 rounded bg-muted" />
-        <div className="h-3 w-full rounded bg-muted" />
-        <div className="h-3 w-2/3 rounded bg-muted" />
-        <div className="mt-2 h-28 w-full rounded-lg bg-muted" />
-      </div>
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-background/78 px-4 text-center backdrop-blur-sm">
-        <Lock className="h-6 w-6 text-neon-pink" aria-hidden="true" />
-        <p className="text-sm font-medium">{isPremiumLimit ? "Premium access" : "Fans only"}</p>
-        <p className="max-w-xs text-xs text-muted-foreground">
-          {isPremiumLimit
-            ? "Free accounts can view 5 free provider posts per day. Upgrade for unlimited provider content."
-            : "Subscribe to this creator to see this post."}
-        </p>
-        {isPremiumLimit && (
-          <Button asChild size="sm" className="mt-1">
-            <Link href="/settings/billing">Upgrade</Link>
-          </Button>
-        )}
-      </div>
+    <div className="relative flex aspect-[4/5] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl bg-foreground px-6 text-center text-background md:rounded-lg">
+      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-background/10">
+        <Lock className="h-5 w-5" aria-hidden="true" />
+      </span>
+      <p className="font-heading text-lg italic font-medium">
+        {isPremiumLimit ? "Premium access" : "Subscriber exclusive"}
+      </p>
+      <p className="max-w-xs text-sm text-background/70">
+        {isPremiumLimit
+          ? "Free accounts can view 5 free provider posts per day. Upgrade for unlimited provider content."
+          : "Subscribe to this creator to see this post."}
+      </p>
+      <Button asChild size="sm" className="mt-1">
+        <Link href={isPremiumLimit ? "/settings/billing" : `/profile/${authorUsername}`}>
+          {isPremiumLimit ? "Upgrade to Premium" : "Subscribe to Unlock"}
+        </Link>
+      </Button>
     </div>
   );
 }
@@ -47,7 +49,7 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
   const initials = post.author.displayName.slice(0, 2).toUpperCase();
 
   return (
-    <article className="-mx-3 flex flex-col gap-3 border-b border-border/60 bg-card pb-3 md:mx-0 md:gap-3 md:rounded-xl md:border md:pb-4 md:shadow-card">
+    <article className="-mx-3 flex flex-col gap-3 border-b border-border bg-card pb-3 md:mx-0 md:gap-3 md:rounded-xl md:border md:pb-4 md:shadow-card">
       <div className="flex items-center justify-between gap-2 px-3 pt-3 md:px-4 md:pt-4">
         {showAuthor ? (
           <Link href={`/profile/${post.author.username}`} className="flex min-w-0 items-center gap-2.5">
@@ -65,13 +67,13 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
         )}
         <div className="flex shrink-0 items-center gap-1.5">
           {post.isSubscriberOnly && (
-            <Badge variant="outline" className="gap-1 text-muted-foreground">
-              <Lock className="h-3 w-3" aria-hidden="true" /> Fans only
+            <Badge variant="tint" className="label-caps gap-1">
+              <Lock className="h-3 w-3" aria-hidden="true" /> Premium
             </Badge>
           )}
           {post.lockReason === "premium_provider_limit" && (
-            <Badge variant="outline" className="gap-1 text-muted-foreground">
-              <Lock className="h-3 w-3" aria-hidden="true" /> premium
+            <Badge variant="outline" className="label-caps gap-1 text-muted-foreground">
+              <Lock className="h-3 w-3" aria-hidden="true" /> Limit reached
             </Badge>
           )}
           {post.viewerCanManage ? (
@@ -89,7 +91,7 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
 
       {post.locked ? (
         <div className="px-3 md:px-4">
-          <LockedPostBody reason={post.lockReason} />
+          <LockedPostBody reason={post.lockReason} authorUsername={post.author.username} />
         </div>
       ) : (
         <>

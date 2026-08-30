@@ -9,7 +9,6 @@ import {
   LayoutGrid,
   LineChart,
   Lock,
-  MapPin,
   MessageCircle,
   Pencil,
   Star,
@@ -122,9 +121,9 @@ export function CreatorProfileView({
     isOwner;
 
   return (
-    <div className="w-full min-w-0">
+    <div className="theme-clay w-full min-w-0">
       <div className="mx-auto flex max-w-4xl flex-col gap-4 md:gap-6">
-      <section className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm md:rounded-3xl">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-card md:rounded-3xl">
         {isOwner ? (
           <BannerUploader bannerUrl={profile.bannerUrl} />
         ) : profile.bannerUrl ? (
@@ -137,16 +136,19 @@ export function CreatorProfileView({
 
         <div className="px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
-            <div className="relative -mt-10 shrink-0 self-start sm:-mt-14 md:mt-0">
-              <Avatar className="h-20 w-20 border-4 border-card bg-secondary shadow-md sm:h-24 sm:w-24 md:h-28 md:w-28">
+            <div className="relative -mt-10 flex shrink-0 flex-col items-center self-start sm:-mt-14 md:mt-0">
+              <Avatar className="h-20 w-20 rounded-[26px] border-4 border-card bg-avatar-placeholder shadow-lift sm:h-24 sm:w-24 md:h-28 md:w-28">
                 <AvatarImage src={profile.avatarUrl} alt={profile.displayName} />
-                <AvatarFallback className="text-lg md:text-2xl">{initials}</AvatarFallback>
+                <AvatarFallback className="rounded-[26px] text-lg md:text-2xl">{initials}</AvatarFallback>
               </Avatar>
+              <Badge variant="tint" className="label-caps -mt-2.5 shrink-0 whitespace-nowrap px-2.5">
+                {accountTypeLabel ?? "Creator"}
+              </Badge>
               {isOwner && (
                 <Link
                   href="/profile/edit"
                   aria-label="Edit profile photo"
-                  className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-foreground text-background hover:bg-foreground/90"
+                  className="absolute right-0 top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-foreground text-background hover:bg-foreground/90"
                 >
                   <Camera className="h-3.5 w-3.5" aria-hidden="true" />
                 </Link>
@@ -162,18 +164,18 @@ export function CreatorProfileView({
                 {isPremium && <PremiumBadge />}
               </div>
 
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <p className="text-sm text-muted-foreground">@{profile.username}</p>
-                {accountTypeLabel && (
-                  <Badge variant="outline" className="whitespace-nowrap">
-                    {accountTypeLabel}
-                  </Badge>
-                )}
-              </div>
+              <p className="mt-1 text-sm text-muted-foreground">@{profile.username}</p>
 
-              {visibleFieldSet.has("location") && profile.showExactLocation && location && (
-                <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4" aria-hidden="true" /> {location}
+              {(accountTypeLabel || location) && (
+                <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm text-foreground">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-tint text-primary">
+                    <Briefcase className="h-3.5 w-3.5" aria-hidden="true" />
+                  </span>
+                  {accountTypeLabel}
+                  {accountTypeLabel && location && visibleFieldSet.has("location") && profile.showExactLocation && (
+                    <span className="text-muted-foreground"> · </span>
+                  )}
+                  {visibleFieldSet.has("location") && profile.showExactLocation && location}
                 </p>
               )}
 
@@ -189,20 +191,20 @@ export function CreatorProfileView({
                 </p>
               )}
 
-              <div className="mt-4 flex max-w-sm gap-2 rounded-2xl border border-border/60 bg-background/55 p-2 text-center">
+              <div className="mt-4 flex max-w-sm gap-2 rounded-2xl border border-border bg-muted p-2 text-center">
                 <div className="flex-1 rounded-xl bg-card px-2 py-2">
                   <p className="text-base font-semibold">{posts.length}</p>
-                  <p className="text-xs text-muted-foreground">Posts</p>
+                  <p className="label-caps text-[10px] text-muted-foreground">Posts</p>
                 </div>
                 <div className="flex-1 rounded-xl bg-card px-2 py-2">
                   <p className="text-base font-semibold">{stats.subscriberCount}</p>
-                  <p className="text-xs text-muted-foreground">Subscribers</p>
+                  <p className="label-caps text-[10px] text-muted-foreground">Subscribers</p>
                 </div>
-                <Link href={sectionHref(profileHref, "reviews")} className="flex-1 rounded-xl bg-card px-2 py-2 hover:bg-secondary">
+                <Link href={sectionHref(profileHref, "reviews")} className="flex-1 rounded-xl bg-card px-2 py-2 hover:bg-accent-tint">
                   <p className="text-base font-semibold">
                     {reviewSummary.totalCount > 0 ? reviewSummary.averageRating.toFixed(1) : "—"}
                   </p>
-                  <p className="text-xs text-muted-foreground">Rating</p>
+                  <p className="label-caps text-[10px] text-muted-foreground">Rating</p>
                 </Link>
               </div>
 
@@ -252,9 +254,9 @@ export function CreatorProfileView({
           {isOwner && (
             <Link
               href="/creator-dashboard"
-              className="mt-4 flex items-center gap-3 rounded-2xl border border-border/60 bg-background/55 p-3.5 transition-colors hover:border-primary/40 sm:p-4"
+              className="mt-4 flex items-center gap-3 rounded-2xl border border-accent-tint-border bg-accent-tint/50 p-3.5 transition-colors hover:bg-accent-tint sm:p-4"
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <LineChart className="h-5 w-5" aria-hidden="true" />
               </span>
               <span className="min-w-0 flex-1">
@@ -267,7 +269,7 @@ export function CreatorProfileView({
           )}
 
           {hasAboutContent && (
-            <details className="group mt-4 rounded-2xl border border-border/60 bg-background/45 px-4 py-1 open:pb-4">
+            <details className="group mt-4 rounded-2xl border border-border bg-muted/60 px-4 py-1 open:pb-4">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 py-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
                 About {profile.displayName}
                 <span aria-hidden="true" className="shrink-0 text-muted-foreground transition-transform group-open:rotate-45">
@@ -279,11 +281,11 @@ export function CreatorProfileView({
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {visibleFieldSet.has("identity") && (
                       <>
-                        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
+                        <div className="rounded-xl border border-border bg-card px-3 py-2">
                           <p className="text-xs text-muted-foreground">Gender</p>
                           <p className="text-sm font-medium">{profile.gender || "Unspecified"}</p>
                         </div>
-                        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
+                        <div className="rounded-xl border border-border bg-card px-3 py-2">
                           <p className="text-xs text-muted-foreground">Orientation</p>
                           <p className="text-sm font-medium">{profile.orientation || "Unspecified"}</p>
                         </div>
@@ -291,13 +293,13 @@ export function CreatorProfileView({
                     )}
                     {visibleFieldSet.has("availability") && (
                       <>
-                        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
+                        <div className="rounded-xl border border-border bg-card px-3 py-2">
                           <p className="text-xs text-muted-foreground">Chat</p>
                           <p className="text-sm font-medium">
                             {profile.openToChat ? "Open to chat" : "Not open to chat"}
                           </p>
                         </div>
-                        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
+                        <div className="rounded-xl border border-border bg-card px-3 py-2">
                           <p className="text-xs text-muted-foreground">Meet</p>
                           <p className="text-sm font-medium">
                             {profile.openToMeet ? "Open to meet" : "Not open to meet"}
@@ -339,7 +341,7 @@ export function CreatorProfileView({
 
       <nav
         aria-label="Profile sections"
-        className="-mx-3 flex min-w-0 gap-2 overflow-x-auto px-3 pb-1 md:mx-0 md:gap-6 md:border-b md:border-border/70 md:px-0 md:pb-0"
+        className="-mx-3 flex min-w-0 gap-2 overflow-x-auto px-3 pb-1 md:mx-0 md:gap-6 md:border-b md:border-border md:px-0 md:pb-0"
       >
         {CREATOR_SECTIONS.map((item) => (
           <ProfileSectionTab
