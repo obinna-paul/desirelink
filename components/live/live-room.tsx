@@ -5,18 +5,22 @@ import { useRouter } from "next/navigation";
 import { Track } from "livekit-client";
 import type { PresenceChannel } from "pusher-js";
 import {
+  ConnectionStateToast,
   GridLayout,
   LiveKitRoom,
   ParticipantTile,
   RoomAudioRenderer,
+  TrackToggle,
+  useLocalParticipant,
   useTracks,
 } from "@livekit/components-react";
-import { Heart, Users, X } from "lucide-react";
+import { Heart, SwitchCamera, Users, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { GiftPicker, type SendGiftOutcome } from "@/components/hearts/gift-picker";
 import { getPusherClient } from "@/lib/pusher-client";
+import { cn } from "@/lib/utils";
 import {
   liveStreamChannelName,
   LIVE_CHAT_MESSAGE_EVENT,
@@ -33,12 +37,62 @@ type ChatMessage = {
 
 type GiftEvent = { hearts: number; sender: { displayName: string; avatarUrl: string } };
 
+const CONTROL_PILL =
+  "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition-colors";
+
 function VideoGrid() {
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }]);
   return (
     <GridLayout tracks={tracks} style={{ height: "100%" }}>
       <ParticipantTile />
     </GridLayout>
+  );
+}
+
+function HostControls({
+  initialCameraEnabled,
+  initialMicEnabled,
+}: {
+  initialCameraEnabled: boolean;
+  initialMicEnabled: boolean;
+}) {
+  const { localParticipant } = useLocalParticipant();
+  const [micOn, setMicOn] = useState(initialMicEnabled);
+  const [camOn, setCamOn] = useState(initialCameraEnabled);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+
+  async function flipCamera() {
+    const next = facingMode === "user" ? "environment" : "user";
+    setFacingMode(next);
+    if (camOn) await localParticipant.setCameraEnabled(true, { facingMode: next });
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <TrackToggle
+        source={Track.Source.Microphone}
+        initialState={initialMicEnabled}
+        onChange={setMicOn}
+        aria-label={micOn ? "Mute microphone" : "Unmute microphone"}
+        className={cn(CONTROL_PILL, micOn ? "bg-white/15 hover:bg-white/25" : "bg-destructive")}
+      />
+      <TrackToggle
+        source={Track.Source.Camera}
+        initialState={initialCameraEnabled}
+        onChange={setCamOn}
+        aria-label={camOn ? "Turn camera off" : "Turn camera on"}
+        className={cn(CONTROL_PILL, camOn ? "bg-white/15 hover:bg-white/25" : "bg-destructive")}
+      />
+      <button
+        type="button"
+        onClick={flipCamera}
+        aria-label="Flip camera"
+        disabled={!camOn}
+        className={cn(CONTROL_PILL, "bg-white/15 hover:bg-white/25 disabled:opacity-40")}
+      >
+        <SwitchCamera className="h-5 w-5" aria-hidden="true" />
+      </button>
+    </div>
   );
 }
 
@@ -50,6 +104,8 @@ export function LiveRoom({
   title,
   provider,
   viewerHeartsBalance,
+  initialCameraEnabled = true,
+  initialMicEnabled = true,
 }: {
   streamId: string;
   token: string;
@@ -58,6 +114,8 @@ export function LiveRoom({
   title: string;
   provider: { username: string; displayName: string; avatarUrl: string };
   viewerHeartsBalance: number;
+  initialCameraEnabled?: boolean;
+  initialMicEnabled?: boolean;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -65,6 +123,7 @@ export function LiveRoom({
   const [viewerCount, setViewerCount] = useState<number | null>(null);
   const [recentGift, setRecentGift] = useState<GiftEvent | null>(null);
   const [ended, setEnded] = useState(false);
+  const [confirmEnd, setConfirmEnd] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -105,6 +164,12 @@ export function LiveRoom({
     };
   }, [streamId]);
 
+  useEffect(() => {
+    if (!confirmEnd) return;
+    const timeout = setTimeout(() => setConfirmEnd(false), 3000);
+    return () => clearTimeout(timeout);
+  }, [confirmEnd]);
+
   async function sendChat(event: React.FormEvent) {
     event.preventDefault();
     if (!content.trim()) return;
@@ -130,9 +195,16 @@ export function LiveRoom({
     return { ok: true, heartsBalance: responseBody.heartsBalance };
   }
 
-  async function endStream() {
-    await fetch(`/api/live/${streamId}/end`, { method: "POST" });
-    router.push("/");
+  function handleEndClick() {
+    if (!confirmEnd) {
+      setConfirmEnd(true);
+      return;
+    }
+    setConfirmEnd(false);
+    void (async () => {
+      await fetch(`/api/live/${streamId}/end`, { method: "POST" });
+      router.push("/");
+    })();
   }
 
   if (ended) {
@@ -147,43 +219,50 @@ export function LiveRoom({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black text-white">
+    <div data-lk-theme="default" className="fixed inset-0 z-50 flex flex-col bg-black text-white">
       <LiveKitRoom
         serverUrl={livekitUrl}
         token={token}
         connect
-        video={isHost}
-        audio={isHost}
+        video={isHost && initialCameraEnabled}
+        audio={isHost && initialMicEnabled}
         onDisconnected={() => router.push("/")}
         className="flex flex-1 flex-col"
       >
         <div className="relative flex-1 overflow-hidden">
           <VideoGrid />
           <RoomAudioRenderer />
+          <ConnectionStateToast />
 
-          <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-3 bg-gradient-to-b from-black/70 to-transparent p-3">
-            <div className="flex items-center gap-2">
-              <Avatar className="h-9 w-9 border border-white/30">
+          <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-3 bg-gradient-to-b from-black/70 to-transparent px-3 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+            <div className="flex min-w-0 items-center gap-2">
+              <Avatar className="h-9 w-9 shrink-0 border border-white/30">
                 <AvatarImage src={provider.avatarUrl} alt="" />
                 <AvatarFallback>{provider.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
-              <div>
-                <p className="text-sm font-semibold">{provider.displayName}</p>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{provider.displayName}</p>
                 <p className="truncate text-xs text-white/70">{title}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <span className="flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-xs">
                 <Users className="h-3.5 w-3.5" aria-hidden="true" />
                 {viewerCount ?? "—"}
               </span>
               {isHost ? (
-                <Button type="button" size="sm" variant="destructive" onClick={endStream}>
-                  End
+                <Button type="button" size="sm" variant="destructive" onClick={handleEndClick}>
+                  {confirmEnd ? "Tap to confirm" : "End"}
                 </Button>
               ) : (
-                <button type="button" aria-label="Leave stream" onClick={() => router.push("/")} className="rounded-full bg-white/15 p-1.5">
-                  <X className="h-4 w-4" aria-hidden="true" />
+                <button
+                  type="button"
+                  aria-label="Leave stream"
+                  onClick={() => router.push("/")}
+                  className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/25"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                  Leave
                 </button>
               )}
             </div>
@@ -211,7 +290,10 @@ export function LiveRoom({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-white/10 bg-black/90 p-3">
+        <div className="flex flex-col gap-2 border-t border-white/10 bg-black/90 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3">
+          {isHost && (
+            <HostControls initialCameraEnabled={initialCameraEnabled} initialMicEnabled={initialMicEnabled} />
+          )}
           {!isHost && <GiftPicker initialBalance={viewerHeartsBalance} onSend={sendGift} theme="dark" />}
           <form onSubmit={sendChat} className="flex gap-2">
             <input

@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
-import { GoLiveForm } from "@/components/live/go-live-form";
+import { GoLiveStaging } from "@/components/live/go-live-staging";
 import { getActiveStreamForProvider } from "@/lib/live-streams";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { isLiveKitConfigured } from "@/lib/livekit";
@@ -29,7 +29,7 @@ export default async function GoLivePage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-4 md:gap-6">
+    <div className="mx-auto flex max-w-xl flex-col gap-4 md:gap-6">
       <div className="hidden md:block">
         <PageHeader title="Go live" description="Start a live stream your subscribers and viewers can join." />
       </div>
@@ -38,7 +38,7 @@ export default async function GoLivePage() {
       </div>
 
       {isLiveKitConfigured() ? (
-        <GoLiveForm defaultTitle={`${profile.displayName}'s live stream`} />
+        <GoLiveStaging defaultTitle={`${profile.displayName}'s live stream`} hostName={profile.displayName} />
       ) : (
         <p className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
           Live streaming isn&apos;t configured on this deployment yet.

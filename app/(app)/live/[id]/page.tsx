@@ -6,7 +6,13 @@ import { prisma } from "@/lib/prisma";
 import { joinLiveStream } from "@/lib/live-streams";
 import { LiveRoom } from "@/components/live/live-room";
 
-export default async function LiveStreamPage({ params }: { params: { id: string } }) {
+export default async function LiveStreamPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { cam?: string; mic?: string };
+}) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     redirect("/login");
@@ -34,6 +40,8 @@ export default async function LiveStreamPage({ params }: { params: { id: string 
       title={result.stream.title}
       provider={result.stream.provider}
       viewerHeartsBalance={profile.heartsBalance}
+      initialCameraEnabled={searchParams.cam !== "0"}
+      initialMicEnabled={searchParams.mic !== "0"}
     />
   );
 }
