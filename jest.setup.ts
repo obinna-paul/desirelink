@@ -42,14 +42,19 @@ const mockRouter = {
 };
 
 let mockPathname = "/";
+let mockSearchParams = new URLSearchParams();
 
 jest.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
+  useSearchParams: () => mockSearchParams,
   useRouter: () => mockRouter,
   redirect: jest.fn(),
   notFound: jest.fn(),
   __setPathname: (nextPathname: string) => {
     mockPathname = nextPathname;
+  },
+  __setSearchParams: (nextSearch: string) => {
+    mockSearchParams = new URLSearchParams(nextSearch);
   },
   __mockRouter: mockRouter,
 }));
