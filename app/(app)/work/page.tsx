@@ -14,7 +14,7 @@ const OPTIONS = [
     icon: CalendarDays,
   },
   {
-    href: "/discover?section=services",
+    href: "/services",
     label: "Services",
     description: "Book a paid service from a provider.",
     icon: Briefcase,

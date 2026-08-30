@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PostActions } from "@/components/posts/post-actions";
+import { PostCaption } from "@/components/posts/post-caption";
 import { PostEventAttachment } from "@/components/posts/post-event-attachment";
 import { PostMediaCarousel } from "@/components/posts/post-media-carousel";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
@@ -92,9 +93,6 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
         </div>
       ) : (
         <>
-          {post.content && (
-            <p className="whitespace-pre-wrap px-3 text-sm leading-6 md:px-4">{post.content}</p>
-          )}
           {/* Media is intentionally NOT wrapped in the card's own horizontal padding - it goes edge-to-edge on mobile, Instagram-style. */}
           <PostMediaCarousel media={post.mediaItems} />
           {post.event && (
@@ -111,6 +109,7 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
               initialComments={post.comments}
             />
           </div>
+          {post.content && <PostCaption content={post.content} />}
         </>
       )}
     </article>

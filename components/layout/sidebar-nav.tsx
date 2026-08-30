@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { primaryNavItems, secondaryNavItems } from "@/lib/nav-items";
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const items = [...primaryNavItems, ...secondaryNavItems];
 
   return (
@@ -17,11 +16,7 @@ export function SidebarNav() {
       className="sticky top-16 hidden h-[calc(100vh-4rem)] w-[232px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border/60 bg-sidebar px-3 py-6 md:flex"
     >
       {items.map((item) => {
-        // Some links (e.g. Services) carry a query string for active-state matching too - usePathname() alone drops it.
-        const [itemPathname, itemQuery] = item.href.split("?");
-        const active = itemQuery
-          ? pathname === itemPathname && searchParams.toString() === itemQuery
-          : pathname === item.href;
+        const active = pathname === item.href;
         const Icon = item.icon;
         return (
           <Link
