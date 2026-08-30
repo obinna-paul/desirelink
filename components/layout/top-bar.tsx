@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { getServerSession } from "next-auth";
-import { Bell, MessageCircle } from "lucide-react";
+import { Bell } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,7 +28,7 @@ export async function TopBar() {
   const initials = profile?.displayName ? profile.displayName.slice(0, 2).toUpperCase() : "YOU";
 
   return (
-    <header className="sticky top-0 z-40 bg-background/95 px-3 py-1.5 backdrop-blur supports-[backdrop-filter]:bg-background/82 md:flex md:h-14 md:items-center md:justify-between md:px-7 md:py-0">
+    <header className="sticky top-0 z-40 bg-white px-3 py-1.5 dark:bg-background/95 dark:backdrop-blur dark:supports-[backdrop-filter]:bg-background/82 md:flex md:h-14 md:items-center md:justify-between md:bg-background/95 md:px-7 md:py-0 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/82">
       <div className="flex flex-col gap-2 md:hidden">
         <div className="flex min-h-11 items-center justify-between gap-3">
           <Link href="/" className="flex min-h-11 min-w-0 items-center gap-2" aria-label="udala home">
@@ -39,11 +39,6 @@ export async function TopBar() {
           </Link>
 
           <div className="flex items-center gap-1">
-            <Button asChild variant="ghost" size="icon" aria-label="Messages">
-              <Link href="/messages">
-                <MessageCircle className="h-5 w-5" aria-hidden="true" />
-              </Link>
-            </Button>
             <Button variant="ghost" size="icon" aria-label="Notifications">
               <Bell className="h-5 w-5" aria-hidden="true" />
             </Button>

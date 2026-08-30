@@ -5,6 +5,7 @@ const withPWA = nextPWA({
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
+  clientsClaim: true,
   fallbacks: {
     document: "/offline",
   },
