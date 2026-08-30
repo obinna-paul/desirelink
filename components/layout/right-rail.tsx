@@ -3,7 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAvailableNow } from "@/lib/availability";
+import { getLiveRingFeed } from "@/lib/live-streams";
+import { getRecommendedEventsForUser } from "@/lib/event-recommendations";
+import { getHomeServiceListings } from "@/lib/service-listings";
+import { isProviderProfileType } from "@/lib/provider-types";
 import { AvailableNowSidebar } from "@/components/home/available-now-sidebar";
+import { ExplorerDiscoveryPanel } from "@/components/home/explorer-discovery-panel";
 import { ProfileSetupActions } from "@/components/profile/profile-setup-actions";
 
 const BASE_NEARBY_MIN = 8;
@@ -27,12 +32,19 @@ export async function RightRail() {
           isVerified: true,
           isVerifiedCreator: true,
           isVerifiedHost: true,
+          profileType: true,
           _count: { select: { desires: true } },
         },
       })
     : null;
+  const isProvider = viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false;
 
-  const items = await getAvailableNow(20, viewerProfile?.id);
+  const [items, onlineCreators, recommendedEvents, serviceListings] = await Promise.all([
+    getAvailableNow(20, viewerProfile?.id),
+    !isProvider && viewerProfile ? getLiveRingFeed(viewerProfile.id, 4) : Promise.resolve([]),
+    !isProvider && session?.user?.id ? getRecommendedEventsForUser(session.user.id, 3) : Promise.resolve(null),
+    !isProvider && viewerProfile ? getHomeServiceListings(3) : Promise.resolve([]),
+  ]);
   const baseNearbyCount =
     BASE_NEARBY_MIN + Math.floor(Math.random() * (BASE_NEARBY_MAX - BASE_NEARBY_MIN + 1));
 
@@ -41,7 +53,14 @@ export async function RightRail() {
       aria-label="People nearby"
       className="sticky top-16 hidden h-[calc(100vh-4rem)] w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border/60 bg-sidebar px-5 py-6 xl:flex"
     >
-      {viewerProfile && <ProfileSetupActions profile={viewerProfile} />}
+      {viewerProfile && isProvider && <ProfileSetupActions profile={viewerProfile} />}
+      {viewerProfile && !isProvider && (
+        <ExplorerDiscoveryPanel
+          onlineCreators={onlineCreators}
+          events={recommendedEvents ?? []}
+          services={serviceListings}
+        />
+      )}
       <AvailableNowSidebar
         initialItems={items}
         baseNearbyCount={baseNearbyCount}
