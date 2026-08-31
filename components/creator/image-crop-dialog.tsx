@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
 
-import { IMAGE_CROP_PRESETS } from "@/lib/post-shared";
 import { cn } from "@/lib/utils";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 
@@ -23,14 +22,14 @@ export function ImageCropDialog({
   file,
   onCancel,
   onConfirm,
-  presets = IMAGE_CROP_PRESETS,
+  presets,
   shape = "square",
   title = "Adjust photo",
 }: {
   file: File;
   onCancel: () => void;
   onConfirm: (result: { file: File; width: number; height: number }) => void;
-  presets?: readonly CropPreset[];
+  presets: readonly CropPreset[];
   shape?: "square" | "circle";
   title?: string;
 }) {

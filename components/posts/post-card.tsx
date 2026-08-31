@@ -96,7 +96,7 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
       ) : (
         <>
           {/* Media is intentionally NOT wrapped in the card's own horizontal padding - it goes edge-to-edge on mobile, Instagram-style. */}
-          <PostMediaCarousel media={post.mediaItems} />
+          <PostMediaCarousel media={post.mediaItems} aspectRatio={post.aspectRatio} />
           {post.event && (
             <div className="px-3 md:px-4">
               <PostEventAttachment event={post.event} />

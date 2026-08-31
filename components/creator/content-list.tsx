@@ -19,6 +19,7 @@ export function ContentList({
     <div className="flex flex-col gap-4">
       <PostComposer
         creatorDisplayName={creatorDisplayName}
+        isProvider
         onCreated={(post) => setPosts((prev) => [post, ...prev])}
       />
       <PostList

@@ -8,12 +8,15 @@ import { cn } from "@/lib/utils";
 import { feedMediaAspectRatio, type PostMediaItem } from "@/lib/post-shared";
 import { PostVideoPlayer } from "@/components/posts/post-video-player";
 
-export function PostMediaCarousel({ media }: { media: PostMediaItem[] }) {
+export function PostMediaCarousel({ media, aspectRatio }: { media: PostMediaItem[]; aspectRatio?: number | null }) {
   const [activeIndex, setActiveIndex] = useState(0);
   if (media.length === 0) return null;
 
   const active = media[activeIndex];
   const hasMultiple = media.length > 1;
+  // A post-level aspect ratio keeps every item in the carousel the same frame (no jarring
+  // height jump on swipe); legacy posts (no aspectRatio) fall back to each item's own ratio.
+  const containerRatio = aspectRatio ?? feedMediaAspectRatio(active);
 
   function move(delta: number) {
     setActiveIndex((current) => (current + delta + media.length) % media.length);
@@ -21,9 +24,15 @@ export function PostMediaCarousel({ media }: { media: PostMediaItem[] }) {
 
   return (
     <div className="overflow-hidden">
-      <div className="relative w-full bg-black" style={{ aspectRatio: feedMediaAspectRatio(active) }}>
+      <div className="relative w-full bg-black" style={{ aspectRatio: containerRatio }}>
         {active.type === "video" ? (
-          <PostVideoPlayer key={active.url} src={active.url} />
+          <PostVideoPlayer
+            key={active.url}
+            src={active.url}
+            naturalWidth={active.width}
+            naturalHeight={active.height}
+            crop={active.crop}
+          />
         ) : (
           <Image
             src={active.url}

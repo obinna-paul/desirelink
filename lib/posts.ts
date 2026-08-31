@@ -1,4 +1,4 @@
-import { Prisma, type ProfileType, type RsvpStatus } from "@prisma/client";
+import { Prisma, type PostAspectRatio, type ProfileType, type RsvpStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import {
@@ -8,7 +8,7 @@ import {
   recordProviderPostView,
 } from "@/lib/premium";
 import { isProviderProfileType } from "@/lib/provider-types";
-import type { PostMediaItem } from "@/lib/post-shared";
+import { postAspectRatioValue, type PostAspectRatioId, type PostMediaItem } from "@/lib/post-shared";
 
 const FEED_LIMIT = 30;
 const PROFILE_POSTS_LIMIT = 50;
@@ -43,6 +43,7 @@ type RawPost = {
   mediaUrls: unknown;
   postType: "standard" | "event" | "live";
   eventId: string | null;
+  aspectRatio: PostAspectRatio | null;
   isSubscriberOnly: boolean;
   createdAt: Date;
   author: { id: string; username: string; displayName: string; avatarUrl: string; profileType: ProfileType };
@@ -113,6 +114,7 @@ export type PostView = {
   mediaItems: PostMediaItem[];
   postType: "standard" | "event" | "live";
   event: PostEventView | null;
+  aspectRatio: number | null;
   isSubscriberOnly: boolean;
   locked: boolean;
   lockReason: PostLockReason | null;
@@ -140,6 +142,19 @@ export function toMediaItems(value: unknown): PostMediaItem[] {
       "type" in item &&
       (item.type === "image" || item.type === "video")
     ) {
+      const rawCrop = "crop" in item ? item.crop : undefined;
+      const crop =
+        rawCrop &&
+        typeof rawCrop === "object" &&
+        "zoom" in rawCrop &&
+        "offsetXFrac" in rawCrop &&
+        "offsetYFrac" in rawCrop &&
+        typeof rawCrop.zoom === "number" &&
+        typeof rawCrop.offsetXFrac === "number" &&
+        typeof rawCrop.offsetYFrac === "number"
+          ? { zoom: rawCrop.zoom, offsetXFrac: rawCrop.offsetXFrac, offsetYFrac: rawCrop.offsetYFrac }
+          : undefined;
+
       return [
         {
           url: item.url,
@@ -147,6 +162,7 @@ export function toMediaItems(value: unknown): PostMediaItem[] {
           width: typeof item.width === "number" ? item.width : undefined,
           height: typeof item.height === "number" ? item.height : undefined,
           durationSeconds: typeof item.durationSeconds === "number" ? item.durationSeconds : undefined,
+          crop,
         },
       ];
     }
@@ -189,6 +205,7 @@ function toPostView(
     content: locked ? null : post.content,
     mediaUrls: locked ? [] : mediaItems.map((item) => item.url),
     mediaItems: locked ? [] : mediaItems,
+    aspectRatio: post.aspectRatio ? postAspectRatioValue(post.aspectRatio as PostAspectRatioId) : null,
     event: locked || !post.event
       ? null
       : {
@@ -228,6 +245,7 @@ function postSelect(viewerProfileId: string | null) {
     mediaUrls: true,
     postType: true,
     eventId: true,
+    aspectRatio: true,
     isSubscriberOnly: true,
     createdAt: true,
     author: { select: postAuthorSelect },

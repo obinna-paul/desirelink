@@ -21,6 +21,9 @@ function missingPostSchemaMessage(error: Prisma.PrismaClientKnownRequestError) {
   if (target.includes("Post.postType") || target.includes("Post.eventId")) {
     return "Post creation needs the feed interaction database repair. Add Post.postType and Post.eventId in Neon SQL Editor.";
   }
+  if (target.includes("Post.aspectRatio") || target.includes("PostAspectRatio")) {
+    return "Post creation needs the aspect-ratio database repair. Run the add_post_aspect_ratio migration in Neon SQL Editor.";
+  }
   if (target.includes("PostComment") || target.includes("PostReaction") || target.includes("PostShare")) {
     return "Post creation needs the post interaction tables repaired in Neon SQL Editor.";
   }
@@ -38,16 +41,7 @@ export async function POST(req: Request) {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: {
-      id: true,
-      username: true,
-      displayName: true,
-      avatarUrl: true,
-      isSuspended: true,
-      city: true,
-      locationLat: true,
-      locationLng: true,
-    },
+    select: { id: true, isSuspended: true },
   });
 
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
@@ -64,48 +58,21 @@ export async function POST(req: Request) {
     );
   }
 
-  const { content, isSubscriberOnly, postType, event } = parsed.data;
+  const { content, isSubscriberOnly, aspectRatio } = parsed.data;
   const mediaItems =
     parsed.data.mediaItems ??
     (parsed.data.mediaUrls ?? []).map((url) => ({ url, type: "image" as const }));
-  const firstImage = mediaItems.find((item) => item.type === "image")?.url ?? "";
 
   let post: { id: string; content: string; mediaUrls: unknown; postType: "standard" | "event" | "live"; eventId: string | null; isSubscriberOnly: boolean; createdAt: Date };
   try {
-    post = await prisma.$transaction(async (tx) => {
-      const attachedEvent =
-        postType === "event" && event
-          ? await tx.event.create({
-              data: {
-                hostId: profile.id,
-                title: event.title,
-                description: content.trim() || event.title,
-                eventType: event.eventType,
-                startTime: new Date(event.startTime),
-                endTime: new Date(event.endTime),
-                venueName: event.venueName,
-                address: event.address,
-                city: event.city.trim() || profile.city,
-                lat: event.lat ?? profile.locationLat,
-                lng: event.lng ?? profile.locationLng,
-                maxAttendees: event.maxAttendees,
-                priceCents: event.priceCents,
-                isPrivate: event.isPrivate,
-                coverImageUrl: firstImage,
-              },
-            })
-          : null;
-
-      return tx.post.create({
-        data: {
-          authorId: profile.id,
-          content: content.trim(),
-          mediaUrls: mediaItems,
-          postType,
-          eventId: attachedEvent?.id,
-          isSubscriberOnly,
-        },
-      });
+    post = await prisma.post.create({
+      data: {
+        authorId: profile.id,
+        content: content.trim(),
+        mediaUrls: mediaItems,
+        aspectRatio,
+        isSubscriberOnly,
+      },
     });
   } catch (error) {
     if (isMissingSchemaError(error)) {

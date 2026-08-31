@@ -90,6 +90,12 @@ enum PostType {
   live
 }
 
+enum PostAspectRatio {
+  square
+  portrait
+  full
+}
+
 enum PostReactionType {
   like
 }
@@ -657,6 +663,7 @@ model Post {
   postType         PostType       @default(standard)
   eventId          String?
   event            Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  aspectRatio      PostAspectRatio?
   isSubscriberOnly Boolean        @default(false)
   isArchived       Boolean        @default(false)
   createdAt        DateTime       @default(now())

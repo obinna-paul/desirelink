@@ -41,7 +41,7 @@ export default async function ServicesPage({
       {isProvider && (
         <div>
           <Button asChild variant="outline" className="gap-1.5">
-            <Link href="/create?type=service">
+            <Link href="/services/new">
               <BriefcaseBusiness className="h-4 w-4" aria-hidden="true" /> List a service
             </Link>
           </Button>

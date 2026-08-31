@@ -2,16 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import NextImage from "next/image";
-import { AlertTriangle, CalendarDays, Image as ImageIcon, Loader2, ShieldCheck, Video, X } from "lucide-react";
+import { AlertTriangle, Image as ImageIcon, Loader2, ShieldCheck, Video, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
-import { EVENT_TYPE_OPTIONS } from "@/lib/events";
-import { MAX_POST_MEDIA_ITEMS, type PostMediaItem } from "@/lib/post-shared";
+import { VideoFrameDialog } from "@/components/creator/video-frame-dialog";
+import {
+  MAX_POST_MEDIA_ITEMS,
+  POST_ASPECT_RATIOS,
+  postAspectRatioValue,
+  type PostAspectRatioId,
+  type PostMediaItem,
+  type VideoCrop,
+} from "@/lib/post-shared";
 import type { PostView } from "@/lib/posts";
 import { detectTextPii, hasImageMetadataSignature, type PiiFinding } from "@/lib/pii";
 import { useFocusTrap } from "@/lib/use-focus-trap";
@@ -20,52 +24,30 @@ import { cn } from "@/lib/utils";
 const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_FILE_SIZE = 100 * 1024 * 1024;
 
-type ComposerMode = "standard" | "event";
+type LayoutMode = "single" | "carousel";
 
 type UploadedMedia = PostMediaItem & {
   metadataDetected: boolean;
 };
 
-type PendingCrop = { file: File; metadataDetected: boolean };
-
-type EventFormState = {
-  title: string;
-  eventType: (typeof EVENT_TYPE_OPTIONS)[number];
-  startTime: string;
-  endTime: string;
-  venueName: string;
-  address: string;
-  city: string;
-  maxAttendees: string;
-  priceNaira: string;
-  isPrivate: boolean;
-};
-
-const emptyEventForm: EventFormState = {
-  title: "",
-  eventType: EVENT_TYPE_OPTIONS[0],
-  startTime: "",
-  endTime: "",
-  venueName: "",
-  address: "",
-  city: "",
-  maxAttendees: "",
-  priceNaira: "0",
-  isPrivate: false,
-};
+type PendingMedia =
+  | { kind: "image"; file: File; metadataDetected: boolean }
+  | { kind: "video"; file: File };
 
 export function PostComposer({
   creatorDisplayName,
+  isProvider = false,
   onCreated,
 }: {
   creatorDisplayName: string;
+  isProvider?: boolean;
   onCreated: (post: PostView) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [content, setContent] = useState("");
-  const [mode, setMode] = useState<ComposerMode>("standard");
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("single");
+  const [aspectRatioId, setAspectRatioId] = useState<PostAspectRatioId>("portrait");
   const [mediaItems, setMediaItems] = useState<UploadedMedia[]>([]);
-  const [eventForm, setEventForm] = useState(emptyEventForm);
   const [isSubscriberOnly, setIsSubscriberOnly] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -73,7 +55,7 @@ export function PostComposer({
   const [pendingFindings, setPendingFindings] = useState<PiiFinding[]>([]);
   const [showPiiWarning, setShowPiiWarning] = useState(false);
   const [piiAcknowledged, setPiiAcknowledged] = useState(false);
-  const [cropQueue, setCropQueue] = useState<PendingCrop[]>([]);
+  const [mediaQueue, setMediaQueue] = useState<PendingMedia[]>([]);
   const piiDialogRef = useRef<HTMLDivElement>(null);
 
   useFocusTrap(showPiiWarning, piiDialogRef);
@@ -89,6 +71,12 @@ export function PostComposer({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [showPiiWarning]);
 
+  const aspectRatioValue = postAspectRatioValue(aspectRatioId);
+  const imageCropPresets = useMemo(
+    () => [{ id: aspectRatioId, label: POST_ASPECT_RATIOS.find((option) => option.id === aspectRatioId)!.label, ratio: aspectRatioValue }],
+    [aspectRatioId, aspectRatioValue]
+  );
+
   const mediaPayload = useMemo(
     () =>
       mediaItems.map((item) => ({
@@ -97,6 +85,7 @@ export function PostComposer({
         width: item.width,
         height: item.height,
         durationSeconds: item.durationSeconds,
+        crop: item.crop,
       })),
     [mediaItems]
   );
@@ -105,7 +94,7 @@ export function PostComposer({
     [mediaItems]
   );
 
-  async function uploadFile(file: File, metadataDetected: boolean) {
+  async function uploadFile(file: File, metadataDetected: boolean, crop?: VideoCrop) {
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -116,7 +105,7 @@ export function PostComposer({
         setError(body?.error ?? "Upload failed. Please try again.");
         return;
       }
-      setMediaItems((prev) => [...prev, { ...body.media, metadataDetected }]);
+      setMediaItems((prev) => [...prev, { ...body.media, metadataDetected, crop }]);
     } catch {
       setError("Upload failed. Please try again.");
     }
@@ -126,17 +115,20 @@ export function PostComposer({
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0) return;
 
-    if (mediaItems.length + cropQueue.length + files.length > MAX_POST_MEDIA_ITEMS) {
-      setError(`Up to ${MAX_POST_MEDIA_ITEMS} media items per post.`);
+    const limit = layoutMode === "single" ? 1 : MAX_POST_MEDIA_ITEMS;
+    if (mediaItems.length + mediaQueue.length + files.length > limit) {
+      setError(
+        layoutMode === "single"
+          ? "A single post can only have one photo or video. Switch to Carousel to add more."
+          : `Up to ${MAX_POST_MEDIA_ITEMS} media items per post.`
+      );
       event.target.value = "";
       return;
     }
 
     setError(null);
 
-    const videosToUpload: File[] = [];
-    const imagesToReview: PendingCrop[] = [];
-
+    const queued: PendingMedia[] = [];
     for (const file of files) {
       const isImage = file.type.startsWith("image/");
       const isVideo = file.type.startsWith("video/");
@@ -154,68 +146,63 @@ export function PostComposer({
       }
 
       if (isVideo) {
-        videosToUpload.push(file);
+        queued.push({ kind: "video", file });
         continue;
       }
 
       // Future vision-based PII scanning can run here before upload.
       const metadataDetected = hasImageMetadataSignature(await file.arrayBuffer());
-      imagesToReview.push({ file, metadataDetected });
+      queued.push({ kind: "image", file, metadataDetected });
     }
 
-    if (videosToUpload.length > 0) {
-      setUploading(true);
-      for (const file of videosToUpload) {
-        await uploadFile(file, false);
-      }
-      setUploading(false);
-    }
-
-    // Every image goes through the crop/adjust screen - defaulting to "Original" so a quick tap moves on unchanged.
-    if (imagesToReview.length > 0) {
-      setCropQueue((prev) => [...prev, ...imagesToReview]);
+    // Every photo and video goes through the frame/adjust screen, cropped to the post's
+    // chosen dimension - this is what keeps the feed WYSIWYG with what was previewed here.
+    if (queued.length > 0) {
+      setMediaQueue((prev) => [...prev, ...queued]);
     }
 
     event.target.value = "";
   }
 
-  async function handleCropConfirm({ file }: { file: File }) {
-    const metadataDetected = cropQueue[0]?.metadataDetected ?? false;
-    setCropQueue((prev) => prev.slice(1));
+  async function handleImageCropConfirm({ file }: { file: File }) {
+    const metadataDetected = mediaQueue[0]?.kind === "image" ? mediaQueue[0].metadataDetected : false;
+    setMediaQueue((prev) => prev.slice(1));
     setUploading(true);
-    // The crop dialog's canvas re-draw already strips metadata, but that "images had metadata markers" note stays informative either way.
-    // The server re-reads width/height from the uploaded (already-cropped) file, so the dialog's own values aren't needed here.
     await uploadFile(file, metadataDetected);
     setUploading(false);
   }
 
-  function handleCropCancel() {
-    setCropQueue((prev) => prev.slice(1));
+  async function handleVideoFrameConfirm({ crop }: { crop: VideoCrop; width: number; height: number; durationSeconds: number }) {
+    const current = mediaQueue[0];
+    setMediaQueue((prev) => prev.slice(1));
+    if (current?.kind !== "video") return;
+    setUploading(true);
+    await uploadFile(current.file, false, crop);
+    setUploading(false);
+  }
+
+  function handleQueueCancel() {
+    setMediaQueue((prev) => prev.slice(1));
   }
 
   function removeImage(url: string) {
     setMediaItems((prev) => prev.filter((existing) => existing.url !== url));
   }
 
+  function changeLayoutMode(mode: LayoutMode) {
+    setLayoutMode(mode);
+    if (mode === "single" && mediaItems.length > 1) {
+      setMediaItems((prev) => prev.slice(0, 1));
+    }
+  }
+
+  function changeAspectRatio(id: PostAspectRatioId) {
+    setAspectRatioId(id);
+  }
+
   async function publishPost() {
     setSubmitting(true);
     setError(null);
-
-    const eventPayload =
-      mode === "event"
-        ? {
-            title: eventForm.title,
-            eventType: eventForm.eventType,
-            startTime: eventForm.startTime,
-            endTime: eventForm.endTime,
-            venueName: eventForm.venueName,
-            address: eventForm.address,
-            city: eventForm.city,
-            maxAttendees: eventForm.maxAttendees ? Number(eventForm.maxAttendees) : null,
-            priceCents: Math.round(Number(eventForm.priceNaira || 0) * 100),
-            isPrivate: eventForm.isPrivate,
-          }
-        : undefined;
 
     const res = await fetch("/api/posts", {
       method: "POST",
@@ -223,9 +210,8 @@ export function PostComposer({
       body: JSON.stringify({
         content: content.trim(),
         mediaItems: mediaPayload,
-        isSubscriberOnly,
-        postType: mode,
-        event: eventPayload,
+        aspectRatio: aspectRatioId,
+        isSubscriberOnly: isProvider && isSubscriberOnly,
       }),
     });
 
@@ -242,8 +228,7 @@ export function PostComposer({
     setContent("");
     setMediaItems([]);
     setIsSubscriberOnly(false);
-    setMode("standard");
-    setEventForm(emptyEventForm);
+    setLayoutMode("single");
     setPiiAcknowledged(false);
     setPendingFindings([]);
   }
@@ -251,12 +236,8 @@ export function PostComposer({
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    if (!content.trim() && mediaPayload.length === 0 && mode !== "event") {
+    if (!content.trim() && mediaPayload.length === 0) {
       setError("Write something or add media.");
-      return;
-    }
-    if (mode === "event" && (!eventForm.title.trim() || !eventForm.startTime || !eventForm.endTime || !eventForm.venueName.trim())) {
-      setError("Add the event title, time, and venue before publishing.");
       return;
     }
 
@@ -276,37 +257,15 @@ export function PostComposer({
     await publishPost();
   }
 
+  const hasMedia = mediaItems.length > 0 || mediaQueue.length > 0;
+  const nextQueued = mediaQueue[0];
+
   return (
     <>
     <form
       onSubmit={handleSubmit}
       className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3.5 shadow-card md:rounded-xl md:p-4 md:shadow-none"
     >
-      <div className="grid grid-cols-2 gap-2 rounded-full bg-muted p-1">
-        <button
-          type="button"
-          aria-pressed={mode === "standard"}
-          onClick={() => setMode("standard")}
-          className={cn(
-            "label-caps min-h-10 rounded-full text-[11px] transition-colors",
-            mode === "standard" ? "bg-card text-primary shadow-card" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Post
-        </button>
-        <button
-          type="button"
-          aria-pressed={mode === "event"}
-          onClick={() => setMode("event")}
-          className={cn(
-            "label-caps min-h-10 rounded-full text-[11px] transition-colors",
-            mode === "event" ? "bg-card text-primary shadow-card" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Event
-        </button>
-      </div>
-
       <label htmlFor="post-content" className="sr-only">
         Post content
       </label>
@@ -314,7 +273,7 @@ export function PostComposer({
         id="post-content"
         rows={3}
         maxLength={2000}
-        placeholder={mode === "event" ? "Tell people why they should come..." : "Share something with your Fans..."}
+        placeholder="Share something..."
         value={content}
         onChange={(event) => {
           setContent(event.target.value);
@@ -323,129 +282,80 @@ export function PostComposer({
         className="min-h-28 resize-none rounded-2xl text-base md:rounded-md md:text-sm"
       />
 
-      {mode === "event" && (
-        <section className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-background/50 p-3 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <label htmlFor="feed-event-title" className="text-xs font-medium text-muted-foreground">
-              Event title
-            </label>
-            <Input
-              id="feed-event-title"
-              value={eventForm.title}
-              onChange={(event) => setEventForm((current) => ({ ...current, title: event.target.value }))}
-              placeholder="Name the event"
-              className="mt-1 h-11"
-            />
+      <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+        <div className="flex flex-1 flex-col gap-1.5">
+          <span className="label-caps text-[10px] text-muted-foreground">Layout</span>
+          <div className="grid grid-cols-2 gap-2 rounded-full bg-muted p-1">
+            {(["single", "carousel"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={layoutMode === mode}
+                onClick={() => changeLayoutMode(mode)}
+                className={cn(
+                  "label-caps min-h-10 rounded-full text-[11px] transition-colors",
+                  layoutMode === mode ? "bg-card text-primary shadow-card" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {mode === "single" ? "Single" : "Carousel"}
+              </button>
+            ))}
           </div>
-          <div>
-            <label htmlFor="feed-event-type" className="text-xs font-medium text-muted-foreground">
-              Type
-            </label>
-            <Select
-              id="feed-event-type"
-              value={eventForm.eventType}
-              onChange={(event) =>
-                setEventForm((current) => ({
-                  ...current,
-                  eventType: event.target.value as (typeof EVENT_TYPE_OPTIONS)[number],
-                }))
-              }
-              className="mt-1 h-11"
+        </div>
+
+        <div className="flex flex-1 flex-col gap-1.5">
+          <span className="label-caps text-[10px] text-muted-foreground">Dimensions</span>
+          <div className="grid grid-cols-3 gap-2 rounded-full bg-muted p-1">
+            {POST_ASPECT_RATIOS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={aspectRatioId === option.id}
+                disabled={hasMedia}
+                onClick={() => changeAspectRatio(option.id)}
+                className={cn(
+                  "label-caps min-h-10 rounded-full text-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                  aspectRatioId === option.id ? "bg-card text-primary shadow-card" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {hasMedia && (
+            <p className="text-[11px] text-muted-foreground">Remove your media to change dimensions.</p>
+          )}
+        </div>
+      </div>
+
+      {isProvider && (
+        <div className="flex flex-col gap-1.5">
+          <span className="label-caps text-[10px] text-muted-foreground">Audience</span>
+          <div className="grid grid-cols-2 gap-2 rounded-full bg-muted p-1">
+            <button
+              type="button"
+              aria-pressed={!isSubscriberOnly}
+              onClick={() => setIsSubscriberOnly(false)}
+              className={cn(
+                "label-caps min-h-10 rounded-full text-[11px] transition-colors",
+                !isSubscriberOnly ? "bg-card text-primary shadow-card" : "text-muted-foreground hover:text-foreground"
+              )}
             >
-              {EVENT_TYPE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </Select>
+              Free
+            </button>
+            <button
+              type="button"
+              aria-pressed={isSubscriberOnly}
+              onClick={() => setIsSubscriberOnly(true)}
+              className={cn(
+                "label-caps min-h-10 rounded-full text-[11px] transition-colors",
+                isSubscriberOnly ? "bg-card text-primary shadow-card" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Premium
+            </button>
           </div>
-          <div>
-            <label htmlFor="feed-event-venue" className="text-xs font-medium text-muted-foreground">
-              Venue
-            </label>
-            <Input
-              id="feed-event-venue"
-              value={eventForm.venueName}
-              onChange={(event) => setEventForm((current) => ({ ...current, venueName: event.target.value }))}
-              placeholder="Venue or online"
-              className="mt-1 h-11"
-            />
-          </div>
-          <div>
-            <label htmlFor="feed-event-start" className="text-xs font-medium text-muted-foreground">
-              Starts
-            </label>
-            <Input
-              id="feed-event-start"
-              type="datetime-local"
-              value={eventForm.startTime}
-              onChange={(event) => setEventForm((current) => ({ ...current, startTime: event.target.value }))}
-              className="mt-1 h-11"
-            />
-          </div>
-          <div>
-            <label htmlFor="feed-event-end" className="text-xs font-medium text-muted-foreground">
-              Ends
-            </label>
-            <Input
-              id="feed-event-end"
-              type="datetime-local"
-              value={eventForm.endTime}
-              onChange={(event) => setEventForm((current) => ({ ...current, endTime: event.target.value }))}
-              className="mt-1 h-11"
-            />
-          </div>
-          <div>
-            <label htmlFor="feed-event-city" className="text-xs font-medium text-muted-foreground">
-              City
-            </label>
-            <Input
-              id="feed-event-city"
-              value={eventForm.city}
-              onChange={(event) => setEventForm((current) => ({ ...current, city: event.target.value }))}
-              placeholder="Uses profile city if blank"
-              className="mt-1 h-11"
-            />
-          </div>
-          <div>
-            <label htmlFor="feed-event-capacity" className="text-xs font-medium text-muted-foreground">
-              Capacity
-            </label>
-            <Input
-              id="feed-event-capacity"
-              type="number"
-              min={1}
-              value={eventForm.maxAttendees}
-              onChange={(event) => setEventForm((current) => ({ ...current, maxAttendees: event.target.value }))}
-              placeholder="Unlimited"
-              className="mt-1 h-11"
-            />
-          </div>
-          <div>
-            <label htmlFor="feed-event-price" className="text-xs font-medium text-muted-foreground">
-              Price NGN
-            </label>
-            <Input
-              id="feed-event-price"
-              type="number"
-              min={0}
-              step="0.01"
-              value={eventForm.priceNaira}
-              onChange={(event) => setEventForm((current) => ({ ...current, priceNaira: event.target.value }))}
-              className="mt-1 h-11"
-            />
-          </div>
-          <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-2xl border border-border bg-card px-3 text-sm md:col-span-2">
-            <span className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
-              Private event
-            </span>
-            <Switch
-              checked={eventForm.isPrivate}
-              onCheckedChange={(checked) => setEventForm((current) => ({ ...current, isPrivate: checked }))}
-            />
-          </label>
-        </section>
+        </div>
       )}
 
       {(strippedImageCount > 0 || mediaItems.length > 0) && (
@@ -464,7 +374,8 @@ export function PostComposer({
           {mediaItems.map((item) => (
             <div
               key={item.url}
-              className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border bg-secondary sm:h-20 sm:w-20 sm:rounded-lg"
+              className="relative w-full overflow-hidden rounded-2xl border border-border bg-secondary sm:h-20 sm:w-20 sm:rounded-lg"
+              style={{ aspectRatio: aspectRatioValue }}
             >
               {item.type === "video" ? (
                 <div className="flex h-full w-full items-center justify-center bg-black text-white">
@@ -487,38 +398,30 @@ export function PostComposer({
       )}
 
       <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading || mediaItems.length >= MAX_POST_MEDIA_ITEMS}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:rounded-md"
-          >
-            {uploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <ImageIcon className="h-4 w-4" aria-hidden="true" />
-            )}
-            {uploading ? "Uploading..." : "Add media"}
-          </button>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*,video/mp4,video/webm,video/quicktime"
-            multiple
-            className="hidden"
-            onChange={handleFiles}
-          />
-          <label
-            className={cn(
-              "flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-3 text-sm transition-colors",
-              isSubscriberOnly ? "bg-accent-tint text-primary" : "text-muted-foreground"
-            )}
-          >
-            <Switch checked={isSubscriberOnly} onCheckedChange={setIsSubscriberOnly} />
-            Fans only
-          </label>
-        </div>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={
+            uploading ||
+            mediaItems.length + mediaQueue.length >= (layoutMode === "single" ? 1 : MAX_POST_MEDIA_ITEMS)
+          }
+          className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:rounded-md"
+        >
+          {uploading ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <ImageIcon className="h-4 w-4" aria-hidden="true" />
+          )}
+          {uploading ? "Uploading..." : "Add from gallery"}
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*,video/mp4,video/webm,video/quicktime"
+          multiple={layoutMode === "carousel"}
+          className="hidden"
+          onChange={handleFiles}
+        />
         <Button type="submit" disabled={submitting || uploading} className="w-full md:w-auto">
           {submitting ? "Publishing..." : "Publish"}
         </Button>
@@ -590,12 +493,22 @@ export function PostComposer({
       )}
     </form>
 
-    {cropQueue.length > 0 && (
+    {nextQueued?.kind === "image" && (
       <ImageCropDialog
-        key={cropQueue[0].file.name + cropQueue[0].file.lastModified}
-        file={cropQueue[0].file}
-        onCancel={handleCropCancel}
-        onConfirm={handleCropConfirm}
+        key={nextQueued.file.name + nextQueued.file.lastModified}
+        file={nextQueued.file}
+        presets={imageCropPresets}
+        onCancel={handleQueueCancel}
+        onConfirm={handleImageCropConfirm}
+      />
+    )}
+    {nextQueued?.kind === "video" && (
+      <VideoFrameDialog
+        key={nextQueued.file.name + nextQueued.file.lastModified}
+        file={nextQueued.file}
+        ratio={aspectRatioValue}
+        onCancel={handleQueueCancel}
+        onConfirm={handleVideoFrameConfirm}
       />
     )}
     </>

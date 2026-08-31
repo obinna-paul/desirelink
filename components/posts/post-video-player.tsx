@@ -3,11 +3,38 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, Volume2, VolumeX } from "lucide-react";
 
-export function PostVideoPlayer({ src }: { src: string }) {
+import type { VideoCrop } from "@/lib/post-shared";
+
+export function PostVideoPlayer({
+  src,
+  naturalWidth,
+  naturalHeight,
+  crop,
+}: {
+  src: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  crop?: VideoCrop;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const [muted, setMuted] = useState(true);
   const [manuallyPaused, setManuallyPaused] = useState(false);
   const [showPauseIcon, setShowPauseIcon] = useState(false);
+  const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
+  const hasFramedCrop = Boolean(crop && naturalWidth && naturalHeight);
+
+  useEffect(() => {
+    if (!hasFramedCrop) return;
+    const el = frameRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      setFrameSize({ width, height });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasFramedCrop]);
 
   // React's `muted` prop only sets the HTML attribute, not the DOM property - some browsers
   // (desktop Chrome among them) require the actual .muted property to be true before allowing
@@ -51,8 +78,23 @@ export function PostVideoPlayer({ src }: { src: string }) {
     window.setTimeout(() => setShowPauseIcon(false), 500);
   }
 
+  const framedStyle =
+    hasFramedCrop && frameSize.width > 0 && crop
+      ? (() => {
+          const scale = Math.max(frameSize.width / naturalWidth!, frameSize.height / naturalHeight!) * crop.zoom;
+          const offsetX = crop.offsetXFrac * frameSize.width;
+          const offsetY = crop.offsetYFrac * frameSize.height;
+          return {
+            width: naturalWidth,
+            height: naturalHeight,
+            maxWidth: "none",
+            transform: `translate(-50%, -50%) translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+          } as const;
+        })()
+      : undefined;
+
   return (
-    <div className="relative h-full w-full">
+    <div ref={frameRef} className="relative h-full w-full overflow-hidden">
       <video
         ref={videoRef}
         src={src}
@@ -65,7 +107,12 @@ export function PostVideoPlayer({ src }: { src: string }) {
         controlsList="nodownload noremoteplayback noplaybackrate"
         onContextMenu={(event) => event.preventDefault()}
         onClick={togglePlayback}
-        className="h-full w-full cursor-pointer object-cover"
+        className={
+          hasFramedCrop
+            ? "absolute left-1/2 top-1/2 cursor-pointer select-none"
+            : "h-full w-full cursor-pointer object-cover"
+        }
+        style={framedStyle}
       />
       {showPauseIcon && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
