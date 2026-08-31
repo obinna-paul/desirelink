@@ -32,7 +32,7 @@ export default async function ServicesPage({
     select: { id: true, locationLat: true, locationLng: true, profileType: true },
   });
   const isProvider = viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false;
-  const listServiceHref = isProvider ? "/profile/edit#services" : "/settings/account-type?intent=service";
+  const listServiceHref = isProvider ? "/services/new" : "/settings/account-type?intent=service";
 
   const filters = parseServiceFilters(searchParams);
   const { listings, note } = await searchServiceListings(filters, viewerProfile);

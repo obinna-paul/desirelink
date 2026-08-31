@@ -7,12 +7,15 @@ import { AlertTriangle, Check, ImagePlus, Loader2, Lock, ShieldCheck, Video, X }
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
+import { VideoFrameDialog } from "@/components/creator/video-frame-dialog";
 import { ProviderUpgradePrompt } from "@/components/settings/provider-upgrade-prompt";
+import { PostVideoPlayer } from "@/components/posts/post-video-player";
 import {
   MAX_POST_MEDIA_ITEMS,
   POST_DISPLAY_RATIO_OPTIONS,
   type PostDisplayAspectRatio,
   type PostMediaItem,
+  type VideoCrop,
 } from "@/lib/post-shared";
 import type { PostView } from "@/lib/posts";
 import { detectTextPii, hasImageMetadataSignature, type PiiFinding } from "@/lib/pii";
@@ -61,6 +64,7 @@ export function PostComposer({
   const [showPiiWarning, setShowPiiWarning] = useState(false);
   const [piiAcknowledged, setPiiAcknowledged] = useState(false);
   const [cropQueue, setCropQueue] = useState<PendingCrop[]>([]);
+  const [videoQueue, setVideoQueue] = useState<File[]>([]);
 
   useFocusTrap(showPiiWarning, piiDialogRef);
 
@@ -91,6 +95,7 @@ export function PostComposer({
         height: item.height,
         durationSeconds: item.durationSeconds,
         displayAspectRatio,
+        crop: item.crop,
       })),
     [displayAspectRatio, mediaItems]
   );
@@ -118,7 +123,7 @@ export function PostComposer({
     }
   }
 
-  async function uploadFile(file: File, metadataDetected: boolean) {
+  async function uploadFile(file: File, metadataDetected: boolean, crop?: VideoCrop) {
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -136,6 +141,7 @@ export function PostComposer({
           ...body.media,
           displayAspectRatio,
           metadataDetected,
+          crop,
         },
       ]);
     } catch {
@@ -147,13 +153,16 @@ export function PostComposer({
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0) return;
 
-    if (postMode === "single" && (files.length > 1 || mediaItems.length >= 1 || cropQueue.length >= 1)) {
+    if (
+      postMode === "single" &&
+      (files.length > 1 || mediaItems.length >= 1 || cropQueue.length >= 1 || videoQueue.length >= 1)
+    ) {
       setError("Single posts can use one photo or video. Switch to carousel for multiple media.");
       event.target.value = "";
       return;
     }
 
-    if (mediaItems.length + cropQueue.length + files.length > MAX_POST_MEDIA_ITEMS) {
+    if (mediaItems.length + cropQueue.length + videoQueue.length + files.length > MAX_POST_MEDIA_ITEMS) {
       setError(`Up to ${MAX_POST_MEDIA_ITEMS} media items per carousel.`);
       event.target.value = "";
       return;
@@ -161,7 +170,7 @@ export function PostComposer({
 
     setError(null);
 
-    const videosToUpload: File[] = [];
+    const videosToReview: File[] = [];
     const imagesToReview: PendingCrop[] = [];
 
     for (const file of files) {
@@ -181,7 +190,7 @@ export function PostComposer({
       }
 
       if (isVideo) {
-        videosToUpload.push(file);
+        videosToReview.push(file);
         continue;
       }
 
@@ -189,16 +198,13 @@ export function PostComposer({
       imagesToReview.push({ file, metadataDetected });
     }
 
-    if (videosToUpload.length > 0) {
-      setUploading(true);
-      for (const file of videosToUpload) {
-        await uploadFile(file, false);
-      }
-      setUploading(false);
-    }
-
+    // Every photo and video goes through the frame/adjust screen, cropped to the post's
+    // chosen dimension - this is what keeps the feed WYSIWYG with what was previewed here.
     if (imagesToReview.length > 0) {
       setCropQueue((prev) => [...prev, ...imagesToReview]);
+    }
+    if (videosToReview.length > 0) {
+      setVideoQueue((prev) => [...prev, ...videosToReview]);
     }
 
     event.target.value = "";
@@ -214,6 +220,19 @@ export function PostComposer({
 
   function handleCropCancel() {
     setCropQueue((prev) => prev.slice(1));
+  }
+
+  async function handleVideoFrameConfirm({ crop }: { crop: VideoCrop; width: number; height: number; durationSeconds: number }) {
+    const file = videoQueue[0];
+    setVideoQueue((prev) => prev.slice(1));
+    if (!file) return;
+    setUploading(true);
+    await uploadFile(file, false, crop);
+    setUploading(false);
+  }
+
+  function handleVideoFrameCancel() {
+    setVideoQueue((prev) => prev.slice(1));
   }
 
   function removeMedia(url: string) {
@@ -522,12 +541,12 @@ export function PostComposer({
                   }}
                 >
                   {activeMedia?.type === "video" ? (
-                    <video
+                    <PostVideoPlayer
+                      key={activeMedia.url}
                       src={activeMedia.url}
-                      controls
-                      playsInline
-                      preload="metadata"
-                      className="h-full w-full object-cover"
+                      naturalWidth={activeMedia.width}
+                      naturalHeight={activeMedia.height}
+                      crop={activeMedia.crop}
                     />
                   ) : activeMedia ? (
                     <Image
@@ -660,7 +679,7 @@ export function PostComposer({
         </div>
       )}
 
-      {cropQueue.length > 0 && (
+      {cropQueue.length > 0 ? (
         <ImageCropDialog
           key={cropQueue[0].file.name + cropQueue[0].file.lastModified}
           file={cropQueue[0].file}
@@ -669,6 +688,16 @@ export function PostComposer({
           onCancel={handleCropCancel}
           onConfirm={handleCropConfirm}
         />
+      ) : (
+        videoQueue.length > 0 && (
+          <VideoFrameDialog
+            key={videoQueue[0].name + videoQueue[0].lastModified}
+            file={videoQueue[0]}
+            ratio={selectedRatio}
+            onCancel={handleVideoFrameCancel}
+            onConfirm={handleVideoFrameConfirm}
+          />
+        )
       )}
     </>
   );

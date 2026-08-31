@@ -154,6 +154,18 @@ export function toMediaItems(value: unknown): PostMediaItem[] {
               item.displayAspectRatio === "full_9_16")
               ? item.displayAspectRatio
               : undefined,
+          crop:
+            "crop" in item &&
+            item.crop &&
+            typeof item.crop === "object" &&
+            "zoom" in item.crop &&
+            "offsetXFrac" in item.crop &&
+            "offsetYFrac" in item.crop &&
+            typeof item.crop.zoom === "number" &&
+            typeof item.crop.offsetXFrac === "number" &&
+            typeof item.crop.offsetYFrac === "number"
+              ? { zoom: item.crop.zoom, offsetXFrac: item.crop.offsetXFrac, offsetYFrac: item.crop.offsetYFrac }
+              : undefined,
         },
       ];
     }

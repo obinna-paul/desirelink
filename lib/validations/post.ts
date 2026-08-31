@@ -3,13 +3,22 @@ import { z } from "zod";
 import { EVENT_TYPE_OPTIONS } from "@/lib/events";
 import { MAX_POST_MEDIA_ITEMS, POST_DISPLAY_ASPECT_RATIOS, POST_MEDIA_TYPES } from "@/lib/post-shared";
 
+const postMediaCropSchema = z.object({
+  zoom: z.number().min(1).max(3),
+  offsetXFrac: z.number(),
+  offsetYFrac: z.number(),
+});
+
 export const postMediaItemSchema = z.object({
-  url: z.string().url(),
+  // Accepts both an absolute Cloudinary URL and the root-relative path returned by the
+  // local-storage upload fallback (lib/uploads.ts) - both are valid next/image src values.
+  url: z.string().min(1),
   type: z.enum(POST_MEDIA_TYPES),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
   durationSeconds: z.number().positive().optional(),
   displayAspectRatio: z.enum(POST_DISPLAY_ASPECT_RATIOS).optional(),
+  crop: postMediaCropSchema.optional(),
 });
 
 export const feedEventSchema = z

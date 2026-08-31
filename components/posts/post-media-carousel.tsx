@@ -131,7 +131,13 @@ export function PostMediaCarousel({
             style={{ aspectRatio: feedMediaAspectRatio(item) }}
           >
             {item.type === "video" ? (
-              <PostVideoPlayer key={item.url} src={item.url} />
+              <PostVideoPlayer
+                key={item.url}
+                src={item.url}
+                naturalWidth={item.width}
+                naturalHeight={item.height}
+                crop={item.crop}
+              />
             ) : (
               <Image
                 src={item.url}

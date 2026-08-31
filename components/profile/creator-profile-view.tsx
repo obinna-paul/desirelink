@@ -400,7 +400,7 @@ export function CreatorProfileView({
               ? "Create a service listing when you are ready to offer bookings from your profile."
               : "This profile has not listed any services."
           }
-          emptyActionHref={isOwner ? "/profile/edit#services" : undefined}
+          emptyActionHref={isOwner ? "/services/new" : undefined}
           emptyActionLabel={isOwner ? "Create service" : undefined}
         />
       )}

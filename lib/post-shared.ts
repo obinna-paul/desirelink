@@ -4,6 +4,18 @@ export const MAX_POST_IMAGES = MAX_POST_MEDIA_ITEMS;
 export const POST_MEDIA_TYPES = ["image", "video"] as const;
 export type PostMediaType = (typeof POST_MEDIA_TYPES)[number];
 
+/**
+ * A video isn't re-encoded on upload, so it can't be pixel-cropped like an image is.
+ * Instead the frame/adjust step records where the creator chose to pan and zoom within
+ * the post's chosen aspect ratio, as fractions of the frame - resolution independent, so
+ * the feed player can reproduce the exact same crop at any width.
+ */
+export type VideoCrop = {
+  zoom: number;
+  offsetXFrac: number;
+  offsetYFrac: number;
+};
+
 export type PostMediaItem = {
   url: string;
   type: PostMediaType;
@@ -11,6 +23,7 @@ export type PostMediaItem = {
   height?: number;
   durationSeconds?: number;
   displayAspectRatio?: PostDisplayAspectRatio;
+  crop?: VideoCrop;
 };
 
 export const POST_DISPLAY_ASPECT_RATIOS = ["square", "portrait_3_4", "full_9_16"] as const;
