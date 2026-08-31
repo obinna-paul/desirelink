@@ -5,7 +5,6 @@ import Link from "next/link";
 import { BriefcaseBusiness, CheckCircle2, Clock, MapPin, MessageCircle } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/creator";
 import type { HomeServiceListingView } from "@/lib/service-listings";
@@ -39,10 +38,10 @@ function ServiceListingCard({
   const isOwnListing = viewerProfileId === provider.id;
 
   return (
-    <article className="flex min-h-full flex-col gap-3 rounded-2xl border border-border bg-card shadow-card transition-colors hover:border-primary/30 md:rounded-xl">
-      <div className="relative aspect-video w-full overflow-hidden rounded-t-2xl bg-avatar-placeholder md:rounded-t-xl">
+    <article className="group flex min-h-full flex-col overflow-hidden rounded-lg border border-border/70 bg-card transition-[border-color,box-shadow,transform] hover:border-foreground/20 hover:shadow-lift md:hover:-translate-y-0.5">
+      <div className="relative aspect-[16/10] w-full overflow-hidden bg-avatar-placeholder">
         {listing.coverImageUrl ? (
-          <Image src={listing.coverImageUrl} alt="" fill sizes="(min-width: 768px) 33vw, 100vw" className="object-cover" />
+          <Image src={listing.coverImageUrl} alt="" fill sizes="(min-width: 768px) 33vw, 100vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <BriefcaseBusiness className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
@@ -50,10 +49,10 @@ function ServiceListingCard({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+      <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-start gap-3">
           <Link href={`/profile/${provider.username}`} aria-label={`View ${provider.displayName}`}>
-            <Avatar className="h-12 w-12">
+            <Avatar className="h-10 w-10 border border-border">
               <AvatarImage src={provider.avatarUrl} alt="" />
               <AvatarFallback>{initials(provider.displayName)}</AvatarFallback>
             </Avatar>
@@ -78,23 +77,19 @@ function ServiceListingCard({
         </div>
 
         <div className="flex flex-1 flex-col gap-2">
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="font-heading text-base italic font-semibold leading-snug">{listing.title}</h2>
-            <Badge variant="tint" className="label-caps shrink-0">
-              {listing.category}
-            </Badge>
-          </div>
+          <p className="text-[11px] font-semibold uppercase text-primary">{listing.category}</p>
+          <h2 className="text-base font-semibold leading-snug">{listing.title}</h2>
           {listing.description && (
             <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{listing.description}</p>
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+        <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3">
           <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Clock className="h-4 w-4" aria-hidden="true" />
             {formatDuration(listing.durationMinutes)}
           </span>
-          <span className="font-heading text-sm font-semibold text-foreground">{formatCents(listing.priceCents)}</span>
+          <span className="text-sm font-semibold text-foreground">{formatCents(listing.priceCents)}</span>
         </div>
 
         {!isOwnListing && viewerProfileId && (
@@ -127,7 +122,7 @@ export function ServiceListingGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4 2xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-3">
       {listings.map((listing) => (
         <ServiceListingCard key={listing.id} listing={listing} viewerProfileId={viewerProfileId} />
       ))}

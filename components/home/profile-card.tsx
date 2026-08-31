@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { Award, BadgeCheck, CalendarCheck, ShieldCheck } from "lucide-react";
+import Image from "next/image";
+import { BadgeCheck, MapPin, Radio } from "lucide-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { PremiumBadge } from "@/components/premium/premium-badge";
 import type { ProfileCardData } from "@/lib/home-feed";
 import { AVAILABILITY_STATUS_LABELS } from "@/lib/availability-options";
 import { getPreferenceLabel } from "@/lib/desire-options";
@@ -24,8 +22,7 @@ export function ProfileCard({
         : `${Math.round(profile.distanceKm)} km away`
       : null;
   const locationLabel = distanceLabel ?? (profile.showExactLocation ? preciseLocation : "");
-  const visibleDesires = profile.desires.slice(0, 3);
-  const extraDesireCount = profile.desires.length - visibleDesires.length;
+  const visibleDesires = profile.desires.slice(0, 2);
   const activeStatus = profile.availabilityStatuses[0];
   const premium = profile.premiumSubscription;
   const isPremium = Boolean(premium && premium.status === "active" && premium.currentPeriodEnd > new Date());
@@ -33,85 +30,83 @@ export function ProfileCard({
   return (
     <Link
       href={`/profile/${profile.username}`}
-      className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-3 shadow-sm transition-[transform,border-color,box-shadow] hover:border-primary/80 hover:shadow-lift md:rounded-xl md:p-4 md:hover:-translate-y-0.5"
+      className="group min-w-0 overflow-hidden rounded-lg border border-border/70 bg-card transition-[border-color,box-shadow,transform] hover:border-foreground/20 hover:shadow-lift md:hover:-translate-y-0.5"
     >
-      <div className="flex items-center gap-3">
-        <div className="relative shrink-0">
-          <Avatar className="h-[52px] w-[52px] border border-border bg-secondary md:h-12 md:w-12">
-            <AvatarImage src={profile.avatarUrl} alt={profile.displayName} />
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
-          {activeStatus && (
-            <span
-              className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card bg-neon-cyan shadow-[0_0_8px_hsl(var(--neon-cyan)/0.6)] motion-safe:animate-pulse"
-              aria-hidden="true"
-            />
+      <div className="relative aspect-[4/5] overflow-hidden bg-secondary md:aspect-[5/4]">
+        {profile.avatarUrl ? (
+          <Image
+            src={profile.avatarUrl}
+            alt={profile.displayName}
+            fill
+            sizes="(max-width: 639px) 50vw, (max-width: 1279px) 33vw, 25vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          />
+        ) : profile.bannerUrl ? (
+          <Image
+            src={profile.bannerUrl}
+            alt=""
+            fill
+            sizes="(max-width: 639px) 50vw, (max-width: 1279px) 33vw, 25vw"
+            className="object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-3xl font-semibold text-muted-foreground md:text-4xl">
+            {initials}
+          </div>
+        )}
+        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+
+        <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5">
+          {typeof matchScore === "number" && (
+            <span className="rounded-full bg-black/70 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">
+              {matchScore}% match
+            </span>
+          )}
+          {isPremium && (
+            <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-black">Premium</span>
           )}
         </div>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <p className="truncate text-sm font-semibold">{profile.displayName}</p>
-            {isPremium && <PremiumBadge className="px-1.5 py-0.5 text-[10px]" />}
-            {profile.isTrustedMember ? (
-              <ShieldCheck
-                role="img"
-                aria-label="Trusted member"
-                className="h-3.5 w-3.5 shrink-0 text-neon-cyan"
-              />
-            ) : (
-              profile.isVerified && (
-                <BadgeCheck
-                  role="img"
-                  aria-label="Verified"
-                  className="h-3.5 w-3.5 shrink-0 text-neon-pink"
-                />
-              )
-            )}
-            {profile.isVerifiedCreator && (
-              <Award
-                role="img"
-                aria-label="Verified creator"
-                className="h-3.5 w-3.5 shrink-0 text-neon-pink"
-              />
-            )}
-            {profile.isVerifiedHost && (
-              <CalendarCheck
-                role="img"
-                aria-label="Verified host"
-                className="h-3.5 w-3.5 shrink-0 text-neon-cyan"
-              />
+
+        <div className="absolute inset-x-0 bottom-0 p-3 text-white md:p-4">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <p className="truncate text-sm font-semibold md:text-base">{profile.displayName}</p>
+            {(profile.isVerified || profile.isTrustedMember || profile.isVerifiedCreator || profile.isVerifiedHost) && (
+              <BadgeCheck className="h-4 w-4 shrink-0 text-white" aria-label="Verified" />
             )}
           </div>
-          <p className="truncate text-xs text-muted-foreground">@{profile.username}</p>
-          {locationLabel && <p className="truncate text-xs text-muted-foreground">{locationLabel}</p>}
+          <p className="truncate text-[11px] text-white/75 md:text-xs">@{profile.username}</p>
+          {locationLabel && (
+            <p className="mt-1 flex items-center gap-1 truncate text-[10px] text-white/80 md:text-xs">
+              <MapPin className="h-3 w-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">{locationLabel}</span>
+            </p>
+          )}
         </div>
       </div>
 
-      {typeof matchScore === "number" && (
-        <Badge variant="neon" className="w-fit">
-          {matchScore}% match
-        </Badge>
-      )}
-
+      <div className="hidden min-h-12 items-center gap-2 px-3 py-2.5 sm:flex">
+        {activeStatus ? (
+          <span className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-foreground">
+            <Radio className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden="true" />
+            <span className="truncate">{AVAILABILITY_STATUS_LABELS[activeStatus.status]}</span>
+          </span>
+        ) : visibleDesires.length > 0 ? (
+          <span className="truncate text-xs text-muted-foreground">
+            {visibleDesires.map((desire) => getPreferenceLabel(desire.category)).join(" · ")}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">View profile</span>
+        )}
+        {activeStatus && visibleDesires.length > 0 && (
+          <span className="ml-auto truncate text-xs text-muted-foreground">
+            {getPreferenceLabel(visibleDesires[0].category)}
+          </span>
+        )}
+      </div>
       {activeStatus && (
-        <Badge variant="neon" className="w-fit gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-background/80 motion-safe:animate-pulse" />
-          {AVAILABILITY_STATUS_LABELS[activeStatus.status]}
-        </Badge>
-      )}
-
-      {visibleDesires.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 pt-1">
-          {visibleDesires.map((desire) => (
-            <Badge key={desire.id} variant="outline">
-              {getPreferenceLabel(desire.category)}
-            </Badge>
-          ))}
-          {extraDesireCount > 0 && (
-            <Badge variant="outline" className="text-muted-foreground">
-              +{extraDesireCount} more
-            </Badge>
-          )}
+        <div className="flex min-h-9 items-center gap-1.5 px-2.5 py-2 text-[10px] font-medium sm:hidden">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+          <span className="truncate">{AVAILABILITY_STATUS_LABELS[activeStatus.status]}</span>
         </div>
       )}
     </Link>

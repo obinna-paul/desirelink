@@ -63,7 +63,7 @@ export default async function EventsPage({
 
       <EventFiltersPanel initialFilters={filters} />
 
-      <div className="rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+      <div className="px-0.5 text-sm text-muted-foreground">
         {events.length} upcoming {events.length === 1 ? "event" : "events"}
       </div>
 

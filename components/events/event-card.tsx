@@ -3,7 +3,6 @@ import Image from "next/image";
 import { CalendarDays, MapPin, Users, Video } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { formatCents } from "@/lib/creator";
 import type { UpcomingEvent } from "@/lib/events";
 
@@ -20,42 +19,42 @@ export function EventCard({
   return (
     <Link
       href={`/events/${event.id}`}
-      className="flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-[transform,border-color,box-shadow] hover:border-primary/80 hover:shadow-lift md:rounded-xl md:hover:-translate-y-0.5"
+      className="group flex flex-col overflow-hidden rounded-lg border border-border/70 bg-card transition-[transform,border-color,box-shadow] hover:border-foreground/20 hover:shadow-lift md:hover:-translate-y-0.5"
     >
-      <div className="relative flex h-40 w-full items-center justify-center overflow-hidden bg-secondary md:h-32">
+      <div className="relative flex aspect-[16/10] w-full items-center justify-center overflow-hidden bg-secondary">
         {event.coverImageUrl ? (
           <Image
             src={event.coverImageUrl}
             alt=""
             fill
             sizes="(min-width: 1536px) 33vw, (min-width: 640px) 50vw, 100vw"
-            className="object-cover"
+            className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : (
           <CalendarDays className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
         )}
-        <div className="absolute left-3 top-3 overflow-hidden rounded-xl bg-white text-center shadow-card md:rounded-lg">
-          <div className="bg-white px-2 py-0.5 text-[9px] font-bold uppercase leading-none text-primary">
+        <div className="absolute left-3 top-3 overflow-hidden rounded-md bg-white text-center shadow-card">
+          <div className="px-2 pt-1 text-[9px] font-bold uppercase leading-none text-primary">
             {new Date(event.startTime).toLocaleString(undefined, { month: "short" })}
           </div>
-          <div className="px-2 pb-1 text-sm font-extrabold leading-none text-background">
+          <div className="px-2 pb-1.5 pt-0.5 text-sm font-extrabold leading-none text-black">
             {new Date(event.startTime).getDate()}
           </div>
         </div>
-      </div>
-      <div className="flex flex-col gap-2 p-3 md:p-4">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant="outline">{event.eventType}</Badge>
+        <div className="absolute right-3 top-3 flex items-center gap-1.5">
           {typeof matchScore === "number" && (
-            <Badge variant="neon">{matchScore}% match</Badge>
+            <span className="rounded-full bg-black/70 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">
+              {matchScore}% match
+            </span>
           )}
-          {event.priceCents > 0 ? (
-            <Badge variant="secondary">{formatCents(event.priceCents)}</Badge>
-          ) : (
-            <Badge variant="secondary">Free</Badge>
-          )}
+          <span className="rounded-full bg-black/70 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">
+            {event.priceCents > 0 ? formatCents(event.priceCents) : "Free"}
+          </span>
         </div>
-        <p className="line-clamp-2 text-base font-semibold leading-5 md:truncate md:text-sm">{event.title}</p>
+      </div>
+      <div className="flex flex-col gap-2 p-3.5 md:p-4">
+        <p className="text-[11px] font-semibold uppercase text-primary">{event.eventType}</p>
+        <p className="line-clamp-2 text-base font-semibold leading-5">{event.title}</p>
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
           <CalendarDays className="h-3 w-3" aria-hidden="true" />
           {new Date(event.startTime).toLocaleString(undefined, {

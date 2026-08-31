@@ -49,7 +49,7 @@ export default async function ServicesPage({
 
       <ServiceFiltersPanel initialFilters={filters} />
 
-      <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-card md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+      <div className="px-0.5 text-sm text-muted-foreground">
         {listings.length} {listings.length === 1 ? "service" : "services"} found
       </div>
 

@@ -10,6 +10,7 @@ export function profileCardSelect() {
     username: true,
     displayName: true,
     avatarUrl: true,
+    bannerUrl: true,
     city: true,
     country: true,
     showExactLocation: true,
