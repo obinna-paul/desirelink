@@ -101,7 +101,7 @@ export function PostCard({
   }
 
   return (
-    <article className="-mx-3 flex flex-col gap-3 border-b border-border bg-card pb-3 md:mx-0 md:gap-3 md:rounded-xl md:border md:pb-4 md:shadow-card">
+    <article className="-mx-3 flex flex-col gap-3 bg-card pb-3 md:mx-0 md:gap-3 md:rounded-xl md:border md:pb-4 md:shadow-card">
       <div className="flex items-center justify-between gap-2 px-3 pt-3 md:px-4 md:pt-4">
         {showAuthor ? (
           <Link
