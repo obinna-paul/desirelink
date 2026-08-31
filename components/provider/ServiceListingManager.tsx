@@ -340,7 +340,7 @@ export function ServiceListingManager({
   }
 
   return (
-    <section className="flex flex-col gap-4">
+    <section id="services" className="scroll-mt-24 flex flex-col gap-4">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
         Service listings
       </h2>

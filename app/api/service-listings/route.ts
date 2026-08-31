@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createServiceListing, getProviderServiceListings } from "@/lib/service-listings";
 import { serviceListingSchema } from "@/lib/validations/service-listing";
+import { isProviderProfileType } from "@/lib/provider-types";
 
 async function getCurrentProfile(userId: string) {
   return prisma.profile.findUnique({ where: { userId } });
@@ -34,6 +35,16 @@ export async function POST(req: Request) {
   const profile = await getCurrentProfile(session.user.id);
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  }
+  if (!isProviderProfileType(profile.profileType)) {
+    return NextResponse.json(
+      {
+        error: "Switch to a provider account before listing services.",
+        code: "PROVIDER_ACCOUNT_REQUIRED",
+        actionHref: "/settings/account-type?intent=service",
+      },
+      { status: 403 }
+    );
   }
   if (!profile.isVerifiedServiceProvider) {
     return NextResponse.json(

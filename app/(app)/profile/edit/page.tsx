@@ -9,6 +9,7 @@ import { EditProfileForm } from "@/components/profile/edit-profile-form";
 import { PartnerLinkPanel } from "@/components/profile/partner-link-panel";
 import { ProfileSetupActions } from "@/components/profile/profile-setup-actions";
 import { ServiceListingManager } from "@/components/provider/ServiceListingManager";
+import { ProviderUpgradePrompt } from "@/components/settings/provider-upgrade-prompt";
 import { getPartnerState } from "@/lib/partners";
 import { getProviderServiceListings } from "@/lib/service-listings";
 import { getMyVerificationRequests } from "@/lib/verification";
@@ -71,12 +72,16 @@ export default async function EditProfilePage() {
         />
       </section>
       {partnerState && <PartnerLinkPanel initialState={partnerState} />}
-      {isProvider && (
+      {isProvider ? (
         <ServiceListingManager
           initialListings={serviceListings}
           isVerifiedServiceProvider={profile.isVerifiedServiceProvider}
           latestServiceProviderStatus={latestServiceProviderRequest?.status ?? null}
         />
+      ) : (
+        <section id="services" className="scroll-mt-24">
+          <ProviderUpgradePrompt intent="service" />
+        </section>
       )}
     </div>
   );

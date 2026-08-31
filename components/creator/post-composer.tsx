@@ -7,6 +7,7 @@ import { AlertTriangle, Check, ImagePlus, Loader2, Lock, ShieldCheck, Video, X }
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
+import { ProviderUpgradePrompt } from "@/components/settings/provider-upgrade-prompt";
 import {
   MAX_POST_MEDIA_ITEMS,
   POST_DISPLAY_RATIO_OPTIONS,
@@ -37,11 +38,11 @@ function selectedRatioValue(value: PostDisplayAspectRatio) {
 
 export function PostComposer({
   creatorDisplayName,
-  allowPremiumContent = false,
+  canPostPremiumContent = false,
   onCreated,
 }: {
   creatorDisplayName: string;
-  allowPremiumContent?: boolean;
+  canPostPremiumContent?: boolean;
   onCreated: (post: PostView) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -55,6 +56,7 @@ export function PostComposer({
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showProviderUpgradePrompt, setShowProviderUpgradePrompt] = useState(false);
   const [pendingFindings, setPendingFindings] = useState<PiiFinding[]>([]);
   const [showPiiWarning, setShowPiiWarning] = useState(false);
   const [piiAcknowledged, setPiiAcknowledged] = useState(false);
@@ -97,7 +99,7 @@ export function PostComposer({
     [mediaItems]
   );
   const activeMedia = mediaItems[activeMediaIndex];
-  const isSubscriberOnly = allowPremiumContent && postAccess === "premium";
+  const isSubscriberOnly = canPostPremiumContent && postAccess === "premium";
   const selectedRatioOption = POST_DISPLAY_RATIO_OPTIONS.find((option) => option.value === displayAspectRatio);
   const mediaLimit = postMode === "single" ? 1 : MAX_POST_MEDIA_ITEMS;
   const canAddMedia = mediaItems.length < mediaLimit;
@@ -368,7 +370,7 @@ export function PostComposer({
     </div>
   );
 
-  const accessControls = allowPremiumContent ? (
+  const accessControls = (
     <fieldset className="border-t border-border/70 pt-5">
       <legend className="text-sm font-semibold text-foreground">Who can see this?</legend>
       <div className="mt-2 flex flex-wrap gap-x-7 gap-y-2">
@@ -382,7 +384,14 @@ export function PostComposer({
               key={option.value}
               type="button"
               aria-pressed={selected}
-              onClick={() => setPostAccess(option.value)}
+              onClick={() => {
+                if (option.value === "premium" && !canPostPremiumContent) {
+                  setShowProviderUpgradePrompt(true);
+                  return;
+                }
+                setShowProviderUpgradePrompt(false);
+                setPostAccess(option.value);
+              }}
               className="flex min-h-11 items-center gap-2 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <span
@@ -403,8 +412,11 @@ export function PostComposer({
       <p className="mt-1 text-xs text-muted-foreground">
         {postAccess === "premium" ? "Added to your Premium tab" : "Appears in the public feed"}
       </p>
+      {showProviderUpgradePrompt && (
+        <ProviderUpgradePrompt intent="premium-post" className="mt-4 shadow-none" />
+      )}
     </fieldset>
-  ) : null;
+  );
 
   const publishControls = (
     <>

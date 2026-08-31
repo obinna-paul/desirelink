@@ -68,6 +68,26 @@ export async function POST(req: Request) {
 
   const { content, isSubscriberOnly, postType, event } = parsed.data;
   const canPostPremiumContent = isProviderProfileType(profile.profileType);
+  if (postType === "event" && !canPostPremiumContent) {
+    return NextResponse.json(
+      {
+        error: "Switch to a provider account before hosting events.",
+        code: "PROVIDER_ACCOUNT_REQUIRED",
+        actionHref: "/settings/account-type?intent=event",
+      },
+      { status: 403 }
+    );
+  }
+  if (isSubscriberOnly && !canPostPremiumContent) {
+    return NextResponse.json(
+      {
+        error: "Switch to a provider account before publishing premium posts.",
+        code: "PROVIDER_ACCOUNT_REQUIRED",
+        actionHref: "/settings/account-type?intent=premium-post",
+      },
+      { status: 403 }
+    );
+  }
   const mediaItems =
     parsed.data.mediaItems ??
     (parsed.data.mediaUrls ?? []).map((url) => ({ url, type: "image" as const }));

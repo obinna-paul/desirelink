@@ -34,6 +34,7 @@ export default async function EventsPage({
     select: { id: true, locationLat: true, locationLng: true, profileType: true },
   });
   const isProvider = viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false;
+  const hostEventHref = isProvider ? "/events/new" : "/settings/account-type?intent=event";
 
   const filters = parseEventFilters(searchParams);
   const [{ events, note }, recommendedEvents] = await Promise.all([
@@ -43,20 +44,20 @@ export default async function EventsPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      {isProvider && (
-        <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:gap-3">
-          <Button asChild className="gap-1.5">
-            <Link href="/events/new">
-              <CalendarPlus className="h-4 w-4" aria-hidden="true" /> Host an event
-            </Link>
-          </Button>
+      <div className={isProvider ? "grid grid-cols-2 gap-2 md:flex md:flex-wrap md:gap-3" : "grid gap-2 md:flex md:flex-wrap md:gap-3"}>
+        <Button asChild className="gap-1.5">
+          <Link href={hostEventHref}>
+            <CalendarPlus className="h-4 w-4" aria-hidden="true" /> Host an event
+          </Link>
+        </Button>
+        {isProvider && (
           <Button asChild variant="outline" className="gap-1.5">
             <Link href="/events/manage">
               <ListChecks className="h-4 w-4" aria-hidden="true" /> Manage your events
             </Link>
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       <RecommendedEventsBanner recommendations={recommendedEvents ?? []} />
 

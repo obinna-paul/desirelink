@@ -6,10 +6,10 @@ import { PostComposer } from "@/components/creator/post-composer";
 
 export function FeedComposer({
   displayName,
-  allowPremiumContent = false,
+  canPostPremiumContent = false,
 }: {
   displayName: string;
-  allowPremiumContent?: boolean;
+  canPostPremiumContent?: boolean;
 }) {
   const router = useRouter();
 
@@ -20,7 +20,7 @@ export function FeedComposer({
   return (
     <PostComposer
       creatorDisplayName={displayName}
-      allowPremiumContent={allowPremiumContent}
+      canPostPremiumContent={canPostPremiumContent}
       onCreated={handleCreated}
     />
   );

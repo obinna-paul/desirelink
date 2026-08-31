@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { eventFormSchema } from "@/lib/validations/event";
 import { readJson } from "@/lib/security/request";
+import { isProviderProfileType } from "@/lib/provider-types";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -14,10 +15,20 @@ export async function POST(req: Request) {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, isVerifiedHost: true },
+    select: { id: true, isVerifiedHost: true, profileType: true },
   });
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  }
+  if (!isProviderProfileType(profile.profileType)) {
+    return NextResponse.json(
+      {
+        error: "Switch to a provider account before hosting events.",
+        code: "PROVIDER_ACCOUNT_REQUIRED",
+        actionHref: "/settings/account-type?intent=event",
+      },
+      { status: 403 }
+    );
   }
   if (!profile.isVerifiedHost) {
     return NextResponse.json(

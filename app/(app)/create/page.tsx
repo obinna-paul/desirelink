@@ -27,7 +27,7 @@ export default async function CreatePage() {
     <div className="mx-auto w-full max-w-5xl pb-4 md:py-4">
       <FeedComposer
         displayName={profile.displayName}
-        allowPremiumContent={isProviderProfileType(profile.profileType)}
+        canPostPremiumContent={isProviderProfileType(profile.profileType)}
       />
     </div>
   );

@@ -32,21 +32,20 @@ export default async function ServicesPage({
     select: { id: true, locationLat: true, locationLng: true, profileType: true },
   });
   const isProvider = viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false;
+  const listServiceHref = isProvider ? "/profile/edit#services" : "/settings/account-type?intent=service";
 
   const filters = parseServiceFilters(searchParams);
   const { listings, note } = await searchServiceListings(filters, viewerProfile);
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      {isProvider && (
-        <div>
-          <Button asChild variant="outline" className="gap-1.5">
-            <Link href="/profile/edit#services">
-              <BriefcaseBusiness className="h-4 w-4" aria-hidden="true" /> List a service
-            </Link>
-          </Button>
-        </div>
-      )}
+      <div>
+        <Button asChild variant="outline" className="gap-1.5">
+          <Link href={listServiceHref}>
+            <BriefcaseBusiness className="h-4 w-4" aria-hidden="true" /> List a service
+          </Link>
+        </Button>
+      </div>
 
       <ServiceFiltersPanel initialFilters={filters} />
 
