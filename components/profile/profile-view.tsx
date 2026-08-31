@@ -16,13 +16,18 @@ import {
 
 import { BannerUploader } from "@/components/profile/banner-uploader";
 import { EmptyProfileSection } from "@/components/profile/empty-profile-section";
-import { PostGridSection, ServiceGridSection, GRID_CLASSNAME } from "@/components/profile/creator-content-grid";
+import {
+  PostGridSection,
+  ServiceGridSection,
+  GRID_CLASSNAME,
+} from "@/components/profile/creator-content-grid";
 import { EventGridTile } from "@/components/profile/profile-grid-tiles";
 import { ProfileAvatarEditor } from "@/components/profile/profile-avatar-editor";
 import { ProfileSectionTab } from "@/components/profile/profile-section-tab";
 import { ProfileSetupActions } from "@/components/profile/profile-setup-actions";
 import { ProfileSubscribeButton } from "@/components/profile/profile-subscribe-button";
 import { ShareProfileButton } from "@/components/profile/share-profile-button";
+import { SwipeableSection } from "@/components/profile/swipeable-section";
 import { VerificationBadge } from "@/components/profile/verification-badge";
 import { PremiumBadge } from "@/components/premium/premium-badge";
 import { ReviewDialog } from "@/components/reviews/review-dialog";
@@ -37,14 +42,22 @@ import { getProfileCapabilityLabel } from "@/lib/profile-capabilities";
 import type { CreatorStats } from "@/lib/creator";
 import type { UpcomingEvent } from "@/lib/events";
 import type { PostView } from "@/lib/posts";
-import type { ReviewableContext, ReviewData, ReviewSummary } from "@/lib/reviews";
+import type {
+  ReviewableContext,
+  ReviewData,
+  ReviewSummary,
+} from "@/lib/reviews";
 import type { ServiceListingView } from "@/lib/service-listings";
 import type { PublicTierView } from "@/lib/tiers";
 import type { ProfileFieldName } from "@/lib/circles";
 
 type ProfileSection = "posts" | "premium" | "events" | "services" | "reviews";
 
-const PROFILE_SECTIONS: { id: ProfileSection; label: string; icon: LucideIcon }[] = [
+const PROFILE_SECTIONS: {
+  id: ProfileSection;
+  label: string;
+  icon: LucideIcon;
+}[] = [
   { id: "posts", label: "Posts", icon: LayoutGrid },
   { id: "premium", label: "Premium", icon: LockKeyhole },
   { id: "events", label: "Events", icon: CalendarDays },
@@ -53,23 +66,42 @@ const PROFILE_SECTIONS: { id: ProfileSection; label: string; icon: LucideIcon }[
 ];
 
 function normalizeSection(section?: string): ProfileSection {
-  return PROFILE_SECTIONS.some((item) => item.id === section) ? (section as ProfileSection) : "posts";
+  return PROFILE_SECTIONS.some((item) => item.id === section)
+    ? (section as ProfileSection)
+    : "posts";
 }
 
 function sectionHref(profileHref: string, section: ProfileSection) {
-  return section === "posts" ? profileHref : `${profileHref}?section=${section}`;
+  return section === "posts"
+    ? profileHref
+    : `${profileHref}?section=${section}`;
 }
 
-function ProfileStat({ value, label, href }: { value: string | number; label: string; href?: string }) {
+function ProfileStat({
+  value,
+  label,
+  href,
+}: {
+  value: string | number;
+  label: string;
+  href?: string;
+}) {
   const content = (
     <>
-      <span className="block text-base font-semibold leading-none text-foreground md:text-lg">{value}</span>
-      <span className="mt-1 block text-[11px] text-muted-foreground md:text-xs">{label}</span>
+      <span className="block text-base font-semibold leading-none text-foreground md:text-lg">
+        {value}
+      </span>
+      <span className="mt-1 block text-[11px] text-muted-foreground md:text-xs">
+        {label}
+      </span>
     </>
   );
 
   return href ? (
-    <Link href={href} className="min-w-0 px-2 py-1 text-center hover:text-primary">
+    <Link
+      href={href}
+      className="min-w-0 px-2 py-1 text-center hover:text-primary"
+    >
       {content}
     </Link>
   ) : (
@@ -99,7 +131,11 @@ export function ProfileView({
   stats,
 }: {
   profile: Profile & {
-    partner: { username: string; displayName: string; avatarUrl: string } | null;
+    partner: {
+      username: string;
+      displayName: string;
+      avatarUrl: string;
+    } | null;
   };
   desires: Desire[];
   posts: PostView[];
@@ -131,9 +167,13 @@ export function ProfileView({
     offersServices: serviceListings.length > 0,
   });
   const subscriptionReviewContexts = isProvider
-    ? reviewableContexts.filter((context) => context.contextType === "transaction")
+    ? reviewableContexts.filter(
+        (context) => context.contextType === "transaction",
+      )
     : reviewableContexts;
-  const visiblePreferences = desires.filter((desire) => isOwner || desire.privacy === "public").slice(0, 5);
+  const visiblePreferences = desires
+    .filter((desire) => isOwner || desire.privacy === "public")
+    .slice(0, 5);
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-5xl">
@@ -173,7 +213,9 @@ export function ProfileView({
                 {isPremium && <PremiumBadge />}
               </div>
               {profile.displayName && (
-                <p className="mt-0.5 truncate text-sm text-muted-foreground">@{profile.username}</p>
+                <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                  @{profile.username}
+                </p>
               )}
             </div>
           </div>
@@ -182,29 +224,45 @@ export function ProfileView({
             <ProfileStat value={posts.length} label="Posts" />
             <ProfileStat value={stats.subscriberCount} label="Subscribers" />
             <ProfileStat
-              value={reviewSummary.totalCount ? reviewSummary.averageRating.toFixed(1) : "—"}
+              value={
+                reviewSummary.totalCount
+                  ? reviewSummary.averageRating.toFixed(1)
+                  : "—"
+              }
               label="Rating"
               href={sectionHref(profileHref, "reviews")}
             />
           </div>
 
           <div className="mt-4 max-w-2xl md:ml-[9.5rem]">
-            {profile.bio && <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">{profile.bio}</p>}
+            {profile.bio && (
+              <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
+                {profile.bio}
+              </p>
+            )}
 
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-              {visibleFields.has("location") && profile.showExactLocation && location && (
-                <span className="inline-flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5" aria-hidden="true" /> {location}
-                </span>
-              )}
+              {visibleFields.has("location") &&
+                profile.showExactLocation &&
+                location && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5" aria-hidden="true" />{" "}
+                    {location}
+                  </span>
+                )}
               {visibleFields.has("availability") && profile.openToChat && (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" /> Open to chat
+                  <span
+                    className="h-2 w-2 rounded-full bg-emerald-500"
+                    aria-hidden="true"
+                  />{" "}
+                  Open to chat
                 </span>
               )}
               {visibleFields.has("availability") && profile.openToMeet && (
                 <span className="inline-flex items-center gap-1.5">
-                  <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /> Open to plans
+                  <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />{" "}
+                  Open to plans
                 </span>
               )}
             </div>
@@ -212,21 +270,34 @@ export function ProfileView({
             {profile.partner && (
               <p className="mt-2 text-xs text-muted-foreground">
                 Linked with{" "}
-                <Link href={`/profile/${profile.partner.username}`} className="font-medium text-foreground hover:underline">
+                <Link
+                  href={`/profile/${profile.partner.username}`}
+                  className="font-medium text-foreground hover:underline"
+                >
                   @{profile.partner.username}
                 </Link>
               </p>
             )}
 
             {visiblePreferences.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Preferences">
+              <div
+                className="mt-3 flex flex-wrap gap-1.5"
+                aria-label="Preferences"
+              >
                 {visiblePreferences.map((preference) => (
-                  <Badge key={preference.id} variant="outline" className="rounded-full bg-background/50 font-normal">
+                  <Badge
+                    key={preference.id}
+                    variant="outline"
+                    className="rounded-full bg-background/50 font-normal"
+                  >
                     {getPreferenceLabel(preference.category)}
                   </Badge>
                 ))}
                 {isOwner && (
-                  <Link href="/profile/edit/preferences" className="inline-flex min-h-7 items-center px-1 text-xs font-medium text-primary hover:underline">
+                  <Link
+                    href="/profile/edit/preferences"
+                    className="inline-flex min-h-7 items-center px-1 text-xs font-medium text-primary hover:underline"
+                  >
                     Edit
                   </Link>
                 )}
@@ -236,24 +307,43 @@ export function ProfileView({
             <div className="mt-4 flex items-center gap-2">
               {isOwner ? (
                 <>
-                  <Button asChild className="h-10 min-w-32 flex-1 sm:flex-none" variant="outline">
+                  <Button
+                    asChild
+                    className="h-10 min-w-32 flex-1 sm:flex-none"
+                    variant="outline"
+                  >
                     <Link href="/profile/edit">Edit profile</Link>
                   </Button>
-                  <ShareProfileButton profileHref={profileHref} displayName={profile.displayName} />
+                  <ShareProfileButton
+                    profileHref={profileHref}
+                    displayName={profile.displayName}
+                  />
                 </>
               ) : (
                 <>
                   {isProvider && subscription && (
-                    <ProfileSubscribeButton providerId={profile.id} subscription={subscription} />
+                    <ProfileSubscribeButton
+                      providerId={profile.id}
+                      subscription={subscription}
+                    />
                   )}
                   {canMessage && (
-                    <Button asChild className="h-10 min-w-32 flex-1 sm:flex-none">
+                    <Button
+                      asChild
+                      className="h-10 min-w-32 flex-1 sm:flex-none"
+                    >
                       <Link href={`/messages?with=${profile.username}`}>
-                        <MessageCircle className="h-4 w-4" aria-hidden="true" /> Message
+                        <MessageCircle className="h-4 w-4" aria-hidden="true" />{" "}
+                        Message
                       </Link>
                     </Button>
                   )}
-                  {isProvider && <SendHeartsButton providerId={profile.id} initialBalance={viewerHeartsBalance} />}
+                  {isProvider && (
+                    <SendHeartsButton
+                      providerId={profile.id}
+                      initialBalance={viewerHeartsBalance}
+                    />
+                  )}
                   <details className="relative">
                     <summary
                       aria-label="More profile actions"
@@ -262,11 +352,20 @@ export function ProfileView({
                       <Ellipsis className="h-5 w-5" aria-hidden="true" />
                     </summary>
                     <div className="absolute right-0 top-12 z-20 flex min-w-48 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-lift">
-                      <ShareProfileButton profileHref={profileHref} displayName={profile.displayName} />
+                      <ShareProfileButton
+                        profileHref={profileHref}
+                        displayName={profile.displayName}
+                      />
                       {canModerate && (
                         <>
-                          <ReportDialog targetType="profile" targetId={profile.id} />
-                          <BlockButton profileId={profile.id} initiallyBlocked={false} />
+                          <ReportDialog
+                            targetType="profile"
+                            targetId={profile.id}
+                          />
+                          <BlockButton
+                            profileId={profile.id}
+                            initiallyBlocked={false}
+                          />
                         </>
                       )}
                     </div>
@@ -285,9 +384,12 @@ export function ProfileView({
                 <LineChart className="h-4 w-4" aria-hidden="true" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold">Creative Studio</span>
+                <span className="block text-sm font-semibold">
+                  Creative Studio
+                </span>
                 <span className="block text-xs text-muted-foreground">
-                  {stats.profileViews.toLocaleString()} measured profile views · {stats.subscriberCount.toLocaleString()} subscribers
+                  {stats.profileViews.toLocaleString()} measured profile views ·{" "}
+                  {stats.subscriberCount.toLocaleString()} subscribers
                 </span>
               </span>
             </Link>
@@ -310,80 +412,109 @@ export function ProfileView({
         ))}
       </nav>
 
-      <div className="min-h-[18rem] py-3 md:py-5">
-        {section === "posts" && (
-          <PostGridSection
-            posts={freePosts}
-            emptyTitle="No posts yet"
-            emptyDescription={isOwner ? "Your public posts will appear here." : "This profile hasn't shared a public post yet."}
-          />
+      <SwipeableSection
+        hrefs={PROFILE_SECTIONS.map((item) =>
+          sectionHref(profileHref, item.id),
         )}
-
-        {section === "premium" && (
-          <PostGridSection
-            posts={premiumPosts}
-            emptyTitle="No premium posts yet"
-            emptyDescription={isOwner ? "Premium posts you publish will appear here." : "This profile hasn't shared premium content yet."}
-          />
-        )}
-
-        {section === "events" &&
-          (events.length ? (
-            <div className={GRID_CLASSNAME}>
-              {events.map((event) => (
-                <EventGridTile key={event.id} event={event} />
-              ))}
-            </div>
-          ) : (
-            <EmptyProfileSection
-              title="No events yet"
-              description={isOwner ? "Events you host or attend will appear here." : "There are no public events to show."}
-              actionHref={isOwner ? "/events" : undefined}
-              actionLabel={isOwner ? "Explore events" : undefined}
+        currentIndex={PROFILE_SECTIONS.findIndex((item) => item.id === section)}
+      >
+        <div className="min-h-[18rem] py-3 md:py-5">
+          {section === "posts" && (
+            <PostGridSection
+              posts={freePosts}
+              emptyTitle="No posts yet"
+              emptyDescription={
+                isOwner
+                  ? "Your public posts will appear here."
+                  : "This profile hasn't shared a public post yet."
+              }
             />
-          ))}
+          )}
 
-        {section === "services" && (
-          <ServiceGridSection
-            listings={serviceListings}
-            providerUsername={profile.username}
-            isOwner={isOwner}
-            emptyTitle="No services yet"
-            emptyDescription={isOwner ? "Services you list will appear here." : "This profile has no active service listings."}
-            emptyActionHref={isOwner ? "/services/new" : undefined}
-            emptyActionLabel={isOwner ? "List a service" : undefined}
-          />
-        )}
+          {section === "premium" && (
+            <PostGridSection
+              posts={premiumPosts}
+              emptyTitle="No premium posts yet"
+              emptyDescription={
+                isOwner
+                  ? "Premium posts you publish will appear here."
+                  : "This profile hasn't shared premium content yet."
+              }
+            />
+          )}
 
-        {section === "reviews" && (
-          <div className="space-y-4">
-            {!isOwner && subscriptionReviewContexts.length > 0 && (
-              <div className="flex items-center justify-between gap-4 border-b border-border px-4 pb-4 sm:px-0">
-                <div>
-                  <p className="text-sm font-semibold">Your experience</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Subscriber ratings are available after a successful subscription.
-                  </p>
-                </div>
-                <ReviewDialog
-                  revieweeId={profile.id}
-                  revieweeName={profile.displayName}
-                  contexts={subscriptionReviewContexts}
-                />
+          {section === "events" &&
+            (events.length ? (
+              <div className={GRID_CLASSNAME}>
+                {events.map((event) => (
+                  <EventGridTile key={event.id} event={event} />
+                ))}
               </div>
-            )}
-            {reviewSummary.totalCount ? (
-              <ReviewsSection summary={reviewSummary} reviews={reviews} />
             ) : (
-              <EmptyProfileSection title="No reviews yet" description="Verified subscriber ratings will appear here." />
-            )}
-          </div>
-        )}
-      </div>
+              <EmptyProfileSection
+                title="No events yet"
+                description={
+                  isOwner
+                    ? "Events you host or attend will appear here."
+                    : "There are no public events to show."
+                }
+                actionHref={isOwner ? "/events" : undefined}
+                actionLabel={isOwner ? "Explore events" : undefined}
+              />
+            ))}
+
+          {section === "services" && (
+            <ServiceGridSection
+              listings={serviceListings}
+              providerUsername={profile.username}
+              isOwner={isOwner}
+              emptyTitle="No services yet"
+              emptyDescription={
+                isOwner
+                  ? "Services you list will appear here."
+                  : "This profile has no active service listings."
+              }
+              emptyActionHref={isOwner ? "/services/new" : undefined}
+              emptyActionLabel={isOwner ? "List a service" : undefined}
+            />
+          )}
+
+          {section === "reviews" && (
+            <div className="space-y-4">
+              {!isOwner && subscriptionReviewContexts.length > 0 && (
+                <div className="flex items-center justify-between gap-4 border-b border-border px-4 pb-4 sm:px-0">
+                  <div>
+                    <p className="text-sm font-semibold">Your experience</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Subscriber ratings are available after a successful
+                      subscription.
+                    </p>
+                  </div>
+                  <ReviewDialog
+                    revieweeId={profile.id}
+                    revieweeName={profile.displayName}
+                    contexts={subscriptionReviewContexts}
+                  />
+                </div>
+              )}
+              {reviewSummary.totalCount ? (
+                <ReviewsSection summary={reviewSummary} reviews={reviews} />
+              ) : (
+                <EmptyProfileSection
+                  title="No reviews yet"
+                  description="Verified subscriber ratings will appear here."
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </SwipeableSection>
 
       {isOwner && (
         <div className="hidden md:block">
-          <ProfileSetupActions profile={{ ...profile, _count: { desires: desires.length } }} />
+          <ProfileSetupActions
+            profile={{ ...profile, _count: { desires: desires.length } }}
+          />
         </div>
       )}
     </div>

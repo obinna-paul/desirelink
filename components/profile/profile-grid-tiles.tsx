@@ -2,7 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { BriefcaseBusiness, CalendarDays, Copy, Lock, Play } from "lucide-react";
+import {
+  BriefcaseBusiness,
+  CalendarDays,
+  Copy,
+  Eye,
+  Lock,
+  Play,
+} from "lucide-react";
 
 import { formatCents } from "@/lib/creator";
 import type { UpcomingEvent } from "@/lib/events";
@@ -23,7 +30,7 @@ function TileShell({
   ariaLabel: string;
 }) {
   const className =
-    "group relative aspect-square w-full overflow-hidden rounded-lg bg-muted transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:rounded-xl";
+    "group relative aspect-square w-full overflow-hidden bg-muted transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
   if (href) {
     return (
@@ -34,7 +41,12 @@ function TileShell({
   }
 
   return (
-    <button type="button" onClick={onClick} aria-label={ariaLabel} className={className}>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className={className}
+    >
       {children}
     </button>
   );
@@ -48,13 +60,24 @@ function TileCaption({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function PostGridTile({ post, onOpen }: { post: PostView; onOpen: (post: PostView) => void }) {
+export function PostGridTile({
+  post,
+  onOpen,
+}: {
+  post: PostView;
+  onOpen: (post: PostView) => void;
+}) {
   if (post.locked) {
     return (
-      <TileShell onClick={() => onOpen(post)} ariaLabel="Locked post. Subscribe to view.">
+      <TileShell
+        onClick={() => onOpen(post)}
+        ariaLabel="Locked post. Subscribe to view."
+      >
         <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-accent-tint px-3 text-center">
           <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
-          <span className="label-caps text-[10px] text-primary">Subscribe to view</span>
+          <span className="label-caps text-[10px] text-primary">
+            Subscribe to view
+          </span>
         </div>
       </TileShell>
     );
@@ -63,7 +86,10 @@ export function PostGridTile({ post, onOpen }: { post: PostView; onOpen: (post: 
   const media = post.mediaItems[0];
 
   return (
-    <TileShell onClick={() => onOpen(post)} ariaLabel={post.content ? `Post: ${post.content.slice(0, 60)}` : "Post"}>
+    <TileShell
+      onClick={() => onOpen(post)}
+      ariaLabel={post.content ? `Post: ${post.content.slice(0, 60)}` : "Post"}
+    >
       {media ? (
         media.type === "video" ? (
           <video
@@ -75,38 +101,75 @@ export function PostGridTile({ post, onOpen }: { post: PostView; onOpen: (post: 
             aria-hidden="true"
           />
         ) : (
-          <Image src={media.url} alt="" fill sizes={TILE_SIZES} className="object-cover" />
+          <Image
+            src={media.url}
+            alt=""
+            fill
+            sizes={TILE_SIZES}
+            className="object-cover"
+          />
         )
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-card p-3">
-          <p className="line-clamp-5 text-xs leading-5 text-foreground">{post.content}</p>
+          <p className="line-clamp-5 text-xs leading-5 text-foreground">
+            {post.content}
+          </p>
         </div>
       )}
 
       {media?.type === "video" && (
-        <Play className="absolute right-1.5 top-1.5 h-4 w-4 fill-white text-white drop-shadow" aria-hidden="true" />
+        <Play
+          className="absolute right-1.5 top-1.5 h-4 w-4 fill-white text-white drop-shadow"
+          aria-hidden="true"
+        />
       )}
       {post.mediaItems.length > 1 && (
-        <Copy className="absolute right-1.5 top-1.5 h-4 w-4 -scale-x-100 text-white drop-shadow" aria-hidden="true" />
+        <Copy
+          className="absolute right-1.5 top-1.5 h-4 w-4 -scale-x-100 text-white drop-shadow"
+          aria-hidden="true"
+        />
       )}
+      <div className="pointer-events-none absolute bottom-1 left-1 flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 text-white">
+        <Eye className="h-2.5 w-2.5" aria-hidden="true" />
+        <span className="text-[10px] font-medium leading-none">
+          {post.viewCount.toLocaleString()}
+        </span>
+      </div>
     </TileShell>
   );
 }
 
 export function EventGridTile({ event }: { event: UpcomingEvent }) {
-  const date = new Date(event.startTime).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const date = new Date(event.startTime).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 
   return (
-    <TileShell href={`/events/${event.id}`} ariaLabel={`Event: ${event.title}, ${date}`}>
+    <TileShell
+      href={`/events/${event.id}`}
+      ariaLabel={`Event: ${event.title}, ${date}`}
+    >
       {event.coverImageUrl ? (
-        <Image src={event.coverImageUrl} alt="" fill sizes={TILE_SIZES} className="object-cover" />
+        <Image
+          src={event.coverImageUrl}
+          alt=""
+          fill
+          sizes={TILE_SIZES}
+          className="object-cover"
+        />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-muted">
-          <CalendarDays className="h-7 w-7 text-muted-foreground/60" aria-hidden="true" />
+          <CalendarDays
+            className="h-7 w-7 text-muted-foreground/60"
+            aria-hidden="true"
+          />
         </div>
       )}
       <TileCaption>
-        <p className="truncate text-xs font-semibold text-foreground">{event.title}</p>
+        <p className="truncate text-xs font-semibold text-foreground">
+          {event.title}
+        </p>
         <p className="truncate text-[11px] text-muted-foreground">{date}</p>
       </TileCaption>
     </TileShell>
@@ -121,17 +184,33 @@ export function ServiceGridTile({
   onOpen: (listing: ServiceListingView) => void;
 }) {
   return (
-    <TileShell onClick={() => onOpen(listing)} ariaLabel={`Service: ${listing.title}, ${formatCents(listing.priceCents)}`}>
+    <TileShell
+      onClick={() => onOpen(listing)}
+      ariaLabel={`Service: ${listing.title}, ${formatCents(listing.priceCents)}`}
+    >
       {listing.coverImageUrl ? (
-        <Image src={listing.coverImageUrl} alt="" fill sizes={TILE_SIZES} className="object-cover" />
+        <Image
+          src={listing.coverImageUrl}
+          alt=""
+          fill
+          sizes={TILE_SIZES}
+          className="object-cover"
+        />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-muted">
-          <BriefcaseBusiness className="h-7 w-7 text-muted-foreground/60" aria-hidden="true" />
+          <BriefcaseBusiness
+            className="h-7 w-7 text-muted-foreground/60"
+            aria-hidden="true"
+          />
         </div>
       )}
       <TileCaption>
-        <p className="truncate text-xs font-semibold text-foreground">{listing.title}</p>
-        <p className="truncate text-[11px] text-muted-foreground">{formatCents(listing.priceCents)}</p>
+        <p className="truncate text-xs font-semibold text-foreground">
+          {listing.title}
+        </p>
+        <p className="truncate text-[11px] text-muted-foreground">
+          {formatCents(listing.priceCents)}
+        </p>
       </TileCaption>
     </TileShell>
   );

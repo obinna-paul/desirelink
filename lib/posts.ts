@@ -26,7 +26,10 @@ function isMissingPostArchiveError(error: unknown): boolean {
       ? String(error.meta?.table ?? error.meta?.column ?? "")
       : "";
 
-  return isMissingSchemaError(error) && (target.includes("Post.isArchived") || target.includes("isArchived"));
+  return (
+    isMissingSchemaError(error) &&
+    (target.includes("Post.isArchived") || target.includes("isArchived"))
+  );
 }
 
 const postAuthorSelect = {
@@ -44,8 +47,15 @@ type RawPost = {
   postType: "standard" | "event" | "live";
   eventId: string | null;
   isSubscriberOnly: boolean;
+  viewCount: number;
   createdAt: Date;
-  author: { id: string; username: string; displayName: string; avatarUrl: string; profileType: ProfileType };
+  author: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string;
+    profileType: ProfileType;
+  };
   event: {
     id: string;
     title: string;
@@ -75,7 +85,12 @@ export type PostCommentView = {
   id: string;
   content: string;
   createdAt: string;
-  author: { id: string; username: string; displayName: string; avatarUrl: string };
+  author: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string;
+  };
   replies: PostCommentView[];
 };
 
@@ -83,7 +98,12 @@ type RawComment = {
   id: string;
   content: string;
   createdAt: Date;
-  author: { id: string; username: string; displayName: string; avatarUrl: string };
+  author: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string;
+  };
   replies?: RawComment[];
 };
 
@@ -116,8 +136,15 @@ export type PostView = {
   isSubscriberOnly: boolean;
   locked: boolean;
   lockReason: PostLockReason | null;
+  viewCount: number;
   createdAt: string;
-  author: { id: string; username: string; displayName: string; avatarUrl: string; profileType: ProfileType };
+  author: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string;
+    profileType: ProfileType;
+  };
   counts: { comments: number; reactions: number; shares: number };
   viewerLiked: boolean;
   viewerCanManage: boolean;
@@ -146,7 +173,10 @@ export function toMediaItems(value: unknown): PostMediaItem[] {
           type: item.type,
           width: typeof item.width === "number" ? item.width : undefined,
           height: typeof item.height === "number" ? item.height : undefined,
-          durationSeconds: typeof item.durationSeconds === "number" ? item.durationSeconds : undefined,
+          durationSeconds:
+            typeof item.durationSeconds === "number"
+              ? item.durationSeconds
+              : undefined,
           displayAspectRatio:
             "displayAspectRatio" in item &&
             (item.displayAspectRatio === "square" ||
@@ -164,7 +194,11 @@ export function toMediaItems(value: unknown): PostMediaItem[] {
             typeof item.crop.zoom === "number" &&
             typeof item.crop.offsetXFrac === "number" &&
             typeof item.crop.offsetYFrac === "number"
-              ? { zoom: item.crop.zoom, offsetXFrac: item.crop.offsetXFrac, offsetYFrac: item.crop.offsetYFrac }
+              ? {
+                  zoom: item.crop.zoom,
+                  offsetXFrac: item.crop.offsetXFrac,
+                  offsetYFrac: item.crop.offsetYFrac,
+                }
               : undefined,
         },
       ];
@@ -188,13 +222,14 @@ function toPostView(
   hasSubscriberAccess: boolean,
   premiumProviderLocked = false,
   viewerProfileId: string | null = null,
-  viewerIsPremium = false
+  viewerIsPremium = false,
 ): PostView {
-  const lockReason = post.isSubscriberOnly && !hasSubscriberAccess
-    ? "subscriber_only"
-    : premiumProviderLocked
-      ? "premium_provider_limit"
-      : null;
+  const lockReason =
+    post.isSubscriberOnly && !hasSubscriberAccess
+      ? "subscriber_only"
+      : premiumProviderLocked
+        ? "premium_provider_limit"
+        : null;
   const locked = lockReason !== null;
   const mediaItems = toMediaItems(post.mediaUrls);
 
@@ -205,32 +240,38 @@ function toPostView(
     createdAt: post.createdAt.toISOString(),
     locked,
     lockReason,
+    viewCount: post.viewCount,
     content: locked ? null : post.content,
     mediaUrls: locked ? [] : mediaItems.map((item) => item.url),
     mediaItems: locked ? [] : mediaItems,
-    event: locked || !post.event
-      ? null
-      : {
-          id: post.event.id,
-          title: post.event.title,
-          description: post.event.description,
-          eventType: post.event.eventType,
-          startTime: post.event.startTime.toISOString(),
-          endTime: post.event.endTime.toISOString(),
-          venueName: post.event.venueName,
-          address: post.event.address,
-          city: post.event.city,
-          maxAttendees: post.event.maxAttendees,
-          currentAttendees: post.event.currentAttendees,
-          priceCents: post.event.priceCents,
-          isPrivate: post.event.isPrivate,
-          coverImageUrl: post.event.coverImageUrl,
-          hostId: post.event.hostId,
-          viewerRsvpStatus:
-            post.event.rsvps[0]?.status === "waitlist"
-              ? null
-              : (post.event.rsvps[0]?.status as "going" | "interested" | "not_going" | undefined) ?? null,
-        },
+    event:
+      locked || !post.event
+        ? null
+        : {
+            id: post.event.id,
+            title: post.event.title,
+            description: post.event.description,
+            eventType: post.event.eventType,
+            startTime: post.event.startTime.toISOString(),
+            endTime: post.event.endTime.toISOString(),
+            venueName: post.event.venueName,
+            address: post.event.address,
+            city: post.event.city,
+            maxAttendees: post.event.maxAttendees,
+            currentAttendees: post.event.currentAttendees,
+            priceCents: post.event.priceCents,
+            isPrivate: post.event.isPrivate,
+            coverImageUrl: post.event.coverImageUrl,
+            hostId: post.event.hostId,
+            viewerRsvpStatus:
+              post.event.rsvps[0]?.status === "waitlist"
+                ? null
+                : ((post.event.rsvps[0]?.status as
+                    | "going"
+                    | "interested"
+                    | "not_going"
+                    | undefined) ?? null),
+          },
     author: post.author,
     counts: post._count,
     viewerLiked: post.reactions.length > 0,
@@ -248,6 +289,7 @@ function postSelect(viewerProfileId: string | null) {
     postType: true,
     eventId: true,
     isSubscriberOnly: true,
+    viewCount: true,
     createdAt: true,
     author: { select: postAuthorSelect },
     event: {
@@ -275,7 +317,10 @@ function postSelect(viewerProfileId: string | null) {
       },
     },
     reactions: {
-      where: { userId: viewerProfileId ?? "__anonymous__", type: "like" as const },
+      where: {
+        userId: viewerProfileId ?? "__anonymous__",
+        type: "like" as const,
+      },
       select: { id: true },
       take: 1,
     },
@@ -287,7 +332,14 @@ function postSelect(viewerProfileId: string | null) {
         id: true,
         content: true,
         createdAt: true,
-        author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
         replies: {
           orderBy: { createdAt: "asc" as const },
           take: 2,
@@ -295,7 +347,14 @@ function postSelect(viewerProfileId: string | null) {
             id: true,
             content: true,
             createdAt: true,
-            author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+            author: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
           },
         },
       },
@@ -313,7 +372,9 @@ type ProviderContentContext =
       limit: number;
     };
 
-async function getProviderContentContext(viewerProfileId: string | null): Promise<ProviderContentContext> {
+async function getProviderContentContext(
+  viewerProfileId: string | null,
+): Promise<ProviderContentContext> {
   if (!viewerProfileId) {
     return {
       viewerProfileId,
@@ -339,7 +400,7 @@ async function getProviderContentContext(viewerProfileId: string | null): Promis
 async function applyProviderContentLimits(
   posts: RawPost[],
   viewerProfileId: string | null,
-  hasSubscriberAccess: (post: RawPost) => boolean
+  hasSubscriberAccess: (post: RawPost) => boolean,
 ): Promise<PostView[]> {
   const context = await getProviderContentContext(viewerProfileId);
   const recordTasks: Promise<void>[] = [];
@@ -349,7 +410,9 @@ async function applyProviderContentLimits(
     let premiumProviderLocked = false;
     const isOwnPost = post.author.id === viewerProfileId;
     const isFreeProviderPost =
-      !post.isSubscriberOnly && !isOwnPost && isProviderProfileType(post.author.profileType);
+      !post.isSubscriberOnly &&
+      !isOwnPost &&
+      isProviderProfileType(post.author.profileType);
 
     if (isFreeProviderPost && !context.isPremium) {
       const alreadyViewed = context.viewedPostIds.has(post.id);
@@ -358,7 +421,13 @@ async function applyProviderContentLimits(
       } else if (!alreadyViewed) {
         context.viewedPostIds.add(post.id);
         if (context.viewerProfileId) {
-          recordTasks.push(recordProviderPostView(post.author.id, context.viewerProfileId, post.id));
+          recordTasks.push(
+            recordProviderPostView(
+              post.author.id,
+              context.viewerProfileId,
+              post.id,
+            ),
+          );
         } else {
           anonymousFreeViews += 1;
           if (anonymousFreeViews > context.limit) premiumProviderLocked = true;
@@ -366,16 +435,30 @@ async function applyProviderContentLimits(
       }
     }
 
-    return toPostView(post, hasSubscriberAccess(post), premiumProviderLocked, viewerProfileId, context.isPremium);
+    return toPostView(
+      post,
+      hasSubscriberAccess(post),
+      premiumProviderLocked,
+      viewerProfileId,
+      context.isPremium,
+    );
   });
 
   await Promise.allSettled(recordTasks);
   return views;
 }
 
-export async function isActiveSubscriber(subscriberId: string, creatorId: string): Promise<boolean> {
+export async function isActiveSubscriber(
+  subscriberId: string,
+  creatorId: string,
+): Promise<boolean> {
   const subscription = await prisma.subscription.findFirst({
-    where: { subscriberId, creatorId, status: "active", endsAt: { gt: new Date() } },
+    where: {
+      subscriberId,
+      creatorId,
+      status: "active",
+      endsAt: { gt: new Date() },
+    },
     select: { id: true },
   });
   return Boolean(subscription);
@@ -383,11 +466,14 @@ export async function isActiveSubscriber(subscriberId: string, creatorId: string
 
 export async function getCreatorProfilePosts(
   creatorProfileId: string,
-  viewerProfileId: string | null
+  viewerProfileId: string | null,
 ): Promise<PostView[]> {
   const isOwner = viewerProfileId === creatorProfileId;
   const hasSubscriberAccess =
-    isOwner || (viewerProfileId ? await isActiveSubscriber(viewerProfileId, creatorProfileId) : false);
+    isOwner ||
+    (viewerProfileId
+      ? await isActiveSubscriber(viewerProfileId, creatorProfileId)
+      : false);
 
   let posts: RawPost[];
   try {
@@ -399,7 +485,9 @@ export async function getCreatorProfilePosts(
     });
   } catch (error) {
     if (!isMissingPostArchiveError(error)) throw error;
-    console.warn("Post archive filtering is unavailable until Post.isArchived migration is applied.");
+    console.warn(
+      "Post archive filtering is unavailable until Post.isArchived migration is applied.",
+    );
     posts = await prisma.post.findMany({
       where: { authorId: creatorProfileId },
       orderBy: { createdAt: "desc" },
@@ -408,18 +496,30 @@ export async function getCreatorProfilePosts(
     });
   }
 
-  return applyProviderContentLimits(posts, viewerProfileId, () => hasSubscriberAccess);
+  return applyProviderContentLimits(
+    posts,
+    viewerProfileId,
+    () => hasSubscriberAccess,
+  );
 }
 
-export async function getFeedPosts(viewerProfileId: string | null): Promise<PostView[]> {
+export async function getFeedPosts(
+  viewerProfileId: string | null,
+): Promise<PostView[]> {
   const subscriptions = viewerProfileId
     ? await prisma.subscription.findMany({
-        where: { subscriberId: viewerProfileId, status: "active", endsAt: { gt: new Date() } },
+        where: {
+          subscriberId: viewerProfileId,
+          status: "active",
+          endsAt: { gt: new Date() },
+        },
         select: { creatorId: true },
       })
     : [];
 
-  const subscribedCreatorIds = new Set(subscriptions.map((sub) => sub.creatorId));
+  const subscribedCreatorIds = new Set(
+    subscriptions.map((sub) => sub.creatorId),
+  );
 
   const where =
     subscribedCreatorIds.size > 0
@@ -436,7 +536,9 @@ export async function getFeedPosts(viewerProfileId: string | null): Promise<Post
     });
   } catch (error) {
     if (!isMissingPostArchiveError(error)) throw error;
-    console.warn("Post archive filtering is unavailable until Post.isArchived migration is applied.");
+    console.warn(
+      "Post archive filtering is unavailable until Post.isArchived migration is applied.",
+    );
     posts = await prisma.post.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -448,11 +550,15 @@ export async function getFeedPosts(viewerProfileId: string | null): Promise<Post
   return applyProviderContentLimits(
     posts,
     viewerProfileId,
-    (post) => post.author.id === viewerProfileId || subscribedCreatorIds.has(post.author.id)
+    (post) =>
+      post.author.id === viewerProfileId ||
+      subscribedCreatorIds.has(post.author.id),
   );
 }
 
-export async function getPublicFeedPosts(viewerProfileId: string | null): Promise<PostView[]> {
+export async function getPublicFeedPosts(
+  viewerProfileId: string | null,
+): Promise<PostView[]> {
   try {
     const posts = await prisma.post.findMany({
       where: {
@@ -470,11 +576,13 @@ export async function getPublicFeedPosts(viewerProfileId: string | null): Promis
     return applyProviderContentLimits(
       posts,
       viewerProfileId,
-      (post) => post.author.id === viewerProfileId || !post.isSubscriberOnly
+      (post) => post.author.id === viewerProfileId || !post.isSubscriberOnly,
     );
   } catch (error) {
     if (isMissingPostArchiveError(error)) {
-      console.warn("Post archive filtering is unavailable until Post.isArchived migration is applied.");
+      console.warn(
+        "Post archive filtering is unavailable until Post.isArchived migration is applied.",
+      );
       const posts = await prisma.post.findMany({
         where: {
           author: {
@@ -490,11 +598,13 @@ export async function getPublicFeedPosts(viewerProfileId: string | null): Promis
       return applyProviderContentLimits(
         posts,
         viewerProfileId,
-        (post) => post.author.id === viewerProfileId || !post.isSubscriberOnly
+        (post) => post.author.id === viewerProfileId || !post.isSubscriberOnly,
       );
     }
     if (isMissingSchemaError(error)) {
-      console.warn("Home public feed is unavailable until feed interaction migrations are applied.");
+      console.warn(
+        "Home public feed is unavailable until feed interaction migrations are applied.",
+      );
       return [];
     }
     throw error;
@@ -503,7 +613,7 @@ export async function getPublicFeedPosts(viewerProfileId: string | null): Promis
 
 export async function getPostByIdForViewer(
   postId: string,
-  viewerProfileId: string | null
+  viewerProfileId: string | null,
 ): Promise<PostView | null> {
   let post: RawPost | null;
   try {
@@ -513,7 +623,9 @@ export async function getPostByIdForViewer(
     });
   } catch (error) {
     if (!isMissingPostArchiveError(error)) throw error;
-    console.warn("Post archive filtering is unavailable until Post.isArchived migration is applied.");
+    console.warn(
+      "Post archive filtering is unavailable until Post.isArchived migration is applied.",
+    );
     post = await prisma.post.findUnique({
       where: { id: postId },
       select: postSelect(viewerProfileId),
@@ -523,8 +635,15 @@ export async function getPostByIdForViewer(
 
   const isOwner = viewerProfileId === post.author.id;
   const hasSubscriberAccess =
-    isOwner || (viewerProfileId ? await isActiveSubscriber(viewerProfileId, post.author.id) : false);
+    isOwner ||
+    (viewerProfileId
+      ? await isActiveSubscriber(viewerProfileId, post.author.id)
+      : false);
 
-  const [view] = await applyProviderContentLimits([post], viewerProfileId, () => hasSubscriberAccess);
+  const [view] = await applyProviderContentLimits(
+    [post],
+    viewerProfileId,
+    () => hasSubscriberAccess,
+  );
   return view ?? null;
 }

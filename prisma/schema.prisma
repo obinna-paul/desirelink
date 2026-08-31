@@ -219,21 +219,21 @@ model Profile {
   city        String
   country     String
 
-  openToChat        Boolean   @default(false)
-  openToMeet        Boolean   @default(false)
-  isIncognito       Boolean   @default(false)
-  showInSearch      Boolean   @default(true)
-  showExactLocation Boolean   @default(false)
-  isVerified        Boolean   @default(false)
-  isVerifiedCreator Boolean   @default(false)
-  isVerifiedHost    Boolean   @default(false)
-  isVerifiedServiceProvider Boolean @default(false)
-  isTrustedMember   Boolean   @default(false)
-  isSuspended       Boolean   @default(false)
-  suspendedAt       DateTime?
-  warningCount      Int       @default(0)
-  communityStanding Int       @default(0)
-  profileViews      Int       @default(0)
+  openToChat                Boolean   @default(false)
+  openToMeet                Boolean   @default(false)
+  isIncognito               Boolean   @default(false)
+  showInSearch              Boolean   @default(true)
+  showExactLocation         Boolean   @default(false)
+  isVerified                Boolean   @default(false)
+  isVerifiedCreator         Boolean   @default(false)
+  isVerifiedHost            Boolean   @default(false)
+  isVerifiedServiceProvider Boolean   @default(false)
+  isTrustedMember           Boolean   @default(false)
+  isSuspended               Boolean   @default(false)
+  suspendedAt               DateTime?
+  warningCount              Int       @default(0)
+  communityStanding         Int       @default(0)
+  profileViews              Int       @default(0)
 
   isMonetized        Boolean   @default(false)
   monetizedAt        DateTime?
@@ -307,8 +307,8 @@ model Profile {
   paymentMethods                  PaymentMethod[]
   serviceListings                 ServiceListing[]
   monetizationApplications        MonetizationApplication[]
-  notificationsReceived           Notification[]             @relation("NotificationRecipient")
-  notificationsActed              Notification[]             @relation("NotificationActor")
+  notificationsReceived           Notification[]            @relation("NotificationRecipient")
+  notificationsActed              Notification[]            @relation("NotificationActor")
 
   liveStreams       LiveStream[]       @relation("LiveStreamProvider")
   giftsSent         Gift[]             @relation("GiftSender")
@@ -683,6 +683,7 @@ model Post {
   event            Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
   isSubscriberOnly Boolean        @default(false)
   isArchived       Boolean        @default(false)
+  viewCount        Int            @default(0)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   comments         PostComment[]
