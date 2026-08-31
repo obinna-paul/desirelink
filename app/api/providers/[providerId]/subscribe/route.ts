@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { subscribeToProvider } from "@/lib/providers";
 import { subscribeToProviderSchema } from "@/lib/validations/provider-subscribe";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(req: Request, { params }: { params: { providerId: string } }) {
   const session = await getServerSession(authOptions);
@@ -14,7 +15,7 @@ export async function POST(req: Request, { params }: { params: { providerId: str
 
   const subscriberProfile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, username: true },
+    select: { id: true, username: true, displayName: true },
   });
   if (!subscriberProfile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
@@ -48,6 +49,15 @@ export async function POST(req: Request, { params }: { params: { providerId: str
   if (result.state === "checkout") {
     return NextResponse.json({ state: "checkout", checkoutUrl: result.checkoutUrl }, { status: 200 });
   }
+
+  await createNotification({
+    recipientId: params.providerId,
+    actorId: subscriberProfile.id,
+    type: "subscription",
+    title: `${subscriberProfile.displayName} subscribed`,
+    body: "You have a new subscriber.",
+    href: "/creator-dashboard?tab=audience",
+  });
 
   return NextResponse.json({ state: result.state }, { status: 200 });
 }

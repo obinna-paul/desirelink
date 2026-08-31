@@ -8,6 +8,7 @@ import { flagContentIfNeeded } from "@/lib/moderation";
 import { isActiveSubscriber } from "@/lib/posts";
 import { prisma } from "@/lib/prisma";
 import { readJson } from "@/lib/security/request";
+import { createNotification } from "@/lib/notifications";
 
 const commentSchema = z.object({
   content: z.string().trim().min(1, "Comment can't be empty").max(1000, "Comments must be 1000 characters or fewer"),
@@ -154,7 +155,7 @@ export async function POST(req: Request, { params }: { params: { postId: string 
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, isSuspended: true },
+    select: { id: true, username: true, displayName: true, isSuspended: true },
   });
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   if (profile.isSuspended) {
@@ -167,17 +168,17 @@ export async function POST(req: Request, { params }: { params: { postId: string 
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
   }
 
-  let post: { id: string; authorId: string; isSubscriberOnly: boolean } | null;
+  let post: { id: string; authorId: string; isSubscriberOnly: boolean; author: { username: string } } | null;
   try {
     post = await prisma.post.findFirst({
       where: { id: params.postId, isArchived: false },
-      select: { id: true, authorId: true, isSubscriberOnly: true },
+      select: { id: true, authorId: true, isSubscriberOnly: true, author: { select: { username: true } } },
     });
   } catch (error) {
     if (!isMissingPostArchiveError(error)) throw error;
     post = await prisma.post.findUnique({
       where: { id: params.postId },
-      select: { id: true, authorId: true, isSubscriberOnly: true },
+      select: { id: true, authorId: true, isSubscriberOnly: true, author: { select: { username: true } } },
     });
   }
   if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
@@ -189,14 +190,16 @@ export async function POST(req: Request, { params }: { params: { postId: string 
     return NextResponse.json({ error: "Subscribe to comment on this post" }, { status: 403 });
   }
 
+  let parentAuthorId: string | null = null;
   if (parsed.data.parentId) {
     const parent = await prisma.postComment.findUnique({
       where: { id: parsed.data.parentId },
-      select: { postId: true },
+      select: { postId: true, authorId: true },
     });
     if (!parent || parent.postId !== params.postId) {
       return NextResponse.json({ error: "Parent comment not found" }, { status: 404 });
     }
+    parentAuthorId = parent.authorId;
   }
 
   const comment = await prisma.postComment.create({
@@ -216,6 +219,18 @@ export async function POST(req: Request, { params }: { params: { postId: string 
     contentId: comment.id,
     contentOwnerId: profile.id,
     content: comment.content,
+  });
+
+  const notificationRecipient = parentAuthorId ?? post.authorId;
+  await createNotification({
+    recipientId: notificationRecipient,
+    actorId: profile.id,
+    type: parentAuthorId ? "reply" : "comment",
+    title: parentAuthorId
+      ? `${profile.displayName} replied to your comment`
+      : `${profile.displayName} commented on your post`,
+    body: comment.content.length > 90 ? `${comment.content.slice(0, 87)}...` : comment.content,
+    href: `/profile/${post.author.username}`,
   });
 
   const count = await prisma.postComment.count({ where: { postId: params.postId } });

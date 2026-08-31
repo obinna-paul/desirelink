@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isRsvpAction, setRsvp } from "@/lib/rsvp";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -13,7 +14,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true },
+    select: { id: true, displayName: true },
   });
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
@@ -34,6 +35,22 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   if (result.state === "checkout") {
     return NextResponse.json({ state: result.state, checkoutUrl: result.checkoutUrl }, { status: 200 });
+  }
+  if (body.status === "going" || body.status === "interested") {
+    const event = await prisma.event.findUnique({
+      where: { id: params.id },
+      select: { hostId: true, title: true },
+    });
+    if (event) {
+      await createNotification({
+        recipientId: event.hostId,
+        actorId: profile.id,
+        type: "rsvp",
+        title: `${profile.displayName} responded to your event`,
+        body: `${body.status === "going" ? "Going to" : "Interested in"} ${event.title}`,
+        href: `/events/${params.id}`,
+      });
+    }
   }
   return NextResponse.json({ state: result.state, status: result.status, message: result.message }, { status: 200 });
 }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { triggerEvent } from "@/lib/pusher-server";
 import { isBlockedEitherWay } from "@/lib/block";
 import { flagContentIfNeeded } from "@/lib/moderation";
+import { createNotification } from "@/lib/notifications";
 import {
   getConversationChannelName,
   getUserChannelName,
@@ -205,6 +206,14 @@ export async function sendMessage(
   await Promise.all([
     triggerEvent(getConversationChannelName(senderId, recipientId), NEW_MESSAGE_EVENT, message),
     triggerEvent(getUserChannelName(recipientId), INBOX_UPDATED_EVENT, { fromProfileId: senderId }),
+    createNotification({
+      recipientId,
+      actorId: senderId,
+      type: "message",
+      title: `New message from ${message.sender.displayName}`,
+      body: message.content.length > 90 ? `${message.content.slice(0, 87)}...` : message.content,
+      href: `/messages?with=${message.sender.username}`,
+    }),
   ]);
 
   return { ok: true, message };

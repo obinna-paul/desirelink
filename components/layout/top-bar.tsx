@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { getServerSession } from "next-auth";
-import { Bell, Briefcase } from "lucide-react";
+import { Briefcase } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,6 +9,7 @@ import { SignOutButton } from "@/components/layout/sign-out-button";
 import { TopBarSearch } from "@/components/layout/top-bar-search";
 import { AvailabilityQuickAction } from "@/components/layout/availability-quick-action";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getActiveAvailability } from "@/lib/availability";
@@ -44,9 +45,7 @@ export async function TopBar() {
 
           <div className="flex items-center justify-end gap-1">
             <ThemeToggle />
-            <Button variant="ghost" size="icon" aria-label="Notifications">
-              <Bell className="h-5 w-5" aria-hidden="true" />
-            </Button>
+            <NotificationBell />
           </div>
         </div>
 
@@ -69,9 +68,7 @@ export async function TopBar() {
           </Suspense>
           {profile && <AvailabilityQuickAction initialStatus={activeStatus} />}
           <ThemeToggle />
-          <Button variant="ghost" size="icon" aria-label="Notifications">
-            <Bell className="h-5 w-5" aria-hidden="true" />
-          </Button>
+          <NotificationBell />
           <SignOutButton />
           <Link href="/profile" className="flex h-11 w-11 items-center justify-center">
             <Avatar className="h-9 w-9 border border-border">
