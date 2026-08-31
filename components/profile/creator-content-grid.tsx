@@ -17,10 +17,12 @@ export const GRID_CLASSNAME =
 
 export function PostGridSection({
   posts,
+  sectionLabel,
   emptyTitle,
   emptyDescription,
 }: {
   posts: PostView[];
+  sectionLabel: string;
   emptyTitle: string;
   emptyDescription: string;
 }) {
@@ -50,6 +52,7 @@ export function PostGridSection({
         <PostLightbox
           posts={posts}
           initialPostId={openPostId}
+          sectionLabel={sectionLabel}
           onClose={() => setOpenPostId(null)}
         />
       )}

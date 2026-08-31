@@ -422,6 +422,7 @@ export function ProfileView({
           {section === "posts" && (
             <PostGridSection
               posts={freePosts}
+              sectionLabel="Posts"
               emptyTitle="No posts yet"
               emptyDescription={
                 isOwner
@@ -434,6 +435,7 @@ export function ProfileView({
           {section === "premium" && (
             <PostGridSection
               posts={premiumPosts}
+              sectionLabel="Premium"
               emptyTitle="No premium posts yet"
               emptyDescription={
                 isOwner

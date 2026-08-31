@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { Lock } from "lucide-react";
+import { Eye, Lock } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -178,6 +178,13 @@ export function PostCard({
               <PostEventAttachment event={post.event} />
             </div>
           )}
+          <div className="flex items-center gap-1.5 px-3 pt-2 text-xs text-muted-foreground md:px-4">
+            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>
+              {post.viewCount.toLocaleString()}{" "}
+              {post.viewCount === 1 ? "view" : "views"}
+            </span>
+          </div>
           <div className="px-3 md:px-4">
             <PostActions
               postId={post.id}
