@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { AlertTriangle, Check, GalleryHorizontal, ImagePlus, Loader2, Lock, ShieldCheck, Video, X } from "lucide-react";
+import { AlertTriangle, Check, ImagePlus, Loader2, Lock, ShieldCheck, Video, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -580,21 +580,6 @@ export function PostComposer({
 
             <section className="flex flex-col gap-6 p-4 sm:p-6 md:p-7">
               {frameControls}
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => inputRef.current?.click()}
-                disabled={uploading || !canAddMedia}
-                className="h-11 w-full justify-center gap-2 rounded-[8px] shadow-none"
-              >
-                {uploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <GalleryHorizontal className="h-4 w-4" aria-hidden="true" />
-                )}
-                {uploading ? "Preparing..." : canAddMedia ? "Add from gallery" : "Media added"}
-              </Button>
 
               {writingField}
               {accessControls}

@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Lock } from "lucide-react";
@@ -47,6 +50,41 @@ function LockedPostBody({
 export function PostCard({ post, showAuthor = true }: { post: PostView; showAuthor?: boolean }) {
   const timeAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
   const initials = post.author.displayName.slice(0, 2).toUpperCase();
+  const [liked, setLiked] = useState(post.viewerLiked);
+  const [reactionCount, setReactionCount] = useState(post.counts.reactions);
+  const [likePending, setLikePending] = useState(false);
+
+  async function toggleLike(forceLike = false) {
+    if (likePending) return;
+
+    const nextLiked = forceLike ? true : !liked;
+    if (nextLiked === liked) return;
+
+    const previousLiked = liked;
+    const previousCount = reactionCount;
+
+    setLikePending(true);
+    setLiked(nextLiked);
+    setReactionCount((count) => count + (nextLiked ? 1 : -1));
+
+    try {
+      const res = await fetch(`/api/posts/${post.id}/reactions`, { method: "POST" });
+      if (!res.ok) {
+        setLiked(previousLiked);
+        setReactionCount(previousCount);
+        return;
+      }
+
+      const body = await res.json().catch(() => null);
+      if (typeof body?.liked === "boolean") setLiked(body.liked);
+      if (typeof body?.count === "number") setReactionCount(body.count);
+    } catch {
+      setLiked(previousLiked);
+      setReactionCount(previousCount);
+    } finally {
+      setLikePending(false);
+    }
+  }
 
   return (
     <article className="-mx-3 flex flex-col gap-3 border-b border-border bg-card pb-3 md:mx-0 md:gap-3 md:rounded-xl md:border md:pb-4 md:shadow-card">
@@ -96,7 +134,7 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
       ) : (
         <>
           {/* Media is intentionally NOT wrapped in the card's own horizontal padding - it goes edge-to-edge on mobile, Instagram-style. */}
-          <PostMediaCarousel media={post.mediaItems} />
+          <PostMediaCarousel media={post.mediaItems} liked={liked} onDoubleTapLike={() => toggleLike(true)} />
           {post.event && (
             <div className="px-3 md:px-4">
               <PostEventAttachment event={post.event} />
@@ -108,6 +146,10 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
               authorUsername={post.author.username}
               initialCounts={post.counts}
               initialViewerLiked={post.viewerLiked}
+              liked={liked}
+              reactionCount={reactionCount}
+              onToggleLike={() => toggleLike()}
+              likeDisabled={likePending}
             />
           </div>
           {post.content && <PostCaption content={post.content} />}

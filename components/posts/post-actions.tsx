@@ -11,37 +11,52 @@ export function PostActions({
   authorUsername,
   initialCounts,
   initialViewerLiked,
+  liked: controlledLiked,
+  reactionCount: controlledReactionCount,
+  onToggleLike,
+  likeDisabled = false,
 }: {
   postId: string;
   authorUsername: string;
   initialCounts: { reactions: number; comments: number; shares: number };
   initialViewerLiked: boolean;
+  liked?: boolean;
+  reactionCount?: number;
+  onToggleLike?: () => Promise<void> | void;
+  likeDisabled?: boolean;
 }) {
-  const [liked, setLiked] = useState(initialViewerLiked);
-  const [reactionCount, setReactionCount] = useState(initialCounts.reactions);
+  const [uncontrolledLiked, setUncontrolledLiked] = useState(initialViewerLiked);
+  const [uncontrolledReactionCount, setUncontrolledReactionCount] = useState(initialCounts.reactions);
   const [commentCount, setCommentCount] = useState(initialCounts.comments);
   const [shareCount, setShareCount] = useState(initialCounts.shares);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const liked = controlledLiked ?? uncontrolledLiked;
+  const reactionCount = controlledReactionCount ?? uncontrolledReactionCount;
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return `/profile/${authorUsername}`;
     return `${window.location.origin}/profile/${authorUsername}?post=${postId}`;
   }, [authorUsername, postId]);
 
   async function toggleLike() {
+    if (onToggleLike) {
+      await onToggleLike();
+      return;
+    }
+
     const previousLiked = liked;
     const previousCount = reactionCount;
-    setLiked(!liked);
-    setReactionCount((count) => count + (liked ? -1 : 1));
+    setUncontrolledLiked(!liked);
+    setUncontrolledReactionCount((count) => count + (liked ? -1 : 1));
 
     const res = await fetch(`/api/posts/${postId}/reactions`, { method: "POST" });
     if (!res.ok) {
-      setLiked(previousLiked);
-      setReactionCount(previousCount);
+      setUncontrolledLiked(previousLiked);
+      setUncontrolledReactionCount(previousCount);
       return;
     }
     const body = await res.json().catch(() => null);
-    if (typeof body?.liked === "boolean") setLiked(body.liked);
-    if (typeof body?.count === "number") setReactionCount(body.count);
+    if (typeof body?.liked === "boolean") setUncontrolledLiked(body.liked);
+    if (typeof body?.count === "number") setUncontrolledReactionCount(body.count);
   }
 
   async function sharePost() {
@@ -68,8 +83,9 @@ export function PostActions({
           type="button"
           onClick={toggleLike}
           aria-pressed={liked}
+          disabled={likeDisabled}
           className={cn(
-            "inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors",
+            "inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors disabled:opacity-60",
             liked ? "bg-neon-pink/10 text-neon-pink" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
           )}
         >
