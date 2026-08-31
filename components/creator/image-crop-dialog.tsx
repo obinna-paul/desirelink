@@ -169,7 +169,7 @@ export function ImageCropDialog({
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="crop-dialog-title" className="fixed inset-0 z-[60] flex flex-col bg-black">
       <div ref={dialogRef} tabIndex={-1} className="flex flex-1 flex-col focus:outline-none">
-        <div className="flex items-center justify-between px-2 py-3 text-white">
+        <div className="flex items-center justify-between border-b border-white/10 px-2 py-3 text-white">
           <button
             type="button"
             onClick={onCancel}
@@ -192,7 +192,7 @@ export function ImageCropDialog({
           </button>
         </div>
 
-        <div className="flex flex-1 items-center justify-center overflow-hidden p-4">
+        <div className="flex flex-1 items-center justify-center overflow-hidden p-3 sm:p-5">
           <div
             ref={frameRef}
             onPointerDown={handlePointerDown}
@@ -226,7 +226,7 @@ export function ImageCropDialog({
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2">
+        <div className="flex flex-col gap-4 border-t border-white/10 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3">
           {isCroppable && (
             <input
               type="range"
@@ -240,7 +240,7 @@ export function ImageCropDialog({
             />
           )}
           {presets.length > 1 && (
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-7">
               {presets.map((option) => (
                 <button
                   key={option.id}
@@ -248,8 +248,10 @@ export function ImageCropDialog({
                   onClick={() => setPresetId(option.id)}
                   aria-pressed={presetId === option.id}
                   className={cn(
-                    "rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
-                    presetId === option.id ? "bg-white text-black" : "bg-white/10 text-white hover:bg-white/20"
+                    "relative min-h-11 px-1 text-xs font-semibold transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:origin-center after:scale-x-0 after:bg-white after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white motion-reduce:transition-none motion-reduce:after:transition-none",
+                    presetId === option.id
+                      ? "text-white after:scale-x-100"
+                      : "text-white/55 hover:text-white"
                   )}
                 >
                   {option.label}

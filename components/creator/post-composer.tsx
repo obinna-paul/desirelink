@@ -98,6 +98,9 @@ export function PostComposer({
   );
   const activeMedia = mediaItems[activeMediaIndex];
   const isSubscriberOnly = allowPremiumContent && postAccess === "premium";
+  const selectedRatioOption = POST_DISPLAY_RATIO_OPTIONS.find((option) => option.value === displayAspectRatio);
+  const mediaLimit = postMode === "single" ? 1 : MAX_POST_MEDIA_ITEMS;
+  const canAddMedia = mediaItems.length < mediaLimit;
 
   function setDisplayAspectRatio(value: PostDisplayAspectRatio) {
     setDisplayAspectRatioState(value);
@@ -253,7 +256,7 @@ export function PostComposer({
     event.preventDefault();
 
     if (!content.trim() && mediaPayload.length === 0) {
-      setError("Write a caption or add media.");
+      setError("Share something or add media before publishing.");
       return;
     }
 
@@ -273,284 +276,332 @@ export function PostComposer({
     await publishPost();
   }
 
+  const modeControls = (
+    <div className="flex border-b border-border/80" role="group" aria-label="Post format">
+      {([
+        { value: "single", label: "Single post" },
+        { value: "carousel", label: "Carousel" },
+      ] as const).map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={postMode === option.value}
+          onClick={() => setMode(option.value)}
+          className={cn(
+            "relative min-h-12 flex-1 px-4 text-sm font-semibold transition-colors after:absolute after:inset-x-5 after:bottom-0 after:h-0.5 after:origin-center after:scale-x-0 after:bg-foreground after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none motion-reduce:after:transition-none",
+            postMode === option.value
+              ? "text-foreground after:scale-x-100"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const frameControls = (
+    <fieldset>
+      <legend className="text-sm font-semibold text-foreground">Frame</legend>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+        Choose how your photos and videos will appear in the feed.
+      </p>
+      <div className="mt-3 flex items-end gap-7 sm:gap-10">
+        {POST_DISPLAY_RATIO_OPTIONS.map((option) => {
+          const selected = displayAspectRatio === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setDisplayAspectRatio(option.value)}
+              className={cn(
+                "group flex min-h-[72px] min-w-[56px] flex-col items-center justify-end gap-2 py-1 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4",
+                selected ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span className="relative flex h-8 items-center justify-center" aria-hidden="true">
+                <span
+                  className={cn(
+                    "block border-[1.5px] transition-[border-color,box-shadow]",
+                    selected
+                      ? "border-foreground shadow-[0_0_0_2px_hsl(var(--card)),0_0_0_3px_hsl(var(--foreground))]"
+                      : "border-muted-foreground/65 group-hover:border-foreground"
+                  )}
+                  style={{ aspectRatio: option.ratio, height: option.ratio === 1 ? 28 : 32 }}
+                />
+                {selected && (
+                  <span className="absolute -right-3 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-foreground text-background">
+                    <Check className="h-2.5 w-2.5" aria-hidden="true" />
+                  </span>
+                )}
+              </span>
+              <span className="text-xs font-semibold">
+                {option.label} <span className="font-normal text-muted-foreground">{option.helper}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+
+  const writingField = (
+    <div>
+      <label htmlFor="post-content" className="text-sm font-semibold text-foreground">
+        Share something...
+      </label>
+      <Textarea
+        id="post-content"
+        rows={4}
+        maxLength={2000}
+        value={content}
+        onChange={(event) => {
+          setContent(event.target.value);
+          setPiiAcknowledged(false);
+        }}
+        className="mt-2 min-h-28 resize-none rounded-[8px] border-border/80 bg-background/45 px-3.5 py-3 text-base leading-6 shadow-none focus-visible:bg-card md:text-sm"
+      />
+      {content.length > 0 && (
+        <p className="mt-1.5 text-right text-[11px] tabular-nums text-muted-foreground">{content.length}/2000</p>
+      )}
+    </div>
+  );
+
+  const accessControls = allowPremiumContent ? (
+    <fieldset className="border-t border-border/70 pt-5">
+      <legend className="text-sm font-semibold text-foreground">Who can see this?</legend>
+      <div className="mt-2 flex flex-wrap gap-x-7 gap-y-2">
+        {([
+          { value: "free", label: "Everyone", helper: "Appears in the public feed" },
+          { value: "premium", label: "Premium", helper: "Added to your Premium tab" },
+        ] as const).map((option) => {
+          const selected = postAccess === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setPostAccess(option.value)}
+              className="flex min-h-11 items-center gap-2 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <span
+                className={cn(
+                  "flex h-[18px] w-[18px] items-center justify-center rounded-full border",
+                  selected ? "border-foreground" : "border-muted-foreground/60"
+                )}
+                aria-hidden="true"
+              >
+                {selected && <span className="h-2.5 w-2.5 rounded-full bg-foreground" />}
+              </span>
+              {option.value === "premium" && <Lock className="h-3.5 w-3.5" aria-hidden="true" />}
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {postAccess === "premium" ? "Added to your Premium tab" : "Appears in the public feed"}
+      </p>
+    </fieldset>
+  ) : null;
+
+  const publishControls = (
+    <>
+      {strippedImageCount > 0 && (
+        <div className="flex items-start gap-2 border-t border-border/70 pt-4 text-xs leading-5 text-muted-foreground">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-trust" aria-hidden="true" />
+          <p>
+            {strippedImageCount} uploaded {strippedImageCount === 1 ? "image was" : "images were"} re-encoded to remove common metadata.
+          </p>
+        </div>
+      )}
+
+      {error && (
+        <p role="alert" className="text-sm leading-5 text-destructive">
+          {error}
+        </p>
+      )}
+
+      <div className="sticky bottom-3 z-10 -mx-1 border-t border-border/70 bg-card/95 px-1 pt-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:pt-0">
+        <Button
+          type="submit"
+          disabled={submitting || uploading}
+          className="h-12 w-full rounded-[8px] bg-foreground text-background shadow-none hover:bg-foreground/90 hover:shadow-none"
+        >
+          {submitting ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              Publishing...
+            </span>
+          ) : (
+            "Publish"
+          )}
+        </Button>
+      </div>
+    </>
+  );
+
   return (
     <>
       <form
         onSubmit={handleSubmit}
-        className="overflow-hidden rounded-[28px] border border-border bg-card shadow-card md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)] md:rounded-2xl"
+        className="overflow-hidden border-y border-border/80 bg-card md:rounded-[8px] md:border md:shadow-card"
       >
-        <section className="border-b border-border bg-black p-3 text-white md:border-b-0 md:border-r md:p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-white/55">Preview</p>
-              <p className="mt-1 text-sm text-white/75">
-                {mediaItems.length > 1 ? `${mediaItems.length} media carousel` : mediaItems.length === 1 ? "Single media post" : "Choose media"}
-              </p>
-            </div>
-            {mediaItems.length > 0 && (
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">
-                {POST_DISPLAY_RATIO_OPTIONS.find((option) => option.value === displayAspectRatio)?.helper}
-              </span>
-            )}
-          </div>
+        {modeControls}
 
-          <div
-            className="mt-4 flex w-full items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]"
-            style={{ aspectRatio: selectedRatio }}
-          >
-            {activeMedia ? (
-              activeMedia.type === "video" ? (
-                <video
-                  src={activeMedia.url}
-                  controls
-                  playsInline
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="relative h-full w-full">
-                  <Image
-                    src={activeMedia.url}
-                    alt=""
-                    fill
-                    sizes="(min-width: 1024px) 45vw, 100vw"
-                    className="object-cover"
-                  />
-                </div>
-              )
-            ) : (
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="flex min-h-[260px] w-full flex-col items-center justify-center gap-3 px-6 text-center text-white/70 transition-colors hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-              >
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-black">
-                  <ImagePlus className="h-6 w-6" aria-hidden="true" />
-                </span>
-                <span>
-                  <span className="block text-sm font-semibold text-white">Open gallery</span>
-                  <span className="mt-1 block text-xs leading-5 text-white/55">
-                    Choose a photo, video, or a carousel from this device.
-                  </span>
-                </span>
-              </button>
-            )}
-          </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*,video/mp4,video/webm,video/quicktime"
+          multiple={postMode === "carousel"}
+          className="hidden"
+          onChange={handleFiles}
+        />
 
-          {mediaItems.length > 0 && (
-            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-              {mediaItems.map((item, index) => (
-                <button
-                  key={item.url}
-                  type="button"
-                  onClick={() => setActiveMediaIndex(index)}
-                  aria-label={`Preview media ${index + 1}`}
-                  className={cn(
-                    "relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-white/10 transition-colors",
-                    activeMediaIndex === index ? "border-white" : "border-white/15"
-                  )}
-                >
-                  {item.type === "video" ? (
-                    <span className="flex h-full w-full items-center justify-center">
-                      <Video className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                  ) : (
-                    <Image src={item.url} alt="" fill sizes="4rem" className="object-cover" />
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="flex flex-col gap-5 p-4 md:p-5">
-          <div className="grid grid-cols-2 gap-2 rounded-full bg-muted p-1">
+        {mediaItems.length === 0 ? (
+          <div className="p-4 sm:p-6 md:p-8">
             <button
               type="button"
-              aria-pressed={postMode === "single"}
-              onClick={() => setMode("single")}
-              className={cn(
-                "min-h-11 rounded-full text-sm font-semibold transition-colors",
-                postMode === "single" ? "bg-card text-foreground shadow-card" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Single
-            </button>
-            <button
-              type="button"
-              aria-pressed={postMode === "carousel"}
-              onClick={() => setMode("carousel")}
-              className={cn(
-                "min-h-11 rounded-full text-sm font-semibold transition-colors",
-                postMode === "carousel" ? "bg-card text-foreground shadow-card" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Carousel
-            </button>
-          </div>
-
-          <div>
-            <p className="text-sm font-semibold text-foreground">Frame</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Pick the shape that matches your media before posting.
-            </p>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {POST_DISPLAY_RATIO_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  aria-pressed={displayAspectRatio === option.value}
-                  onClick={() => setDisplayAspectRatio(option.value)}
-                  className={cn(
-                    "flex min-h-[82px] flex-col items-center justify-center gap-2 rounded-2xl border px-2 text-center transition-colors",
-                    displayAspectRatio === option.value
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-border bg-background text-foreground hover:bg-secondary"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "flex w-8 items-center justify-center rounded border",
-                      displayAspectRatio === option.value ? "border-background/40" : "border-border"
-                    )}
-                    style={{ aspectRatio: option.ratio }}
-                    aria-hidden="true"
-                  >
-                    {displayAspectRatio === option.value && <Check className="h-3.5 w-3.5" />}
-                  </span>
-                  <span>
-                    <span className="block text-xs font-semibold">{option.label}</span>
-                    <span className="block text-[11px] opacity-70">{option.helper}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Button
-              type="button"
-              variant="outline"
               onClick={() => inputRef.current?.click()}
-              disabled={uploading || mediaItems.length >= (postMode === "single" ? 1 : MAX_POST_MEDIA_ITEMS)}
-              className="h-12 w-full justify-center gap-2 rounded-2xl"
+              disabled={uploading}
+              className="flex min-h-[240px] w-full flex-col items-center justify-center border border-dashed border-border bg-muted/20 px-6 py-10 text-center transition-colors hover:border-muted-foreground/60 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[280px]"
             >
-              {uploading ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <GalleryHorizontal className="h-4 w-4" aria-hidden="true" />
-              )}
-              {uploading ? "Uploading..." : mediaItems.length > 0 ? "Add more media" : "Open gallery"}
-            </Button>
-            <input
-              ref={inputRef}
-              type="file"
-              accept="image/*,video/mp4,video/webm,video/quicktime"
-              multiple={postMode === "carousel"}
-              className="hidden"
-              onChange={handleFiles}
-            />
-            <p className="text-xs leading-5 text-muted-foreground">
-              Your browser will ask for gallery access when needed. Images are re-encoded before upload.
-            </p>
-          </div>
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background">
+                {uploading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <ImagePlus className="h-5 w-5" aria-hidden="true" />
+                )}
+              </span>
+              <span className="mt-4 text-base font-semibold text-foreground">
+                {uploading ? "Preparing your media..." : "Open gallery"}
+              </span>
+              <span className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">
+                {postMode === "carousel"
+                  ? `Choose up to ${MAX_POST_MEDIA_ITEMS} photos or videos for one carousel.`
+                  : "Choose one photo or video from this device."}
+              </span>
+            </button>
 
-          {mediaItems.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {mediaItems.map((item, index) => (
-                <span
-                  key={item.url}
-                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-border bg-background px-2.5 text-xs font-semibold"
-                >
-                  {item.type === "video" ? <Video className="h-3.5 w-3.5" aria-hidden="true" /> : <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />}
-                  {item.type === "video" ? "Video" : "Photo"} {index + 1}
-                  <button
-                    type="button"
-                    aria-label={`Remove media ${index + 1}`}
-                    onClick={() => removeMedia(item.url)}
-                    className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
-                  >
-                    <X className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="post-content" className="text-sm font-semibold text-foreground">
-              Caption
-            </label>
-            <Textarea
-              id="post-content"
-              rows={5}
-              maxLength={2000}
-              placeholder="Write a caption..."
-              value={content}
-              onChange={(event) => {
-                setContent(event.target.value);
-                setPiiAcknowledged(false);
-              }}
-              className="mt-2 min-h-32 resize-none rounded-2xl text-base md:text-sm"
-            />
-            <p className="mt-1 text-right text-xs text-muted-foreground">{content.length}/2000</p>
-          </div>
-
-          {allowPremiumContent && (
-            <div className="rounded-2xl border border-border bg-background/60 p-3">
-              <p className="text-sm font-semibold text-foreground">Content access</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {([
-                  { value: "free", label: "Free", helper: "Appears in the public feed" },
-                  { value: "premium", label: "Premium", helper: "Goes under the Premium tab" },
-                ] as const).map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    aria-pressed={postAccess === option.value}
-                    onClick={() => setPostAccess(option.value)}
-                    className={cn(
-                      "min-h-[74px] rounded-2xl border px-3 text-left transition-colors",
-                      postAccess === option.value
-                        ? "border-foreground bg-foreground text-background"
-                        : "border-border bg-card text-foreground hover:bg-secondary"
-                    )}
-                  >
-                    <span className="flex items-center gap-2 text-sm font-semibold">
-                      {option.value === "premium" && <Lock className="h-3.5 w-3.5" aria-hidden="true" />}
-                      {option.label}
-                    </span>
-                    <span className={cn("mt-1 block text-xs leading-5", postAccess === option.value ? "text-background/75" : "text-muted-foreground")}>
-                      {option.helper}
-                    </span>
-                  </button>
-                ))}
+            <div className="mx-auto mt-7 grid max-w-3xl gap-7 md:grid-cols-[0.8fr_1.2fr] md:gap-10">
+              {frameControls}
+              <div className="flex flex-col gap-5">
+                {writingField}
+                {accessControls}
+                {publishControls}
               </div>
             </div>
-          )}
-
-          {(strippedImageCount > 0 || mediaItems.length > 0) && (
-            <div className="flex items-start gap-2 rounded-2xl border border-border bg-muted/60 p-3 text-xs text-muted-foreground">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-trust" aria-hidden="true" />
-              <p>
-                {strippedImageCount > 0
-                  ? `${strippedImageCount} uploaded ${strippedImageCount === 1 ? "image had" : "images had"} metadata markers and ${strippedImageCount === 1 ? "was" : "were"} re-encoded before upload.`
-                  : "Images are re-encoded before upload to remove common metadata. Videos are stored without EXIF stripping."}
-              </p>
-            </div>
-          )}
-
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-
-          <div className="sticky bottom-3 z-10 rounded-2xl border border-border bg-card/95 p-2 shadow-lift backdrop-blur md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none">
-            <Button type="submit" disabled={submitting || uploading} className="h-12 w-full rounded-2xl">
-              {submitting ? "Publishing..." : "Publish"}
-            </Button>
           </div>
-        </section>
+        ) : (
+          <div className="md:grid md:grid-cols-[minmax(0,1.12fr)_minmax(340px,0.88fr)]">
+            <section className="bg-black p-3 text-white md:border-r md:border-border/30 md:p-5">
+              <div className="flex items-center justify-between gap-3 px-1 pb-3 text-xs text-white/60">
+                <span>{mediaItems.length > 1 ? `${activeMediaIndex + 1} of ${mediaItems.length}` : "Preview"}</span>
+                <span>{selectedRatioOption?.label} {selectedRatioOption?.helper}</span>
+              </div>
+
+              <div className="flex min-h-[360px] items-center justify-center sm:min-h-[440px] md:min-h-[560px]">
+                <div
+                  className="relative max-w-full overflow-hidden bg-white/[0.04]"
+                  style={{
+                    aspectRatio: selectedRatio,
+                    width: `min(100%, calc(64svh * ${selectedRatio}))`,
+                  }}
+                >
+                  {activeMedia?.type === "video" ? (
+                    <video
+                      src={activeMedia.url}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : activeMedia ? (
+                    <Image
+                      src={activeMedia.url}
+                      alt={`Post media preview ${activeMediaIndex + 1}`}
+                      fill
+                      sizes="(min-width: 1024px) 52vw, 100vw"
+                      className="object-cover"
+                    />
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-3 flex gap-2 overflow-x-auto px-1 pb-1 pt-1">
+                {mediaItems.map((item, index) => (
+                  <div key={item.url} className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setActiveMediaIndex(index)}
+                      aria-label={`Preview media ${index + 1}`}
+                      className={cn(
+                        "relative h-16 w-16 overflow-hidden border bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
+                        activeMediaIndex === index ? "border-white" : "border-white/20 hover:border-white/55"
+                      )}
+                    >
+                      {item.type === "video" ? (
+                        <span className="flex h-full w-full items-center justify-center">
+                          <Video className="h-5 w-5" aria-hidden="true" />
+                        </span>
+                      ) : (
+                        <Image src={item.url} alt="" fill sizes="4rem" className="object-cover" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Remove media ${index + 1}`}
+                      onClick={() => removeMedia(item.url)}
+                      className="absolute right-0 top-0 flex h-7 w-7 items-center justify-center bg-black/75 text-white transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+
+                {canAddMedia && (
+                  <button
+                    type="button"
+                    onClick={() => inputRef.current?.click()}
+                    disabled={uploading}
+                    aria-label="Add more media"
+                    className="flex h-16 w-16 shrink-0 items-center justify-center border border-dashed border-white/30 text-white/75 transition-colors hover:border-white/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:opacity-45"
+                  >
+                    {uploading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <ImagePlus className="h-5 w-5" aria-hidden="true" />
+                    )}
+                  </button>
+                )}
+              </div>
+            </section>
+
+            <section className="flex flex-col gap-6 p-4 sm:p-6 md:p-7">
+              {frameControls}
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => inputRef.current?.click()}
+                disabled={uploading || !canAddMedia}
+                className="h-11 w-full justify-center gap-2 rounded-[8px] shadow-none"
+              >
+                {uploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <GalleryHorizontal className="h-4 w-4" aria-hidden="true" />
+                )}
+                {uploading ? "Preparing..." : canAddMedia ? "Add from gallery" : "Media added"}
+              </Button>
+
+              {writingField}
+              {accessControls}
+              {publishControls}
+            </section>
+          </div>
+        )}
       </form>
 
       {showPiiWarning && (
@@ -616,7 +667,7 @@ export function PostComposer({
         <ImageCropDialog
           key={cropQueue[0].file.name + cropQueue[0].file.lastModified}
           file={cropQueue[0].file}
-          title="Frame photo"
+          title="Adjust photo"
           initialPresetId={displayAspectRatio}
           onCancel={handleCropCancel}
           onConfirm={handleCropConfirm}
