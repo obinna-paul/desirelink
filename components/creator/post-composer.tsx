@@ -2,13 +2,23 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { AlertTriangle, Check, ImagePlus, Loader2, Lock, ShieldCheck, Video, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  ImagePlus,
+  Loader2,
+  Lock,
+  ShieldCheck,
+  Video,
+  X,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
 import { VideoFrameDialog } from "@/components/creator/video-frame-dialog";
 import { ProviderUpgradePrompt } from "@/components/settings/provider-upgrade-prompt";
+import { VerificationRequestCard } from "@/components/verification/verification-request-card";
 import { PostVideoPlayer } from "@/components/posts/post-video-player";
 import {
   MAX_POST_MEDIA_ITEMS,
@@ -18,7 +28,11 @@ import {
   type VideoCrop,
 } from "@/lib/post-shared";
 import type { PostView } from "@/lib/posts";
-import { detectTextPii, hasImageMetadataSignature, type PiiFinding } from "@/lib/pii";
+import {
+  detectTextPii,
+  hasImageMetadataSignature,
+  type PiiFinding,
+} from "@/lib/pii";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { cn } from "@/lib/utils";
 
@@ -36,30 +50,40 @@ type PostAccess = "free" | "premium";
 const DEFAULT_DISPLAY_RATIO: PostDisplayAspectRatio = "square";
 
 function selectedRatioValue(value: PostDisplayAspectRatio) {
-  return POST_DISPLAY_RATIO_OPTIONS.find((option) => option.value === value)?.ratio ?? 1;
+  return (
+    POST_DISPLAY_RATIO_OPTIONS.find((option) => option.value === value)
+      ?.ratio ?? 1
+  );
 }
 
 export function PostComposer({
   creatorDisplayName,
   canPostPremiumContent = false,
+  hasIdentityOnFile = false,
   onCreated,
 }: {
   creatorDisplayName: string;
   canPostPremiumContent?: boolean;
+  hasIdentityOnFile?: boolean;
   onCreated: (post: PostView) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const piiDialogRef = useRef<HTMLDivElement>(null);
   const [content, setContent] = useState("");
   const [postMode, setPostMode] = useState<PostMode>("single");
-  const [displayAspectRatio, setDisplayAspectRatioState] = useState<PostDisplayAspectRatio>(DEFAULT_DISPLAY_RATIO);
+  const [displayAspectRatio, setDisplayAspectRatioState] =
+    useState<PostDisplayAspectRatio>(DEFAULT_DISPLAY_RATIO);
   const [mediaItems, setMediaItems] = useState<UploadedMedia[]>([]);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [postAccess, setPostAccess] = useState<PostAccess>("free");
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showProviderUpgradePrompt, setShowProviderUpgradePrompt] = useState(false);
+  const [showProviderUpgradePrompt, setShowProviderUpgradePrompt] =
+    useState(false);
+  const [showIdentityPrompt, setShowIdentityPrompt] = useState(false);
+  const [identitySubmittedLocally, setIdentitySubmittedLocally] =
+    useState(false);
   const [pendingFindings, setPendingFindings] = useState<PiiFinding[]>([]);
   const [showPiiWarning, setShowPiiWarning] = useState(false);
   const [piiAcknowledged, setPiiAcknowledged] = useState(false);
@@ -97,21 +121,26 @@ export function PostComposer({
         displayAspectRatio,
         crop: item.crop,
       })),
-    [displayAspectRatio, mediaItems]
+    [displayAspectRatio, mediaItems],
   );
   const strippedImageCount = useMemo(
     () => mediaItems.filter((image) => image.metadataDetected).length,
-    [mediaItems]
+    [mediaItems],
   );
   const activeMedia = mediaItems[activeMediaIndex];
+  const canGoPremium = hasIdentityOnFile || identitySubmittedLocally;
   const isSubscriberOnly = canPostPremiumContent && postAccess === "premium";
-  const selectedRatioOption = POST_DISPLAY_RATIO_OPTIONS.find((option) => option.value === displayAspectRatio);
+  const selectedRatioOption = POST_DISPLAY_RATIO_OPTIONS.find(
+    (option) => option.value === displayAspectRatio,
+  );
   const mediaLimit = postMode === "single" ? 1 : MAX_POST_MEDIA_ITEMS;
   const canAddMedia = mediaItems.length < mediaLimit;
 
   function setDisplayAspectRatio(value: PostDisplayAspectRatio) {
     setDisplayAspectRatioState(value);
-    setMediaItems((current) => current.map((item) => ({ ...item, displayAspectRatio: value })));
+    setMediaItems((current) =>
+      current.map((item) => ({ ...item, displayAspectRatio: value })),
+    );
   }
 
   function setMode(nextMode: PostMode) {
@@ -123,12 +152,19 @@ export function PostComposer({
     }
   }
 
-  async function uploadFile(file: File, metadataDetected: boolean, crop?: VideoCrop) {
+  async function uploadFile(
+    file: File,
+    metadataDetected: boolean,
+    crop?: VideoCrop,
+  ) {
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/upload/post-media", { method: "POST", body: formData });
+      const res = await fetch("/api/upload/post-media", {
+        method: "POST",
+        body: formData,
+      });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
         setError(body?.error ?? "Upload failed. Please try again.");
@@ -155,14 +191,22 @@ export function PostComposer({
 
     if (
       postMode === "single" &&
-      (files.length > 1 || mediaItems.length >= 1 || cropQueue.length >= 1 || videoQueue.length >= 1)
+      (files.length > 1 ||
+        mediaItems.length >= 1 ||
+        cropQueue.length >= 1 ||
+        videoQueue.length >= 1)
     ) {
-      setError("Single posts can use one photo or video. Switch to carousel for multiple media.");
+      setError(
+        "Single posts can use one photo or video. Switch to carousel for multiple media.",
+      );
       event.target.value = "";
       return;
     }
 
-    if (mediaItems.length + cropQueue.length + videoQueue.length + files.length > MAX_POST_MEDIA_ITEMS) {
+    if (
+      mediaItems.length + cropQueue.length + videoQueue.length + files.length >
+      MAX_POST_MEDIA_ITEMS
+    ) {
       setError(`Up to ${MAX_POST_MEDIA_ITEMS} media items per carousel.`);
       event.target.value = "";
       return;
@@ -194,7 +238,9 @@ export function PostComposer({
         continue;
       }
 
-      const metadataDetected = hasImageMetadataSignature(await file.arrayBuffer());
+      const metadataDetected = hasImageMetadataSignature(
+        await file.arrayBuffer(),
+      );
       imagesToReview.push({ file, metadataDetected });
     }
 
@@ -224,10 +270,19 @@ export function PostComposer({
 
   function handleCropError() {
     setCropQueue((prev) => prev.slice(1));
-    setError("A photo couldn't be opened. Try a different one, or convert it to JPEG or PNG first.");
+    setError(
+      "A photo couldn't be opened. Try a different one, or convert it to JPEG or PNG first.",
+    );
   }
 
-  async function handleVideoFrameConfirm({ crop }: { crop: VideoCrop; width: number; height: number; durationSeconds: number }) {
+  async function handleVideoFrameConfirm({
+    crop,
+  }: {
+    crop: VideoCrop;
+    width: number;
+    height: number;
+    durationSeconds: number;
+  }) {
     const file = videoQueue[0];
     setVideoQueue((prev) => prev.slice(1));
     if (!file) return;
@@ -303,11 +358,17 @@ export function PostComposer({
   }
 
   const modeControls = (
-    <div className="flex border-b border-border/80" role="group" aria-label="Post format">
-      {([
-        { value: "single", label: "Single post" },
-        { value: "carousel", label: "Carousel" },
-      ] as const).map((option) => (
+    <div
+      className="flex border-b border-border/80"
+      role="group"
+      aria-label="Post format"
+    >
+      {(
+        [
+          { value: "single", label: "Single post" },
+          { value: "carousel", label: "Carousel" },
+        ] as const
+      ).map((option) => (
         <button
           key={option.value}
           type="button"
@@ -317,7 +378,7 @@ export function PostComposer({
             "relative min-h-12 flex-1 px-4 text-sm font-semibold transition-colors after:absolute after:inset-x-5 after:bottom-0 after:h-0.5 after:origin-center after:scale-x-0 after:bg-foreground after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none motion-reduce:after:transition-none",
             postMode === option.value
               ? "text-foreground after:scale-x-100"
-              : "text-muted-foreground hover:text-foreground"
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
           {option.label}
@@ -343,18 +404,26 @@ export function PostComposer({
               onClick={() => setDisplayAspectRatio(option.value)}
               className={cn(
                 "group flex min-h-[72px] min-w-[56px] flex-col items-center justify-end gap-2 py-1 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4",
-                selected ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                selected
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <span className="relative flex h-8 items-center justify-center" aria-hidden="true">
+              <span
+                className="relative flex h-8 items-center justify-center"
+                aria-hidden="true"
+              >
                 <span
                   className={cn(
                     "block border-[1.5px] transition-[border-color,box-shadow]",
                     selected
                       ? "border-foreground shadow-[0_0_0_2px_hsl(var(--card)),0_0_0_3px_hsl(var(--foreground))]"
-                      : "border-muted-foreground/65 group-hover:border-foreground"
+                      : "border-muted-foreground/65 group-hover:border-foreground",
                   )}
-                  style={{ aspectRatio: option.ratio, height: option.ratio === 1 ? 28 : 32 }}
+                  style={{
+                    aspectRatio: option.ratio,
+                    height: option.ratio === 1 ? 28 : 32,
+                  }}
                 />
                 {selected && (
                   <span className="absolute -right-3 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-foreground text-background">
@@ -363,7 +432,10 @@ export function PostComposer({
                 )}
               </span>
               <span className="text-xs font-semibold">
-                {option.label} <span className="font-normal text-muted-foreground">{option.helper}</span>
+                {option.label}{" "}
+                <span className="font-normal text-muted-foreground">
+                  {option.helper}
+                </span>
               </span>
             </button>
           );
@@ -374,7 +446,10 @@ export function PostComposer({
 
   const writingField = (
     <div>
-      <label htmlFor="post-content" className="text-sm font-semibold text-foreground">
+      <label
+        htmlFor="post-content"
+        className="text-sm font-semibold text-foreground"
+      >
         Share something...
       </label>
       <Textarea
@@ -389,19 +464,33 @@ export function PostComposer({
         className="mt-2 min-h-28 resize-none rounded-[8px] border-border/80 bg-background/45 px-3.5 py-3 text-base leading-6 shadow-none focus-visible:bg-card md:text-sm"
       />
       {content.length > 0 && (
-        <p className="mt-1.5 text-right text-[11px] tabular-nums text-muted-foreground">{content.length}/2000</p>
+        <p className="mt-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+          {content.length}/2000
+        </p>
       )}
     </div>
   );
 
   const accessControls = (
     <fieldset className="border-t border-border/70 pt-5">
-      <legend className="text-sm font-semibold text-foreground">Who can see this?</legend>
+      <legend className="text-sm font-semibold text-foreground">
+        Who can see this?
+      </legend>
       <div className="mt-2 flex flex-wrap gap-x-7 gap-y-2">
-        {([
-          { value: "free", label: "Everyone", helper: "Appears in the public feed" },
-          { value: "premium", label: "Premium", helper: "Added to your Premium tab" },
-        ] as const).map((option) => {
+        {(
+          [
+            {
+              value: "free",
+              label: "Everyone",
+              helper: "Appears in the public feed",
+            },
+            {
+              value: "premium",
+              label: "Premium",
+              helper: "Added to your Premium tab",
+            },
+          ] as const
+        ).map((option) => {
           const selected = postAccess === option.value;
           return (
             <button
@@ -411,9 +500,16 @@ export function PostComposer({
               onClick={() => {
                 if (option.value === "premium" && !canPostPremiumContent) {
                   setShowProviderUpgradePrompt(true);
+                  setShowIdentityPrompt(false);
+                  return;
+                }
+                if (option.value === "premium" && !canGoPremium) {
+                  setShowIdentityPrompt(true);
+                  setShowProviderUpgradePrompt(false);
                   return;
                 }
                 setShowProviderUpgradePrompt(false);
+                setShowIdentityPrompt(false);
                 setPostAccess(option.value);
               }}
               className="flex min-h-11 items-center gap-2 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -421,23 +517,46 @@ export function PostComposer({
               <span
                 className={cn(
                   "flex h-[18px] w-[18px] items-center justify-center rounded-full border",
-                  selected ? "border-foreground" : "border-muted-foreground/60"
+                  selected ? "border-foreground" : "border-muted-foreground/60",
                 )}
                 aria-hidden="true"
               >
-                {selected && <span className="h-2.5 w-2.5 rounded-full bg-foreground" />}
+                {selected && (
+                  <span className="h-2.5 w-2.5 rounded-full bg-foreground" />
+                )}
               </span>
-              {option.value === "premium" && <Lock className="h-3.5 w-3.5" aria-hidden="true" />}
+              {option.value === "premium" && (
+                <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
               {option.label}
             </button>
           );
         })}
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        {postAccess === "premium" ? "Added to your Premium tab" : "Appears in the public feed"}
+        {postAccess === "premium"
+          ? "Added to your Premium tab"
+          : "Appears in the public feed"}
       </p>
       {showProviderUpgradePrompt && (
-        <ProviderUpgradePrompt intent="premium-post" className="mt-4 shadow-none" />
+        <ProviderUpgradePrompt
+          intent="premium-post"
+          className="mt-4 shadow-none"
+        />
+      )}
+      {showIdentityPrompt && !canGoPremium && (
+        <div className="mt-4">
+          <VerificationRequestCard
+            requestType="creator"
+            isVerified={false}
+            latestStatus={null}
+            skipRefresh
+            onSubmitted={() => {
+              setIdentitySubmittedLocally(true);
+              setPostAccess("premium");
+            }}
+          />
+        </div>
       )}
     </fieldset>
   );
@@ -446,9 +565,14 @@ export function PostComposer({
     <>
       {strippedImageCount > 0 && (
         <div className="flex items-start gap-2 border-t border-border/70 pt-4 text-xs leading-5 text-muted-foreground">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-trust" aria-hidden="true" />
+          <ShieldCheck
+            className="mt-0.5 h-4 w-4 shrink-0 text-trust"
+            aria-hidden="true"
+          />
           <p>
-            {strippedImageCount} uploaded {strippedImageCount === 1 ? "image was" : "images were"} re-encoded to remove common metadata.
+            {strippedImageCount} uploaded{" "}
+            {strippedImageCount === 1 ? "image was" : "images were"} re-encoded
+            to remove common metadata.
           </p>
         </div>
       )}
@@ -505,7 +629,10 @@ export function PostComposer({
             >
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background">
                 {uploading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                  <Loader2
+                    className="h-5 w-5 animate-spin"
+                    aria-hidden="true"
+                  />
                 ) : (
                   <ImagePlus className="h-5 w-5" aria-hidden="true" />
                 )}
@@ -533,8 +660,14 @@ export function PostComposer({
           <div className="md:grid md:grid-cols-[minmax(0,1.12fr)_minmax(340px,0.88fr)]">
             <section className="bg-black p-3 text-white md:border-r md:border-border/30 md:p-5">
               <div className="flex items-center justify-between gap-3 px-1 pb-3 text-xs text-white/60">
-                <span>{mediaItems.length > 1 ? `${activeMediaIndex + 1} of ${mediaItems.length}` : "Preview"}</span>
-                <span>{selectedRatioOption?.label} {selectedRatioOption?.helper}</span>
+                <span>
+                  {mediaItems.length > 1
+                    ? `${activeMediaIndex + 1} of ${mediaItems.length}`
+                    : "Preview"}
+                </span>
+                <span>
+                  {selectedRatioOption?.label} {selectedRatioOption?.helper}
+                </span>
               </div>
 
               <div className="flex min-h-[360px] items-center justify-center sm:min-h-[440px] md:min-h-[560px]">
@@ -574,7 +707,9 @@ export function PostComposer({
                       aria-label={`Preview media ${index + 1}`}
                       className={cn(
                         "relative h-16 w-16 overflow-hidden border bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
-                        activeMediaIndex === index ? "border-white" : "border-white/20 hover:border-white/55"
+                        activeMediaIndex === index
+                          ? "border-white"
+                          : "border-white/20 hover:border-white/55",
                       )}
                     >
                       {item.type === "video" ? (
@@ -582,7 +717,13 @@ export function PostComposer({
                           <Video className="h-5 w-5" aria-hidden="true" />
                         </span>
                       ) : (
-                        <Image src={item.url} alt="" fill sizes="4rem" className="object-cover" />
+                        <Image
+                          src={item.url}
+                          alt=""
+                          fill
+                          sizes="4rem"
+                          className="object-cover"
+                        />
                       )}
                     </button>
                     <button
@@ -605,7 +746,10 @@ export function PostComposer({
                     className="flex h-16 w-16 shrink-0 items-center justify-center border border-dashed border-white/30 text-white/75 transition-colors hover:border-white/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:opacity-45"
                   >
                     {uploading ? (
-                      <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                      <Loader2
+                        className="h-5 w-5 animate-spin"
+                        aria-hidden="true"
+                      />
                     ) : (
                       <ImagePlus className="h-5 w-5" aria-hidden="true" />
                     )}
@@ -638,14 +782,21 @@ export function PostComposer({
           >
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">
-                <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden="true" />
+                <AlertTriangle
+                  className="h-5 w-5 text-destructive"
+                  aria-hidden="true"
+                />
               </span>
               <div className="min-w-0">
                 <h2 id="pii-warning-title" className="text-base font-semibold">
                   Review possible personal info
                 </h2>
-                <p id="pii-warning-description" className="mt-1 text-sm text-muted-foreground">
-                  This post may include identifying details. Remove anything you do not want shared.
+                <p
+                  id="pii-warning-description"
+                  className="mt-1 text-sm text-muted-foreground"
+                >
+                  This post may include identifying details. Remove anything you
+                  do not want shared.
                 </p>
               </div>
             </div>
@@ -676,7 +827,12 @@ export function PostComposer({
               >
                 Edit post
               </Button>
-              <Button type="button" onClick={continueAfterWarning} disabled={submitting} className="w-full sm:w-auto">
+              <Button
+                type="button"
+                onClick={continueAfterWarning}
+                disabled={submitting}
+                className="w-full sm:w-auto"
+              >
                 {submitting ? "Publishing..." : "Publish anyway"}
               </Button>
             </div>

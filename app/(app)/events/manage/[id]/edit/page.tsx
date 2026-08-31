@@ -6,7 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { EventForm } from "@/components/events/event-form";
 import { getEventForEdit } from "@/lib/events";
 
-export default async function EditEventPage({ params }: { params: { id: string } }) {
+export default async function EditEventPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     redirect("/login");
@@ -27,7 +31,12 @@ export default async function EditEventPage({ params }: { params: { id: string }
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <EventForm event={event} eventId={event.id} isVerifiedHost latestHostStatus={null} />
+      <EventForm
+        event={event}
+        eventId={event.id}
+        canProceed
+        latestHostStatus={null}
+      />
     </div>
   );
 }

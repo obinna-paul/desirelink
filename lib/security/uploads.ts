@@ -9,7 +9,11 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/heic",
   "image/heif",
 ]);
-const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
+const ALLOWED_VIDEO_TYPES = new Set([
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+]);
 
 export function isAllowedImageFile(file: File): boolean {
   return ALLOWED_IMAGE_TYPES.has(file.type);
@@ -25,6 +29,10 @@ export function isAllowedPostMediaFile(file: File): boolean {
 
 export function allowedImageTypesLabel(): string {
   return "JPEG, PNG, WebP, GIF, AVIF, HEIC, or HEIF";
+}
+
+export function allowedVideoTypesLabel(): string {
+  return "MP4, WebM, or MOV";
 }
 
 export function allowedPostMediaTypesLabel(): string {

@@ -9,8 +9,11 @@ import { getPostByIdForViewer } from "@/lib/posts";
 import { createPostSchema } from "@/lib/validations/post";
 import { readJson } from "@/lib/security/request";
 import { isProviderProfileType } from "@/lib/provider-types";
+import { hasIdentityOnFile } from "@/lib/verification";
 
-function isMissingSchemaError(error: unknown): error is Prisma.PrismaClientKnownRequestError {
+function isMissingSchemaError(
+  error: unknown,
+): error is Prisma.PrismaClientKnownRequestError {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
     (error.code === "P2021" || error.code === "P2022")
@@ -18,11 +21,17 @@ function isMissingSchemaError(error: unknown): error is Prisma.PrismaClientKnown
 }
 
 function missingPostSchemaMessage(error: Prisma.PrismaClientKnownRequestError) {
-  const target = String(error.meta?.table ?? error.meta?.column ?? "post schema");
+  const target = String(
+    error.meta?.table ?? error.meta?.column ?? "post schema",
+  );
   if (target.includes("Post.postType") || target.includes("Post.eventId")) {
     return "Post creation needs the feed interaction database repair. Add Post.postType and Post.eventId in Neon SQL Editor.";
   }
-  if (target.includes("PostComment") || target.includes("PostReaction") || target.includes("PostShare")) {
+  if (
+    target.includes("PostComment") ||
+    target.includes("PostReaction") ||
+    target.includes("PostShare")
+  ) {
     return "Post creation needs the post interaction tables repaired in Neon SQL Editor.";
   }
   if (target.includes("ModerationQueue")) {
@@ -52,9 +61,13 @@ export async function POST(req: Request) {
     },
   });
 
-  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  if (!profile)
+    return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   if (profile.isSuspended) {
-    return NextResponse.json({ error: "Your account is suspended from posting" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Your account is suspended from posting" },
+      { status: 403 },
+    );
   }
 
   const body = await readJson(req);
@@ -62,7 +75,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? "Invalid input" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -75,7 +88,7 @@ export async function POST(req: Request) {
         code: "PROVIDER_ACCOUNT_REQUIRED",
         actionHref: "/settings/account-type?intent=event",
       },
-      { status: 403 }
+      { status: 403 },
     );
   }
   if (isSubscriberOnly && !canPostPremiumContent) {
@@ -85,15 +98,40 @@ export async function POST(req: Request) {
         code: "PROVIDER_ACCOUNT_REQUIRED",
         actionHref: "/settings/account-type?intent=premium-post",
       },
-      { status: 403 }
+      { status: 403 },
+    );
+  }
+  if (
+    isSubscriberOnly &&
+    canPostPremiumContent &&
+    !(await hasIdentityOnFile(profile.id))
+  ) {
+    return NextResponse.json(
+      {
+        error: "Verify your identity before publishing premium posts.",
+        code: "IDENTITY_VERIFICATION_REQUIRED",
+      },
+      { status: 403 },
     );
   }
   const mediaItems =
     parsed.data.mediaItems ??
-    (parsed.data.mediaUrls ?? []).map((url) => ({ url, type: "image" as const }));
-  const firstImage = mediaItems.find((item) => item.type === "image")?.url ?? "";
+    (parsed.data.mediaUrls ?? []).map((url) => ({
+      url,
+      type: "image" as const,
+    }));
+  const firstImage =
+    mediaItems.find((item) => item.type === "image")?.url ?? "";
 
-  let post: { id: string; content: string; mediaUrls: unknown; postType: "standard" | "event" | "live"; eventId: string | null; isSubscriberOnly: boolean; createdAt: Date };
+  let post: {
+    id: string;
+    content: string;
+    mediaUrls: unknown;
+    postType: "standard" | "event" | "live";
+    eventId: string | null;
+    isSubscriberOnly: boolean;
+    createdAt: Date;
+  };
   try {
     post = await prisma.$transaction(async (tx) => {
       const attachedEvent =
@@ -132,11 +170,20 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     if (isMissingSchemaError(error)) {
-      console.error("[posts] create failed because the database schema is incomplete", error.meta);
-      return NextResponse.json({ error: missingPostSchemaMessage(error) }, { status: 503 });
+      console.error(
+        "[posts] create failed because the database schema is incomplete",
+        error.meta,
+      );
+      return NextResponse.json(
+        { error: missingPostSchemaMessage(error) },
+        { status: 503 },
+      );
     }
     console.error("[posts] create failed", error);
-    return NextResponse.json({ error: "Couldn't publish post. Please try again." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Couldn't publish post. Please try again." },
+      { status: 500 },
+    );
   }
 
   try {
@@ -148,9 +195,15 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     if (!isMissingSchemaError(error)) {
-      console.error("[posts] moderation flagging failed after post creation", error);
+      console.error(
+        "[posts] moderation flagging failed after post creation",
+        error,
+      );
     } else {
-      console.warn("[posts] moderation skipped because the database schema is incomplete", error.meta);
+      console.warn(
+        "[posts] moderation skipped because the database schema is incomplete",
+        error.meta,
+      );
     }
   }
 
@@ -161,7 +214,10 @@ export async function POST(req: Request) {
     if (!isMissingSchemaError(error)) {
       throw error;
     }
-    console.warn("[posts] hydration skipped because the database schema is incomplete", error.meta);
+    console.warn(
+      "[posts] hydration skipped because the database schema is incomplete",
+      error.meta,
+    );
   }
 
   return NextResponse.json({ post: hydrated }, { status: 201 });

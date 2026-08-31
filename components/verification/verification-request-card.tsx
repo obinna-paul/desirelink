@@ -3,27 +3,37 @@
 import { memo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Clock, Loader2, ShieldAlert, Upload, X } from "lucide-react";
+import {
+  BadgeCheck,
+  Clock,
+  Loader2,
+  ShieldAlert,
+  Upload,
+  X,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import type { VerificationRequestType } from "@/lib/verification";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const LABELS: Record<VerificationRequestType, string> = {
-  creator: "creator",
-  host: "host",
-  service_provider: "service provider",
+const MAX_ID_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_SELFIE_FILE_SIZE = 20 * 1024 * 1024;
+const HEADINGS: Record<VerificationRequestType, string> = {
+  host: "Please submit identification to host events.",
+  service_provider: "Please submit identification to list services.",
+  creator: "Please submit identification to post premium content.",
 };
 
 const FileSlot = memo(function FileSlot({
   label,
   url,
+  mediaType,
   uploading,
   onPick,
   onClear,
 }: {
   label: string;
   url: string;
+  mediaType: "image" | "video";
   uploading: boolean;
   onPick: () => void;
   onClear: () => void;
@@ -34,7 +44,22 @@ const FileSlot = memo(function FileSlot({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         {url ? (
           <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border/60 bg-secondary sm:h-16 sm:w-24 sm:rounded-lg">
-            <Image src={url} alt="" fill sizes="6rem" className="object-cover" />
+            {mediaType === "video" ? (
+              <video
+                src={url}
+                className="h-full w-full object-cover"
+                muted
+                playsInline
+              />
+            ) : (
+              <Image
+                src={url}
+                alt=""
+                fill
+                sizes="6rem"
+                className="object-cover"
+              />
+            )}
             <button
               type="button"
               aria-label={`Remove ${label.toLowerCase()}`}
@@ -46,7 +71,7 @@ const FileSlot = memo(function FileSlot({
           </div>
         ) : (
           <div className="flex aspect-video w-full items-center justify-center rounded-2xl border border-dashed border-border/60 text-xs text-muted-foreground sm:h-16 sm:w-24 sm:rounded-lg sm:text-[10px]">
-            No image
+            {mediaType === "video" ? "No video" : "No image"}
           </div>
         )}
         <button
@@ -72,11 +97,19 @@ export function VerificationRequestCard({
   isVerified,
   latestStatus,
   ineligibleMessage,
+  skipRefresh = false,
+  onSubmitted,
 }: {
   requestType: VerificationRequestType;
   isVerified: boolean;
   latestStatus: "pending" | "approved" | "denied" | null;
   ineligibleMessage?: string;
+  /** Skip the router.refresh() after submitting - use this when the parent holds
+   * unsaved draft state (e.g. an in-progress post) that a server refetch would wipe.
+   * The caller is responsible for tracking the new "identity on file" status itself,
+   * typically via the onSubmitted callback. */
+  skipRefresh?: boolean;
+  onSubmitted?: () => void;
 }) {
   const router = useRouter();
   const idInputRef = useRef<HTMLInputElement>(null);
@@ -88,50 +121,79 @@ export function VerificationRequestCard({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const label = LABELS[requestType];
-
-  async function uploadFile(
-    file: File,
-    endpoint: string,
-    setUploading: (value: boolean) => void,
-    setUrl: (value: string) => void
-  ) {
+  async function uploadIdFile(file: File) {
     if (!file.type.startsWith("image/")) {
       setError("Please choose an image file.");
       return;
     }
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > MAX_ID_FILE_SIZE) {
       setError("Image must be under 5MB.");
       return;
     }
 
-    setUploading(true);
+    setUploadingId(true);
     setError(null);
 
     const formData = new FormData();
     formData.append("file", file);
 
     try {
-      const res = await fetch(endpoint, { method: "POST", body: formData });
+      const res = await fetch("/api/upload/verification-id", {
+        method: "POST",
+        body: formData,
+      });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
         setError(body?.error ?? "Upload failed. Please try again.");
         return;
       }
-      setUrl(body.url);
+      setGovIdUrl(body.url);
     } catch {
       setError("Upload failed. Please try again.");
     } finally {
-      setUploading(false);
+      setUploadingId(false);
     }
   }
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
+  async function uploadSelfieVideo(file: File) {
+    if (!file.type.startsWith("video/")) {
+      setError("Please record or choose a video file.");
+      return;
+    }
+    if (file.size > MAX_SELFIE_FILE_SIZE) {
+      setError("Video must be under 20MB.");
+      return;
+    }
+
+    setUploadingSelfie(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/upload/verification-selfie", {
+        method: "POST",
+        body: formData,
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error ?? "Upload failed. Please try again.");
+        return;
+      }
+      setSelfieUrl(body.url);
+    } catch {
+      setError("Upload failed. Please try again.");
+    } finally {
+      setUploadingSelfie(false);
+    }
+  }
+
+  async function handleSubmit() {
     setError(null);
 
     if (!govIdUrl || !selfieUrl) {
-      setError("Upload both a government ID and a selfie.");
+      setError("Upload both a government ID and a selfie video.");
       return;
     }
 
@@ -149,16 +211,20 @@ export function VerificationRequestCard({
       return;
     }
 
-    router.refresh();
+    if (!skipRefresh) router.refresh();
+    onSubmitted?.();
   }
 
   if (isVerified) {
     return (
       <div className="flex items-start gap-2 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
-        <BadgeCheck className="h-5 w-5 shrink-0 text-neon-pink" aria-hidden="true" />
+        <BadgeCheck
+          className="h-5 w-5 shrink-0 text-primary"
+          aria-hidden="true"
+        />
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span>You&rsquo;re a verified {label}.</span>
-          <Badge variant="neon">Verified {label}</Badge>
+          <span>You&rsquo;re a verified provider.</span>
+          <Badge variant="neon">Verified provider</Badge>
         </div>
       </div>
     );
@@ -167,9 +233,12 @@ export function VerificationRequestCard({
   if (latestStatus === "pending") {
     return (
       <div className="flex items-start gap-2 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
-        <Clock className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <Clock
+          className="h-5 w-5 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
         <p className="text-sm text-muted-foreground">
-          Your {label} verification request is pending review.
+          Your identity verification is pending review.
         </p>
       </div>
     );
@@ -178,22 +247,23 @@ export function VerificationRequestCard({
   if (ineligibleMessage) {
     return (
       <div className="flex items-start gap-2 rounded-2xl border border-dashed border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
-        <ShieldAlert className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <ShieldAlert
+          className="h-5 w-5 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
         <p className="text-sm text-muted-foreground">{ineligibleMessage}</p>
       </div>
     );
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none"
-    >
+    <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
       <div>
-        <h3 className="text-sm font-semibold">Request {label} verification</h3>
-        <p className="text-xs text-muted-foreground">
-          Upload a government ID and a selfie. We don&rsquo;t process real ID documents in this environment -
-          this just flags your request for manual review.
+        <h3 className="text-base font-semibold">{HEADINGS[requestType]}</h3>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          Submitting lets you continue right away - we review manually
+          afterward. If the identification turns out to be incorrect or fake,
+          your account will be suspended.
         </p>
         {latestStatus === "denied" && (
           <p className="mt-1 text-xs text-destructive">
@@ -206,18 +276,29 @@ export function VerificationRequestCard({
         <FileSlot
           label="Government ID"
           url={govIdUrl}
+          mediaType="image"
           uploading={uploadingId}
           onPick={() => idInputRef.current?.click()}
           onClear={() => setGovIdUrl("")}
         />
         <FileSlot
-          label="Selfie"
+          label="Selfie video (5 seconds)"
           url={selfieUrl}
+          mediaType="video"
           uploading={uploadingSelfie}
           onPick={() => selfieInputRef.current?.click()}
           onClear={() => setSelfieUrl("")}
         />
       </div>
+
+      <p className="-mt-2 text-xs leading-5 text-muted-foreground">
+        Your government ID must clearly show your name and photo. For the
+        selfie, record a 5-second video of yourself saying just two words -
+        &ldquo;Udala&rdquo; and your name - clearly, in your own natural voice.
+        We don&rsquo;t accept AI-generated voices, avatars, or characters. The
+        video is used only to confirm you&rsquo;re a real person and is deleted
+        immediately after review - it&rsquo;s never used for anything else.
+      </p>
 
       <input
         ref={idInputRef}
@@ -226,17 +307,18 @@ export function VerificationRequestCard({
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) uploadFile(file, "/api/upload/verification-id", setUploadingId, setGovIdUrl);
+          if (file) uploadIdFile(file);
         }}
       />
       <input
         ref={selfieInputRef}
         type="file"
-        accept="image/*"
+        accept="video/*"
+        capture="user"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) uploadFile(file, "/api/upload/verification-selfie", setUploadingSelfie, setSelfieUrl);
+          if (file) uploadSelfieVideo(file);
         }}
       />
 
@@ -247,12 +329,13 @@ export function VerificationRequestCard({
       )}
 
       <button
-        type="submit"
+        type="button"
+        onClick={handleSubmit}
         disabled={submitting || uploadingId || uploadingSelfie}
         className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-fit sm:rounded-md"
       >
         {submitting ? "Submitting..." : "Submit for review"}
       </button>
-    </form>
+    </div>
   );
 }

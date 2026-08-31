@@ -12,7 +12,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
-import { EVENT_FORMAT_OPTIONS, EVENT_TYPE_OPTIONS, type EventFormatValue } from "@/lib/events";
+import {
+  EVENT_FORMAT_OPTIONS,
+  EVENT_TYPE_OPTIONS,
+  type EventFormatValue,
+} from "@/lib/events";
 import { cn } from "@/lib/utils";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -105,17 +109,19 @@ function FieldWrapper({
 export function EventForm({
   event,
   eventId,
-  isVerifiedHost,
+  canProceed,
   latestHostStatus,
 }: {
   event?: Event;
   eventId?: string;
-  isVerifiedHost: boolean;
+  canProceed: boolean;
   latestHostStatus: "pending" | "approved" | "denied" | null;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [form, setForm] = useState<FormState>(event ? eventToForm(event) : EMPTY_FORM);
+  const [form, setForm] = useState<FormState>(
+    event ? eventToForm(event) : EMPTY_FORM,
+  );
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -144,7 +150,10 @@ export function EventForm({
     formData.append("file", file);
 
     try {
-      const res = await fetch("/api/upload/event-cover", { method: "POST", body: formData });
+      const res = await fetch("/api/upload/event-cover", {
+        method: "POST",
+        body: formData,
+      });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
         setError(body?.error ?? "Upload failed. Please try again.");
@@ -193,7 +202,8 @@ export function EventForm({
       description: form.description.trim(),
       eventType: form.eventType,
       format: form.format,
-      onlineUrl: form.format === "in_person" ? undefined : form.onlineUrl.trim(),
+      onlineUrl:
+        form.format === "in_person" ? undefined : form.onlineUrl.trim(),
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       venueName: form.venueName.trim(),
@@ -202,16 +212,21 @@ export function EventForm({
       lat: form.lat ? Number(form.lat) : 0,
       lng: form.lng ? Number(form.lng) : 0,
       maxAttendees: form.maxAttendees ? Number(form.maxAttendees) : null,
-      priceCents: form.priceNaira ? Math.round(Number(form.priceNaira) * 100) : 0,
+      priceCents: form.priceNaira
+        ? Math.round(Number(form.priceNaira) * 100)
+        : 0,
       isPrivate: form.isPrivate,
       coverImageUrl: form.coverImageUrl,
     };
 
-    const res = await fetch(eventId ? `/api/events/${eventId}` : "/api/events", {
-      method: eventId ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch(
+      eventId ? `/api/events/${eventId}` : "/api/events",
+      {
+        method: eventId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
 
     setSubmitting(false);
 
@@ -225,8 +240,14 @@ export function EventForm({
     router.refresh();
   }
 
-  if (!isVerifiedHost) {
-    return <VerificationRequestCard requestType="host" isVerified={false} latestStatus={latestHostStatus} />;
+  if (!canProceed) {
+    return (
+      <VerificationRequestCard
+        requestType="host"
+        isVerified={false}
+        latestStatus={latestHostStatus}
+      />
+    );
   }
 
   return (
@@ -319,7 +340,10 @@ export function EventForm({
             </Select>
           </FieldWrapper>
           <FieldWrapper label="Private event" htmlFor="isPrivate">
-            <label htmlFor="isPrivate" className="flex min-h-11 cursor-pointer items-center gap-2 rounded-2xl border border-border/60 bg-background/60 px-3 md:rounded-lg md:border-0 md:bg-transparent md:px-0">
+            <label
+              htmlFor="isPrivate"
+              className="flex min-h-11 cursor-pointer items-center gap-2 rounded-2xl border border-border/60 bg-background/60 px-3 md:rounded-lg md:border-0 md:bg-transparent md:px-0"
+            >
               <Switch
                 id="isPrivate"
                 checked={form.isPrivate}
@@ -374,7 +398,7 @@ export function EventForm({
                   "min-h-11 rounded-xl border px-3 text-sm font-medium transition-colors md:rounded-lg",
                   form.format === option.value
                     ? "border-transparent bg-primary text-primary-foreground"
-                    : "border-border/60 bg-background text-muted-foreground hover:border-neon-pink/60 hover:text-foreground"
+                    : "border-border/60 bg-background text-muted-foreground hover:border-neon-pink/60 hover:text-foreground",
                 )}
               >
                 {option.label}
@@ -484,10 +508,19 @@ export function EventForm({
       )}
 
       <div className="sticky bottom-3 z-10 flex flex-col gap-2 rounded-2xl border border-border/60 bg-card/95 p-3 shadow-lift backdrop-blur sm:static sm:flex-row sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
-        <Button type="submit" disabled={submitting || uploading} className="h-12">
+        <Button
+          type="submit"
+          disabled={submitting || uploading}
+          className="h-12"
+        >
           {submitting ? "Saving..." : eventId ? "Save changes" : "Create event"}
         </Button>
-        <Button type="button" variant="outline" onClick={() => router.push("/events/manage")} className="h-12">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.push("/events/manage")}
+          className="h-12"
+        >
           Cancel
         </Button>
       </div>

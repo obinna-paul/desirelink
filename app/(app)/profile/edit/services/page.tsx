@@ -9,21 +9,29 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { getProviderServiceListings } from "@/lib/service-listings";
-import { getMyVerificationRequests } from "@/lib/verification";
+import {
+  getMyVerificationRequests,
+  hasIdentityOnFile,
+} from "@/lib/verification";
 
 export default async function EditServicesPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
-  const profile = await prisma.profile.findUnique({ where: { userId: session.user.id } });
+  const profile = await prisma.profile.findUnique({
+    where: { userId: session.user.id },
+  });
   if (!profile) redirect("/profile");
 
   const isProvider = isProviderProfileType(profile.profileType);
-  const [listings, requests] = await Promise.all([
+  const [listings, requests, canProceed] = await Promise.all([
     isProvider ? getProviderServiceListings(profile.id) : Promise.resolve([]),
     isProvider ? getMyVerificationRequests(profile.id) : Promise.resolve([]),
+    isProvider ? hasIdentityOnFile(profile.id) : Promise.resolve(false),
   ]);
-  const latestRequest = requests.find((request) => request.requestType === "service_provider") ?? null;
+  const latestRequest =
+    requests.find((request) => request.requestType === "service_provider") ??
+    null;
 
   return (
     <div className="mx-auto w-full max-w-4xl pb-8">
@@ -36,7 +44,7 @@ export default async function EditServicesPage() {
       {isProvider ? (
         <ServiceListingManager
           initialListings={listings}
-          isVerifiedServiceProvider={profile.isVerifiedServiceProvider}
+          canProceed={canProceed}
           latestServiceProviderStatus={latestRequest?.status ?? null}
         />
       ) : (

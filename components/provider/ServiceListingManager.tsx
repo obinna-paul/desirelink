@@ -3,7 +3,14 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Image as ImageIcon, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import {
+  Image as ImageIcon,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,7 +90,10 @@ function ServiceListingForm({
     formData.append("file", file);
 
     try {
-      const res = await fetch("/api/upload/service-listing", { method: "POST", body: formData });
+      const res = await fetch("/api/upload/service-listing", {
+        method: "POST",
+        body: formData,
+      });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
         setError(body?.error ?? "Upload failed. Please try again.");
@@ -134,15 +144,25 @@ function ServiceListingForm({
       className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background p-4 shadow-sm md:rounded-lg md:shadow-none"
     >
       <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-muted-foreground">Cover photo</span>
+        <span className="text-xs font-medium text-muted-foreground">
+          Cover photo
+        </span>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {form.coverImageUrl ? (
             <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border/60 bg-secondary sm:h-20 sm:w-32 sm:rounded-lg">
-              <Image src={form.coverImageUrl} alt="" fill sizes="8rem" className="object-cover" />
+              <Image
+                src={form.coverImageUrl}
+                alt=""
+                fill
+                sizes="8rem"
+                className="object-cover"
+              />
               <button
                 type="button"
                 aria-label="Remove cover photo"
-                onClick={() => setForm((prev) => ({ ...prev, coverImageUrl: "" }))}
+                onClick={() =>
+                  setForm((prev) => ({ ...prev, coverImageUrl: "" }))
+                }
                 className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-background/80 text-foreground transition-colors hover:bg-background"
               >
                 <X className="h-3 w-3" />
@@ -178,24 +198,34 @@ function ServiceListingForm({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="service-title" className="text-xs font-medium text-muted-foreground">
+          <label
+            htmlFor="service-title"
+            className="text-xs font-medium text-muted-foreground"
+          >
             Title
           </label>
           <Input
             id="service-title"
             value={form.title}
-            onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, title: event.target.value }))
+            }
             placeholder="e.g. In-home massage session"
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="service-category" className="text-xs font-medium text-muted-foreground">
+          <label
+            htmlFor="service-category"
+            className="text-xs font-medium text-muted-foreground"
+          >
             Category
           </label>
           <Select
             id="service-category"
             value={form.category}
-            onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, category: event.target.value }))
+            }
           >
             {SERVICE_CATEGORY_OPTIONS.map((category) => (
               <option key={category} value={category}>
@@ -207,7 +237,10 @@ function ServiceListingForm({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="service-description" className="text-xs font-medium text-muted-foreground">
+        <label
+          htmlFor="service-description"
+          className="text-xs font-medium text-muted-foreground"
+        >
           Description
         </label>
         <Textarea
@@ -215,14 +248,19 @@ function ServiceListingForm({
           rows={2}
           className="resize-none rounded-2xl md:rounded-md"
           value={form.description}
-          onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+          onChange={(event) =>
+            setForm((prev) => ({ ...prev, description: event.target.value }))
+          }
           placeholder="What is included in this service"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="service-duration" className="text-xs font-medium text-muted-foreground">
+          <label
+            htmlFor="service-duration"
+            className="text-xs font-medium text-muted-foreground"
+          >
             Duration (minutes)
           </label>
           <Input
@@ -231,11 +269,19 @@ function ServiceListingForm({
             min={15}
             step="15"
             value={form.durationMinutes}
-            onChange={(event) => setForm((prev) => ({ ...prev, durationMinutes: event.target.value }))}
+            onChange={(event) =>
+              setForm((prev) => ({
+                ...prev,
+                durationMinutes: event.target.value,
+              }))
+            }
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="service-price" className="text-xs font-medium text-muted-foreground">
+          <label
+            htmlFor="service-price"
+            className="text-xs font-medium text-muted-foreground"
+          >
             Price (NGN)
           </label>
           <Input
@@ -244,7 +290,9 @@ function ServiceListingForm({
             min={0}
             step="0.01"
             value={form.priceNaira}
-            onChange={(event) => setForm((prev) => ({ ...prev, priceNaira: event.target.value }))}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, priceNaira: event.target.value }))
+            }
             placeholder="15000.00"
           />
         </div>
@@ -257,11 +305,22 @@ function ServiceListingForm({
       )}
 
       <div className="grid grid-cols-1 gap-2 sm:flex">
-        <Button type="submit" size="sm" className="w-full sm:w-auto" disabled={status === "saving" || uploading}>
+        <Button
+          type="submit"
+          size="sm"
+          className="w-full sm:w-auto"
+          disabled={status === "saving" || uploading}
+        >
           {status === "saving" ? "Saving..." : submitLabel}
         </Button>
         {onCancel && (
-          <Button type="button" size="sm" variant="outline" className="w-full sm:w-auto" onClick={onCancel}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={onCancel}
+          >
             Cancel
           </Button>
         )}
@@ -273,18 +332,18 @@ function ServiceListingForm({
 export function ServiceListingManager({
   initialListings,
   startCreating = false,
-  isVerifiedServiceProvider,
+  canProceed,
   latestServiceProviderStatus,
 }: {
   initialListings: ServiceListingView[];
   startCreating?: boolean;
-  isVerifiedServiceProvider: boolean;
+  canProceed: boolean;
   latestServiceProviderStatus: "pending" | "approved" | "denied" | null;
 }) {
   const router = useRouter();
   const [listings, setListings] = useState(initialListings);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(startCreating && isVerifiedServiceProvider);
+  const [creating, setCreating] = useState(startCreating && canProceed);
 
   async function handleCreate(input: ServiceListingInput) {
     const res = await fetch("/api/service-listings", {
@@ -321,8 +380,8 @@ export function ServiceListingManager({
       prev.map((listing) =>
         listing.id === id
           ? { ...listing, ...input, updatedAt: new Date() }
-          : listing
-      )
+          : listing,
+      ),
     );
     setEditingId(null);
     router.refresh();
@@ -332,7 +391,9 @@ export function ServiceListingManager({
   async function handleDelete(id: string) {
     if (!window.confirm("Delete this service listing?")) return;
 
-    const res = await fetch(`/api/service-listings/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/service-listings/${id}`, {
+      method: "DELETE",
+    });
     if (res.ok) {
       setListings((prev) => prev.filter((listing) => listing.id !== id));
       router.refresh();
@@ -370,15 +431,21 @@ export function ServiceListingManager({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold">{listing.title}</p>
-                  <span className="text-sm text-neon-cyan">{formatCents(listing.priceCents)}</span>
+                  <span className="text-sm text-neon-cyan">
+                    {formatCents(listing.priceCents)}
+                  </span>
                   <span className="rounded-full border border-border/60 px-2 py-0.5 text-xs text-muted-foreground">
                     {listing.category}
                   </span>
                 </div>
                 {listing.description && (
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{listing.description}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {listing.description}
+                  </p>
                 )}
-                <p className="mt-1 text-xs text-muted-foreground">{listing.durationMinutes} minutes</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {listing.durationMinutes} minutes
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
                 <Button
@@ -401,11 +468,11 @@ export function ServiceListingManager({
                 </Button>
               </div>
             </li>
-          )
+          ),
         )}
       </ul>
 
-      {!isVerifiedServiceProvider ? (
+      {!canProceed ? (
         <VerificationRequestCard
           requestType="service_provider"
           isVerified={false}
@@ -419,7 +486,12 @@ export function ServiceListingManager({
           onSubmit={handleCreate}
         />
       ) : (
-        <Button type="button" variant="outline" className="w-full gap-1.5 sm:w-fit" onClick={() => setCreating(true)}>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full gap-1.5 sm:w-fit"
+          onClick={() => setCreating(true)}
+        >
           <Plus className="h-4 w-4" aria-hidden="true" /> Add service
         </Button>
       )}

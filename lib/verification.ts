@@ -3,18 +3,30 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
 
-export const VERIFICATION_REQUEST_TYPES = ["creator", "host", "service_provider"] as const;
-export type VerificationRequestType = (typeof VERIFICATION_REQUEST_TYPES)[number];
+export const VERIFICATION_REQUEST_TYPES = [
+  "creator",
+  "host",
+  "service_provider",
+] as const;
+export type VerificationRequestType =
+  (typeof VERIFICATION_REQUEST_TYPES)[number];
 
-export function isVerificationRequestType(value: unknown): value is VerificationRequestType {
-  return typeof value === "string" && (VERIFICATION_REQUEST_TYPES as readonly string[]).includes(value);
+export function isVerificationRequestType(
+  value: unknown,
+): value is VerificationRequestType {
+  return (
+    typeof value === "string" &&
+    (VERIFICATION_REQUEST_TYPES as readonly string[]).includes(value)
+  );
 }
 
 function isMissingVerificationSchema(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
     (error.code === "P2021" || error.code === "P2022") &&
-    String(error.meta?.table ?? error.meta?.column ?? "").includes("VerificationRequest")
+    String(error.meta?.table ?? error.meta?.column ?? "").includes(
+      "VerificationRequest",
+    )
   );
 }
 
@@ -26,10 +38,14 @@ export async function submitVerificationRequest(
   profileId: string,
   requestType: VerificationRequestType,
   govIdUrl: string,
-  selfieUrl: string
+  selfieUrl: string,
 ): Promise<SubmitVerificationResult> {
   if (!govIdUrl.trim() || !selfieUrl.trim()) {
-    return { ok: false, status: 400, error: "Upload both a government ID and a selfie" };
+    return {
+      ok: false,
+      status: 400,
+      error: "Upload both a government ID and a selfie",
+    };
   }
 
   const profile = await prisma.profile.findUnique({
@@ -46,17 +62,29 @@ export async function submitVerificationRequest(
   }
 
   if (!isProviderProfileType(profile.profileType)) {
-    return { ok: false, status: 403, error: "Switch to a provider account before verifying" };
+    return {
+      ok: false,
+      status: 403,
+      error: "Switch to a provider account before verifying",
+    };
   }
 
   if (requestType === "creator" && profile.isVerifiedCreator) {
-    return { ok: false, status: 400, error: "You're already a verified creator" };
+    return {
+      ok: false,
+      status: 400,
+      error: "You're already a verified creator",
+    };
   }
   if (requestType === "host" && profile.isVerifiedHost) {
     return { ok: false, status: 400, error: "You're already a verified host" };
   }
   if (requestType === "service_provider" && profile.isVerifiedServiceProvider) {
-    return { ok: false, status: 400, error: "You're already a verified service provider" };
+    return {
+      ok: false,
+      status: 400,
+      error: "You're already a verified service provider",
+    };
   }
 
   let existingPending: { id: string } | null = null;
@@ -67,12 +95,21 @@ export async function submitVerificationRequest(
     });
   } catch (error) {
     if (isMissingVerificationSchema(error)) {
-      return { ok: false, status: 503, error: "Verification requests are unavailable until the database repair is applied" };
+      return {
+        ok: false,
+        status: 503,
+        error:
+          "Verification requests are unavailable until the database repair is applied",
+      };
     }
     throw error;
   }
   if (existingPending) {
-    return { ok: false, status: 400, error: "You already have a pending request of this type" };
+    return {
+      ok: false,
+      status: 400,
+      error: "You already have a pending request of this type",
+    };
   }
 
   const request = await prisma.verificationRequest.create({
@@ -80,6 +117,46 @@ export async function submitVerificationRequest(
   });
 
   return { ok: true, requestId: request.id };
+}
+
+/**
+ * A single unified "identity on file" check that drives every verification gate
+ * (hosting events, listing services, posting premium content). Submitting ANY one
+ * of the three request types satisfies all of them - identity verification is one
+ * process, not three - and having ever submitted (even while pending review) is
+ * enough to proceed; only a denied request (which also suspends the account, see
+ * denyVerificationRequest) blocks further action, via the separate isSuspended checks.
+ */
+export async function hasIdentityOnFile(profileId: string): Promise<boolean> {
+  const profile = await prisma.profile.findUnique({
+    where: { id: profileId },
+    select: {
+      isVerified: true,
+      isVerifiedCreator: true,
+      isVerifiedHost: true,
+      isVerifiedServiceProvider: true,
+    },
+  });
+  if (!profile) return false;
+  if (
+    profile.isVerified ||
+    profile.isVerifiedCreator ||
+    profile.isVerifiedHost ||
+    profile.isVerifiedServiceProvider
+  ) {
+    return true;
+  }
+
+  try {
+    const anyRequest = await prisma.verificationRequest.findFirst({
+      where: { profileId },
+      select: { id: true },
+    });
+    return Boolean(anyRequest);
+  } catch (error) {
+    if (isMissingVerificationSchema(error)) return false;
+    throw error;
+  }
 }
 
 export async function getMyVerificationRequests(profileId: string) {
@@ -90,7 +167,9 @@ export async function getMyVerificationRequests(profileId: string) {
     });
   } catch (error) {
     if (isMissingVerificationSchema(error)) {
-      console.warn("Verification requests are unavailable until VerificationRequest migrations are applied.");
+      console.warn(
+        "Verification requests are unavailable until VerificationRequest migrations are applied.",
+      );
       return [];
     }
     throw error;
@@ -113,16 +192,22 @@ export async function getPendingVerificationRequests() {
     });
   } catch (error) {
     if (isMissingVerificationSchema(error)) {
-      console.warn("Admin verification queue is unavailable until VerificationRequest migrations are applied.");
+      console.warn(
+        "Admin verification queue is unavailable until VerificationRequest migrations are applied.",
+      );
       return [];
     }
     throw error;
   }
 }
 
-export type PendingVerificationRequest = Awaited<ReturnType<typeof getPendingVerificationRequests>>[number];
+export type PendingVerificationRequest = Awaited<
+  ReturnType<typeof getPendingVerificationRequests>
+>[number];
 
-export type ReviewVerificationResult = { ok: true } | { ok: false; status: number; error: string };
+export type ReviewVerificationResult =
+  | { ok: true }
+  | { ok: false; status: number; error: string };
 
 const VERIFICATION_FIELD: Record<
   VerificationRequestType,
@@ -135,14 +220,20 @@ const VERIFICATION_FIELD: Record<
 
 export async function approveVerificationRequest(
   requestId: string,
-  reviewerId: string
+  reviewerId: string,
 ): Promise<ReviewVerificationResult> {
-  const request = await prisma.verificationRequest.findUnique({ where: { id: requestId } });
+  const request = await prisma.verificationRequest.findUnique({
+    where: { id: requestId },
+  });
   if (!request) {
     return { ok: false, status: 404, error: "Request not found" };
   }
   if (request.status !== "pending") {
-    return { ok: false, status: 400, error: "Request has already been reviewed" };
+    return {
+      ok: false,
+      status: 400,
+      error: "Request has already been reviewed",
+    };
   }
 
   await prisma.$transaction([
@@ -152,29 +243,49 @@ export async function approveVerificationRequest(
     }),
     prisma.profile.update({
       where: { id: request.profileId },
-      data: { [VERIFICATION_FIELD[request.requestType]]: true },
+      data: {
+        isVerified: true,
+        [VERIFICATION_FIELD[request.requestType]]: true,
+      },
     }),
   ]);
 
   return { ok: true };
 }
 
+/**
+ * Denying a request means the submitted ID/selfie was judged incorrect or
+ * fraudulent, so the account is suspended in the same action rather than left
+ * to resubmit freely.
+ */
 export async function denyVerificationRequest(
   requestId: string,
-  reviewerId: string
+  reviewerId: string,
 ): Promise<ReviewVerificationResult> {
-  const request = await prisma.verificationRequest.findUnique({ where: { id: requestId } });
+  const request = await prisma.verificationRequest.findUnique({
+    where: { id: requestId },
+  });
   if (!request) {
     return { ok: false, status: 404, error: "Request not found" };
   }
   if (request.status !== "pending") {
-    return { ok: false, status: 400, error: "Request has already been reviewed" };
+    return {
+      ok: false,
+      status: 400,
+      error: "Request has already been reviewed",
+    };
   }
 
-  await prisma.verificationRequest.update({
-    where: { id: requestId },
-    data: { status: "denied", reviewerId, reviewedAt: new Date() },
-  });
+  await prisma.$transaction([
+    prisma.verificationRequest.update({
+      where: { id: requestId },
+      data: { status: "denied", reviewerId, reviewedAt: new Date() },
+    }),
+    prisma.profile.update({
+      where: { id: request.profileId },
+      data: { isSuspended: true, suspendedAt: new Date() },
+    }),
+  ]);
 
   return { ok: true };
 }

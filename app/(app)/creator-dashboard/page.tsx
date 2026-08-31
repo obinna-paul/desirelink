@@ -34,13 +34,19 @@ import { MonetizationPanel } from "@/components/creator/monetization-panel";
 import { getMonetizationEligibility } from "@/lib/monetization";
 
 const SubscriberGrowthChart = dynamic(
-  () => import("@/components/creator/analytics-charts").then((mod) => mod.SubscriberGrowthChart),
-  { loading: () => <ChartSkeleton /> }
+  () =>
+    import("@/components/creator/analytics-charts").then(
+      (mod) => mod.SubscriberGrowthChart,
+    ),
+  { loading: () => <ChartSkeleton /> },
 );
 
 const EarningsChart = dynamic(
-  () => import("@/components/creator/analytics-charts").then((mod) => mod.EarningsChart),
-  { loading: () => <ChartSkeleton /> }
+  () =>
+    import("@/components/creator/analytics-charts").then(
+      (mod) => mod.EarningsChart,
+    ),
+  { loading: () => <ChartSkeleton /> },
 );
 
 export default async function CreatorDashboardPage({
@@ -53,7 +59,9 @@ export default async function CreatorDashboardPage({
     redirect("/login");
   }
 
-  const profile = await prisma.profile.findUnique({ where: { userId: session.user.id } });
+  const profile = await prisma.profile.findUnique({
+    where: { userId: session.user.id },
+  });
   if (!profile) {
     redirect("/login");
   }
@@ -61,8 +69,14 @@ export default async function CreatorDashboardPage({
     redirect("/");
   }
 
-  const requestedTab = isCreatorDashboardTab(searchParams.tab) ? searchParams.tab : DEFAULT_CREATOR_DASHBOARD_TAB;
-  const tab = CREATOR_DASHBOARD_TABS.some((available) => available.value === requestedTab) ? requestedTab : DEFAULT_CREATOR_DASHBOARD_TAB;
+  const requestedTab = isCreatorDashboardTab(searchParams.tab)
+    ? searchParams.tab
+    : DEFAULT_CREATOR_DASHBOARD_TAB;
+  const tab = CREATOR_DASHBOARD_TABS.some(
+    (available) => available.value === requestedTab,
+  )
+    ? requestedTab
+    : DEFAULT_CREATOR_DASHBOARD_TAB;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -71,12 +85,22 @@ export default async function CreatorDashboardPage({
       {tab === "overview" && <OverviewTab profileId={profile.id} />}
       {tab === "assistant" && <AssistantTab profileId={profile.id} />}
       {tab === "audience" && <AudienceTab profileId={profile.id} />}
-      {tab === "content" && <ContentTab profileId={profile.id} displayName={profile.displayName} />}
+      {tab === "content" && (
+        <ContentTab profileId={profile.id} displayName={profile.displayName} />
+      )}
       {tab === "applications" && <ApplicationsTab profileId={profile.id} />}
       {tab === "earnings" && <EarningsTab profileId={profile.id} />}
       {tab === "analytics" && <AnalyticsTab profileId={profile.id} />}
       {tab === "verification" && (
-        <VerificationTab profileId={profile.id} isVerifiedCreator={profile.isVerifiedCreator} />
+        <VerificationTab
+          profileId={profile.id}
+          isVerifiedProvider={
+            profile.isVerified ||
+            profile.isVerifiedCreator ||
+            profile.isVerifiedHost ||
+            profile.isVerifiedServiceProvider
+          }
+        />
       )}
     </div>
   );
@@ -92,9 +116,22 @@ async function OverviewTab({ profileId }: { profileId: string }) {
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:gap-4">
-      <StatCard label="Active Fans" value={String(stats.subscriberCount)} icon={Users} />
-      <StatCard label="Total revenue" value={formatCents(stats.totalRevenueCents)} icon={DollarSign} highlight />
-      <StatCard label="Profile views" value={stats.profileViews.toLocaleString()} icon={Eye} />
+      <StatCard
+        label="Active Fans"
+        value={String(stats.subscriberCount)}
+        icon={Users}
+      />
+      <StatCard
+        label="Total revenue"
+        value={formatCents(stats.totalRevenueCents)}
+        icon={DollarSign}
+        highlight
+      />
+      <StatCard
+        label="Profile views"
+        value={stats.profileViews.toLocaleString()}
+        icon={Eye}
+      />
     </div>
   );
 }
@@ -104,7 +141,13 @@ async function AudienceTab({ profileId }: { profileId: string }) {
   return <AudienceList subscribers={subscribers} />;
 }
 
-async function ContentTab({ profileId, displayName }: { profileId: string; displayName: string }) {
+async function ContentTab({
+  profileId,
+  displayName,
+}: {
+  profileId: string;
+  displayName: string;
+}) {
   const posts = await getCreatorProfilePosts(profileId, profileId);
   return <ContentList initialPosts={posts} creatorDisplayName={displayName} />;
 }
@@ -116,18 +159,19 @@ async function ApplicationsTab({ profileId }: { profileId: string }) {
 
 async function VerificationTab({
   profileId,
-  isVerifiedCreator,
+  isVerifiedProvider,
 }: {
   profileId: string;
-  isVerifiedCreator: boolean;
+  isVerifiedProvider: boolean;
 }) {
   const requests = await getMyVerificationRequests(profileId);
-  const latest = requests.find((request) => request.requestType === "creator") ?? null;
+  const latest =
+    requests.find((request) => request.requestType === "creator") ?? null;
 
   return (
     <VerificationRequestCard
       requestType="creator"
-      isVerified={isVerifiedCreator}
+      isVerified={isVerifiedProvider}
       latestStatus={latest?.status ?? null}
     />
   );

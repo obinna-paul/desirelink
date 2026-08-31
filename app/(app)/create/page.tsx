@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
+import { hasIdentityOnFile } from "@/lib/verification";
 import { FeedComposer } from "@/components/posts/feed-composer";
 
 export default async function CreatePage() {
@@ -23,11 +24,16 @@ export default async function CreatePage() {
 
   if (!profile) redirect("/login");
 
+  const canPostPremiumContent = isProviderProfileType(profile.profileType);
+
   return (
     <div className="mx-auto w-full max-w-5xl pb-4 md:py-4">
       <FeedComposer
         displayName={profile.displayName}
-        canPostPremiumContent={isProviderProfileType(profile.profileType)}
+        canPostPremiumContent={canPostPremiumContent}
+        hasIdentityOnFile={
+          canPostPremiumContent ? await hasIdentityOnFile(profile.id) : false
+        }
       />
     </div>
   );

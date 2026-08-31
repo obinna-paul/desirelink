@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { eventFormSchema } from "@/lib/validations/event";
 import { readJson } from "@/lib/security/request";
 import { isProviderProfileType } from "@/lib/provider-types";
+import { hasIdentityOnFile } from "@/lib/verification";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -15,10 +16,16 @@ export async function POST(req: Request) {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, isVerifiedHost: true, profileType: true },
+    select: { id: true, isSuspended: true, profileType: true },
   });
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  }
+  if (profile.isSuspended) {
+    return NextResponse.json(
+      { error: "Your account is suspended from hosting events" },
+      { status: 403 },
+    );
   }
   if (!isProviderProfileType(profile.profileType)) {
     return NextResponse.json(
@@ -27,13 +34,13 @@ export async function POST(req: Request) {
         code: "PROVIDER_ACCOUNT_REQUIRED",
         actionHref: "/settings/account-type?intent=event",
       },
-      { status: 403 }
+      { status: 403 },
     );
   }
-  if (!profile.isVerifiedHost) {
+  if (!(await hasIdentityOnFile(profile.id))) {
     return NextResponse.json(
-      { error: "Verify your identity as a host before creating an event." },
-      { status: 403 }
+      { error: "Verify your identity before creating an event." },
+      { status: 403 },
     );
   }
 
@@ -42,7 +49,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? "Invalid input" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

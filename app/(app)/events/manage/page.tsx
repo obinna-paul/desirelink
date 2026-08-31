@@ -19,7 +19,13 @@ export default async function ManageEventsPage() {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, isVerifiedHost: true },
+    select: {
+      id: true,
+      isVerified: true,
+      isVerifiedCreator: true,
+      isVerifiedHost: true,
+      isVerifiedServiceProvider: true,
+    },
   });
   if (!profile) {
     redirect("/login");
@@ -29,7 +35,8 @@ export default async function ManageEventsPage() {
     getHostEvents(profile.id),
     getMyVerificationRequests(profile.id),
   ]);
-  const latestHostRequest = requests.find((request) => request.requestType === "host") ?? null;
+  const latestHostRequest =
+    requests.find((request) => request.requestType === "host") ?? null;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -41,7 +48,12 @@ export default async function ManageEventsPage() {
       <EventManageList initialEvents={events} />
       <VerificationRequestCard
         requestType="host"
-        isVerified={profile.isVerifiedHost}
+        isVerified={
+          profile.isVerified ||
+          profile.isVerifiedCreator ||
+          profile.isVerifiedHost ||
+          profile.isVerifiedServiceProvider
+        }
         latestStatus={latestHostRequest?.status ?? null}
       />
     </div>

@@ -3,9 +3,12 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { storeUpload } from "@/lib/uploads";
-import { allowedImageTypesLabel, isAllowedImageFile } from "@/lib/security/uploads";
+import {
+  allowedVideoTypesLabel,
+  isAllowedVideoFile,
+} from "@/lib/security/uploads";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -20,15 +23,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  if (!isAllowedImageFile(file)) {
+  if (!isAllowedVideoFile(file)) {
     return NextResponse.json(
-      { error: `File must be ${allowedImageTypesLabel()}` },
-      { status: 400 }
+      { error: `Selfie must be a short video (${allowedVideoTypesLabel()})` },
+      { status: 400 },
     );
   }
 
   if (file.size > MAX_FILE_SIZE) {
-    return NextResponse.json({ error: "Image must be under 5MB" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Video must be under 20MB" },
+      { status: 400 },
+    );
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -38,12 +44,15 @@ export async function POST(req: Request) {
       buffer,
       folder: "udala/verification/selfies",
       contentType: file.type,
-      transformation: [{ width: 1200, height: 1200, crop: "limit" }],
+      resourceType: "video",
     });
 
     return NextResponse.json({ url }, { status: 200 });
   } catch (error) {
     console.error("[upload/verification-selfie] failed", error);
-    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 502 });
+    return NextResponse.json(
+      { error: "Upload failed. Please try again." },
+      { status: 502 },
+    );
   }
 }
