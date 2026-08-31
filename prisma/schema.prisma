@@ -893,6 +893,24 @@ model Transaction {
   @@index([providerSubscriptionId])
 }
 
+/**
+ * Idempotency ledger for payment-provider events (webhook deliveries and the
+ * synchronous post-redirect verify() calls that construct the same event
+ * shape) — see lib/payments/webhook-handler.ts's processPaymentEvent. A row
+ * is inserted in the same transaction as the state change it guards, so a
+ * duplicate delivery of the same event is a guaranteed no-op rather than a
+ * race between reading and writing business state.
+ */
+model ProcessedPaymentEvent {
+  id        String   @id @default(cuid())
+  provider  String
+  eventType String
+  reference String
+  createdAt DateTime @default(now())
+
+  @@unique([provider, eventType, reference])
+}
+
 model Review {
   id          String            @id @default(cuid())
   reviewerId  String

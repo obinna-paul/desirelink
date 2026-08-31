@@ -1,4 +1,4 @@
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 import type {
   PaymentProvider,
@@ -23,7 +23,11 @@ type PaystackAuthorization = {
   reusable: boolean;
 };
 
-type PaystackCustomer = { customer_code: string; email: string; authorizations?: PaystackAuthorization[] };
+type PaystackCustomer = {
+  customer_code: string;
+  email: string;
+  authorizations?: PaystackAuthorization[];
+};
 
 type PaystackTransactionData = {
   status: string;
@@ -51,7 +55,9 @@ type PaystackTransferData = {
   status: string;
 };
 
-function toWebhookPaymentMethod(authorization: PaystackAuthorization | undefined): WebhookPaymentMethod | null {
+function toWebhookPaymentMethod(
+  authorization: PaystackAuthorization | undefined,
+): WebhookPaymentMethod | null {
   if (!authorization) return null;
   return {
     id: authorization.authorization_code,
@@ -68,8 +74,11 @@ function currency(): string {
   return process.env.PAYSTACK_CURRENCY ?? "NGN";
 }
 
-function normalizeRecipient(data: PaystackTransferRecipientData): PayoutRecipient {
-  const metadata = data.metadata && typeof data.metadata === "object" ? data.metadata : {};
+function normalizeRecipient(
+  data: PaystackTransferRecipientData,
+): PayoutRecipient {
+  const metadata =
+    data.metadata && typeof data.metadata === "object" ? data.metadata : {};
   return {
     provider: "paystack",
     recipientCode: data.recipient_code,
@@ -82,7 +91,9 @@ function normalizeRecipient(data: PaystackTransferRecipientData): PayoutRecipien
   };
 }
 
-function normalizeTransferStatus(status: string): PayoutTransferResult["status"] {
+function normalizeTransferStatus(
+  status: string,
+): PayoutTransferResult["status"] {
   if (status === "success") return "success";
   if (status === "failed" || status === "reversed") return "failed";
   return "pending";
@@ -95,7 +106,11 @@ export class PaystackProvider implements PaymentProvider {
     this.secretKey = secretKey;
   }
 
-  private async request<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+  private async request<T>(
+    method: "GET" | "POST",
+    path: string,
+    body?: unknown,
+  ): Promise<T> {
     const res = await fetch(`${PAYSTACK_API_BASE}${path}`, {
       method,
       headers: {
@@ -121,7 +136,10 @@ export class PaystackProvider implements PaymentProvider {
   }
 
   private async getCustomerEmail(customerId: string): Promise<string> {
-    const customer = await this.request<PaystackCustomer>("GET", `/customer/${customerId}`);
+    const customer = await this.request<PaystackCustomer>(
+      "GET",
+      `/customer/${customerId}`,
+    );
     return customer.email;
   }
 
@@ -130,18 +148,22 @@ export class PaystackProvider implements PaymentProvider {
     amountCents: number,
     successUrl: string,
     cancelUrl: string,
-    metadata: Record<string, string> = {}
+    metadata: Record<string, string> = {},
   ): Promise<string> {
     void cancelUrl; // Paystack's hosted checkout has no separate cancel URL — an abandoned checkout simply never returns.
     const email = await this.getCustomerEmail(customerId);
 
-    const transaction = await this.request<{ authorization_url: string }>("POST", "/transaction/initialize", {
-      email,
-      amount: amountCents,
-      currency: currency(),
-      callback_url: successUrl,
-      metadata: { ...metadata, customerId },
-    });
+    const transaction = await this.request<{ authorization_url: string }>(
+      "POST",
+      "/transaction/initialize",
+      {
+        email,
+        amount: amountCents,
+        currency: currency(),
+        callback_url: successUrl,
+        metadata: { ...metadata, customerId },
+      },
+    );
 
     return transaction.authorization_url;
   }
@@ -150,44 +172,65 @@ export class PaystackProvider implements PaymentProvider {
     customerId: string,
     paymentMethodId: string,
     amountCents: number,
-    metadata: Record<string, string> = {}
+    metadata: Record<string, string> = {},
   ): Promise<{ reference: string; success: boolean }> {
     const email = await this.getCustomerEmail(customerId);
 
-    const transaction = await this.request<PaystackTransactionData>("POST", "/transaction/charge_authorization", {
-      authorization_code: paymentMethodId,
-      email,
-      amount: amountCents,
-      currency: currency(),
-      metadata: { ...metadata, customerId },
-    });
-
-    return { reference: transaction.reference, success: transaction.status === "success" };
-  }
-
-  async detachPaymentMethod(customerId: string, paymentMethodId: string): Promise<void> {
-    void customerId; // Paystack's deactivate endpoint is keyed on the authorization code alone.
-    await this.request("POST", "/customer/deactivate_authorization", { authorization_code: paymentMethodId });
-  }
-
-  async createPayoutRecipient(input: PayoutRecipientInput): Promise<PayoutRecipient> {
-    const recipient = await this.request<PaystackTransferRecipientData>("POST", "/transferrecipient", {
-      type: input.recipientType ?? "nuban",
-      name: input.name,
-      account_number: input.accountNumber,
-      bank_code: input.bankCode,
-      currency: input.currency,
-      metadata: {
-        bankName: input.bankName,
-        country: input.country ?? "",
-        currency: input.currency,
+    const transaction = await this.request<PaystackTransactionData>(
+      "POST",
+      "/transaction/charge_authorization",
+      {
+        authorization_code: paymentMethodId,
+        email,
+        amount: amountCents,
+        currency: currency(),
+        metadata: { ...metadata, customerId },
       },
+    );
+
+    return {
+      reference: transaction.reference,
+      success: transaction.status === "success",
+    };
+  }
+
+  async detachPaymentMethod(
+    customerId: string,
+    paymentMethodId: string,
+  ): Promise<void> {
+    void customerId; // Paystack's deactivate endpoint is keyed on the authorization code alone.
+    await this.request("POST", "/customer/deactivate_authorization", {
+      authorization_code: paymentMethodId,
     });
+  }
+
+  async createPayoutRecipient(
+    input: PayoutRecipientInput,
+  ): Promise<PayoutRecipient> {
+    const recipient = await this.request<PaystackTransferRecipientData>(
+      "POST",
+      "/transferrecipient",
+      {
+        type: input.recipientType ?? "nuban",
+        name: input.name,
+        account_number: input.accountNumber,
+        bank_code: input.bankCode,
+        currency: input.currency,
+        metadata: {
+          bankName: input.bankName,
+          country: input.country ?? "",
+          currency: input.currency,
+        },
+      },
+    );
     return normalizeRecipient(recipient);
   }
 
   async getPayoutRecipient(recipientCode: string): Promise<PayoutRecipient> {
-    const recipient = await this.request<PaystackTransferRecipientData>("GET", `/transferrecipient/${recipientCode}`);
+    const recipient = await this.request<PaystackTransferRecipientData>(
+      "GET",
+      `/transferrecipient/${recipientCode}`,
+    );
     return normalizeRecipient(recipient);
   }
 
@@ -195,25 +238,37 @@ export class PaystackProvider implements PaymentProvider {
     recipientCode: string,
     amountCents: number,
     reason: string,
-    metadata: Record<string, string> = {}
+    metadata: Record<string, string> = {},
   ): Promise<PayoutTransferResult> {
     const reference = `udala_payout_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const transfer = await this.request<PaystackTransferData>("POST", "/transfer", {
-      source: "balance",
-      amount: amountCents,
-      recipient: recipientCode,
-      reason,
-      reference,
-      metadata,
-    });
+    const transfer = await this.request<PaystackTransferData>(
+      "POST",
+      "/transfer",
+      {
+        source: "balance",
+        amount: amountCents,
+        recipient: recipientCode,
+        reason,
+        reference,
+        metadata,
+      },
+    );
 
-    return { reference: transfer.reference, status: normalizeTransferStatus(transfer.status) };
+    return {
+      reference: transfer.reference,
+      status: normalizeTransferStatus(transfer.status),
+    };
   }
 
   async verifyTransaction(reference: string): Promise<WebhookEvent> {
-    const data = await this.request<PaystackTransactionData>("GET", `/transaction/verify/${reference}`);
+    const data = await this.request<PaystackTransactionData>(
+      "GET",
+      `/transaction/verify/${reference}`,
+    );
     const metadata =
-      data.metadata && typeof data.metadata === "object" ? (data.metadata as Record<string, string>) : {};
+      data.metadata && typeof data.metadata === "object"
+        ? (data.metadata as Record<string, string>)
+        : {};
 
     return {
       type: data.status === "success" ? "charge.succeeded" : "charge.failed",
@@ -227,9 +282,18 @@ export class PaystackProvider implements PaymentProvider {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- interface-mandated; Paystack requires the raw request body here for signature verification.
   async handleWebhook(payload: any, signature: string): Promise<WebhookEvent> {
-    const raw = Buffer.isBuffer(payload) ? payload : Buffer.from(String(payload), "utf8");
-    const expectedSignature = createHmac("sha512", this.secretKey).update(raw).digest("hex");
-    if (expectedSignature !== signature) {
+    const raw = Buffer.isBuffer(payload)
+      ? payload
+      : Buffer.from(String(payload), "utf8");
+    const expectedSignature = createHmac("sha512", this.secretKey)
+      .update(raw)
+      .digest("hex");
+    const expectedBuffer = Buffer.from(expectedSignature, "hex");
+    const providedBuffer = Buffer.from(signature, "hex");
+    const signatureValid =
+      expectedBuffer.length === providedBuffer.length &&
+      timingSafeEqual(expectedBuffer, providedBuffer);
+    if (!signatureValid) {
       throw new Error("Invalid Paystack webhook signature");
     }
 
@@ -239,11 +303,20 @@ export class PaystackProvider implements PaymentProvider {
     };
     const data = body.data;
     const metadata =
-      data.metadata && typeof data.metadata === "object" ? (data.metadata as Record<string, string>) : {};
+      data.metadata && typeof data.metadata === "object"
+        ? (data.metadata as Record<string, string>)
+        : {};
 
-    if (body.event === "transfer.success" || body.event === "transfer.failed" || body.event === "transfer.reversed") {
+    if (
+      body.event === "transfer.success" ||
+      body.event === "transfer.failed" ||
+      body.event === "transfer.reversed"
+    ) {
       return {
-        type: body.event === "transfer.success" ? "transfer.succeeded" : "transfer.failed",
+        type:
+          body.event === "transfer.success"
+            ? "transfer.succeeded"
+            : "transfer.failed",
         customerId: null,
         paymentMethod: null,
         amountCents: data.amount ?? null,

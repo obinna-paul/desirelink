@@ -1,6 +1,10 @@
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { creditProviderWallet } from "@/lib/wallet";
 import type { WebhookEvent, WebhookPaymentMethod } from "./types";
+
+type Db = Prisma.TransactionClient;
 
 function activeProviderName(): string {
   if (process.env.USE_MOCK_PAYMENTS === "true") return "mock";
@@ -13,23 +17,39 @@ function activeProviderName(): string {
  * once one exists.
  */
 async function notifyPaymentFailed(userId: string): Promise<void> {
-  console.warn(`[payments] Payment failed for profile ${userId} — email notification not yet wired up.`);
+  console.warn(
+    `[payments] Payment failed for profile ${userId} — email notification not yet wired up.`,
+  );
 }
 
 /** Creates or refreshes the saved-card record for a profile from whatever the provider just returned. New cards become the default automatically. */
-export async function upsertPaymentMethod(profileId: string, method: WebhookPaymentMethod): Promise<void> {
-  const existing = await prisma.paymentMethod.findFirst({ where: { userId: profileId, externalId: method.id } });
+export async function upsertPaymentMethod(
+  profileId: string,
+  method: WebhookPaymentMethod,
+  db: Db,
+): Promise<void> {
+  const existing = await db.paymentMethod.findFirst({
+    where: { userId: profileId, externalId: method.id },
+  });
 
   if (existing) {
-    await prisma.paymentMethod.update({
+    await db.paymentMethod.update({
       where: { id: existing.id },
-      data: { last4: method.last4, brand: method.brand, expMonth: method.expMonth, expYear: method.expYear, country: method.country },
+      data: {
+        last4: method.last4,
+        brand: method.brand,
+        expMonth: method.expMonth,
+        expYear: method.expYear,
+        country: method.country,
+      },
     });
     return;
   }
 
-  const existingCardCount = await prisma.paymentMethod.count({ where: { userId: profileId } });
-  await prisma.paymentMethod.create({
+  const existingCardCount = await db.paymentMethod.count({
+    where: { userId: profileId },
+  });
+  await db.paymentMethod.create({
     data: {
       userId: profileId,
       externalId: method.id,
@@ -46,9 +66,14 @@ export async function upsertPaymentMethod(profileId: string, method: WebhookPaym
 async function recordTransaction(
   profileId: string,
   event: WebhookEvent,
-  extra: { status: "succeeded" | "failed"; providerSubscriptionId?: string; isPremium?: boolean }
+  extra: {
+    status: "succeeded" | "failed";
+    providerSubscriptionId?: string;
+    isPremium?: boolean;
+  },
+  db: Db,
 ): Promise<void> {
-  await prisma.transaction.create({
+  await db.transaction.create({
     data: {
       userId: profileId,
       amountCents: event.amountCents ?? 0,
@@ -60,51 +85,82 @@ async function recordTransaction(
   });
 }
 
-async function handleProviderTierEvent(event: WebhookEvent): Promise<void> {
+async function handleProviderTierEvent(
+  event: WebhookEvent,
+  db: Db,
+): Promise<void> {
   const pendingId = event.metadata.pendingId;
   if (!pendingId) return;
 
-  const pending = await prisma.providerSubscription.findUnique({ where: { id: pendingId } });
+  const pending = await db.providerSubscription.findUnique({
+    where: { id: pendingId },
+  });
   if (!pending || pending.status !== "pending") return;
 
   if (event.type === "charge.succeeded") {
-    await prisma.providerSubscription.update({
+    await db.providerSubscription.update({
       where: { id: pendingId },
-      data: { status: "active", paymentSubscriptionId: event.reference, pastDueSince: null, paymentRetryCount: 0 },
+      data: {
+        status: "active",
+        paymentSubscriptionId: event.reference,
+        pastDueSince: null,
+        paymentRetryCount: 0,
+      },
     });
-    if (event.paymentMethod) await upsertPaymentMethod(pending.subscriberId, event.paymentMethod);
-    await recordTransaction(pending.subscriberId, event, { status: "succeeded", providerSubscriptionId: pendingId });
-    await creditProviderWallet(pending.providerId, event.amountCents ?? 0);
+    if (event.paymentMethod)
+      await upsertPaymentMethod(pending.subscriberId, event.paymentMethod, db);
+    await recordTransaction(
+      pending.subscriberId,
+      event,
+      { status: "succeeded", providerSubscriptionId: pendingId },
+      db,
+    );
+    await creditProviderWallet(pending.providerId, event.amountCents ?? 0, db);
   } else {
-    await prisma.providerSubscription.update({ where: { id: pendingId }, data: { status: "failed" } });
-    await recordTransaction(pending.subscriberId, event, { status: "failed", providerSubscriptionId: pendingId });
+    await db.providerSubscription.update({
+      where: { id: pendingId },
+      data: { status: "failed" },
+    });
+    await recordTransaction(
+      pending.subscriberId,
+      event,
+      { status: "failed", providerSubscriptionId: pendingId },
+      db,
+    );
     await notifyPaymentFailed(pending.subscriberId);
   }
 }
 
-async function handleHeartsPurchaseEvent(event: WebhookEvent): Promise<void> {
+async function handleHeartsPurchaseEvent(
+  event: WebhookEvent,
+  db: Db,
+): Promise<void> {
   const pendingId = event.metadata.pendingId;
   if (!pendingId) return;
 
-  const pending = await prisma.heartPurchase.findUnique({ where: { id: pendingId } });
+  const pending = await db.heartPurchase.findUnique({
+    where: { id: pendingId },
+  });
   if (!pending || pending.status !== "pending") return;
 
   if (event.type === "charge.succeeded") {
-    await prisma.$transaction([
-      prisma.heartPurchase.update({
-        where: { id: pendingId },
-        data: { status: "succeeded", paymentReference: event.reference },
-      }),
-      prisma.profile.update({
-        where: { id: pending.userId },
-        data: { heartsBalance: { increment: pending.hearts } },
-      }),
-    ]);
-    if (event.paymentMethod) await upsertPaymentMethod(pending.userId, event.paymentMethod);
-    await recordTransaction(pending.userId, event, { status: "succeeded" });
+    await db.heartPurchase.update({
+      where: { id: pendingId },
+      data: { status: "succeeded", paymentReference: event.reference },
+    });
+    await db.profile.update({
+      where: { id: pending.userId },
+      data: { heartsBalance: { increment: pending.hearts } },
+    });
+    if (event.paymentMethod)
+      await upsertPaymentMethod(pending.userId, event.paymentMethod, db);
+    await recordTransaction(pending.userId, event, { status: "succeeded" }, db);
   } else {
-    await prisma.heartPurchase.update({ where: { id: pendingId }, data: { status: "failed" } });
-    await recordTransaction(pending.userId, event, { status: "failed" });
+    await db.heartPurchase.update({
+      where: { id: pendingId },
+      data: { status: "failed" },
+    });
+    await recordTransaction(pending.userId, event, { status: "failed" }, db);
     await notifyPaymentFailed(pending.userId);
   }
 }
@@ -115,73 +171,118 @@ async function handleHeartsPurchaseEvent(event: WebhookEvent): Promise<void> {
  * not a dedicated model like the other kinds, so success/failure updates
  * that same row rather than creating a new ledger entry.
  */
-async function handleEventRsvpEvent(event: WebhookEvent): Promise<void> {
+async function handleEventRsvpEvent(
+  event: WebhookEvent,
+  db: Db,
+): Promise<void> {
   const pendingId = event.metadata.pendingId;
   if (!pendingId) return;
 
-  const pending = await prisma.transaction.findUnique({ where: { id: pendingId } });
+  const pending = await db.transaction.findUnique({ where: { id: pendingId } });
   if (!pending || pending.status !== "pending" || !pending.eventId) return;
 
   if (event.type !== "charge.succeeded") {
-    await prisma.transaction.update({ where: { id: pendingId }, data: { status: "failed" } });
+    await db.transaction.update({
+      where: { id: pendingId },
+      data: { status: "failed" },
+    });
     await notifyPaymentFailed(pending.userId);
     return;
   }
 
-  const eventRow = await prisma.event.findUnique({ where: { id: pending.eventId } });
+  const eventRow = await db.event.findUnique({
+    where: { id: pending.eventId },
+  });
   if (!eventRow) {
-    await prisma.transaction.update({ where: { id: pendingId }, data: { status: "failed" } });
+    await db.transaction.update({
+      where: { id: pendingId },
+      data: { status: "failed" },
+    });
     return;
   }
 
-  if (eventRow.maxAttendees !== null && eventRow.currentAttendees >= eventRow.maxAttendees) {
-    const existingRsvp = await prisma.eventRsvp.findUnique({
-      where: { eventId_userId: { eventId: eventRow.id, userId: pending.userId } },
+  if (
+    eventRow.maxAttendees !== null &&
+    eventRow.currentAttendees >= eventRow.maxAttendees
+  ) {
+    const existingRsvp = await db.eventRsvp.findUnique({
+      where: {
+        eventId_userId: { eventId: eventRow.id, userId: pending.userId },
+      },
     });
     if (existingRsvp?.status !== "going") {
-      await prisma.transaction.update({ where: { id: pendingId }, data: { status: "failed" } });
+      await db.transaction.update({
+        where: { id: pendingId },
+        data: { status: "failed" },
+      });
       return;
     }
   }
 
-  await prisma.$transaction(async (tx) => {
-    const existingRsvp = await tx.eventRsvp.findUnique({
-      where: { eventId_userId: { eventId: eventRow.id, userId: pending.userId } },
-    });
-
-    await tx.eventRsvp.upsert({
-      where: { eventId_userId: { eventId: eventRow.id, userId: pending.userId } },
-      create: { eventId: eventRow.id, userId: pending.userId, status: "going" },
-      update: { status: "going" },
-    });
-
-    if (existingRsvp?.status !== "going") {
-      await tx.event.update({ where: { id: eventRow.id }, data: { currentAttendees: { increment: 1 } } });
-    }
-
-    await tx.transaction.update({ where: { id: pendingId }, data: { status: "succeeded" } });
+  const existingRsvp = await db.eventRsvp.findUnique({
+    where: { eventId_userId: { eventId: eventRow.id, userId: pending.userId } },
   });
 
-  if (event.paymentMethod) await upsertPaymentMethod(pending.userId, event.paymentMethod);
+  await db.eventRsvp.upsert({
+    where: { eventId_userId: { eventId: eventRow.id, userId: pending.userId } },
+    create: { eventId: eventRow.id, userId: pending.userId, status: "going" },
+    update: { status: "going" },
+  });
+
+  if (existingRsvp?.status !== "going") {
+    await db.event.update({
+      where: { id: eventRow.id },
+      data: { currentAttendees: { increment: 1 } },
+    });
+  }
+
+  await db.transaction.update({
+    where: { id: pendingId },
+    data: { status: "succeeded" },
+  });
+
+  if (event.paymentMethod)
+    await upsertPaymentMethod(pending.userId, event.paymentMethod, db);
 }
 
-async function handlePremiumEvent(event: WebhookEvent): Promise<void> {
+async function handlePremiumEvent(event: WebhookEvent, db: Db): Promise<void> {
   const pendingId = event.metadata.pendingId;
   if (!pendingId) return;
 
-  const pending = await prisma.premiumSubscription.findUnique({ where: { id: pendingId } });
+  const pending = await db.premiumSubscription.findUnique({
+    where: { id: pendingId },
+  });
   if (!pending || pending.status !== "pending") return;
 
   if (event.type === "charge.succeeded") {
-    await prisma.premiumSubscription.update({
+    await db.premiumSubscription.update({
       where: { id: pendingId },
-      data: { status: "active", paymentSubscriptionId: event.reference, pastDueSince: null, paymentRetryCount: 0 },
+      data: {
+        status: "active",
+        paymentSubscriptionId: event.reference,
+        pastDueSince: null,
+        paymentRetryCount: 0,
+      },
     });
-    if (event.paymentMethod) await upsertPaymentMethod(pending.userId, event.paymentMethod);
-    await recordTransaction(pending.userId, event, { status: "succeeded", isPremium: true });
+    if (event.paymentMethod)
+      await upsertPaymentMethod(pending.userId, event.paymentMethod, db);
+    await recordTransaction(
+      pending.userId,
+      event,
+      { status: "succeeded", isPremium: true },
+      db,
+    );
   } else {
-    await prisma.premiumSubscription.update({ where: { id: pendingId }, data: { status: "failed" } });
-    await recordTransaction(pending.userId, event, { status: "failed", isPremium: true });
+    await db.premiumSubscription.update({
+      where: { id: pendingId },
+      data: { status: "failed" },
+    });
+    await recordTransaction(
+      pending.userId,
+      event,
+      { status: "failed", isPremium: true },
+      db,
+    );
     await notifyPaymentFailed(pending.userId);
   }
 }
@@ -196,14 +297,19 @@ async function handlePremiumEvent(event: WebhookEvent): Promise<void> {
  * Paystack always echoes back) rather than metadata, since transfer webhook
  * payloads don't reliably round-trip custom metadata the way charge events do.
  */
-async function handleWalletWithdrawalEvent(event: WebhookEvent): Promise<void> {
+async function handleWalletWithdrawalEvent(
+  event: WebhookEvent,
+  db: Db,
+): Promise<void> {
   if (!event.reference) return;
 
-  const withdrawal = await prisma.walletWithdrawal.findFirst({ where: { payoutReference: event.reference } });
+  const withdrawal = await db.walletWithdrawal.findFirst({
+    where: { payoutReference: event.reference },
+  });
   if (!withdrawal || withdrawal.status !== "pending") return;
 
   if (event.type === "transfer.succeeded") {
-    await prisma.walletWithdrawal.update({
+    await db.walletWithdrawal.update({
       where: { id: withdrawal.id },
       data: { status: "success", paidAt: new Date() },
     });
@@ -211,13 +317,34 @@ async function handleWalletWithdrawalEvent(event: WebhookEvent): Promise<void> {
   }
 
   // Failed or reversed: the money never left the platform balance (or came back), so refund the provider's wallet.
-  await prisma.$transaction([
-    prisma.walletWithdrawal.update({ where: { id: withdrawal.id }, data: { status: "failed" } }),
-    prisma.profile.update({
-      where: { id: withdrawal.providerId },
-      data: { walletBalanceCents: { increment: withdrawal.amountCents } },
-    }),
-  ]);
+  await db.walletWithdrawal.update({
+    where: { id: withdrawal.id },
+    data: { status: "failed" },
+  });
+  await db.profile.update({
+    where: { id: withdrawal.providerId },
+    data: { walletBalanceCents: { increment: withdrawal.amountCents } },
+  });
+}
+
+async function dispatch(event: WebhookEvent, db: Db): Promise<void> {
+  if (event.type === "transfer.succeeded" || event.type === "transfer.failed") {
+    return handleWalletWithdrawalEvent(event, db);
+  }
+  if (event.type === "unknown") return;
+
+  switch (event.metadata.kind) {
+    case "provider_tier":
+      return handleProviderTierEvent(event, db);
+    case "premium":
+      return handlePremiumEvent(event, db);
+    case "hearts_purchase":
+      return handleHeartsPurchaseEvent(event, db);
+    case "event_rsvp":
+      return handleEventRsvpEvent(event, db);
+    default:
+      return;
+  }
 }
 
 /**
@@ -226,23 +353,38 @@ async function handleWalletWithdrawalEvent(event: WebhookEvent): Promise<void> {
  * lib/billing.ts's confirmPendingPayment) — both produce the same
  * WebhookEvent shape, so this one function handles either path. `metadata`
  * carries which pending row this event confirms or fails: {kind, pendingId}.
+ *
+ * Idempotency: the event's `reference` is the provider's own transaction/
+ * transfer id, unique per underlying payment. Before doing any state work,
+ * this inserts a (provider, eventType, reference) row into
+ * ProcessedPaymentEvent inside the SAME database transaction as the work
+ * itself — so a duplicate delivery (a retried webhook, or the redirect-verify
+ * path racing the real webhook for the same charge) either does the work and
+ * records it, or finds the record already there and does nothing, with no
+ * window where one could happen without the other.
  */
 export async function processPaymentEvent(event: WebhookEvent): Promise<void> {
-  if (event.type === "transfer.succeeded" || event.type === "transfer.failed") {
-    return handleWalletWithdrawalEvent(event);
-  }
-  if (event.type === "unknown") return;
+  if (event.type === "unknown" || !event.reference) return;
 
-  switch (event.metadata.kind) {
-    case "provider_tier":
-      return handleProviderTierEvent(event);
-    case "premium":
-      return handlePremiumEvent(event);
-    case "hearts_purchase":
-      return handleHeartsPurchaseEvent(event);
-    case "event_rsvp":
-      return handleEventRsvpEvent(event);
-    default:
-      return;
-  }
+  await prisma.$transaction(async (tx) => {
+    try {
+      await tx.processedPaymentEvent.create({
+        data: {
+          provider: activeProviderName(),
+          eventType: event.type,
+          reference: event.reference!,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        return; // Already processed this exact event — no-op.
+      }
+      throw error;
+    }
+
+    await dispatch(event, tx);
+  });
 }
