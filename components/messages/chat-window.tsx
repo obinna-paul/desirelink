@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { ShieldX, Send, Heart } from "lucide-react";
+import { ChevronLeft, Heart, Reply, Send, ShieldX, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -20,8 +21,9 @@ import {
   getConversationChannelName,
   MESSAGES_READ_EVENT,
   NEW_MESSAGE_EVENT,
+  TYPING_EVENT,
 } from "@/lib/message-channels";
-import { CONNECTION_REASONS, type ConversationMessage, type ConversationParticipant } from "@/lib/messages";
+import { CONNECTION_REASONS, type ConversationMessage, type ConversationParticipant } from "@/lib/message-types";
 
 type Message = ConversationMessage;
 type MessageLimitResponse = {
@@ -65,7 +67,12 @@ export function ChatWindow({
   const [error, setError] = useState<string | null>(null);
   const [premiumUpsell, setPremiumUpsell] = useState<string | null>(null);
   const [giftPickerOpen, setGiftPickerOpen] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [counterpartTyping, setCounterpartTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingSentRef = useRef(false);
+  const counterpartTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { data: messageLimit, mutate: refreshMessageLimit } = useSWR("/api/messages/limits", fetcher);
   const counterpartIsProvider = isProviderProfileType(counterpart.profileType);
 
@@ -88,6 +95,8 @@ export function ChatWindow({
     setMessages(initialMessages);
     setReason(null);
     setContent("");
+    setReplyingTo(null);
+    setCounterpartTyping(false);
   }, [counterpart.id, initialMessages]);
 
   useEffect(() => {
@@ -111,13 +120,53 @@ export function ChatWindow({
         prev.map((m) => (m.senderId === viewerProfileId && !m.readAt ? { ...m, readAt: new Date(readAt) } : m))
       );
     });
+    channel.bind(TYPING_EVENT, ({ profileId, isTyping }: { profileId: string; isTyping: boolean }) => {
+      if (profileId !== counterpart.id) return;
+      setCounterpartTyping(isTyping);
+      if (counterpartTypingTimeoutRef.current) clearTimeout(counterpartTypingTimeoutRef.current);
+      if (isTyping) {
+        counterpartTypingTimeoutRef.current = setTimeout(() => setCounterpartTyping(false), 2200);
+      }
+    });
 
     return () => {
       channel.unbind(NEW_MESSAGE_EVENT);
       channel.unbind(MESSAGES_READ_EVENT);
+      channel.unbind(TYPING_EVENT);
       client.unsubscribe(channelName);
+      if (counterpartTypingTimeoutRef.current) clearTimeout(counterpartTypingTimeoutRef.current);
     };
   }, [viewerProfileId, counterpart.id]);
+
+  function sendTypingState(isTyping: boolean) {
+    fetch("/api/messages/typing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recipientId: counterpart.id, isTyping }),
+    }).catch(() => undefined);
+  }
+
+  function handleContentChange(value: string) {
+    setContent(value);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+    const isTyping = value.trim().length > 0;
+    if (isTyping && !typingSentRef.current) {
+      typingSentRef.current = true;
+      sendTypingState(true);
+    }
+    if (!isTyping && typingSentRef.current) {
+      typingSentRef.current = false;
+      sendTypingState(false);
+      return;
+    }
+    if (isTyping) {
+      typingTimeoutRef.current = setTimeout(() => {
+        typingSentRef.current = false;
+        sendTypingState(false);
+      }, 1400);
+    }
+  }
 
   function pickReason(value: string, template: string) {
     setReason(value);
@@ -135,7 +184,7 @@ export function ChatWindow({
     const res = await fetch("/api/messages/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipientId: counterpart.id, content: trimmed }),
+      body: JSON.stringify({ recipientId: counterpart.id, content: trimmed, replyToId: replyingTo?.id ?? null }),
     });
     const body = await res.json().catch(() => null);
     setSending(false);
@@ -152,6 +201,10 @@ export function ChatWindow({
     setMessages((prev) => (prev.some((m) => m.id === body.message.id) ? prev : [...prev, body.message]));
     setContent("");
     setReason(null);
+    setReplyingTo(null);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    if (typingSentRef.current) sendTypingState(false);
+    typingSentRef.current = false;
     refreshMessageLimit();
     router.refresh();
   }
@@ -161,18 +214,29 @@ export function ChatWindow({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex min-h-[64px] items-center justify-between gap-3 border-b border-border/60 px-3 py-3 md:px-4">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 border border-border">
-            <AvatarImage src={counterpart.avatarUrl} alt={counterpart.displayName} />
-            <AvatarFallback className="text-xs">
-              {counterpart.displayName.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="text-sm font-medium">{counterpart.displayName}</p>
-            <p className="text-xs text-muted-foreground">@{counterpart.username}</p>
-          </div>
+      <div className="flex min-h-[64px] items-center justify-between gap-2 border-b border-border/60 px-2 py-2.5 md:px-4">
+        <div className="flex min-w-0 items-center gap-1 md:gap-3">
+          <Link
+            href="/messages"
+            aria-label="Back to messages"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-secondary md:hidden"
+          >
+            <ChevronLeft className="h-6 w-6" aria-hidden="true" />
+          </Link>
+          <Link href={`/profile/${counterpart.username}`} className="flex min-w-0 items-center gap-2.5 rounded-lg p-1 hover:bg-secondary/70">
+            <Avatar className="h-10 w-10 shrink-0 border border-border">
+              <AvatarImage src={counterpart.avatarUrl} alt={counterpart.displayName} />
+              <AvatarFallback className="text-xs">
+                {counterpart.displayName.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{counterpart.displayName}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {counterpartTyping ? "typing…" : `@${counterpart.username}`}
+              </p>
+            </div>
+          </Link>
         </div>
         <div className="flex items-center gap-1.5">
           {counterpartIsProvider && !blocked && (
@@ -180,12 +244,14 @@ export function ChatWindow({
               type="button"
               size="sm"
               variant="outline"
-              className="gap-1.5"
+              className="h-10 w-10 rounded-full p-0 md:h-9 md:w-auto md:rounded-md md:px-3"
               aria-pressed={giftPickerOpen}
+              aria-label="Send hearts"
+              title="Send hearts"
               onClick={() => setGiftPickerOpen((open) => !open)}
             >
               <Heart className="h-3.5 w-3.5 text-neon-pink" aria-hidden="true" fill="currentColor" />
-              Send hearts
+              <span className="hidden md:inline">Send hearts</span>
             </Button>
           )}
           <ReportDialog targetType="profile" targetId={counterpart.id} label={`Report ${counterpart.displayName}`} variant="icon" />
@@ -205,37 +271,61 @@ export function ChatWindow({
         </p>
       )}
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-4 md:px-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-background/40 px-3 py-4 md:px-5 md:py-5">
         {messages.length === 0 ? (
           <div className="flex h-full items-center justify-center px-6 text-center text-sm leading-6 text-muted-foreground">
             Say hello to {counterpart.displayName}. Pick a reason below to get started.
           </div>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-1.5">
             {messages.map((message) => {
               const isMine = message.senderId === viewerProfileId;
               return (
-                <li key={message.id} className={cn("group flex items-end gap-1.5", isMine ? "justify-end" : "justify-start")}>
+                <li key={message.id} className={cn("group flex items-end gap-1", isMine ? "justify-end" : "justify-start")}>
+                  {!isMine && (
+                    <button
+                      type="button"
+                      onClick={() => setReplyingTo(message)}
+                      aria-label="Reply to message"
+                      title="Reply"
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground opacity-100 hover:bg-secondary hover:text-foreground md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                    >
+                      <Reply className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  )}
                   <div
                     className={cn(
-                      "max-w-[82%] rounded-[20px] px-3.5 py-2.5 text-sm leading-5 md:max-w-[75%]",
+                      "max-w-[78%] rounded-2xl px-3.5 py-2.5 text-sm leading-5 md:max-w-[70%]",
                       isMine
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-foreground"
+                        ? "rounded-br-md bg-foreground text-background"
+                        : "rounded-bl-md border border-border/50 bg-card text-foreground shadow-sm"
                     )}
                   >
+                    {message.replyTo && (
+                      <div
+                        className={cn(
+                          "mb-1.5 border-l-2 pl-2 text-xs",
+                          isMine ? "border-background/50 text-background/70" : "border-primary/60 text-muted-foreground"
+                        )}
+                      >
+                        <p className="font-medium">
+                          {message.replyTo.senderId === viewerProfileId ? "You" : counterpart.displayName}
+                        </p>
+                        <p className="line-clamp-2">{message.replyTo.content}</p>
+                      </div>
+                    )}
                     <p className="whitespace-pre-wrap break-words">{message.content}</p>
                     <p
                       className={cn(
                         "mt-1 text-[10px]",
-                        isMine ? "text-background/70" : "text-muted-foreground"
+                        isMine ? "text-background/60" : "text-muted-foreground"
                       )}
                     >
                       {formatMessageTime(message.createdAt)}
                     </p>
                   </div>
                   {!isMine && (
-                    <span className="opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
                       <ReportDialog
                         targetType="message"
                         targetId={message.id}
@@ -244,10 +334,28 @@ export function ChatWindow({
                       />
                     </span>
                   )}
+                  {isMine && (
+                    <button
+                      type="button"
+                      onClick={() => setReplyingTo(message)}
+                      aria-label="Reply to message"
+                      title="Reply"
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground opacity-100 hover:bg-secondary hover:text-foreground md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                    >
+                      <Reply className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  )}
                 </li>
               );
             })}
           </ul>
+        )}
+        {counterpartTyping && (
+          <div className="mt-2 flex w-fit items-center gap-1 rounded-2xl rounded-bl-md border border-border/50 bg-card px-3.5 py-3 shadow-sm" aria-label={`${counterpart.displayName} is typing`}>
+            {[0, 1, 2].map((dot) => (
+              <span key={dot} className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted-foreground" style={{ animationDelay: `${dot * 140}ms` }} />
+            ))}
+          </div>
         )}
       </div>
 
@@ -277,7 +385,7 @@ export function ChatWindow({
         </div>
       )}
 
-      <div className="border-t border-border/60 p-3 md:p-4">
+      <div className="border-t border-border/60 bg-card px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 md:p-4">
         {error && (
           <p role="alert" className="mb-2 text-xs text-destructive">
             {error}
@@ -308,10 +416,29 @@ export function ChatWindow({
             )}
           </div>
         )}
+        {replyingTo && (
+          <div className="mb-2 flex items-center gap-3 rounded-lg bg-secondary/80 px-3 py-2">
+            <Reply className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold">
+                Replying to {replyingTo.senderId === viewerProfileId ? "yourself" : counterpart.displayName}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">{replyingTo.content}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReplyingTo(null)}
+              aria-label="Cancel reply"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-background"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        )}
         <div className="flex items-end gap-2">
           <Textarea
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => handleContentChange(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -326,7 +453,7 @@ export function ChatWindow({
                   : "Write a message..."
             }
             disabled={blocked || (isNewConversation && !reason)}
-            className="min-h-[46px] flex-1 resize-none rounded-2xl"
+            className="min-h-[46px] max-h-32 flex-1 resize-none rounded-[23px] border-border/70 bg-secondary/55 px-4 py-3 focus-visible:bg-background"
             rows={1}
           />
           <Button
@@ -341,6 +468,7 @@ export function ChatWindow({
               (messageLimit ? !messageLimit.allowed : false)
             }
             onClick={handleSend}
+            className="h-11 w-11 shrink-0 rounded-full"
           >
             <Send className="h-4 w-4" aria-hidden="true" />
           </Button>

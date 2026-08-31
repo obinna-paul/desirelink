@@ -563,11 +563,15 @@ model Message {
   recipientId String
   recipient   Profile   @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
   content     String
+  replyToId   String?
+  replyTo     Message?  @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     Message[] @relation("MessageReplies")
   createdAt   DateTime  @default(now())
   readAt      DateTime?
 
   @@index([senderId])
   @@index([recipientId])
+  @@index([replyToId])
 }
 
 model Notification {

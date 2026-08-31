@@ -1,5 +1,3 @@
-import type { ProfileType } from "@prisma/client";
-
 import { prisma } from "@/lib/prisma";
 import { triggerEvent } from "@/lib/pusher-server";
 import { isBlockedEitherWay } from "@/lib/block";
@@ -12,40 +10,21 @@ import {
   MESSAGES_READ_EVENT,
   NEW_MESSAGE_EVENT,
 } from "@/lib/message-channels";
+import type {
+  ConversationMessage,
+  ConversationParticipant,
+  ConversationSummary,
+} from "@/lib/message-types";
+import { Prisma } from "@prisma/client";
 
-export const CONNECTION_REASONS = [
-  {
-    value: "shared_interest",
-    label: "Shared interest",
-    template: "Hi! I noticed we're both into similar things on udala.",
-  },
-  {
-    value: "same_event",
-    label: "Same event",
-    template: "Hi! I saw we're both attending the same event.",
-  },
-  {
-    value: "same_city",
-    label: "Same city",
-    template: "Hi! I noticed we're both in the same city.",
-  },
-  {
-    value: "creator_fan",
-    label: "Creator/Fan",
-    template: "Hi! I'm a fan of your content and wanted to say hello.",
-  },
-  {
-    value: "community",
-    label: "Community",
-    template: "Hi! We're part of the same community here and I wanted to connect.",
-  },
-] as const;
-
-export type ConnectionReasonValue = (typeof CONNECTION_REASONS)[number]["value"];
-
-export function isConnectionReasonValue(value: unknown): value is ConnectionReasonValue {
-  return typeof value === "string" && CONNECTION_REASONS.some((reason) => reason.value === value);
-}
+export {
+  CONNECTION_REASONS,
+  isConnectionReasonValue,
+  type ConnectionReasonValue,
+  type ConversationMessage,
+  type ConversationParticipant,
+  type ConversationSummary,
+} from "@/lib/message-types";
 
 const MAX_MESSAGE_LENGTH = 2000;
 
@@ -57,21 +36,11 @@ const counterpartSelect = {
   profileType: true,
 } as const;
 
-export type ConversationParticipant = {
-  id: string;
-  username: string;
-  displayName: string;
-  avatarUrl: string;
-  profileType: ProfileType;
-};
-
-export type ConversationSummary = {
-  counterpart: ConversationParticipant;
-  lastMessage: { content: string; createdAt: Date; isMine: boolean };
-  unreadCount: number;
-};
-
 const CONVERSATION_HISTORY_SCAN_LIMIT = 500;
+
+function isMissingReplySchema(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2021" || error.code === "P2022");
+}
 
 /** Every conversation the profile is part of, newest first, with an unread count per thread. */
 export async function getConversations(profileId: string): Promise<ConversationSummary[]> {
@@ -114,29 +83,42 @@ export async function getConversations(profileId: string): Promise<ConversationS
   return Array.from(byCounterpart.values());
 }
 
-export type ConversationMessage = {
-  id: string;
-  content: string;
-  createdAt: Date;
-  readAt: Date | null;
-  senderId: string;
-  recipientId: string;
-};
-
 /** Full message history between two profiles, oldest first. Marks the viewer's unread messages as read as a side effect. */
 export async function getConversation(
   profileId: string,
   counterpartId: string
 ): Promise<ConversationMessage[]> {
-  const messages = await prisma.message.findMany({
-    where: {
-      OR: [
-        { senderId: profileId, recipientId: counterpartId },
-        { senderId: counterpartId, recipientId: profileId },
-      ],
-    },
-    orderBy: { createdAt: "asc" },
-  });
+  const where = {
+    OR: [
+      { senderId: profileId, recipientId: counterpartId },
+      { senderId: counterpartId, recipientId: profileId },
+    ],
+  };
+  let messages: ConversationMessage[];
+  try {
+    messages = await prisma.message.findMany({
+      where,
+      orderBy: { createdAt: "asc" },
+      include: {
+        replyTo: { select: { id: true, content: true, senderId: true } },
+      },
+    });
+  } catch (error) {
+    if (!isMissingReplySchema(error)) throw error;
+    const legacyMessages = await prisma.message.findMany({
+      where,
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        readAt: true,
+        senderId: true,
+        recipientId: true,
+      },
+    });
+    messages = legacyMessages.map((message) => ({ ...message, replyToId: null, replyTo: null }));
+  }
 
   const unreadIds = messages
     .filter((message) => message.recipientId === profileId && !message.readAt)
@@ -164,7 +146,8 @@ export type SendMessageResult =
 export async function sendMessage(
   senderId: string,
   recipientId: string,
-  content: string
+  content: string,
+  replyToId?: string | null
 ): Promise<SendMessageResult> {
   if (senderId === recipientId) {
     return { ok: false, status: 400, error: "You can't message yourself" };
@@ -192,10 +175,57 @@ export async function sendMessage(
     return { ok: false, status: 403, error: "You can't message this user" };
   }
 
-  const message = await prisma.message.create({
-    data: { senderId, recipientId, content: trimmed },
-    include: { sender: { select: counterpartSelect } },
-  });
+  let validReplyToId: string | null = null;
+  if (replyToId) {
+    const repliedMessage = await prisma.message.findFirst({
+      where: {
+        id: replyToId,
+        OR: [
+          { senderId, recipientId },
+          { senderId: recipientId, recipientId: senderId },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!repliedMessage) {
+      return { ok: false, status: 400, error: "That message is not part of this conversation" };
+    }
+    validReplyToId = repliedMessage.id;
+  }
+
+  let message: ConversationMessage & { sender: ConversationParticipant };
+  try {
+    message = await prisma.message.create({
+      data: {
+        senderId,
+        recipientId,
+        content: trimmed,
+        ...(validReplyToId ? { replyToId: validReplyToId } : {}),
+      },
+      include: {
+        sender: { select: counterpartSelect },
+        replyTo: { select: { id: true, content: true, senderId: true } },
+      },
+    });
+  } catch (error) {
+    if (!isMissingReplySchema(error)) throw error;
+    if (validReplyToId) {
+      return { ok: false, status: 503, error: "Replies are being enabled. Send this as a new message for now." };
+    }
+    const legacyMessage = await prisma.message.create({
+      data: { senderId, recipientId, content: trimmed },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        readAt: true,
+        senderId: true,
+        recipientId: true,
+        sender: { select: counterpartSelect },
+      },
+    });
+    message = { ...legacyMessage, replyToId: null, replyTo: null };
+  }
   await flagContentIfNeeded({
     contentType: "message",
     contentId: message.id,

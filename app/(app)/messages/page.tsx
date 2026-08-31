@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { ChevronLeft } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -51,8 +49,8 @@ export default async function MessagesPage({
     : false;
 
   return (
-    <div className="flex flex-col gap-4 md:gap-6">
-      <div className="flex h-[calc(100dvh-12rem)] min-h-[500px] overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm md:h-[calc(100vh-14rem)] md:min-h-[420px] md:rounded-xl md:shadow-none">
+    <div className="-mx-4 -mt-4 md:mx-0 md:mt-0">
+      <div className="flex h-[calc(100dvh-8.25rem)] min-h-[520px] overflow-hidden border-y border-border/60 bg-card md:h-[calc(100vh-10.5rem)] md:min-h-[520px] md:rounded-lg md:border md:shadow-sm">
         <div
           className={cn(
             "w-full shrink-0 border-r border-border/60 md:w-80",
@@ -68,23 +66,15 @@ export default async function MessagesPage({
 
         <div className={cn("flex min-w-0 flex-1 flex-col", !validCounterpart && "hidden md:flex")}>
           {validCounterpart ? (
-            <>
-              <Link
-                href="/messages"
-                className="flex min-h-11 items-center gap-1 border-b border-border/60 px-3 text-sm font-medium text-muted-foreground hover:text-foreground md:hidden"
-              >
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Inbox
-              </Link>
-              <div className="flex min-h-0 flex-1 flex-col">
-                <ChatWindow
-                  viewerProfileId={viewerProfile.id}
-                  counterpart={validCounterpart}
-                  initialMessages={initialMessages}
-                  blocked={isBlocked}
-                  viewerHeartsBalance={viewerProfile.heartsBalance}
-                />
-              </div>
-            </>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <ChatWindow
+                viewerProfileId={viewerProfile.id}
+                counterpart={validCounterpart}
+                initialMessages={initialMessages}
+                blocked={isBlocked}
+                viewerHeartsBalance={viewerProfile.heartsBalance}
+              />
+            </div>
           ) : (
             <div className="flex h-full items-center justify-center p-6 text-center text-sm text-muted-foreground">
               Select a conversation, or message someone from their profile to get started.

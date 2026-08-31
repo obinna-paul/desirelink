@@ -25,6 +25,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const recipientId = typeof body?.recipientId === "string" ? body.recipientId : null;
   const content = typeof body?.content === "string" ? body.content : null;
+  const replyToId = typeof body?.replyToId === "string" ? body.replyToId : null;
 
   if (!recipientId || !content) {
     return NextResponse.json({ error: "recipientId and content are required" }, { status: 400 });
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const result = await sendMessage(profile.id, recipientId, content);
+  const result = await sendMessage(profile.id, recipientId, content, replyToId);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }

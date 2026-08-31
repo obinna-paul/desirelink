@@ -15,4 +15,5 @@ export function getUserChannelName(profileId: string): string {
 
 export const NEW_MESSAGE_EVENT = "new-message";
 export const MESSAGES_READ_EVENT = "messages-read";
+export const TYPING_EVENT = "typing";
 export const INBOX_UPDATED_EVENT = "inbox-updated";

@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Search, SquarePen } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { getPusherClient } from "@/lib/pusher-client";
 import { getUserChannelName, INBOX_UPDATED_EVENT } from "@/lib/message-channels";
-import type { ConversationSummary } from "@/lib/messages";
+import type { ConversationSummary } from "@/lib/message-types";
 
 function formatTimestamp(date: Date | string) {
   const value = new Date(date);
@@ -28,6 +29,14 @@ export function ConversationList({
   activeUsername?: string;
 }) {
   const router = useRouter();
+  const [query, setQuery] = useState("");
+  const filteredConversations = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return conversations;
+    return conversations.filter(({ counterpart }) =>
+      `${counterpart.displayName} ${counterpart.username}`.toLowerCase().includes(normalized)
+    );
+  }, [conversations, query]);
 
   useEffect(() => {
     const client = getPusherClient();
@@ -42,17 +51,40 @@ export function ConversationList({
     };
   }, [viewerProfileId, router]);
 
-  if (conversations.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center p-8 text-center text-sm leading-6 text-muted-foreground">
-        No conversations yet. Message someone from their profile to get started.
-      </div>
-    );
-  }
-
   return (
-    <ul className="flex h-full flex-col overflow-y-auto">
-      {conversations.map(({ counterpart, lastMessage, unreadCount }) => {
+    <div className="flex h-full flex-col">
+      <div className="border-b border-border/60 px-4 pb-3 pt-4 md:px-4">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-xl font-semibold">Messages</h1>
+          <Link
+            href="/discover"
+            aria-label="Start a new conversation"
+            title="Start a new conversation"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary"
+          >
+            <SquarePen className="h-5 w-5" aria-hidden="true" />
+          </Link>
+        </div>
+        <label className="mt-3 flex h-11 items-center gap-2 rounded-lg bg-secondary px-3 text-muted-foreground">
+          <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="sr-only">Search conversations</span>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search"
+            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          />
+        </label>
+      </div>
+      {conversations.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center p-8 text-center text-sm leading-6 text-muted-foreground">
+          Find someone in Discover and start a conversation from their profile.
+        </div>
+      ) : filteredConversations.length === 0 ? (
+        <div className="p-8 text-center text-sm text-muted-foreground">No conversations match “{query}”.</div>
+      ) : (
+      <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto py-1">
+      {filteredConversations.map(({ counterpart, lastMessage, unreadCount }) => {
         const isActive = counterpart.username === activeUsername;
         const initials = counterpart.displayName.slice(0, 2).toUpperCase();
 
@@ -62,7 +94,7 @@ export function ConversationList({
               href={`/messages?with=${counterpart.username}`}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex min-h-[72px] items-center gap-3 border-b border-border/60 px-3 py-3 transition-colors hover:bg-secondary/60 md:px-4",
+                "mx-2 flex min-h-[72px] items-center gap-3 rounded-lg px-2.5 py-2.5 transition-colors hover:bg-secondary/70 md:mx-2 md:px-3",
                 isActive && "bg-secondary"
               )}
             >
@@ -96,6 +128,8 @@ export function ConversationList({
           </li>
         );
       })}
-    </ul>
+      </ul>
+      )}
+    </div>
   );
 }
