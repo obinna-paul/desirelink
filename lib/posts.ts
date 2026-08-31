@@ -48,6 +48,7 @@ type RawPost = {
   eventId: string | null;
   isSubscriberOnly: boolean;
   viewCount: number;
+  pinnedAt: Date | null;
   createdAt: Date;
   author: {
     id: string;
@@ -137,6 +138,7 @@ export type PostView = {
   locked: boolean;
   lockReason: PostLockReason | null;
   viewCount: number;
+  isPinned: boolean;
   createdAt: string;
   author: {
     id: string;
@@ -241,6 +243,7 @@ function toPostView(
     locked,
     lockReason,
     viewCount: post.viewCount,
+    isPinned: post.pinnedAt !== null,
     content: locked ? null : post.content,
     mediaUrls: locked ? [] : mediaItems.map((item) => item.url),
     mediaItems: locked ? [] : mediaItems,
@@ -290,6 +293,7 @@ function postSelect(viewerProfileId: string | null) {
     eventId: true,
     isSubscriberOnly: true,
     viewCount: true,
+    pinnedAt: true,
     createdAt: true,
     author: { select: postAuthorSelect },
     event: {
@@ -475,11 +479,16 @@ export async function getCreatorProfilePosts(
       ? await isActiveSubscriber(viewerProfileId, creatorProfileId)
       : false);
 
+  const profilePostsOrderBy = [
+    { pinnedAt: { sort: "desc" as const, nulls: "last" as const } },
+    { createdAt: "desc" as const },
+  ];
+
   let posts: RawPost[];
   try {
     posts = await prisma.post.findMany({
       where: { authorId: creatorProfileId, isArchived: false },
-      orderBy: { createdAt: "desc" },
+      orderBy: profilePostsOrderBy,
       take: PROFILE_POSTS_LIMIT,
       select: postSelect(viewerProfileId),
     });
@@ -490,7 +499,7 @@ export async function getCreatorProfilePosts(
     );
     posts = await prisma.post.findMany({
       where: { authorId: creatorProfileId },
-      orderBy: { createdAt: "desc" },
+      orderBy: profilePostsOrderBy,
       take: PROFILE_POSTS_LIMIT,
       select: postSelect(viewerProfileId),
     });

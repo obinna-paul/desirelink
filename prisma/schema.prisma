@@ -684,6 +684,7 @@ model Post {
   isSubscriberOnly Boolean        @default(false)
   isArchived       Boolean        @default(false)
   viewCount        Int            @default(0)
+  pinnedAt         DateTime?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   comments         PostComment[]

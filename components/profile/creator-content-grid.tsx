@@ -24,7 +24,7 @@ export function PostGridSection({
   emptyTitle: string;
   emptyDescription: string;
 }) {
-  const [openPost, setOpenPost] = useState<PostView | null>(null);
+  const [openPostId, setOpenPostId] = useState<string | null>(null);
 
   if (posts.length === 0) {
     return (
@@ -33,7 +33,7 @@ export function PostGridSection({
   }
 
   function handleOpen(post: PostView) {
-    setOpenPost(post);
+    setOpenPostId(post.id);
     if (!post.locked) {
       fetch(`/api/posts/${post.id}/view`, { method: "POST" }).catch(() => {});
     }
@@ -46,8 +46,12 @@ export function PostGridSection({
           <PostGridTile key={post.id} post={post} onOpen={handleOpen} />
         ))}
       </div>
-      {openPost && (
-        <PostLightbox post={openPost} onClose={() => setOpenPost(null)} />
+      {openPostId && (
+        <PostLightbox
+          posts={posts}
+          initialPostId={openPostId}
+          onClose={() => setOpenPostId(null)}
+        />
       )}
     </>
   );

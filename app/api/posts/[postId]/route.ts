@@ -23,6 +23,8 @@ function isMissingPostArchiveError(error: unknown): boolean {
   );
 }
 
+const MAX_PINNED_POSTS = 3;
+
 async function getCurrentProfile(userId: string) {
   return prisma.profile.findUnique({
     where: { userId },
@@ -36,24 +38,39 @@ async function getOwnedPost(postId: string, profileId: string) {
     select: { id: true, authorId: true, content: true },
   });
 
-  if (!post) return { error: NextResponse.json({ error: "Post not found" }, { status: 404 }) };
+  if (!post)
+    return {
+      error: NextResponse.json({ error: "Post not found" }, { status: 404 }),
+    };
   if (post.authorId !== profileId) {
-    return { error: NextResponse.json({ error: "You can only manage posts you created" }, { status: 403 }) };
+    return {
+      error: NextResponse.json(
+        { error: "You can only manage posts you created" },
+        { status: 403 },
+      ),
+    };
   }
 
   return { post };
 }
 
-export async function PATCH(req: Request, { params }: { params: { postId: string } }) {
+export async function PATCH(
+  req: Request,
+  { params }: { params: { postId: string } },
+) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const profile = await getCurrentProfile(session.user.id);
-  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  if (!profile)
+    return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   if (profile.isSuspended) {
-    return NextResponse.json({ error: "Your account is suspended from managing posts" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Your account is suspended from managing posts" },
+      { status: 403 },
+    );
   }
 
   const owned = await getOwnedPost(params.postId, profile.id);
@@ -62,7 +79,10 @@ export async function PATCH(req: Request, { params }: { params: { postId: string
   const body = await readJson(req);
   const parsed = updatePostSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid input" },
+      { status: 400 },
+    );
   }
 
   if (parsed.data.action === "archive") {
@@ -74,8 +94,11 @@ export async function PATCH(req: Request, { params }: { params: { postId: string
     } catch (error) {
       if (isMissingPostArchiveError(error)) {
         return NextResponse.json(
-          { error: "Post archiving needs the Post.isArchived database migration in Neon SQL Editor." },
-          { status: 503 }
+          {
+            error:
+              "Post archiving needs the Post.isArchived database migration in Neon SQL Editor.",
+          },
+          { status: 503 },
         );
       }
       throw error;
@@ -84,13 +107,41 @@ export async function PATCH(req: Request, { params }: { params: { postId: string
     return NextResponse.json({ ok: true, archived: true });
   }
 
+  if (parsed.data.action === "pin") {
+    const pinnedCount = await prisma.post.count({
+      where: { authorId: profile.id, pinnedAt: { not: null } },
+    });
+    if (pinnedCount >= MAX_PINNED_POSTS) {
+      return NextResponse.json(
+        {
+          error: `You can only pin up to ${MAX_PINNED_POSTS} posts. Unpin one first.`,
+        },
+        { status: 409 },
+      );
+    }
+
+    await prisma.post.update({
+      where: { id: params.postId },
+      data: { pinnedAt: new Date() },
+    });
+    return NextResponse.json({ ok: true, pinned: true });
+  }
+
+  if (parsed.data.action === "unpin") {
+    await prisma.post.update({
+      where: { id: params.postId },
+      data: { pinnedAt: null },
+    });
+    return NextResponse.json({ ok: true, pinned: false });
+  }
+
   if (!(await isPremiumUser(profile.id))) {
     return NextResponse.json(
       premiumLimitPayload(
         "post_editing",
-        "Editing published posts is a premium feature. Upgrade to udala premium to revise posts after publishing."
+        "Editing published posts is a premium feature. Upgrade to udala premium to revise posts after publishing.",
       ),
-      { status: 402 }
+      { status: 402 },
     );
   }
 
@@ -117,16 +168,23 @@ export async function PATCH(req: Request, { params }: { params: { postId: string
   return NextResponse.json({ post });
 }
 
-export async function DELETE(_req: Request, { params }: { params: { postId: string } }) {
+export async function DELETE(
+  _req: Request,
+  { params }: { params: { postId: string } },
+) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const profile = await getCurrentProfile(session.user.id);
-  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  if (!profile)
+    return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   if (profile.isSuspended) {
-    return NextResponse.json({ error: "Your account is suspended from managing posts" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Your account is suspended from managing posts" },
+      { status: 403 },
+    );
   }
 
   const owned = await getOwnedPost(params.postId, profile.id);

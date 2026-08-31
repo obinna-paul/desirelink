@@ -39,7 +39,11 @@ function LockedPostBody({
           : "Subscribe to this creator to see this post."}
       </p>
       <Button asChild size="sm" className="mt-1">
-        <Link href={isPremiumLimit ? "/settings/billing" : `/profile/${authorUsername}`}>
+        <Link
+          href={
+            isPremiumLimit ? "/settings/billing" : `/profile/${authorUsername}`
+          }
+        >
           {isPremiumLimit ? "Upgrade to Premium" : "Subscribe to Unlock"}
         </Link>
       </Button>
@@ -47,8 +51,16 @@ function LockedPostBody({
   );
 }
 
-export function PostCard({ post, showAuthor = true }: { post: PostView; showAuthor?: boolean }) {
-  const timeAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
+export function PostCard({
+  post,
+  showAuthor = true,
+}: {
+  post: PostView;
+  showAuthor?: boolean;
+}) {
+  const timeAgo = formatDistanceToNow(new Date(post.createdAt), {
+    addSuffix: true,
+  });
   const initials = post.author.displayName.slice(0, 2).toUpperCase();
   const [liked, setLiked] = useState(post.viewerLiked);
   const [reactionCount, setReactionCount] = useState(post.counts.reactions);
@@ -68,7 +80,9 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
     setReactionCount((count) => count + (nextLiked ? 1 : -1));
 
     try {
-      const res = await fetch(`/api/posts/${post.id}/reactions`, { method: "POST" });
+      const res = await fetch(`/api/posts/${post.id}/reactions`, {
+        method: "POST",
+      });
       if (!res.ok) {
         setLiked(previousLiked);
         setReactionCount(previousCount);
@@ -90,13 +104,21 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
     <article className="-mx-3 flex flex-col gap-3 border-b border-border bg-card pb-3 md:mx-0 md:gap-3 md:rounded-xl md:border md:pb-4 md:shadow-card">
       <div className="flex items-center justify-between gap-2 px-3 pt-3 md:px-4 md:pt-4">
         {showAuthor ? (
-          <Link href={`/profile/${post.author.username}`} className="flex min-w-0 items-center gap-2.5">
+          <Link
+            href={`/profile/${post.author.username}`}
+            className="flex min-w-0 items-center gap-2.5"
+          >
             <Avatar className="h-10 w-10 border border-border">
-              <AvatarImage src={post.author.avatarUrl} alt={post.author.displayName} />
+              <AvatarImage
+                src={post.author.avatarUrl}
+                alt={post.author.displayName}
+              />
               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{post.author.displayName}</p>
+              <p className="truncate text-sm font-medium">
+                {post.author.displayName}
+              </p>
               <p className="text-xs text-muted-foreground">{timeAgo}</p>
             </div>
           </Link>
@@ -110,7 +132,10 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
             </Badge>
           )}
           {post.lockReason === "premium_provider_limit" && (
-            <Badge variant="outline" className="label-caps gap-1 text-muted-foreground">
+            <Badge
+              variant="outline"
+              className="label-caps gap-1 text-muted-foreground"
+            >
               <Lock className="h-3 w-3" aria-hidden="true" /> Limit reached
             </Badge>
           )}
@@ -120,21 +145,34 @@ export function PostCard({ post, showAuthor = true }: { post: PostView; showAuth
               canEdit={post.viewerCanEdit}
               initialContent={post.content ?? ""}
               initialSubscriberOnly={post.isSubscriberOnly}
+              isPinned={post.isPinned}
             />
           ) : (
-            <ReportDialog targetType="post" targetId={post.id} label="Report post" variant="icon" />
+            <ReportDialog
+              targetType="post"
+              targetId={post.id}
+              label="Report post"
+              variant="icon"
+            />
           )}
         </div>
       </div>
 
       {post.locked ? (
         <div className="px-3 md:px-4">
-          <LockedPostBody reason={post.lockReason} authorUsername={post.author.username} />
+          <LockedPostBody
+            reason={post.lockReason}
+            authorUsername={post.author.username}
+          />
         </div>
       ) : (
         <>
           {/* Media is intentionally NOT wrapped in the card's own horizontal padding - it goes edge-to-edge on mobile, Instagram-style. */}
-          <PostMediaCarousel media={post.mediaItems} liked={liked} onDoubleTapLike={() => toggleLike(true)} />
+          <PostMediaCarousel
+            media={post.mediaItems}
+            liked={liked}
+            onDoubleTapLike={() => toggleLike(true)}
+          />
           {post.event && (
             <div className="px-3 md:px-4">
               <PostEventAttachment event={post.event} />

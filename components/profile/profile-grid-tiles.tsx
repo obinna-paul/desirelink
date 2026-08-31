@@ -8,6 +8,7 @@ import {
   Copy,
   Eye,
   Lock,
+  Pin,
   Play,
 } from "lucide-react";
 
@@ -117,6 +118,12 @@ export function PostGridTile({
         </div>
       )}
 
+      {post.isPinned && (
+        <Pin
+          className="absolute left-1.5 top-1.5 h-3.5 w-3.5 fill-white text-white drop-shadow"
+          aria-hidden="true"
+        />
+      )}
       {media?.type === "video" && (
         <Play
           className="absolute right-1.5 top-1.5 h-4 w-4 fill-white text-white drop-shadow"

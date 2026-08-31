@@ -7,8 +7,17 @@ import { PostCard } from "@/components/posts/post-card";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import type { PostView } from "@/lib/posts";
 
-export function PostLightbox({ post, onClose }: { post: PostView; onClose: () => void }) {
+export function PostLightbox({
+  posts,
+  initialPostId,
+  onClose,
+}: {
+  posts: PostView[];
+  initialPostId: string;
+  onClose: () => void;
+}) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const initialItemRef = useRef<HTMLDivElement>(null);
   useFocusTrap(true, dialogRef);
 
   useEffect(() => {
@@ -19,6 +28,10 @@ export function PostLightbox({ post, onClose }: { post: PostView; onClose: () =>
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
+  useEffect(() => {
+    initialItemRef.current?.scrollIntoView({ block: "start" });
+  }, []);
+
   return (
     <div
       role="dialog"
@@ -26,8 +39,12 @@ export function PostLightbox({ post, onClose }: { post: PostView; onClose: () =>
       aria-label="Post"
       className="fixed inset-0 z-[60] flex flex-col overflow-y-auto bg-background/95 backdrop-blur-sm"
     >
-      <div ref={dialogRef} tabIndex={-1} className="mx-auto flex w-full max-w-xl flex-1 flex-col p-3 focus:outline-none sm:p-6">
-        <div className="mb-2 flex justify-end">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="mx-auto flex w-full max-w-xl flex-1 flex-col p-3 focus:outline-none sm:p-6"
+      >
+        <div className="sticky top-0 z-10 mb-2 flex justify-end bg-background/95 py-1 backdrop-blur-sm">
           <button
             type="button"
             onClick={onClose}
@@ -37,7 +54,16 @@ export function PostLightbox({ post, onClose }: { post: PostView; onClose: () =>
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
-        <PostCard post={post} showAuthor={false} />
+        <div className="flex flex-col gap-4">
+          {posts.map((post) => (
+            <div
+              key={post.id}
+              ref={post.id === initialPostId ? initialItemRef : undefined}
+            >
+              <PostCard post={post} showAuthor={false} />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

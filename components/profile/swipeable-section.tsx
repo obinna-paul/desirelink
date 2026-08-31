@@ -43,7 +43,7 @@ export function SwipeableSection({
 
     const nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
     if (nextIndex < 0 || nextIndex >= hrefs.length) return;
-    router.push(hrefs[nextIndex]);
+    router.push(hrefs[nextIndex], { scroll: false });
   }
 
   return (
