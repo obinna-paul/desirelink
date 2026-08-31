@@ -8,6 +8,7 @@ import { flagContentIfNeeded } from "@/lib/moderation";
 import { getPostByIdForViewer } from "@/lib/posts";
 import { createPostSchema } from "@/lib/validations/post";
 import { readJson } from "@/lib/security/request";
+import { isProviderProfileType } from "@/lib/provider-types";
 
 function isMissingSchemaError(error: unknown): error is Prisma.PrismaClientKnownRequestError {
   return (
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
       city: true,
       locationLat: true,
       locationLng: true,
+      profileType: true,
     },
   });
 
@@ -65,6 +67,7 @@ export async function POST(req: Request) {
   }
 
   const { content, isSubscriberOnly, postType, event } = parsed.data;
+  const canPostPremiumContent = isProviderProfileType(profile.profileType);
   const mediaItems =
     parsed.data.mediaItems ??
     (parsed.data.mediaUrls ?? []).map((url) => ({ url, type: "image" as const }));
@@ -103,7 +106,7 @@ export async function POST(req: Request) {
           mediaUrls: mediaItems,
           postType,
           eventId: attachedEvent?.id,
-          isSubscriberOnly,
+          isSubscriberOnly: canPostPremiumContent ? isSubscriberOnly : false,
         },
       });
     });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { EVENT_TYPE_OPTIONS } from "@/lib/events";
-import { MAX_POST_MEDIA_ITEMS, POST_MEDIA_TYPES } from "@/lib/post-shared";
+import { MAX_POST_MEDIA_ITEMS, POST_DISPLAY_ASPECT_RATIOS, POST_MEDIA_TYPES } from "@/lib/post-shared";
 
 export const postMediaItemSchema = z.object({
   url: z.string().url(),
@@ -9,6 +9,7 @@ export const postMediaItemSchema = z.object({
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
   durationSeconds: z.number().positive().optional(),
+  displayAspectRatio: z.enum(POST_DISPLAY_ASPECT_RATIOS).optional(),
 });
 
 export const feedEventSchema = z

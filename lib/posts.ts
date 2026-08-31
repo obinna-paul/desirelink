@@ -147,6 +147,13 @@ export function toMediaItems(value: unknown): PostMediaItem[] {
           width: typeof item.width === "number" ? item.width : undefined,
           height: typeof item.height === "number" ? item.height : undefined,
           durationSeconds: typeof item.durationSeconds === "number" ? item.durationSeconds : undefined,
+          displayAspectRatio:
+            "displayAspectRatio" in item &&
+            (item.displayAspectRatio === "square" ||
+              item.displayAspectRatio === "portrait_3_4" ||
+              item.displayAspectRatio === "full_9_16")
+              ? item.displayAspectRatio
+              : undefined,
         },
       ];
     }
@@ -437,7 +444,6 @@ export async function getPublicFeedPosts(viewerProfileId: string | null): Promis
   try {
     const posts = await prisma.post.findMany({
       where: {
-        isSubscriberOnly: false,
         isArchived: false,
         author: {
           isIncognito: false,
@@ -459,7 +465,6 @@ export async function getPublicFeedPosts(viewerProfileId: string | null): Promis
       console.warn("Post archive filtering is unavailable until Post.isArchived migration is applied.");
       const posts = await prisma.post.findMany({
         where: {
-          isSubscriberOnly: false,
           author: {
             isIncognito: false,
             isSuspended: false,

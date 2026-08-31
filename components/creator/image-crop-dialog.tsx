@@ -24,6 +24,7 @@ export function ImageCropDialog({
   onCancel,
   onConfirm,
   presets = IMAGE_CROP_PRESETS,
+  initialPresetId,
   shape = "square",
   title = "Adjust photo",
 }: {
@@ -31,10 +32,13 @@ export function ImageCropDialog({
   onCancel: () => void;
   onConfirm: (result: { file: File; width: number; height: number }) => void;
   presets?: readonly CropPreset[];
+  initialPresetId?: string;
   shape?: "square" | "circle";
   title?: string;
 }) {
-  const [presetId, setPresetId] = useState<string>(presets[0].id);
+  const [presetId, setPresetId] = useState<string>(() =>
+    presets.some((preset) => preset.id === initialPresetId) ? initialPresetId! : presets[0].id
+  );
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
   const [zoom, setZoom] = useState(1);
