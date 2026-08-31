@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
 import { signupSchema } from "@/lib/validations/auth";
-import { generateUniqueUsername } from "@/lib/username";
+import { isUsernameAvailable } from "@/lib/username";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { getClientIp, readJson } from "@/lib/security/request";
 
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { name, email, password, profileType } = parsed.data;
+  const { name, username, email, password, profileType } = parsed.data;
   const normalizedEmail = email.toLowerCase();
   const ip = getClientIp(req);
   const ipLimit = checkRateLimit(`signup:ip:${ip}`, { limit: 10, windowMs: 60 * 60 * 1000 });
@@ -45,8 +45,11 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!(await isUsernameAvailable(username))) {
+      return NextResponse.json({ error: "That username is taken" }, { status: 409 });
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
-    const username = await generateUniqueUsername(normalizedEmail);
 
     await prisma.user.create({
       data: {
@@ -56,6 +59,7 @@ export async function POST(req: Request) {
         profile: {
           create: {
             username,
+            usernameChosen: true,
             displayName: name,
             bio: "",
             avatarUrl: "",
@@ -74,8 +78,9 @@ export async function POST(req: Request) {
     console.error("[signup] account creation failed", error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : String(error.meta?.target ?? "");
       return NextResponse.json(
-        { error: "An account with this email already exists" },
+        { error: target.includes("username") ? "That username is taken" : "An account with this email already exists" },
         { status: 409 }
       );
     }

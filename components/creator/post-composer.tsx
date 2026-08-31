@@ -222,6 +222,11 @@ export function PostComposer({
     setCropQueue((prev) => prev.slice(1));
   }
 
+  function handleCropError() {
+    setCropQueue((prev) => prev.slice(1));
+    setError("A photo couldn't be opened. Try a different one, or convert it to JPEG or PNG first.");
+  }
+
   async function handleVideoFrameConfirm({ crop }: { crop: VideoCrop; width: number; height: number; durationSeconds: number }) {
     const file = videoQueue[0];
     setVideoQueue((prev) => prev.slice(1));
@@ -687,6 +692,7 @@ export function PostComposer({
           initialPresetId={displayAspectRatio}
           onCancel={handleCropCancel}
           onConfirm={handleCropConfirm}
+          onError={handleCropError}
         />
       ) : (
         videoQueue.length > 0 && (

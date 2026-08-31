@@ -80,22 +80,35 @@ export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
     setPendingFile(null);
   }
 
+  function handleCropError() {
+    setPendingFile(null);
+    setError("This photo couldn't be opened. Try a different one, or convert it to JPEG or PNG first.");
+  }
+
   return (
     <div className="relative aspect-[3/1] w-full overflow-hidden bg-secondary md:aspect-[16/5]">
       {preview ? (
-        <Image src={preview} alt="" fill sizes="(min-width: 1024px) 896px, 100vw" className="object-cover" />
+        <Image
+          src={preview}
+          alt=""
+          fill
+          sizes="(min-width: 1024px) 896px, 100vw"
+          className="object-cover"
+          onError={() => {
+            setPreview("");
+            setError("This photo couldn't be displayed. Please try a different one.");
+          }}
+        />
       ) : (
-        <div className="flex h-full w-full flex-col items-center justify-center bg-muted px-5 text-center">
-          <ImagePlus className="h-7 w-7 text-muted-foreground/45" aria-hidden="true" />
-          <p className="mt-2 text-xs font-medium text-muted-foreground">Add a cover photo</p>
-          <p className="mt-1 text-[11px] text-muted-foreground/70 md:hidden">
-            Best fit on mobile: 3:1, at least 1200 × 400
-          </p>
-          <p className="mt-1 hidden text-[11px] text-muted-foreground/70 md:block">
-            Best fit on web: 16:5, at least 1600 × 500
-          </p>
+        <div className="flex h-full w-full items-center justify-center bg-muted">
+          <ImagePlus className="h-6 w-6 text-muted-foreground/40" aria-hidden="true" />
         </div>
       )}
+
+      <p className="absolute right-3 top-2 text-right text-[9px] font-medium leading-tight text-muted-foreground/60">
+        <span className="md:hidden">3:1, 1200×400+</span>
+        <span className="hidden md:inline">16:5, 1600×500+</span>
+      </p>
 
       {uploading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/60">
@@ -108,7 +121,7 @@ export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
         onClick={() => inputRef.current?.click()}
         disabled={uploading}
         className={cn(
-          "absolute bottom-3 right-3 flex h-11 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+          "absolute bottom-2 right-2 flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60",
           preview
             ? "bg-background/85 text-foreground hover:bg-background"
             : "bg-foreground text-background hover:bg-foreground/90"
@@ -116,11 +129,11 @@ export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
       >
         {preview ? (
           <>
-            <Camera className="h-4 w-4" aria-hidden="true" /> Change banner
+            <Camera className="h-3 w-3" aria-hidden="true" /> Change
           </>
         ) : (
           <>
-            <Plus className="h-4 w-4" aria-hidden="true" /> Add banner
+            <Plus className="h-3 w-3" aria-hidden="true" /> Banner
           </>
         )}
       </button>
@@ -143,6 +156,7 @@ export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
           title="Adjust your banner"
           onCancel={handleCropCancel}
           onConfirm={handleCropConfirm}
+          onError={handleCropError}
         />
       )}
     </div>

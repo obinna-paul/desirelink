@@ -10,7 +10,6 @@ import {
   LockKeyhole,
   MapPin,
   MessageCircle,
-  Pencil,
   Star,
   type LucideIcon,
 } from "lucide-react";
@@ -157,7 +156,7 @@ export function ProfileView({
         )}
 
         <div className="px-4 pb-5 sm:px-6 md:px-8 md:pb-7">
-          <div className="-mt-10 grid grid-cols-[auto_minmax(0,1fr)] items-end gap-4 sm:-mt-12 md:-mt-14 md:items-start md:gap-6">
+          <div className="-mt-10 flex items-end gap-4 sm:-mt-12 md:-mt-14 md:items-start md:gap-6">
             <ProfileAvatarEditor
               avatarUrl={profile.avatarUrl}
               displayName={profile.displayName}
@@ -165,29 +164,31 @@ export function ProfileView({
               isOwner={isOwner}
             />
 
-            <div className="min-w-0 pb-1 md:pt-16">
+            <div className="min-w-0 flex-1 pb-1 md:pt-16">
               <div className="flex min-w-0 items-center gap-2">
                 <h1 className="truncate font-heading text-xl font-semibold text-foreground sm:text-2xl md:text-3xl">
-                  {profile.displayName}
+                  {profile.displayName || `@${profile.username}`}
                 </h1>
                 <VerificationBadge profile={profile} />
                 {isPremium && <PremiumBadge />}
               </div>
-              <p className="mt-0.5 truncate text-sm text-muted-foreground">@{profile.username}</p>
-
-              <div className="mt-3 grid max-w-md grid-cols-3 divide-x divide-border md:mt-4">
-                <ProfileStat value={posts.length} label="Posts" />
-                <ProfileStat value={stats.subscriberCount} label="Subscribers" />
-                <ProfileStat
-                  value={reviewSummary.totalCount ? reviewSummary.averageRating.toFixed(1) : "—"}
-                  label="Rating"
-                  href={sectionHref(profileHref, "reviews")}
-                />
-              </div>
+              {profile.displayName && (
+                <p className="mt-0.5 truncate text-sm text-muted-foreground">@{profile.username}</p>
+              )}
             </div>
           </div>
 
-          <div className="mt-4 max-w-2xl md:ml-[9.5rem] md:mt-0">
+          <div className="mt-4 grid max-w-xs grid-cols-3 divide-x divide-border sm:max-w-sm md:ml-[9.5rem] md:mt-4">
+            <ProfileStat value={posts.length} label="Posts" />
+            <ProfileStat value={stats.subscriberCount} label="Subscribers" />
+            <ProfileStat
+              value={reviewSummary.totalCount ? reviewSummary.averageRating.toFixed(1) : "—"}
+              label="Rating"
+              href={sectionHref(profileHref, "reviews")}
+            />
+          </div>
+
+          <div className="mt-4 max-w-2xl md:ml-[9.5rem]">
             {profile.bio && <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">{profile.bio}</p>}
 
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
@@ -236,9 +237,7 @@ export function ProfileView({
               {isOwner ? (
                 <>
                   <Button asChild className="h-10 min-w-32 flex-1 sm:flex-none" variant="outline">
-                    <Link href="/profile/edit">
-                      <Pencil className="h-4 w-4" aria-hidden="true" /> Edit profile
-                    </Link>
+                    <Link href="/profile/edit">Edit profile</Link>
                   </Button>
                   <ShareProfileButton profileHref={profileHref} displayName={profile.displayName} />
                 </>

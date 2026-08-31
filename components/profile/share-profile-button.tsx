@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Share2 } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -37,9 +37,7 @@ export function ShareProfileButton({
           <Check className="h-4 w-4" aria-hidden="true" /> Link copied
         </>
       ) : (
-        <>
-          <Share2 className="h-4 w-4" aria-hidden="true" /> Share profile
-        </>
+        "Share profile"
       )}
     </Button>
   );

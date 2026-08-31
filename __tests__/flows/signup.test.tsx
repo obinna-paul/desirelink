@@ -33,7 +33,8 @@ describe("signup flow", () => {
     const user = userEvent.setup();
     render(<SignupPage />);
 
-    await user.type(screen.getByLabelText(/name/i), "Ada Lovelace");
+    await user.type(screen.getByLabelText(/^name$/i), "Ada Lovelace");
+    await user.type(screen.getByLabelText(/^username$/i), "adalovelace");
     await user.type(screen.getByLabelText(/email/i), "Ada@Example.COM");
     await user.type(screen.getByLabelText(/^password$/i), "password123");
     await user.type(screen.getByLabelText(/confirm password/i), "password123");
@@ -43,7 +44,7 @@ describe("signup flow", () => {
 
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalledWith("credentials", {
-        email: "ada@example.com",
+        identifier: "ada@example.com",
         password: "password123",
         redirect: false,
       });
@@ -51,6 +52,7 @@ describe("signup flow", () => {
 
     expect(submittedBodies[0]).toMatchObject({
       name: "Ada Lovelace",
+      username: "adalovelace",
       email: "ada@example.com",
       profileType: "EXPLORER",
     });

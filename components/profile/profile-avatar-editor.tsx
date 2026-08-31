@@ -145,6 +145,10 @@ export function ProfileAvatarEditor({
             setPendingFile(null);
             void upload(file);
           }}
+          onError={() => {
+            setPendingFile(null);
+            setError("This photo couldn't be opened. Try a different one, or convert it to JPEG or PNG first.");
+          }}
         />
       )}
 

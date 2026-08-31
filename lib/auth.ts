@@ -37,6 +37,7 @@ async function ensureProfileForAuthUser(user: {
       profile: {
         create: {
           username,
+          usernameChosen: false,
           displayName,
           bio: "",
           avatarUrl: user.image ?? "",
@@ -57,22 +58,22 @@ const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
     name: "Credentials",
     credentials: {
-      email: { label: "Email", type: "email" },
+      identifier: { label: "Email or username", type: "text" },
       password: { label: "Password", type: "password" },
     },
     async authorize(credentials, req) {
-      if (!credentials?.email || !credentials?.password) return null;
+      if (!credentials?.identifier || !credentials?.password) return null;
 
-      const email = credentials.email.toLowerCase();
+      const identifier = credentials.identifier.trim().toLowerCase();
       const ip = getClientIpFromHeaders(req.headers);
-      const loginLimit = checkRateLimit(`login:${ip}:${email}`, {
+      const loginLimit = checkRateLimit(`login:${ip}:${identifier}`, {
         limit: 10,
         windowMs: 15 * 60 * 1000,
       });
       if (!loginLimit.allowed) return null;
 
-      const user = await prisma.user.findUnique({
-        where: { email },
+      const user = await prisma.user.findFirst({
+        where: { OR: [{ email: identifier }, { profile: { username: identifier } }] },
       });
 
       if (!user || !user.passwordHash) return null;

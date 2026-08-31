@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -14,9 +15,12 @@ export default async function AppGroupLayout({
   const profile = session?.user?.id
     ? await prisma.profile.findUnique({
         where: { userId: session.user.id },
-        select: { profileType: true },
+        select: { profileType: true, usernameChosen: true },
       })
     : null;
+  if (profile && !profile.usernameChosen) {
+    redirect("/onboarding/username");
+  }
   const isProvider = profile ? isProviderProfileType(profile.profileType) : false;
 
   return <AppShell isProvider={isProvider}>{children}</AppShell>;

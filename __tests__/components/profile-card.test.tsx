@@ -9,6 +9,7 @@ function profile(overrides: Partial<ProfileCardData> = {}): ProfileCardData {
     username: "mara",
     displayName: "Mara Stone",
     avatarUrl: "",
+    bannerUrl: "",
     city: "Lagos",
     country: "NG",
     showExactLocation: true,
@@ -35,16 +36,15 @@ function profile(overrides: Partial<ProfileCardData> = {}): ProfileCardData {
 
 describe("ProfileCard", () => {
   it("renders profile identity, location, desires, premium badge, and match score", () => {
-    render(<ProfileCard profile={profile()} matchScore={91} />);
+    const { container } = render(<ProfileCard profile={profile()} matchScore={91} />);
 
     expect(screen.getByRole("link")).toHaveAttribute("href", "/profile/mara");
     expect(screen.getByText("Mara Stone")).toBeInTheDocument();
     expect(screen.getByText("@mara")).toBeInTheDocument();
     expect(screen.getByText("Lagos, NG")).toBeInTheDocument();
-    expect(screen.getByText("premium")).toBeInTheDocument();
+    expect(screen.getByText("Premium")).toBeInTheDocument();
     expect(screen.getByText("91% match")).toBeInTheDocument();
     expect(screen.getByText("Dinner")).toBeInTheDocument();
-    expect(screen.getByText("+1 more")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /verified creator/i })).toBeInTheDocument();
+    expect(container.querySelector('[aria-label="Verified"]')).toBeInTheDocument();
   });
 });

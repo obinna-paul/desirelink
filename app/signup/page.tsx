@@ -65,17 +65,18 @@ export default function SignupPage() {
   const reviewItems = useMemo(
     () => [
       { label: "Name", value: values.name || "Not set" },
+      { label: "Username", value: values.username ? `@${values.username}` : "Not set" },
       { label: "Email", value: normalizedEmail || "Not set" },
       { label: "Account type", value: accountTypeLabel },
     ],
-    [accountTypeLabel, normalizedEmail, values.name]
+    [accountTypeLabel, normalizedEmail, values.name, values.username]
   );
 
   async function goNext() {
     setServerError(null);
 
     if (step === 0) {
-      const valid = await trigger(["name", "email", "password", "confirmPassword"]);
+      const valid = await trigger(["name", "username", "email", "password", "confirmPassword"]);
       if (!valid) return;
     }
 
@@ -114,7 +115,7 @@ export default function SignupPage() {
     setStatus("success");
 
     const result = await signIn("credentials", {
-      email: normalizedData.email,
+      identifier: normalizedData.email,
       password: data.password,
       redirect: false,
     });
@@ -250,14 +251,21 @@ export default function SignupPage() {
                       variant="lightAuth"
                     />
                     <FormField
-                      label="Email"
-                      type="email"
-                      autoComplete="email"
-                      registration={register("email")}
-                      error={errors.email?.message}
+                      label="Username"
+                      autoComplete="username"
+                      registration={register("username")}
+                      error={errors.username?.message}
                       variant="lightAuth"
                     />
                   </div>
+                  <FormField
+                    label="Email"
+                    type="email"
+                    autoComplete="email"
+                    registration={register("email")}
+                    error={errors.email?.message}
+                    variant="lightAuth"
+                  />
                   <FormField
                     label="Password"
                     type="password"

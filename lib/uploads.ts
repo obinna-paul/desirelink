@@ -55,7 +55,17 @@ function extensionFor(contentType: string, resourceType: UploadResourceType): st
   return EXTENSION_BY_TYPE[contentType] ?? (resourceType === "video" ? "mp4" : "jpg");
 }
 
+// Browsers can't render these in an <img>/<video> tag even though Cloudinary accepts them as
+// input - most commonly HEIC/HEIF, the default photo format on modern iPhones. Force a
+// transcode to a universally-viewable format at upload time so a picked photo never turns
+// into a "blank" image, no matter what format the visitor's gallery originally saved it in.
+const IMAGE_FORMATS_NEEDING_CONVERSION = new Set(["image/heic", "image/heif"]);
+
 async function uploadToCloudinary(options: StoreUploadOptions): Promise<StoredUpload> {
+  const isImage = options.resourceType !== "video";
+  const format =
+    options.format ?? (isImage && IMAGE_FORMATS_NEEDING_CONVERSION.has(options.contentType) ? "jpg" : undefined);
+
   const result = await new Promise<{ secure_url: string; width?: number; height?: number; duration?: number }>(
     (resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
@@ -65,7 +75,7 @@ async function uploadToCloudinary(options: StoreUploadOptions): Promise<StoredUp
           overwrite: Boolean(options.publicId),
           resource_type: options.resourceType === "video" ? "video" : "image",
           transformation: options.transformation,
-          format: options.format,
+          format,
         },
         (error, result) => {
           if (error || !result) return reject(error ?? new Error("Upload failed"));

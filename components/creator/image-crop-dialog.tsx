@@ -23,6 +23,7 @@ export function ImageCropDialog({
   file,
   onCancel,
   onConfirm,
+  onError,
   presets = IMAGE_CROP_PRESETS,
   initialPresetId,
   shape = "square",
@@ -31,6 +32,8 @@ export function ImageCropDialog({
   file: File;
   onCancel: () => void;
   onConfirm: (result: { file: File; width: number; height: number }) => void;
+  /** Called when the browser can't decode this file (e.g. an unsupported photo format) instead of leaving a stuck, blank dialog. */
+  onError?: () => void;
   presets?: readonly CropPreset[];
   initialPresetId?: string;
   shape?: "square" | "circle";
@@ -55,8 +58,10 @@ export function ImageCropDialog({
     setImageUrl(url);
     const img = new window.Image();
     img.onload = () => setNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => onError?.();
     img.src = url;
     return () => URL.revokeObjectURL(url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onError is a stable callback from the caller, not a reactive dependency of loading this file
   }, [file]);
 
   useEffect(() => {

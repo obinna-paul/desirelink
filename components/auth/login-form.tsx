@@ -28,14 +28,14 @@ export function LoginForm() {
     setStatus("loading");
 
     const result = await signIn("credentials", {
-      email: data.email,
+      identifier: data.identifier,
       password: data.password,
       redirect: false,
     });
 
     if (result?.error) {
       setStatus("idle");
-      setServerError("Invalid email or password");
+      setServerError("Invalid email/username or password");
       return;
     }
 
@@ -48,11 +48,10 @@ export function LoginForm() {
     <div className="flex flex-col gap-5 sm:gap-5">
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 sm:gap-4">
         <FormField
-          label="Email"
-          type="email"
-          autoComplete="email"
-          registration={register("email")}
-          error={errors.email?.message}
+          label="Email or username"
+          autoComplete="username"
+          registration={register("identifier")}
+          error={errors.identifier?.message}
           variant="lightAuth"
         />
         <FormField
