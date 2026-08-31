@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { storeUpload } from "@/lib/uploads";
 import { allowedImageTypesLabel, isAllowedImageFile } from "@/lib/security/uploads";
 
@@ -40,6 +41,12 @@ export async function POST(req: Request) {
       publicId: session.user.id,
       contentType: file.type,
       transformation: [{ width: 512, height: 512, crop: "fill", gravity: "face" }],
+      format: "jpg",
+    });
+
+    await prisma.profile.update({
+      where: { userId: session.user.id },
+      data: { avatarUrl: url },
     });
 
     return NextResponse.json({ url }, { status: 200 });

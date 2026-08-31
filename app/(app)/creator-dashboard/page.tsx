@@ -10,7 +10,6 @@ import { DashboardTabs } from "@/components/creator/dashboard-tabs";
 import { StatCard } from "@/components/creator/stat-card";
 import { AudienceList } from "@/components/creator/audience-list";
 import { ContentList } from "@/components/creator/content-list";
-import { TierManager } from "@/components/creator/tier-manager";
 import { ApplicationsList } from "@/components/creator/applications-list";
 import { CreatorAssistantPanel } from "@/components/creator/assistant-panel";
 import { ChartSkeleton } from "@/components/ui/skeleton";
@@ -21,7 +20,6 @@ import {
   getCreatorApplications,
   getCreatorAssistantInsights,
   getCreatorStats,
-  getCreatorTiers,
   getEarningsByMonth,
   getSubscriberGrowth,
   getSubscribers,
@@ -74,7 +72,6 @@ export default async function CreatorDashboardPage({
       {tab === "assistant" && <AssistantTab profileId={profile.id} />}
       {tab === "audience" && <AudienceTab profileId={profile.id} />}
       {tab === "content" && <ContentTab profileId={profile.id} displayName={profile.displayName} />}
-      {tab === "tiers" && <TiersTab profileId={profile.id} />}
       {tab === "applications" && <ApplicationsTab profileId={profile.id} />}
       {tab === "earnings" && <EarningsTab profileId={profile.id} />}
       {tab === "analytics" && <AnalyticsTab profileId={profile.id} />}
@@ -110,11 +107,6 @@ async function AudienceTab({ profileId }: { profileId: string }) {
 async function ContentTab({ profileId, displayName }: { profileId: string; displayName: string }) {
   const posts = await getCreatorProfilePosts(profileId, profileId);
   return <ContentList initialPosts={posts} creatorDisplayName={displayName} />;
-}
-
-async function TiersTab({ profileId }: { profileId: string }) {
-  const tiers = await getCreatorTiers(profileId);
-  return <TierManager initialTiers={tiers} />;
 }
 
 async function ApplicationsTab({ profileId }: { profileId: string }) {

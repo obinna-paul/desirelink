@@ -25,6 +25,18 @@ export const DESIRE_CATEGORIES = [
 
 export type DesireCategory = (typeof DESIRE_CATEGORIES)[number];
 
+/** The small, plain-language set shown in the Preferences experience. */
+export const SIMPLE_PREFERENCE_CATEGORIES = [
+  "Casual Chat",
+  "Flirting",
+  "Meetups",
+  "Events",
+  "Creator Content",
+  "Community",
+  "New Experiences",
+  "Private Parties",
+] as const satisfies readonly DesireCategory[];
+
 export const PREFERENCE_LABELS: Record<DesireCategory, string> = {
   "Casual Chat": "Conversation",
   Flirting: "Flirting",

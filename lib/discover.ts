@@ -161,7 +161,7 @@ function buildWhere(
   filters: DiscoverFilters,
   viewerProfile: ViewerProfile | null
 ): Prisma.ProfileWhereInput {
-  const where: Prisma.ProfileWhereInput = { isIncognito: false };
+  const where: Prisma.ProfileWhereInput = { isIncognito: false, showInSearch: true };
   const and: Prisma.ProfileWhereInput[] = [];
 
   if (viewerProfile) {

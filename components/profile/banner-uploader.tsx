@@ -8,8 +8,12 @@ import { Camera, ImagePlus, Loader2, Plus } from "lucide-react";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
 import { cn } from "@/lib/utils";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const BANNER_CROP_PRESETS = [{ id: "banner", label: "Banner", ratio: 16 / 5 }] as const;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const BANNER_CROP_PRESETS = [
+  { id: "desktop", label: "Web 16:5", ratio: 16 / 5 },
+  { id: "mobile", label: "Mobile 3:1", ratio: 3 },
+] as const;
+const CROP_SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"]);
 
 export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
   const router = useRouter();
@@ -30,16 +34,19 @@ export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
-      setError("Image must be under 5MB");
+      setError("Image must be under 10 MB");
       return;
     }
 
-    setPendingFile(file);
+    if (CROP_SUPPORTED_TYPES.has(file.type)) {
+      setPendingFile(file);
+    } else {
+      void upload(file);
+    }
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  async function handleCropConfirm({ file }: { file: File; width: number; height: number }) {
-    setPendingFile(null);
+  async function upload(file: File) {
     setPreview(URL.createObjectURL(file));
     setUploading(true);
     setError(null);
@@ -64,17 +71,29 @@ export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
     }
   }
 
+  async function handleCropConfirm({ file }: { file: File; width: number; height: number }) {
+    setPendingFile(null);
+    await upload(file);
+  }
+
   function handleCropCancel() {
     setPendingFile(null);
   }
 
   return (
-    <div className="relative h-32 w-full overflow-hidden rounded-2xl bg-secondary sm:h-44 md:rounded-3xl">
+    <div className="relative aspect-[3/1] w-full overflow-hidden bg-secondary md:aspect-[16/5]">
       {preview ? (
         <Image src={preview} alt="" fill sizes="(min-width: 1024px) 896px, 100vw" className="object-cover" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-muted">
-          <ImagePlus className="h-8 w-8 text-muted-foreground/60" aria-hidden="true" />
+        <div className="flex h-full w-full flex-col items-center justify-center bg-muted px-5 text-center">
+          <ImagePlus className="h-7 w-7 text-muted-foreground/45" aria-hidden="true" />
+          <p className="mt-2 text-xs font-medium text-muted-foreground">Add a cover photo</p>
+          <p className="mt-1 text-[11px] text-muted-foreground/70 md:hidden">
+            Best fit on mobile: 3:1, at least 1200 × 400
+          </p>
+          <p className="mt-1 hidden text-[11px] text-muted-foreground/70 md:block">
+            Best fit on web: 16:5, at least 1600 × 500
+          </p>
         </div>
       )}
 
@@ -106,7 +125,7 @@ export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
         )}
       </button>
 
-      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+      <input ref={inputRef} type="file" accept="image/*,.heic,.heif,.avif" className="hidden" onChange={handleFileChange} />
 
       {error && (
         <p role="alert" className="absolute bottom-3 left-3 max-w-[60%] rounded-lg bg-background/90 px-2.5 py-1.5 text-xs text-destructive">
@@ -119,6 +138,7 @@ export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
           key={pendingFile.name + pendingFile.lastModified}
           file={pendingFile}
           presets={BANNER_CROP_PRESETS}
+          initialPresetId="desktop"
           shape="square"
           title="Adjust your banner"
           onCancel={handleCropCancel}

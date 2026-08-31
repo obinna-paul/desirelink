@@ -3,8 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ExplorerProfileView } from "@/components/profile/explorer-profile-view";
-import { CreatorProfileView } from "@/components/profile/creator-profile-view";
+import { ProfileView } from "@/components/profile/profile-view";
 import { getCreatorProfilePosts } from "@/lib/posts";
 import { getCreatorStats } from "@/lib/creator";
 import { getPublicTiers } from "@/lib/tiers";
@@ -70,13 +69,13 @@ export default async function PublicProfilePage({
   const viewerOrOwnerId = isOwner ? profile.id : (viewerProfile?.id ?? null);
   const isProvider = isProviderProfileType(profile.profileType);
 
-  const [posts, tiers, serviceListings, events, attendingEvents, stats] = await Promise.all([
+  const [posts, subscriptions, serviceListings, events, attendingEvents, stats] = await Promise.all([
     getCreatorProfilePosts(profile.id, viewerOrOwnerId),
     getPublicTiers(profile.id, viewerOrOwnerId),
     getProviderServiceListings(profile.id),
     getProfileEvents(profile.id, viewerOrOwnerId),
     getAttendingEvents(profile.id, viewerOrOwnerId),
-    isProvider ? getCreatorStats(profile.id) : Promise.resolve(null),
+    getCreatorStats(profile.id),
   ]);
 
   if (viewerProfile) {
@@ -98,44 +97,27 @@ export default async function PublicProfilePage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      {isProvider && stats ? (
-        <CreatorProfileView
-          profile={profile}
-          desires={desires}
-          posts={posts}
-          tiers={tiers}
-          serviceListings={serviceListings}
-          events={events}
-          isOwner={isOwner}
-          isPremium={profileIsPremium}
-          canMessage={!isOwner && Boolean(viewerProfile)}
-          viewerHeartsBalance={viewerProfile?.heartsBalance ?? 0}
-          canModerate={!isOwner && Boolean(viewerProfile)}
-          reviewSummary={reviewSummary}
-          reviews={reviews}
-          reviewableContexts={reviewableContexts}
-          visibleProfileFields={visibility.profileFields}
-          profileHref={`/profile/${profile.username}`}
-          activeSection={searchParams.section}
-          stats={stats}
-        />
-      ) : (
-        <ExplorerProfileView
-          profile={profile}
-          desires={desires}
-          posts={posts}
-          events={attendingEvents}
-          isOwner={isOwner}
-          canMessage={!isOwner && Boolean(viewerProfile)}
-          canModerate={!isOwner && Boolean(viewerProfile)}
-          reviewSummary={reviewSummary}
-          reviews={reviews}
-          reviewableContexts={reviewableContexts}
-          visibleProfileFields={visibility.profileFields}
-          profileHref={`/profile/${profile.username}`}
-          activeSection={searchParams.section}
-        />
-      )}
+      <ProfileView
+        profile={profile}
+        desires={desires}
+        posts={posts}
+        subscription={subscriptions[0] ?? null}
+        serviceListings={serviceListings}
+        events={isProvider ? events : attendingEvents}
+        isOwner={isOwner}
+        isProvider={isProvider}
+        isPremium={profileIsPremium}
+        canMessage={!isOwner && Boolean(viewerProfile)}
+        viewerHeartsBalance={viewerProfile?.heartsBalance ?? 0}
+        canModerate={!isOwner && Boolean(viewerProfile)}
+        reviewSummary={reviewSummary}
+        reviews={reviews}
+        reviewableContexts={reviewableContexts}
+        visibleProfileFields={visibility.profileFields}
+        profileHref={`/profile/${profile.username}`}
+        activeSection={searchParams.section}
+        stats={stats}
+      />
     </div>
   );
 }

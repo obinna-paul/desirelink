@@ -7,7 +7,6 @@ export const CREATOR_DASHBOARD_TABS = [
   { value: "assistant", label: "Assistant" },
   { value: "audience", label: "Audience" },
   { value: "content", label: "Content" },
-  { value: "tiers", label: "Tiers" },
   { value: "applications", label: "Applications" },
   { value: "earnings", label: "Earnings" },
   { value: "analytics", label: "Analytics" },

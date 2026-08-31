@@ -16,7 +16,7 @@ export function AudienceList({ subscribers }: { subscribers: Subscribers }) {
   if (subscribers.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
-        No Fans yet. Once people subscribe to one of your tiers, they&apos;ll show up here.
+        No Fans yet. Once people subscribe, they&apos;ll show up here.
       </div>
     );
   }

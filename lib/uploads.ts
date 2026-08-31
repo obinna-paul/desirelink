@@ -26,6 +26,8 @@ type StoreUploadOptions = {
   resourceType?: UploadResourceType;
   /** Cloudinary transformation array (ignored by the local fallback, which stores the original). */
   transformation?: Record<string, unknown>[];
+  /** Force a broadly supported Cloudinary output format when needed. */
+  format?: string;
 };
 
 export function isCloudinaryConfigured(): boolean {
@@ -42,6 +44,8 @@ const EXTENSION_BY_TYPE: Record<string, string> = {
   "image/webp": "webp",
   "image/gif": "gif",
   "image/avif": "avif",
+  "image/heic": "heic",
+  "image/heif": "heif",
   "video/mp4": "mp4",
   "video/quicktime": "mov",
   "video/webm": "webm",
@@ -61,6 +65,7 @@ async function uploadToCloudinary(options: StoreUploadOptions): Promise<StoredUp
           overwrite: Boolean(options.publicId),
           resource_type: options.resourceType === "video" ? "video" : "image",
           transformation: options.transformation,
+          format: options.format,
         },
         (error, result) => {
           if (error || !result) return reject(error ?? new Error("Upload failed"));

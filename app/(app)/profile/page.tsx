@@ -3,8 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ExplorerProfileView } from "@/components/profile/explorer-profile-view";
-import { CreatorProfileView } from "@/components/profile/creator-profile-view";
+import { ProfileView } from "@/components/profile/profile-view";
 import { getCreatorProfilePosts } from "@/lib/posts";
 import { getCreatorStats } from "@/lib/creator";
 import { getPublicTiers } from "@/lib/tiers";
@@ -13,6 +12,7 @@ import { isPremiumUser } from "@/lib/premium";
 import { getAttendingEvents, getProfileEvents } from "@/lib/events";
 import { getReviewSummary, getReviewsForProfile } from "@/lib/reviews";
 import { isProviderProfileType } from "@/lib/provider-types";
+import { ALL_PROFILE_FIELD_NAMES } from "@/lib/circles";
 
 export default async function ProfilePage({
   searchParams,
@@ -44,7 +44,7 @@ export default async function ProfilePage({
 
   const isProvider = isProviderProfileType(profile.profileType);
 
-  const [posts, tiers, serviceListings, events, attendingEvents, profileIsPremium, reviewSummary, reviews, stats] =
+  const [posts, subscriptions, serviceListings, events, attendingEvents, profileIsPremium, reviewSummary, reviews, stats] =
     await Promise.all([
       getCreatorProfilePosts(profile.id, profile.id),
       getPublicTiers(profile.id, profile.id),
@@ -54,40 +54,28 @@ export default async function ProfilePage({
       isPremiumUser(profile.id),
       getReviewSummary(profile.id),
       getReviewsForProfile(profile.id),
-      isProvider ? getCreatorStats(profile.id) : Promise.resolve(null),
+      getCreatorStats(profile.id),
     ]);
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      {isProvider && stats ? (
-        <CreatorProfileView
-          profile={profile}
-          desires={profile.desires}
-          posts={posts}
-          tiers={tiers}
-          serviceListings={serviceListings}
-          events={events}
-          isOwner
-          isPremium={profileIsPremium}
-          profileHref="/profile"
-          activeSection={searchParams.section}
-          reviewSummary={reviewSummary}
-          reviews={reviews}
-          stats={stats}
-        />
-      ) : (
-        <ExplorerProfileView
-          profile={profile}
-          desires={profile.desires}
-          posts={posts}
-          events={attendingEvents}
-          isOwner
-          profileHref="/profile"
-          activeSection={searchParams.section}
-          reviewSummary={reviewSummary}
-          reviews={reviews}
-        />
-      )}
+      <ProfileView
+        profile={profile}
+        desires={profile.desires}
+        posts={posts}
+        subscription={subscriptions[0] ?? null}
+        serviceListings={serviceListings}
+        events={isProvider ? events : attendingEvents}
+        isOwner
+        isProvider={isProvider}
+        isPremium={profileIsPremium}
+        profileHref="/profile"
+        activeSection={searchParams.section}
+        reviewSummary={reviewSummary}
+        reviews={reviews}
+        visibleProfileFields={ALL_PROFILE_FIELD_NAMES}
+        stats={stats}
+      />
     </div>
   );
 }

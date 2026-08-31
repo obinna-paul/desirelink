@@ -1,19 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller, useForm, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Profile } from "@prisma/client";
 import {
   Bell,
+  ArrowLeft,
   Camera,
   ChevronRight,
   LocateFixed,
   Lock,
   MapPin,
   ShieldCheck,
-  SlidersHorizontal,
   Sparkles,
   Store,
   type LucideIcon,
@@ -31,7 +32,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { updateProfileSchema, type UpdateProfileInput } from "@/lib/validations/profile";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
-import { SERVICE_CATEGORY_OPTIONS } from "@/lib/account-types";
 import { isProviderProfileType } from "@/lib/provider-types";
 
 type BooleanFieldName =
@@ -42,16 +42,14 @@ type BooleanFieldName =
   | "showExactLocation"
   | "isIncognito";
 
-type EditSectionId =
+type EditableSectionId =
   | "basics"
   | "photos"
   | "location"
   | "privacy"
-  | "availability"
-  | "desires"
-  | "services"
-  | "verification"
-  | "monetization";
+  | "availability";
+
+type EditSectionId = EditableSectionId | "desires" | "services" | "verification" | "monetization";
 
 const EDIT_SECTIONS: {
   id: EditSectionId;
@@ -59,16 +57,17 @@ const EDIT_SECTIONS: {
   description: string;
   icon: LucideIcon;
   providerOnly?: boolean;
+  href?: string;
 }[] = [
   { id: "basics", label: "Basics", description: "Name, bio, identity", icon: UserRound },
   { id: "photos", label: "Photos", description: "Profile image", icon: Camera },
   { id: "location", label: "Location", description: "City and nearby matching", icon: MapPin },
   { id: "privacy", label: "Privacy", description: "Search, location, incognito", icon: Lock },
   { id: "availability", label: "Availability", description: "Chat and meet status", icon: Bell },
-  { id: "desires", label: "Preferences", description: "Recommendation taste", icon: Sparkles },
-  { id: "services", label: "Services", description: "What you offer", icon: Store, providerOnly: true },
-  { id: "verification", label: "Verification", description: "Trust signals", icon: ShieldCheck, providerOnly: true },
-  { id: "monetization", label: "Monetization", description: "Premium and payouts", icon: WalletCards, providerOnly: true },
+  { id: "desires", label: "Preferences", description: "Shape recommendations", icon: Sparkles, href: "/profile/edit/preferences" },
+  { id: "services", label: "Services", description: "Listings and bookings", icon: Store, href: "/profile/edit/services" },
+  { id: "verification", label: "Verification", description: "Identity and trust", icon: ShieldCheck, href: "/verification" },
+  { id: "monetization", label: "Monetization", description: "Premium and payouts", icon: WalletCards, providerOnly: true, href: "/creator-dashboard" },
 ];
 
 function FieldWrapper({
@@ -134,34 +133,49 @@ function SectionButton({
   onClick: () => void;
 }) {
   const Icon = section.icon;
+  const className = cn(
+    "flex min-h-[64px] w-full items-center gap-3 border-b border-border px-1 py-2 text-left transition-colors last:border-b-0 md:rounded-xl md:border md:px-3.5",
+    isActive
+      ? "md:border-foreground md:bg-foreground md:text-background"
+      : "text-foreground hover:bg-muted md:border-border md:bg-card"
+  );
 
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-current={isActive ? "page" : undefined}
-      className={cn(
-        "flex min-h-[60px] min-w-[178px] items-center gap-3 rounded-2xl border px-3.5 text-left transition-colors md:min-w-0 md:rounded-xl",
-        isActive
-          ? "border-foreground bg-foreground text-background"
-          : "border-border/70 bg-card text-foreground hover:bg-secondary"
-      )}
-    >
+  const content = (
+    <>
       <span
         className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
-          isActive ? "border-background/20 bg-background/10" : "border-border/70 bg-secondary text-primary"
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-foreground md:rounded-xl md:border",
+          isActive ? "md:border-background/20 md:bg-background/10 md:text-background" : "md:border-border md:text-primary"
         )}
       >
         <Icon className="h-4 w-4" aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold">{section.label}</span>
-        <span className={cn("hidden truncate text-xs md:block", isActive ? "text-background/70" : "text-muted-foreground")}>
+        <span className={cn("mt-0.5 block truncate text-xs", isActive ? "md:text-background/70" : "text-muted-foreground")}>
           {section.description}
         </span>
       </span>
-      <ChevronRight className="hidden h-4 w-4 shrink-0 md:block" aria-hidden="true" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground md:text-current" aria-hidden="true" />
+    </>
+  );
+
+  if (section.href) {
+    return (
+      <Link href={section.href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={isActive ? "page" : undefined}
+      className={className}
+    >
+      {content}
     </button>
   );
 }
@@ -176,7 +190,7 @@ function SectionShell({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] border border-border/70 bg-card p-4 shadow-sm sm:p-6 md:rounded-2xl">
+    <section className="bg-transparent md:rounded-2xl md:border md:border-border md:bg-card md:p-6 md:shadow-sm">
       <div className="mb-5">
         <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
         <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>
@@ -188,7 +202,9 @@ function SectionShell({
 
 export function EditProfileForm({ profile }: { profile: Profile }) {
   const router = useRouter();
-  const [activeSection, setActiveSection] = useState<EditSectionId>("basics");
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [activeSection, setActiveSection] = useState<EditableSectionId>("basics");
+  const [mobileSection, setMobileSection] = useState<EditableSectionId | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "success">("idle");
   const [serverError, setServerError] = useState<string | null>(null);
   const [premiumUpsell, setPremiumUpsell] = useState<string | null>(null);
@@ -225,19 +241,18 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
   });
 
   const avatarUrl = watch("avatarUrl");
-  const serviceCategories = watch("serviceCategories") ?? [];
   const locationLat = watch("locationLat");
   const locationLng = watch("locationLng");
   const isProvider = isProviderProfileType(profile.profileType);
   const visibleSections = EDIT_SECTIONS.filter((section) => !section.providerOnly || isProvider);
-  const activeMeta = visibleSections.find((section) => section.id === activeSection) ?? visibleSections[0];
 
-  function toggleServiceCategory(category: string) {
-    const next = serviceCategories.includes(category)
-      ? serviceCategories.filter((value) => value !== category)
-      : [...serviceCategories, category];
-    setValue("serviceCategories", next, { shouldDirty: true });
-  }
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
 
   async function onSubmit(data: UpdateProfileInput) {
     setServerError(null);
@@ -256,6 +271,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       if (body?.code === "PREMIUM_REQUIRED") {
         setPremiumUpsell(body.error);
         setActiveSection("privacy");
+        setMobileSection("privacy");
       } else {
         setServerError(body?.error ?? "Something went wrong. Please try again.");
       }
@@ -292,8 +308,8 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
     );
   }
 
-  function renderActiveSection() {
-    if (activeSection === "photos") {
+  function renderSection(sectionId: EditableSectionId) {
+    if (sectionId === "photos") {
       return (
         <SectionShell title="Photos" description="Use a clear profile image so people recognize you quickly.">
           <input type="hidden" {...register("avatarUrl")} />
@@ -306,7 +322,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       );
     }
 
-    if (activeSection === "location") {
+    if (sectionId === "location") {
       return (
         <SectionShell title="Location" description="Use city-level details publicly and private coordinates for nearby matching.">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -355,7 +371,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       );
     }
 
-    if (activeSection === "privacy") {
+    if (sectionId === "privacy") {
       return (
         <SectionShell title="Privacy" description="Control discoverability, location visibility, and premium privacy features.">
           <div className="flex flex-col gap-3">
@@ -385,7 +401,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       );
     }
 
-    if (activeSection === "availability") {
+    if (sectionId === "availability") {
       return (
         <SectionShell title="Availability" description="Set the signals people see before they contact you.">
           <div className="flex flex-col gap-3">
@@ -401,83 +417,6 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
               control={control}
               name="openToMeet"
             />
-          </div>
-        </SectionShell>
-      );
-    }
-
-    if (activeSection === "desires") {
-      return (
-        <SectionShell title="Preferences" description="A focused setup for what you want to find, enjoy, and avoid.">
-          <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
-            <p className="text-sm leading-6 text-muted-foreground">
-              Save any profile changes, then update your preferences below. They stay private unless you choose to show them.
-            </p>
-            <Button asChild type="button" variant="outline" className="mt-4 h-11">
-              <a href="#preferences">
-                Open Preferences <ChevronRight className="h-4 w-4" aria-hidden="true" />
-              </a>
-            </Button>
-          </div>
-        </SectionShell>
-      );
-    }
-
-    if (activeSection === "services") {
-      return (
-        <SectionShell title="Services" description="Choose service categories you want your profile to be associated with.">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {SERVICE_CATEGORY_OPTIONS.map((category) => (
-              <label
-                key={category}
-                className={cn(
-                  "flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border px-3 text-sm font-medium transition-colors",
-                  serviceCategories.includes(category)
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border/70 bg-background/60 text-foreground hover:bg-secondary"
-                )}
-              >
-                <input
-                  type="checkbox"
-                  checked={serviceCategories.includes(category)}
-                  onChange={() => toggleServiceCategory(category)}
-                  className="h-4 w-4 shrink-0 accent-primary"
-                />
-                {category}
-              </label>
-            ))}
-          </div>
-        </SectionShell>
-      );
-    }
-
-    if (activeSection === "verification") {
-      return (
-        <SectionShell title="Verification" description="Keep trust signals separate from public labels and account types.">
-          <ToggleRow
-            label="Verified"
-            description="Attest that this is your real identity. This shows a Verified badge."
-            control={control}
-            name="isVerified"
-          />
-        </SectionShell>
-      );
-    }
-
-    if (activeSection === "monetization") {
-      return (
-        <SectionShell title="Monetization" description="Premium subscriptions, provider revenue, and payouts are managed from dedicated dashboards.">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Button asChild variant="outline" className="h-12 justify-between">
-              <a href="/creator-dashboard">
-                Creator Studio <ChevronRight className="h-4 w-4" aria-hidden="true" />
-              </a>
-            </Button>
-            <Button asChild variant="outline" className="h-12 justify-between">
-              <a href="/provider-dashboard/earnings">
-                Earnings <ChevronRight className="h-4 w-4" aria-hidden="true" />
-              </a>
-            </Button>
           </div>
         </SectionShell>
       );
@@ -517,48 +456,87 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
     );
   }
 
+  function saveControls(mobile = false) {
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-end gap-2",
+          mobile && "sticky bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-10 mt-6 rounded-xl border border-border bg-background/95 p-2 shadow-lift backdrop-blur"
+        )}
+      >
+        <Button type="button" variant="ghost" onClick={() => router.push("/profile")} className="h-11">
+          Cancel
+        </Button>
+        <Button type="submit" disabled={status !== "idle"} className="h-11 min-w-32">
+          {status === "saving" && "Saving..."}
+          {status === "success" && "Saved"}
+          {status === "idle" && "Save changes"}
+        </Button>
+      </div>
+    );
+  }
+
+  if (!isDesktop) {
+    return (
+      <form onSubmit={handleSubmit(onSubmit)} className="min-w-0 px-1 pb-6">
+        {mobileSection === null ? (
+          <>
+            <div className="mb-4">
+              <h1 className="font-heading text-2xl font-semibold text-foreground">Edit profile</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Choose one thing to update.</p>
+            </div>
+            <nav aria-label="Profile settings" className="border-y border-border">
+              {visibleSections.map((section) => (
+                <SectionButton
+                  key={section.id}
+                  section={section}
+                  isActive={false}
+                  onClick={() => setMobileSection(section.id as EditableSectionId)}
+                />
+              ))}
+            </nav>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setMobileSection(null)}
+              className="mb-4 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Edit profile
+            </button>
+            {renderSection(mobileSection)}
+            {serverError && <p role="alert" className="mt-4 text-sm text-destructive">{serverError}</p>}
+            {saveControls(true)}
+          </>
+        )}
+      </form>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 lg:grid-cols-[256px_minmax(0,1fr)]">
+    <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6 md:grid-cols-[240px_minmax(0,1fr)]">
       <aside className="min-w-0">
-        <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 lg:mx-0 lg:block lg:space-y-2 lg:overflow-visible lg:px-0 lg:pb-0">
+        <div className="sticky top-24 space-y-2">
+          <div className="mb-4 px-1">
+            <h1 className="font-heading text-2xl font-semibold text-foreground">Edit profile</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Manage how you appear and connect.</p>
+          </div>
           {visibleSections.map((section) => (
             <SectionButton
               key={section.id}
               section={section}
-              isActive={activeSection === section.id}
-              onClick={() => setActiveSection(section.id)}
+              isActive={!section.href && activeSection === section.id}
+              onClick={() => setActiveSection(section.id as EditableSectionId)}
             />
           ))}
         </div>
       </aside>
 
       <div className="min-w-0">
-        {renderActiveSection()}
-
-        {serverError && (
-          <p role="alert" className="mt-4 text-sm text-destructive">
-            {serverError}
-          </p>
-        )}
-
-        <div className="mt-4 flex flex-col-reverse gap-2 rounded-2xl border border-border/70 bg-card p-3 shadow-sm sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" onClick={() => router.push("/profile")} className="h-11">
-            Cancel
-          </Button>
-          <Button type="submit" disabled={status !== "idle"} className="h-11">
-            {status === "saving" && "Saving..."}
-            {status === "success" && "Saved!"}
-            {status === "idle" && "Save changes"}
-          </Button>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-border/70 bg-card p-4 text-sm leading-6 text-muted-foreground shadow-sm lg:hidden">
-          <div className="flex items-center gap-2 font-semibold text-foreground">
-            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-            Editing {activeMeta.label}
-          </div>
-          <p className="mt-1">{activeMeta.description}</p>
-        </div>
+        {renderSection(activeSection)}
+        {serverError && <p role="alert" className="mt-4 text-sm text-destructive">{serverError}</p>}
+        <div className="mt-4">{saveControls()}</div>
       </div>
     </form>
   );

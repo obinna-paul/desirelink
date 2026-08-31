@@ -1,6 +1,14 @@
 import "server-only";
 
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "image/heic",
+  "image/heif",
+]);
 const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 
 export function isAllowedImageFile(file: File): boolean {
@@ -16,7 +24,7 @@ export function isAllowedPostMediaFile(file: File): boolean {
 }
 
 export function allowedImageTypesLabel(): string {
-  return "JPEG, PNG, WebP, or GIF";
+  return "JPEG, PNG, WebP, GIF, AVIF, HEIC, or HEIF";
 }
 
 export function allowedPostMediaTypesLabel(): string {

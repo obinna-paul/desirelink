@@ -18,15 +18,17 @@ export function ProfileSectionTab({
     <Link
       href={href}
       aria-current={isActive ? "page" : undefined}
+      aria-label={label}
+      title={label}
       className={cn(
-        "label-caps inline-flex h-11 min-w-max items-center justify-center gap-1.5 rounded-full px-4 text-[11px] transition-colors md:h-12 md:rounded-none md:border-b-2 md:px-3",
+        "relative inline-flex h-12 min-w-0 items-center justify-center text-xs font-semibold transition-colors after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:origin-center after:scale-x-0 after:bg-foreground after:transition-transform md:h-12 md:min-w-max md:gap-2 md:px-5 md:after:inset-x-4",
         isActive
-          ? "bg-primary text-primary-foreground md:border-primary md:bg-transparent md:text-primary"
-          : "bg-card text-muted-foreground hover:bg-accent-tint hover:text-primary md:border-transparent md:bg-transparent"
+          ? "text-foreground after:scale-x-100"
+          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
       )}
     >
-      <Icon className="h-4 w-4" aria-hidden="true" />
-      {label}
+      <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+      <span className="sr-only md:not-sr-only">{label}</span>
     </Link>
   );
 }

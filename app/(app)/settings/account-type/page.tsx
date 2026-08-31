@@ -12,7 +12,7 @@ const PROVIDER_INTENT_REDIRECTS: Record<ProviderUpgradeIntent | "default", strin
   default: "/settings",
   "premium-post": "/create",
   event: "/events/new",
-  service: "/profile/edit#services",
+  service: "/services/new",
 };
 
 function getIntent(value: string | string[] | undefined): ProviderUpgradeIntent | "default" {

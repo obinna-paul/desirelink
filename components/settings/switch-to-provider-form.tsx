@@ -35,7 +35,7 @@ const INTENT_COPY: Record<ProviderUpgradeIntent | "default", { title: string; de
     title: "Switch before listing services",
     description:
       "Choose the provider path that fits you. After switching, you can verify and add your first service listing.",
-    redirectTo: "/profile/edit#services",
+    redirectTo: "/services/new",
   },
 };
 

@@ -41,6 +41,7 @@ export async function POST(req: Request) {
       publicId: session.user.id,
       contentType: file.type,
       transformation: [{ width: 1600, height: 500, crop: "fill", gravity: "auto" }],
+      format: "jpg",
     });
 
     await prisma.profile.update({
