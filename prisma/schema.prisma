@@ -250,10 +250,6 @@ model Profile {
   communityStanding         Int       @default(0)
   profileViews              Int       @default(0)
 
-  isMonetized        Boolean   @default(false)
-  monetizedAt        DateTime?
-  monetizationStatus String    @default("none")
-
   payoutProvider       String    @default("paystack")
   payoutRecipientCode  String?
   payoutSetupStatus    String    @default("not_started")
@@ -313,17 +309,12 @@ model Profile {
   chatMutesIssued        GroupChatMute[]       @relation("GroupChatMuteIssuer")
   verificationRequests   VerificationRequest[]
 
-  premiumSubscription             PremiumSubscription?
   providerSubscriptionsAsSub      ProviderSubscription[]    @relation("ProviderSubscriptionSubscriber")
   providerSubscriptionsAsProvider ProviderSubscription[]    @relation("ProviderSubscriptionProvider")
-  providerEarnings                ProviderEarning[]
-  engagementMetricsAsProvider     EngagementMetric[]        @relation("EngagementMetricProvider")
-  engagementMetricsAsUser         EngagementMetric[]        @relation("EngagementMetricUser")
   paymentMethods                  PaymentMethod[]
   serviceListings                 ServiceListing[]
   serviceBookingsAsProvider       ServiceBooking[]          @relation("ServiceBookingProvider")
   serviceBookingsAsCustomer       ServiceBooking[]          @relation("ServiceBookingCustomer")
-  monetizationApplications        MonetizationApplication[]
   notificationsReceived           Notification[]            @relation("NotificationRecipient")
   notificationsActed              Notification[]            @relation("NotificationActor")
 
@@ -335,7 +326,6 @@ model Profile {
 
   @@index([city, country])
   @@index([profileType])
-  @@index([profileType, isMonetized])
   @@index([locationLat, locationLng])
 }
 
@@ -413,24 +403,6 @@ model Subscription {
 
   @@index([subscriberId])
   @@index([creatorId])
-  @@index([status])
-}
-
-model PremiumSubscription {
-  id                    String    @id @default(cuid())
-  userId                String    @unique
-  user                  Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status                String
-  paymentCustomerId     String?
-  paymentSubscriptionId String?
-  currentPeriodStart    DateTime
-  currentPeriodEnd      DateTime
-  cancelAtPeriodEnd     Boolean   @default(false)
-  pastDueSince          DateTime?
-  paymentRetryCount     Int       @default(0)
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
   @@index([status])
 }
 
@@ -513,39 +485,6 @@ model ServiceBooking {
   @@index([providerId])
   @@index([customerId])
   @@index([status])
-}
-
-model ProviderEarning {
-  id              String    @id @default(cuid())
-  providerId      String
-  provider        Profile   @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  month           String
-  points          Int       @default(0)
-  amountCents     Int       @default(0)
-  status          String    @default("pending")
-  payoutReference String?
-  paidAt          DateTime?
-  createdAt       DateTime  @default(now())
-
-  @@unique([providerId, month])
-  @@index([providerId])
-  @@index([month])
-  @@index([status])
-}
-
-model EngagementMetric {
-  id         String   @id @default(cuid())
-  providerId String
-  provider   Profile  @relation("EngagementMetricProvider", fields: [providerId], references: [id], onDelete: Cascade)
-  userId     String?
-  user       Profile? @relation("EngagementMetricUser", fields: [userId], references: [id], onDelete: SetNull)
-  metricType String
-  value      Int      @default(1)
-  createdAt  DateTime @default(now())
-
-  @@index([providerId])
-  @@index([metricType])
-  @@index([createdAt])
 }
 
 model PaymentMethod {
@@ -940,7 +879,6 @@ model Transaction {
   providerSubscription   ProviderSubscription? @relation(fields: [providerSubscriptionId], references: [id], onDelete: SetNull)
   serviceBookingId       String?               @unique
   serviceBooking         ServiceBooking?       @relation(fields: [serviceBookingId], references: [id], onDelete: SetNull)
-  isPremium              Boolean               @default(false)
   amountCents            Int
   status                 String
   provider               String
@@ -1021,21 +959,6 @@ model VerificationRequest {
   @@index([profileId])
   @@index([status])
   @@index([requestType, status])
-}
-
-// --- Provider monetization ---------------------------------------------------
-
-model MonetizationApplication {
-  id           String    @id @default(cuid())
-  providerId   String
-  provider     Profile   @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  status       String    @default("pending")
-  reviewedById String?
-  reviewedAt   DateTime?
-  createdAt    DateTime  @default(now())
-
-  @@index([providerId])
-  @@index([status])
 }
 
 // --- Live streaming & gifting -------------------------------------------------
