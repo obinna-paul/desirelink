@@ -5,46 +5,46 @@ CREATE TYPE "ServiceBookingStatus" AS ENUM ('pending_payment', 'pending_provider
 CREATE TYPE "EscrowStatus" AS ENUM ('held', 'released', 'refunded');
 
 -- DropForeignKey
-ALTER TABLE "EngagementMetric" DROP CONSTRAINT "EngagementMetric_providerId_fkey";
+ALTER TABLE "EngagementMetric" DROP CONSTRAINT IF EXISTS "EngagementMetric_providerId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "EngagementMetric" DROP CONSTRAINT "EngagementMetric_userId_fkey";
+ALTER TABLE "EngagementMetric" DROP CONSTRAINT IF EXISTS "EngagementMetric_userId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "MonetizationApplication" DROP CONSTRAINT "MonetizationApplication_providerId_fkey";
+ALTER TABLE "MonetizationApplication" DROP CONSTRAINT IF EXISTS "MonetizationApplication_providerId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "PremiumSubscription" DROP CONSTRAINT "PremiumSubscription_userId_fkey";
+ALTER TABLE "PremiumSubscription" DROP CONSTRAINT IF EXISTS "PremiumSubscription_userId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "ProviderEarning" DROP CONSTRAINT "ProviderEarning_providerId_fkey";
+ALTER TABLE "ProviderEarning" DROP CONSTRAINT IF EXISTS "ProviderEarning_providerId_fkey";
 
 -- DropIndex
-DROP INDEX "Profile_profileType_isMonetized_idx";
+DROP INDEX IF EXISTS "Profile_profileType_isMonetized_idx";
 
 -- AlterTable
-ALTER TABLE "Profile" DROP COLUMN "isMonetized",
-DROP COLUMN "monetizationStatus",
-DROP COLUMN "monetizedAt";
+ALTER TABLE "Profile" DROP COLUMN IF EXISTS "isMonetized",
+DROP COLUMN IF EXISTS "monetizationStatus",
+DROP COLUMN IF EXISTS "monetizedAt";
 
 -- AlterTable
-ALTER TABLE "Transaction" DROP COLUMN "isPremium",
-ADD COLUMN     "escrowReleasedAt" TIMESTAMP(3),
-ADD COLUMN     "escrowStatus" "EscrowStatus",
-ADD COLUMN     "providerReference" TEXT,
-ADD COLUMN     "serviceBookingId" TEXT;
+ALTER TABLE "Transaction" DROP COLUMN IF EXISTS "isPremium",
+ADD COLUMN IF NOT EXISTS "escrowReleasedAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS "escrowStatus" "EscrowStatus",
+ADD COLUMN IF NOT EXISTS "providerReference" TEXT,
+ADD COLUMN IF NOT EXISTS "serviceBookingId" TEXT;
 
 -- DropTable
-DROP TABLE "EngagementMetric";
+DROP TABLE IF EXISTS "EngagementMetric";
 
 -- DropTable
-DROP TABLE "MonetizationApplication";
+DROP TABLE IF EXISTS "MonetizationApplication";
 
 -- DropTable
-DROP TABLE "PremiumSubscription";
+DROP TABLE IF EXISTS "PremiumSubscription";
 
 -- DropTable
-DROP TABLE "ProviderEarning";
+DROP TABLE IF EXISTS "ProviderEarning";
 
 -- CreateTable
 CREATE TABLE "ServiceBooking" (

@@ -1,12 +1,12 @@
 -- DropForeignKey
-ALTER TABLE "Desire" DROP CONSTRAINT "Desire_userId_fkey";
+ALTER TABLE "Desire" DROP CONSTRAINT IF EXISTS "Desire_userId_fkey";
 
 -- DropTable
-DROP TABLE "Desire";
+DROP TABLE IF EXISTS "Desire";
 
 -- DropEnum
-DROP TYPE "DesireLevel";
+DROP TYPE IF EXISTS "DesireLevel";
 
 -- DropEnum
-DROP TYPE "PrivacyLevel";
+DROP TYPE IF EXISTS "PrivacyLevel";
 
