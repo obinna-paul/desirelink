@@ -123,28 +123,6 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
   };
 }
 
-export function hasAdvancedDiscoverFilters(filters: DiscoverFilters): boolean {
-  return Boolean(
-    filters.desireCategories.length > 0 ||
-      filters.desireLevel ||
-      filters.bodyTypes.length > 0 ||
-      filters.lastActive !== "any" ||
-      filters.verification !== "any"
-  );
-}
-
-export function withoutAdvancedDiscoverFilters(filters: DiscoverFilters): DiscoverFilters {
-  return {
-    ...filters,
-    accountTypes: [],
-    desireCategories: [],
-    desireLevel: null,
-    bodyTypes: [],
-    lastActive: "any",
-    verification: "any",
-  };
-}
-
 type ViewerProfile = {
   id: string;
   locationLat: number;
@@ -256,18 +234,13 @@ export type DiscoverResult = {
 
 export async function searchDiscoverProfiles(
   filters: DiscoverFilters,
-  viewerProfile: ViewerProfile | null,
-  isPremium = false
+  viewerProfile: ViewerProfile | null
 ): Promise<DiscoverResult> {
-  const advancedFiltersIgnored = !isPremium && hasAdvancedDiscoverFilters(filters);
-  const effectiveFilters = advancedFiltersIgnored ? withoutAdvancedDiscoverFilters(filters) : filters;
+  const effectiveFilters = filters;
   const where = buildWhere(effectiveFilters, viewerProfile);
   const viewerHasLocation = hasUsableLocation(viewerProfile);
   const needsDistance =
     viewerHasLocation && (effectiveFilters.radiusKm !== null || effectiveFilters.sort === "distance");
-  const advancedNote = advancedFiltersIgnored
-    ? "Advanced filters are available with udala premium."
-    : undefined;
 
   if (!needsDistance) {
     const orderBy: Prisma.ProfileOrderByWithRelationInput =
@@ -281,12 +254,11 @@ export async function searchDiscoverProfiles(
     });
 
     const note =
-      advancedNote ??
-      (effectiveFilters.sort === "distance" && !viewerHasLocation
+      effectiveFilters.sort === "distance" && !viewerHasLocation
         ? "Set your location on your profile to sort by distance."
         : effectiveFilters.radiusKm !== null && !viewerHasLocation
           ? "Set your location on your profile to filter by radius."
-          : undefined);
+          : undefined;
 
     return { profiles, note };
   }
@@ -325,5 +297,5 @@ export async function searchDiscoverProfiles(
     withDistance.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  return { profiles: withDistance.slice(0, RESULTS_LIMIT), note: advancedNote };
+  return { profiles: withDistance.slice(0, RESULTS_LIMIT) };
 }

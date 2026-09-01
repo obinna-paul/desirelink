@@ -20,9 +20,6 @@ export function profileCardSelect() {
     isVerifiedCreator: true,
     isVerifiedHost: true,
     isTrustedMember: true,
-    premiumSubscription: {
-      select: { status: true, currentPeriodEnd: true },
-    },
     desires: {
       where: { privacy: "public" },
       select: { id: true, category: true },

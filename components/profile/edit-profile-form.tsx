@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
-import { PremiumUpsell } from "@/components/premium/premium-upsell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -67,7 +66,7 @@ const EDIT_SECTIONS: {
   { id: "desires", label: "Preferences", description: "Shape recommendations", icon: Sparkles, href: "/profile/edit/preferences" },
   { id: "services", label: "Services", description: "Listings and bookings", icon: Store, href: "/profile/edit/services" },
   { id: "verification", label: "Verification", description: "Identity and trust", icon: ShieldCheck, href: "/verification" },
-  { id: "monetization", label: "Monetization", description: "Premium and payouts", icon: WalletCards, providerOnly: true, href: "/creator-dashboard" },
+  { id: "monetization", label: "Earnings", description: "Stats and payouts", icon: WalletCards, providerOnly: true, href: "/creator-dashboard" },
 ];
 
 function FieldWrapper({
@@ -207,7 +206,6 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
   const [mobileSection, setMobileSection] = useState<EditableSectionId | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "success">("idle");
   const [serverError, setServerError] = useState<string | null>(null);
-  const [premiumUpsell, setPremiumUpsell] = useState<string | null>(null);
   const [locationStatus, setLocationStatus] = useState<"idle" | "locating" | "success" | "error">("idle");
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
 
@@ -256,7 +254,6 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
 
   async function onSubmit(data: UpdateProfileInput) {
     setServerError(null);
-    setPremiumUpsell(null);
     setStatus("saving");
 
     const res = await fetch("/api/profile", {
@@ -268,13 +265,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
     if (!res.ok) {
       const body = await res.json().catch(() => null);
       setStatus("idle");
-      if (body?.code === "PREMIUM_REQUIRED") {
-        setPremiumUpsell(body.error);
-        setActiveSection("privacy");
-        setMobileSection("privacy");
-      } else {
-        setServerError(body?.error ?? "Something went wrong. Please try again.");
-      }
+      setServerError(body?.error ?? "Something went wrong. Please try again.");
       return;
     }
 
@@ -393,9 +384,6 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
               control={control}
               name="isIncognito"
             />
-            {premiumUpsell && (
-              <PremiumUpsell compact title="Incognito is premium" description={premiumUpsell} />
-            )}
           </div>
         </SectionShell>
       );

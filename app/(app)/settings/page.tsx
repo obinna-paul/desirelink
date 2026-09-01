@@ -17,7 +17,7 @@ const SETTINGS_LINKS = [
   {
     href: "/settings/billing",
     label: "Billing",
-    description: "Payment methods, Premium status, provider subscriptions, and billing history.",
+    description: "Payment methods, provider subscriptions, and billing history.",
     icon: CreditCard,
   },
   {

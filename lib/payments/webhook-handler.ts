@@ -69,7 +69,6 @@ async function recordTransaction(
   extra: {
     status: "succeeded" | "failed";
     providerSubscriptionId?: string;
-    isPremium?: boolean;
   },
   db: Db,
 ): Promise<void> {
@@ -81,7 +80,6 @@ async function recordTransaction(
       provider: activeProviderName(),
       providerReference: event.reference,
       providerSubscriptionId: extra.providerSubscriptionId,
-      isPremium: extra.isPremium ?? false,
     },
   });
 }
@@ -293,48 +291,6 @@ async function handleServiceBookingEvent(event: WebhookEvent, db: Db): Promise<v
   }
 }
 
-async function handlePremiumEvent(event: WebhookEvent, db: Db): Promise<void> {
-  const pendingId = event.metadata.pendingId;
-  if (!pendingId) return;
-
-  const pending = await db.premiumSubscription.findUnique({
-    where: { id: pendingId },
-  });
-  if (!pending || pending.status !== "pending") return;
-
-  if (event.type === "charge.succeeded") {
-    await db.premiumSubscription.update({
-      where: { id: pendingId },
-      data: {
-        status: "active",
-        paymentSubscriptionId: event.reference,
-        pastDueSince: null,
-        paymentRetryCount: 0,
-      },
-    });
-    if (event.paymentMethod)
-      await upsertPaymentMethod(pending.userId, event.paymentMethod, db);
-    await recordTransaction(
-      pending.userId,
-      event,
-      { status: "succeeded", isPremium: true },
-      db,
-    );
-  } else {
-    await db.premiumSubscription.update({
-      where: { id: pendingId },
-      data: { status: "failed" },
-    });
-    await recordTransaction(
-      pending.userId,
-      event,
-      { status: "failed", isPremium: true },
-      db,
-    );
-    await notifyPaymentFailed(pending.userId);
-  }
-}
-
 /**
  * Reconciles a payout transfer's final state. Paystack's transfer creation
  * call can come back "pending" (e.g. it requires OTP finalization, or just
@@ -384,8 +340,6 @@ async function dispatch(event: WebhookEvent, db: Db): Promise<void> {
   switch (event.metadata.kind) {
     case "provider_tier":
       return handleProviderTierEvent(event, db);
-    case "premium":
-      return handlePremiumEvent(event, db);
     case "hearts_purchase":
       return handleHeartsPurchaseEvent(event, db);
     case "event_rsvp":

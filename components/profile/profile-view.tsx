@@ -29,7 +29,6 @@ import { ProfileSubscribeButton } from "@/components/profile/profile-subscribe-b
 import { ShareProfileButton } from "@/components/profile/share-profile-button";
 import { SwipeableSection } from "@/components/profile/swipeable-section";
 import { VerificationBadge } from "@/components/profile/verification-badge";
-import { PremiumBadge } from "@/components/premium/premium-badge";
 import { ReviewDialog } from "@/components/reviews/review-dialog";
 import { ReviewsSection } from "@/components/reviews/reviews-section";
 import { BlockButton } from "@/components/safety/block-button";
@@ -118,7 +117,6 @@ export function ProfileView({
   events,
   isOwner,
   isProvider,
-  isPremium,
   profileHref,
   activeSection,
   canMessage = false,
@@ -144,7 +142,6 @@ export function ProfileView({
   events: UpcomingEvent[];
   isOwner: boolean;
   isProvider: boolean;
-  isPremium: boolean;
   profileHref: string;
   activeSection?: string;
   canMessage?: boolean;
@@ -210,7 +207,6 @@ export function ProfileView({
                   {profile.displayName || `@${profile.username}`}
                 </h1>
                 <VerificationBadge profile={profile} />
-                {isPremium && <PremiumBadge />}
               </div>
               {profile.displayName && (
                 <p className="mt-0.5 truncate text-sm text-muted-foreground">

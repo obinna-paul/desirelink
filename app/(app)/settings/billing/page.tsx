@@ -7,9 +7,7 @@ import { getBillingOverview } from "@/lib/billing";
 import { confirmProviderPayment } from "@/lib/providers";
 import { formatCents } from "@/lib/creator";
 import { PaymentMethodManager } from "@/components/billing/PaymentMethodManager";
-import { CancelPremiumButton, CancelProviderSubButton } from "@/components/billing/BillingActions";
-import { PremiumUpsell } from "@/components/premium/premium-upsell";
-import { PREMIUM_REWARDS_BENEFIT } from "@/lib/premium";
+import { CancelProviderSubButton } from "@/components/billing/BillingActions";
 
 export default async function BillingSettingsPage({
   searchParams,
@@ -34,27 +32,6 @@ export default async function BillingSettingsPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">udala premium</h2>
-        {overview.premium ? (
-          <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:rounded-xl md:shadow-none">
-            <div>
-              <p className="text-sm font-medium">
-                {overview.premium.active ? "Active" : overview.premium.status}
-                {overview.premium.cancelAtPeriodEnd && " (cancels at period end)"}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {overview.premium.active ? "Renews" : "Ends"} {overview.premium.currentPeriodEnd.toLocaleDateString()}
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">{PREMIUM_REWARDS_BENEFIT}</p>
-            </div>
-            {overview.premium.active && !overview.premium.cancelAtPeriodEnd && <CancelPremiumButton />}
-          </div>
-        ) : (
-          <PremiumUpsell description="Upgrade to udala premium for unlimited access, privacy controls, and priority features." />
-        )}
-      </section>
-
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold">Provider subscriptions</h2>
         {overview.providerSubscriptions.length === 0 ? (

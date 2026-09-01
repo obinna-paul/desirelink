@@ -1,13 +1,6 @@
 import { Prisma, type ProfileType, type RsvpStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import {
-  FREE_DAILY_PROVIDER_POST_LIMIT,
-  getDailyProviderPostUsage,
-  isPremiumUser,
-  recordProviderPostView,
-} from "@/lib/premium";
-import { isProviderProfileType } from "@/lib/provider-types";
 import type { PostMediaItem } from "@/lib/post-shared";
 
 const FEED_LIMIT = 30;
@@ -80,7 +73,7 @@ type RawPost = {
   _count: { comments: number; reactions: number; shares: number };
 };
 
-type PostLockReason = "subscriber_only" | "premium_provider_limit";
+type PostLockReason = "subscriber_only";
 
 export type PostCommentView = {
   id: string;
@@ -222,16 +215,10 @@ function toCommentView(comment: RawComment): PostCommentView {
 function toPostView(
   post: RawPost,
   hasSubscriberAccess: boolean,
-  premiumProviderLocked = false,
   viewerProfileId: string | null = null,
-  viewerIsPremium = false,
 ): PostView {
-  const lockReason =
-    post.isSubscriberOnly && !hasSubscriberAccess
-      ? "subscriber_only"
-      : premiumProviderLocked
-        ? "premium_provider_limit"
-        : null;
+  const lockReason: PostLockReason | null =
+    post.isSubscriberOnly && !hasSubscriberAccess ? "subscriber_only" : null;
   const locked = lockReason !== null;
   const mediaItems = toMediaItems(post.mediaUrls);
 
@@ -279,7 +266,7 @@ function toPostView(
     counts: post._count,
     viewerLiked: post.reactions.length > 0,
     viewerCanManage: post.author.id === viewerProfileId,
-    viewerCanEdit: post.author.id === viewerProfileId && viewerIsPremium,
+    viewerCanEdit: post.author.id === viewerProfileId,
     comments: locked ? [] : post.comments.map(toCommentView),
   };
 }
@@ -367,91 +354,6 @@ function postSelect(viewerProfileId: string | null) {
   };
 }
 
-type ProviderContentContext =
-  | { viewerProfileId: string | null; isPremium: true }
-  | {
-      viewerProfileId: string | null;
-      isPremium: false;
-      viewedPostIds: Set<string>;
-      limit: number;
-    };
-
-async function getProviderContentContext(
-  viewerProfileId: string | null,
-): Promise<ProviderContentContext> {
-  if (!viewerProfileId) {
-    return {
-      viewerProfileId,
-      isPremium: false,
-      viewedPostIds: new Set<string>(),
-      limit: FREE_DAILY_PROVIDER_POST_LIMIT,
-    };
-  }
-
-  if (await isPremiumUser(viewerProfileId)) {
-    return { viewerProfileId, isPremium: true };
-  }
-
-  const usage = await getDailyProviderPostUsage(viewerProfileId);
-  return {
-    viewerProfileId,
-    isPremium: false,
-    viewedPostIds: usage.viewedPostIds,
-    limit: usage.limit,
-  };
-}
-
-async function applyProviderContentLimits(
-  posts: RawPost[],
-  viewerProfileId: string | null,
-  hasSubscriberAccess: (post: RawPost) => boolean,
-): Promise<PostView[]> {
-  const context = await getProviderContentContext(viewerProfileId);
-  const recordTasks: Promise<void>[] = [];
-  let anonymousFreeViews = 0;
-
-  const views = posts.map((post) => {
-    let premiumProviderLocked = false;
-    const isOwnPost = post.author.id === viewerProfileId;
-    const isFreeProviderPost =
-      !post.isSubscriberOnly &&
-      !isOwnPost &&
-      isProviderProfileType(post.author.profileType);
-
-    if (isFreeProviderPost && !context.isPremium) {
-      const alreadyViewed = context.viewedPostIds.has(post.id);
-      if (!alreadyViewed && context.viewedPostIds.size >= context.limit) {
-        premiumProviderLocked = true;
-      } else if (!alreadyViewed) {
-        context.viewedPostIds.add(post.id);
-        if (context.viewerProfileId) {
-          recordTasks.push(
-            recordProviderPostView(
-              post.author.id,
-              context.viewerProfileId,
-              post.id,
-            ),
-          );
-        } else {
-          anonymousFreeViews += 1;
-          if (anonymousFreeViews > context.limit) premiumProviderLocked = true;
-        }
-      }
-    }
-
-    return toPostView(
-      post,
-      hasSubscriberAccess(post),
-      premiumProviderLocked,
-      viewerProfileId,
-      context.isPremium,
-    );
-  });
-
-  await Promise.allSettled(recordTasks);
-  return views;
-}
-
 export async function isActiveSubscriber(
   subscriberId: string,
   creatorId: string,
@@ -505,11 +407,7 @@ export async function getCreatorProfilePosts(
     });
   }
 
-  return applyProviderContentLimits(
-    posts,
-    viewerProfileId,
-    () => hasSubscriberAccess,
-  );
+  return posts.map((post) => toPostView(post, hasSubscriberAccess, viewerProfileId));
 }
 
 export async function getFeedPosts(
@@ -556,12 +454,12 @@ export async function getFeedPosts(
     });
   }
 
-  return applyProviderContentLimits(
-    posts,
-    viewerProfileId,
-    (post) =>
-      post.author.id === viewerProfileId ||
-      subscribedCreatorIds.has(post.author.id),
+  return posts.map((post) =>
+    toPostView(
+      post,
+      post.author.id === viewerProfileId || subscribedCreatorIds.has(post.author.id),
+      viewerProfileId,
+    ),
   );
 }
 
@@ -582,10 +480,8 @@ export async function getPublicFeedPosts(
       select: postSelect(viewerProfileId),
     });
 
-    return applyProviderContentLimits(
-      posts,
-      viewerProfileId,
-      (post) => post.author.id === viewerProfileId || !post.isSubscriberOnly,
+    return posts.map((post) =>
+      toPostView(post, post.author.id === viewerProfileId || !post.isSubscriberOnly, viewerProfileId),
     );
   } catch (error) {
     if (isMissingPostArchiveError(error)) {
@@ -604,10 +500,8 @@ export async function getPublicFeedPosts(
         select: postSelect(viewerProfileId),
       });
 
-      return applyProviderContentLimits(
-        posts,
-        viewerProfileId,
-        (post) => post.author.id === viewerProfileId || !post.isSubscriberOnly,
+      return posts.map((post) =>
+        toPostView(post, post.author.id === viewerProfileId || !post.isSubscriberOnly, viewerProfileId),
       );
     }
     if (isMissingSchemaError(error)) {
@@ -649,10 +543,5 @@ export async function getPostByIdForViewer(
       ? await isActiveSubscriber(viewerProfileId, post.author.id)
       : false);
 
-  const [view] = await applyProviderContentLimits(
-    [post],
-    viewerProfileId,
-    () => hasSubscriberAccess,
-  );
-  return view ?? null;
+  return toPostView(post, hasSubscriberAccess, viewerProfileId);
 }

@@ -7,7 +7,6 @@ import type { DesireLevel } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { PremiumUpsell } from "@/components/premium/premium-upsell";
 import { cn } from "@/lib/utils";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
@@ -146,10 +145,8 @@ const toPreferenceDropdownOptions = (values: readonly string[]): DropdownOption[
 
 export function DiscoverFiltersPanel({
   initialFilters,
-  isPremium,
 }: {
   initialFilters: DiscoverFilters;
-  isPremium: boolean;
 }) {
   const router = useRouter();
   const [genders, setGenders] = useState<string[]>(initialFilters.genders);
@@ -174,26 +171,22 @@ export function DiscoverFiltersPanel({
     (radiusKm !== String(DEFAULT_RADIUS_KM) ? 1 : 0) +
     (availability !== "any" ? 1 : 0) +
     (sort !== "newest" ? 1 : 0) +
-    (isPremium
-      ? desireCategories.length +
-        bodyTypes.length +
-        (desireLevel ? 1 : 0) +
-        (lastActive !== "any" ? 1 : 0) +
-        (verification !== "any" ? 1 : 0)
-      : 0);
+    desireCategories.length +
+    bodyTypes.length +
+    (desireLevel ? 1 : 0) +
+    (lastActive !== "any" ? 1 : 0) +
+    (verification !== "any" ? 1 : 0);
 
   function applyFilters() {
     const params = new URLSearchParams();
     if (initialFilters.query) params.set("q", initialFilters.query);
     genders.forEach((value) => params.append("gender", value));
     orientations.forEach((value) => params.append("orientation", value));
-    if (isPremium) {
-      desireCategories.forEach((value) => params.append("desire", value));
-      bodyTypes.forEach((value) => params.append("bodyType", value));
-      if (desireLevel) params.set("desireLevel", desireLevel);
-      if (lastActive !== "any") params.set("lastActive", lastActive);
-      if (verification !== "any") params.set("verification", verification);
-    }
+    desireCategories.forEach((value) => params.append("desire", value));
+    bodyTypes.forEach((value) => params.append("bodyType", value));
+    if (desireLevel) params.set("desireLevel", desireLevel);
+    if (lastActive !== "any") params.set("lastActive", lastActive);
+    if (verification !== "any") params.set("verification", verification);
     params.set("radius", radiusKm);
     params.set("availability", availability);
     params.set("sort", sort);
@@ -308,35 +301,21 @@ export function DiscoverFiltersPanel({
         <div className="flex flex-col gap-3 border-t border-border/60 pt-4">
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Premium filters
+              Advanced filters
             </h2>
-            {!isPremium && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Upgrade to use preferences, last active, body type, and verification filters.
-              </p>
-            )}
           </div>
-          {!isPremium && (
-            <PremiumUpsell
-              compact
-              title="Advanced search is premium"
-              description="Upgrade to udala premium to refine discovery with deeper filters."
-            />
-          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <MultiSelectDropdown
               label="Preferences"
               options={toPreferenceDropdownOptions(DESIRE_CATEGORIES)}
               selected={desireCategories}
               onChange={setDesireCategories}
-              disabled={!isPremium}
               footer={
                 <Select
                   aria-label="Preference level"
                   value={desireLevel}
                   onChange={(event) => setDesireLevel(event.target.value as DesireLevel | "")}
                   className="h-10 w-full text-xs"
-                  disabled={!isPremium}
                 >
                   <option value="">Any level</option>
                   {DESIRE_LEVEL_FILTER_OPTIONS.map((option) => (
@@ -352,7 +331,6 @@ export function DiscoverFiltersPanel({
               options={toDropdownOptions(BODY_TYPE_FILTER_OPTIONS)}
               selected={bodyTypes}
               onChange={setBodyTypes}
-              disabled={!isPremium}
             />
             <FilterSection title="Last active">
               <Select
@@ -360,7 +338,6 @@ export function DiscoverFiltersPanel({
                 value={lastActive}
                 onChange={(event) => setLastActive(event.target.value as LastActiveFilterValue)}
                 className="h-11 text-sm"
-                disabled={!isPremium}
               >
                 {LAST_ACTIVE_FILTER_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -375,7 +352,6 @@ export function DiscoverFiltersPanel({
                 value={verification}
                 onChange={(event) => setVerification(event.target.value as VerificationFilterValue)}
                 className="h-11 text-sm"
-                disabled={!isPremium}
               >
                 {VERIFICATION_FILTER_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>

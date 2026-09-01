@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Archive,
-  Crown,
   Loader2,
   MoreHorizontal,
   Pencil,
@@ -25,13 +23,11 @@ type PendingAction = "archive" | "delete" | "edit" | null;
 
 export function PostOwnerControls({
   postId,
-  canEdit,
   initialContent,
   initialSubscriberOnly,
   isPinned,
 }: {
   postId: string;
-  canEdit: boolean;
   initialContent: string;
   initialSubscriberOnly: boolean;
   isPinned: boolean;
@@ -41,7 +37,6 @@ export function PostOwnerControls({
   const dialogRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [showUpsell, setShowUpsell] = useState(false);
   const [content, setContent] = useState(initialContent);
   const [isSubscriberOnly, setIsSubscriberOnly] = useState(
     initialSubscriberOnly,
@@ -52,7 +47,7 @@ export function PostOwnerControls({
   const [error, setError] = useState<string | null>(null);
   const [pinPending, setPinPending] = useState(false);
 
-  const dialogOpen = editOpen || showUpsell;
+  const dialogOpen = editOpen;
   useFocusTrap(dialogOpen, dialogRef);
 
   useEffect(() => {
@@ -92,7 +87,6 @@ export function PostOwnerControls({
 
   function closeDialog() {
     setEditOpen(false);
-    setShowUpsell(false);
     setPendingAction(null);
     setError(null);
   }
@@ -101,10 +95,6 @@ export function PostOwnerControls({
     setMenuOpen(false);
     resetConfirmations();
     setError(null);
-    if (!canEdit) {
-      setShowUpsell(true);
-      return;
-    }
     setContent(initialContent);
     setIsSubscriberOnly(initialSubscriberOnly);
     setEditOpen(true);
@@ -200,10 +190,6 @@ export function PostOwnerControls({
     setPendingAction(null);
 
     if (!res.ok) {
-      if (body?.code === "PREMIUM_REQUIRED") {
-        setEditOpen(false);
-        setShowUpsell(true);
-      }
       setError(body?.error ?? "Couldn't save changes.");
       return;
     }
@@ -236,17 +222,11 @@ export function PostOwnerControls({
               onClick={openEdit}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors hover:bg-accent"
             >
-              {canEdit ? (
-                <Pencil
-                  className="h-4 w-4 text-muted-foreground"
-                  aria-hidden="true"
-                />
-              ) : (
-                <Crown className="h-4 w-4 text-neon-pink" aria-hidden="true" />
-              )}
-              <span className="min-w-0 flex-1">
-                {canEdit ? "Edit post" : "Edit with Premium"}
-              </span>
+              <Pencil
+                className="h-4 w-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <span className="min-w-0 flex-1">Edit post</span>
             </button>
             <button
               type="button"
@@ -337,7 +317,7 @@ export function PostOwnerControls({
                 id="post-edit-dialog-title"
                 className="font-heading text-lg font-semibold tracking-tight"
               >
-                {showUpsell ? "Premium editing" : "Edit post"}
+                Edit post
               </h2>
               <button
                 type="button"
@@ -349,65 +329,43 @@ export function PostOwnerControls({
               </button>
             </div>
 
-            {showUpsell ? (
-              <div className="flex flex-col gap-4">
-                <div className="rounded-2xl border border-neon-pink/20 bg-neon-pink/10 p-4">
-                  <Crown
-                    className="h-6 w-6 text-neon-pink"
+            <form onSubmit={saveEdit} className="flex flex-col gap-4">
+              <Textarea
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                maxLength={2000}
+                rows={6}
+                className="min-h-40 resize-none rounded-2xl text-base sm:text-sm"
+              />
+              <label className="flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background/50 px-3 py-2">
+                <span>
+                  <span className="block text-sm font-semibold">
+                    Fans only
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    Limit this post to subscribers.
+                  </span>
+                </span>
+                <Switch
+                  checked={isSubscriberOnly}
+                  onCheckedChange={setIsSubscriberOnly}
+                />
+              </label>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <Button
+                type="submit"
+                disabled={pendingAction === "edit" || !content.trim()}
+                className="w-full"
+              >
+                {pendingAction === "edit" && (
+                  <Loader2
+                    className="mr-2 h-4 w-4 animate-spin"
                     aria-hidden="true"
                   />
-                  <p className="mt-3 text-sm font-semibold">
-                    Editing after publishing is premium-only.
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    You can still archive or delete your own posts for free.
-                    Upgrade when you want to revise published content.
-                  </p>
-                </div>
-                {error && <p className="text-sm text-destructive">{error}</p>}
-                <Button asChild className="w-full">
-                  <Link href="/settings/billing">Upgrade to Premium</Link>
-                </Button>
-              </div>
-            ) : (
-              <form onSubmit={saveEdit} className="flex flex-col gap-4">
-                <Textarea
-                  value={content}
-                  onChange={(event) => setContent(event.target.value)}
-                  maxLength={2000}
-                  rows={6}
-                  className="min-h-40 resize-none rounded-2xl text-base sm:text-sm"
-                />
-                <label className="flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background/50 px-3 py-2">
-                  <span>
-                    <span className="block text-sm font-semibold">
-                      Fans only
-                    </span>
-                    <span className="block text-xs text-muted-foreground">
-                      Limit this post to subscribers.
-                    </span>
-                  </span>
-                  <Switch
-                    checked={isSubscriberOnly}
-                    onCheckedChange={setIsSubscriberOnly}
-                  />
-                </label>
-                {error && <p className="text-sm text-destructive">{error}</p>}
-                <Button
-                  type="submit"
-                  disabled={pendingAction === "edit" || !content.trim()}
-                  className="w-full"
-                >
-                  {pendingAction === "edit" && (
-                    <Loader2
-                      className="mr-2 h-4 w-4 animate-spin"
-                      aria-hidden="true"
-                    />
-                  )}
-                  Save changes
-                </Button>
-              </form>
-            )}
+                )}
+                Save changes
+              </Button>
+            </form>
           </div>
         </div>
       )}

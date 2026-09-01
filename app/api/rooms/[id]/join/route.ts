@@ -21,7 +21,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
 
   const result = await joinRoom(params.id, profile.id);
   if (!result.ok) {
-    return NextResponse.json(result.payload ?? { error: result.error }, { status: result.status });
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
   return NextResponse.json({ state: result.state }, { status: 200 });

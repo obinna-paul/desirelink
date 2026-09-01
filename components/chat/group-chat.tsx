@@ -3,17 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import useSWR from "swr";
 import type { PresenceChannel } from "pusher-js";
 import { ShieldOff, Trash2, Users } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ReportDialog } from "@/components/safety/report-dialog";
-import { PremiumBadge } from "@/components/premium/premium-badge";
-import { PremiumUpsell } from "@/components/premium/premium-upsell";
 import { cn } from "@/lib/utils";
 import { getPusherClient } from "@/lib/pusher-client";
 import {
@@ -27,21 +23,6 @@ import {
 import type { GroupMessageData } from "@/lib/group-chat";
 
 type ChatMember = { id: string; username: string; displayName: string; avatarUrl: string };
-type MessageLimitResponse = {
-  allowed: boolean;
-  remaining: number;
-  limit: number;
-  used: number;
-  unlimited: boolean;
-  reason: "premium" | "provider" | "free";
-};
-
-async function fetcher(url: string) {
-  const res = await fetch(url);
-  const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(body?.error ?? "Couldn't load message limits.");
-  return body as MessageLimitResponse;
-}
 
 export function GroupChat({
   channelType,
@@ -69,14 +50,12 @@ export function GroupChat({
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [premiumUpsell, setPremiumUpsell] = useState<string | null>(null);
   const [muted, setMuted] = useState(initiallyMuted);
   const [mutedUserIds, setMutedUserIds] = useState<Set<string>>(new Set(initialMutedUserIds));
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
   const [presenceAvailable, setPresenceAvailable] = useState(false);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { data: messageLimit, mutate: refreshMessageLimit } = useSWR("/api/messages/limits", fetcher);
 
   const apiBase = `/api/${channelType}s/${channelId}/chat`;
 
@@ -140,7 +119,6 @@ export function GroupChat({
 
     setSending(true);
     setError(null);
-    setPremiumUpsell(null);
 
     const res = await fetch(`${apiBase}/messages`, {
       method: "POST",
@@ -151,17 +129,12 @@ export function GroupChat({
     setSending(false);
 
     if (!res.ok) {
-      if (body?.code === "MESSAGE_LIMIT_REACHED" || body?.code === "PREMIUM_REQUIRED") {
-        setPremiumUpsell(body.upsell ?? body.error);
-      } else {
-        setError(body?.error ?? "Couldn't send your message. Try again.");
-      }
+      setError(body?.error ?? "Couldn't send your message. Try again.");
       return;
     }
 
     setMessages((prev) => (prev.some((m) => m.id === body.message.id) ? prev : [...prev, body.message]));
     setContent("");
-    refreshMessageLimit();
   }
 
   async function handleDeleteMessage(messageId: string) {
@@ -315,27 +288,6 @@ export function GroupChat({
               {error}
             </p>
           )}
-          {(premiumUpsell || (messageLimit && !messageLimit.allowed)) && (
-            <PremiumUpsell
-              compact
-              title="Message limit reached"
-              description={premiumUpsell ?? "Upgrade to udala premium for unlimited messaging."}
-            />
-          )}
-          {messageLimit && (
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-              {messageLimit.unlimited ? (
-                <div className="flex items-center gap-2">
-                  {messageLimit.reason === "premium" ? <PremiumBadge /> : <Badge variant="neon">unlimited</Badge>}
-                  <span>Messaging is unlimited on this account.</span>
-                </div>
-              ) : (
-                <span>
-                  {messageLimit.remaining} of {messageLimit.limit} messages left in the last 24 hours
-                </span>
-              )}
-            </div>
-          )}
           <div className="flex items-end gap-2">
             <Textarea
               value={content}
@@ -352,10 +304,7 @@ export function GroupChat({
               rows={1}
               maxLength={1000}
             />
-            <Button
-              type="submit"
-              disabled={muted || sending || !content.trim() || (messageLimit ? !messageLimit.allowed : false)}
-            >
+            <Button type="submit" disabled={muted || sending || !content.trim()}>
               {sending ? "..." : "Send"}
             </Button>
           </div>

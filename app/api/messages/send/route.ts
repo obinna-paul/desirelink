@@ -4,9 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendMessage } from "@/lib/messages";
-import { isProviderProfileType } from "@/lib/provider-types";
-import { trackMessageReply } from "@/lib/rewards/tracking";
-import { checkMessageLimit, incrementMessageCount } from "@/lib/messaging/limits";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -16,7 +13,7 @@ export async function POST(req: Request) {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, profileType: true },
+    select: { id: true },
   });
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
@@ -31,37 +28,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "recipientId and content are required" }, { status: 400 });
   }
 
-  const limit = await checkMessageLimit(profile.id);
-  if (!limit.allowed) {
-    return NextResponse.json(
-      {
-        error: "You've reached your 10 message limit for the last 24 hours.",
-        code: "MESSAGE_LIMIT_REACHED",
-        upsell: "Upgrade to udala premium for unlimited messaging.",
-        remaining: limit.remaining,
-        limit: limit.limit,
-      },
-      { status: 402 }
-    );
-  }
-
   const result = await sendMessage(profile.id, recipientId, content, replyToId);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
-  }
-
-  if (!limit.unlimited) {
-    await incrementMessageCount(profile.id);
-  }
-
-  if (isProviderProfileType(profile.profileType)) {
-    const priorMessageFromRecipient = await prisma.message.findFirst({
-      where: { senderId: recipientId, recipientId: profile.id },
-      select: { id: true },
-    });
-    if (priorMessageFromRecipient) {
-      await trackMessageReply(profile.id, recipientId);
-    }
   }
 
   return NextResponse.json({ message: result.message }, { status: 201 });

@@ -105,7 +105,7 @@ export type HeartsPurchaseResult =
   | { ok: true; state: "checkout"; checkoutUrl: string }
   | { ok: false; status: number; error: string };
 
-/** Mirrors subscribeToPremium/subscribeToProvider: charges a saved card directly, or starts checkout to collect one first. */
+/** Mirrors subscribeToProvider: charges a saved card directly, or starts checkout to collect one first. */
 export async function purchaseHearts(
   profileId: string,
   packageId: string,

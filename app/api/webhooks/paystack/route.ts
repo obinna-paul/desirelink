@@ -5,10 +5,11 @@ import { processPaymentEvent } from "@/lib/payments/webhook-handler";
 import type { WebhookEvent } from "@/lib/payments/types";
 
 /**
- * Defense-in-depth alongside the synchronous redirect-verify path
- * (confirmProviderPayment / subscribeToPremium's checkout flow) — Paystack
- * recommends both: verify on redirect for immediate UX, and keep the webhook
- * as the source of truth in case the customer never makes it back.
+ * Defense-in-depth alongside the synchronous redirect-verify path used by
+ * event RSVPs, service bookings, hearts purchases, and provider tier
+ * subscriptions — Paystack recommends both: verify on redirect for immediate
+ * UX, and keep the webhook as the source of truth in case the customer never
+ * makes it back.
  */
 export async function POST(req: Request) {
   const signature = req.headers.get("x-paystack-signature");

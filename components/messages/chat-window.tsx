@@ -3,16 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import useSWR from "swr";
 import { ChevronLeft, Heart, Reply, Send, ShieldX, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ReportDialog } from "@/components/safety/report-dialog";
-import { PremiumBadge } from "@/components/premium/premium-badge";
-import { PremiumUpsell } from "@/components/premium/premium-upsell";
 import { GiftPicker, type SendGiftOutcome } from "@/components/hearts/gift-picker";
 import { cn } from "@/lib/utils";
 import { getPusherClient } from "@/lib/pusher-client";
@@ -26,21 +22,6 @@ import {
 import { CONNECTION_REASONS, type ConversationMessage, type ConversationParticipant } from "@/lib/message-types";
 
 type Message = ConversationMessage;
-type MessageLimitResponse = {
-  allowed: boolean;
-  remaining: number;
-  limit: number;
-  used: number;
-  unlimited: boolean;
-  reason: "premium" | "provider" | "free";
-};
-
-async function fetcher(url: string) {
-  const res = await fetch(url);
-  const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(body?.error ?? "Couldn't load message limits.");
-  return body as MessageLimitResponse;
-}
 
 function formatMessageTime(date: Date | string) {
   return new Date(date).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -65,7 +46,6 @@ export function ChatWindow({
   const [reason, setReason] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [premiumUpsell, setPremiumUpsell] = useState<string | null>(null);
   const [giftPickerOpen, setGiftPickerOpen] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [counterpartTyping, setCounterpartTyping] = useState(false);
@@ -73,7 +53,6 @@ export function ChatWindow({
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingSentRef = useRef(false);
   const counterpartTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { data: messageLimit, mutate: refreshMessageLimit } = useSWR("/api/messages/limits", fetcher);
   const counterpartIsProvider = isProviderProfileType(counterpart.profileType);
 
   async function sendHearts(hearts: number): Promise<SendGiftOutcome> {
@@ -179,7 +158,6 @@ export function ChatWindow({
 
     setSending(true);
     setError(null);
-    setPremiumUpsell(null);
 
     const res = await fetch("/api/messages/send", {
       method: "POST",
@@ -190,11 +168,7 @@ export function ChatWindow({
     setSending(false);
 
     if (!res.ok) {
-      if (body?.code === "MESSAGE_LIMIT_REACHED" || body?.code === "PREMIUM_REQUIRED") {
-        setPremiumUpsell(body.upsell ?? body.error);
-      } else {
-        setError(body?.error ?? "Couldn't send your message. Try again.");
-      }
+      setError(body?.error ?? "Couldn't send your message. Try again.");
       return;
     }
 
@@ -205,7 +179,6 @@ export function ChatWindow({
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     if (typingSentRef.current) sendTypingState(false);
     typingSentRef.current = false;
-    refreshMessageLimit();
     router.refresh();
   }
 
@@ -391,30 +364,8 @@ export function ChatWindow({
             {error}
           </p>
         )}
-        {(premiumUpsell || (messageLimit && !messageLimit.allowed)) && (
-          <PremiumUpsell
-            compact
-            title="Message limit reached"
-            description={premiumUpsell ?? "Upgrade to udala premium for unlimited messaging."}
-            className="mb-3"
-          />
-        )}
         {!isNewConversation && lastMineRead && (
           <p className="mb-1.5 text-right text-[10px] text-muted-foreground">Seen</p>
-        )}
-        {messageLimit && (
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            {messageLimit.unlimited ? (
-              <div className="flex items-center gap-2">
-                {messageLimit.reason === "premium" ? <PremiumBadge /> : <Badge variant="neon">unlimited</Badge>}
-                <span>Messaging is unlimited on this account.</span>
-              </div>
-            ) : (
-              <span>
-                {messageLimit.remaining} of {messageLimit.limit} messages left in the last 24 hours
-              </span>
-            )}
-          </div>
         )}
         {replyingTo && (
           <div className="mb-2 flex items-center gap-3 rounded-lg bg-secondary/80 px-3 py-2">
@@ -460,13 +411,7 @@ export function ChatWindow({
             type="button"
             size="icon"
             aria-label="Send message"
-            disabled={
-              blocked ||
-              sending ||
-              !content.trim() ||
-              (isNewConversation && !reason) ||
-              (messageLimit ? !messageLimit.allowed : false)
-            }
+            disabled={blocked || sending || !content.trim() || (isNewConversation && !reason)}
             onClick={handleSend}
             className="h-11 w-11 shrink-0 rounded-full"
           >
