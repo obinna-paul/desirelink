@@ -301,20 +301,23 @@ model Profile {
   chatMutesIssued        GroupChatMute[]       @relation("GroupChatMuteIssuer")
   verificationRequests   VerificationRequest[]
 
-  providerSubscriptionsAsSub      ProviderSubscription[]    @relation("ProviderSubscriptionSubscriber")
-  providerSubscriptionsAsProvider ProviderSubscription[]    @relation("ProviderSubscriptionProvider")
+  providerSubscriptionsAsSub      ProviderSubscription[] @relation("ProviderSubscriptionSubscriber")
+  providerSubscriptionsAsProvider ProviderSubscription[] @relation("ProviderSubscriptionProvider")
   paymentMethods                  PaymentMethod[]
   serviceListings                 ServiceListing[]
-  serviceBookingsAsProvider       ServiceBooking[]          @relation("ServiceBookingProvider")
-  serviceBookingsAsCustomer       ServiceBooking[]          @relation("ServiceBookingCustomer")
-  notificationsReceived           Notification[]            @relation("NotificationRecipient")
-  notificationsActed              Notification[]            @relation("NotificationActor")
+  serviceBookingsAsProvider       ServiceBooking[]       @relation("ServiceBookingProvider")
+  serviceBookingsAsCustomer       ServiceBooking[]       @relation("ServiceBookingCustomer")
+  notificationsReceived           Notification[]         @relation("NotificationRecipient")
+  notificationsActed              Notification[]         @relation("NotificationActor")
 
-  liveStreams       LiveStream[]       @relation("LiveStreamProvider")
-  giftsSent         Gift[]             @relation("GiftSender")
-  giftsReceived     Gift[]             @relation("GiftReceiver")
-  heartPurchases    HeartPurchase[]
-  walletWithdrawals WalletWithdrawal[]
+  liveStreams          LiveStream[]        @relation("LiveStreamProvider")
+  liveRequestPresets   LiveRequestPreset[] @relation("LiveRequestPresetProvider")
+  liveRequestsMade     LiveRequest[]       @relation("LiveRequestRequester")
+  liveRequestsReceived LiveRequest[]       @relation("LiveRequestProvider")
+  giftsSent            Gift[]              @relation("GiftSender")
+  giftsReceived        Gift[]              @relation("GiftReceiver")
+  heartPurchases       HeartPurchase[]
+  walletWithdrawals    WalletWithdrawal[]
 
   @@index([city, country])
   @@index([profileType])
@@ -864,7 +867,9 @@ model Transaction {
   amountCents            Int
   status                 String
   provider               String
-  /** The payment provider's own charge reference (Paystack's `reference`) — needed to issue a refund against this specific charge. Null for legacy rows recorded before this field existed. */
+  /**
+   * The payment provider's own charge reference (Paystack's `reference`) — needed to issue a refund against this specific charge. Null for legacy rows recorded before this field existed.
+   */
   providerReference      String?
   createdAt              DateTime              @default(now())
 
@@ -955,12 +960,81 @@ model LiveStream {
   startedAt           DateTime  @default(now())
   endedAt             DateTime?
   totalHeartsReceived Int       @default(0)
+  heartGoal           Int?
+  peakViewers         Int       @default(0)
+  completedRequests   Int       @default(0)
   createdAt           DateTime  @default(now())
 
-  gifts Gift[]
+  gifts          Gift[]
+  requestOptions LiveRequestOption[]
+  requests       LiveRequest[]
 
   @@index([providerId])
   @@index([status])
+}
+
+model LiveRequestPreset {
+  id         String   @id @default(cuid())
+  providerId String
+  provider   Profile  @relation("LiveRequestPresetProvider", fields: [providerId], references: [id], onDelete: Cascade)
+  label      String
+  hearts     Int
+  sortOrder  Int      @default(0)
+  isEnabled  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([providerId, sortOrder])
+}
+
+model LiveRequestOption {
+  id        String     @id @default(cuid())
+  streamId  String
+  stream    LiveStream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  label     String
+  hearts    Int
+  sortOrder Int        @default(0)
+  isEnabled Boolean    @default(true)
+  createdAt DateTime   @default(now())
+
+  requests LiveRequest[]
+
+  @@index([streamId, sortOrder])
+}
+
+enum LiveRequestStatus {
+  pending
+  accepted
+  completed
+  declined
+  expired
+  refunded
+}
+
+model LiveRequest {
+  id          String            @id @default(cuid())
+  streamId    String
+  stream      LiveStream        @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  optionId    String
+  option      LiveRequestOption @relation(fields: [optionId], references: [id], onDelete: Restrict)
+  requesterId String
+  requester   Profile           @relation("LiveRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  providerId  String
+  provider    Profile           @relation("LiveRequestProvider", fields: [providerId], references: [id], onDelete: Cascade)
+  label       String
+  hearts      Int
+  valueCents  Int
+  status      LiveRequestStatus @default(pending)
+  expiresAt   DateTime
+  respondedAt DateTime?
+  completedAt DateTime?
+  refundedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([streamId, status, createdAt])
+  @@index([requesterId, createdAt])
+  @@index([providerId, status])
 }
 
 model Gift {

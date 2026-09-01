@@ -8,6 +8,7 @@ import { createLiveKitToken, getLiveKitUrl, isLiveKitConfigured } from "@/lib/li
 import { triggerEvent } from "@/lib/pusher-server";
 import { liveStreamChannelName, LIVE_GIFT_SENT_EVENT, LIVE_STREAM_ENDED_EVENT } from "@/lib/live-stream-channels";
 import { settleGift } from "@/lib/hearts";
+import { refundOpenLiveRequests, type LiveRequestOptionInput } from "@/lib/live-requests";
 
 /** How long since lastActiveAt counts as "online" for the chat-only ring (no live badge). */
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
@@ -20,7 +21,12 @@ export type StartLiveStreamResult =
   | { ok: true; stream: { id: string; roomName: string; title: string }; token: string; livekitUrl: string }
   | { ok: false; status: number; error: string };
 
-export async function startLiveStream(providerId: string, title: string): Promise<StartLiveStreamResult> {
+export async function startLiveStream(
+  providerId: string,
+  title: string,
+  options: LiveRequestOptionInput[],
+  heartGoal?: number | null,
+): Promise<StartLiveStreamResult> {
   if (!isLiveKitConfigured()) {
     return { ok: false, status: 503, error: "Live streaming isn't configured yet." };
   }
@@ -40,7 +46,15 @@ export async function startLiveStream(providerId: string, title: string): Promis
   const stream =
     existing ??
     (await prisma.liveStream.create({
-      data: { providerId, title: title.trim().slice(0, 120) || `${profile.displayName}'s live stream`, roomName: generateRoomName() },
+      data: {
+        providerId,
+        title: title.trim().slice(0, 120) || `${profile.displayName}'s live stream`,
+        roomName: generateRoomName(),
+        heartGoal: heartGoal && heartGoal > 0 ? Math.min(Math.trunc(heartGoal), 1_000_000) : null,
+        requestOptions: {
+          create: options.map((option, sortOrder) => ({ ...option, sortOrder })),
+        },
+      },
       select: { id: true, roomName: true, title: true },
     }));
 
@@ -56,8 +70,8 @@ export async function startLiveStream(providerId: string, title: string): Promis
 
 export type EndLiveStreamResult = { ok: true } | { ok: false; status: number; error: string };
 
-export async function endLiveStream(providerId: string, streamId: string): Promise<EndLiveStreamResult> {
-  const stream = await prisma.liveStream.findUnique({ where: { id: streamId }, select: { providerId: true, status: true } });
+export async function endLiveStream(providerId: string, streamId: string, peakViewers = 0): Promise<EndLiveStreamResult> {
+  const stream = await prisma.liveStream.findUnique({ where: { id: streamId }, select: { providerId: true, status: true, peakViewers: true } });
   if (!stream || stream.providerId !== providerId) {
     return { ok: false, status: 404, error: "Stream not found." };
   }
@@ -65,7 +79,11 @@ export async function endLiveStream(providerId: string, streamId: string): Promi
     return { ok: true };
   }
 
-  await prisma.liveStream.update({ where: { id: streamId }, data: { status: "ended", endedAt: new Date() } });
+  await refundOpenLiveRequests(streamId);
+  await prisma.liveStream.update({
+    where: { id: streamId },
+    data: { status: "ended", endedAt: new Date(), peakViewers: Math.max(stream.peakViewers, Math.max(0, Math.trunc(peakViewers))) },
+  });
   await triggerEvent(liveStreamChannelName(streamId), LIVE_STREAM_ENDED_EVENT, {});
   return { ok: true };
 }
@@ -85,6 +103,8 @@ export type JoinLiveStreamResult =
         title: string;
         startedAt: string;
         totalHeartsReceived: number;
+        heartGoal: number | null;
+        requestOptions: { id: string; label: string; hearts: number }[];
         provider: { id: string; username: string; displayName: string; avatarUrl: string };
       };
       token: string;
@@ -108,6 +128,12 @@ export async function joinLiveStream(streamId: string, viewerId: string, viewerN
       roomName: true,
       startedAt: true,
       totalHeartsReceived: true,
+      heartGoal: true,
+      requestOptions: {
+        where: { isEnabled: true },
+        orderBy: { sortOrder: "asc" },
+        select: { id: true, label: true, hearts: true },
+      },
       provider: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
     },
   });
@@ -131,6 +157,8 @@ export async function joinLiveStream(streamId: string, viewerId: string, viewerN
       title: stream.title,
       startedAt: stream.startedAt.toISOString(),
       totalHeartsReceived: stream.totalHeartsReceived,
+      heartGoal: stream.heartGoal,
+      requestOptions: stream.requestOptions,
       provider: stream.provider,
     },
     token,

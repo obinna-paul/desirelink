@@ -45,6 +45,9 @@ export default async function LiveStreamPage({
       initialHeartsTotal={result.stream.totalHeartsReceived}
       provider={result.stream.provider}
       viewerHeartsBalance={profile.heartsBalance}
+      viewerProfileId={profile.id}
+      heartGoal={result.stream.heartGoal}
+      requestOptions={result.stream.requestOptions}
       initialCameraEnabled={searchParams.cam !== "0"}
       initialMicEnabled={searchParams.mic !== "0"}
       tiers={tiers}

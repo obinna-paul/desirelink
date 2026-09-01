@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getLiveRingFeed, startLiveStream } from "@/lib/live-streams";
+import { normalizeLiveRequestOptions, saveLiveRequestPresets } from "@/lib/live-requests";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -28,11 +29,17 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const title = typeof body?.title === "string" ? body.title : "";
+  const requestOptions = normalizeLiveRequestOptions(body?.requestOptions);
+  if (!requestOptions.ok) {
+    return NextResponse.json({ error: requestOptions.error }, { status: 400 });
+  }
+  const heartGoal = typeof body?.heartGoal === "number" ? body.heartGoal : null;
 
-  const result = await startLiveStream(profile.id, title);
+  const result = await startLiveStream(profile.id, title, requestOptions.options, heartGoal);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
+  await saveLiveRequestPresets(profile.id, requestOptions.options);
   return NextResponse.json(result, { status: 201 });
 }

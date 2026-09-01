@@ -78,6 +78,11 @@ export async function POST(req: Request) {
 
   // presence-live-{streamId}: watching a live stream is public — anyone signed in may subscribe.
   if (channelName.startsWith("presence-live-")) {
+    const streamId = channelName.slice("presence-live-".length);
+    const stream = await prisma.liveStream.findUnique({ where: { id: streamId }, select: { status: true } });
+    if (!stream || stream.status !== "live") {
+      return NextResponse.json({ error: "Stream unavailable" }, { status: 403 });
+    }
     const authResponse = pusherServer.authorizeChannel(socketId, channelName, {
       user_id: profile.id,
       user_info: {
@@ -87,6 +92,18 @@ export async function POST(req: Request) {
       },
     });
     return NextResponse.json(authResponse);
+  }
+
+  if (channelName.startsWith("private-live-host-")) {
+    const streamId = channelName.slice("private-live-host-".length);
+    const stream = await prisma.liveStream.findUnique({
+      where: { id: streamId },
+      select: { providerId: true, status: true },
+    });
+    if (!stream || stream.providerId !== profile.id || stream.status !== "live") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    return NextResponse.json(pusherServer.authorizeChannel(socketId, channelName));
   }
 
   // private-conversation-{profileIdA}-{profileIdB} (ids are hyphen-free cuids,

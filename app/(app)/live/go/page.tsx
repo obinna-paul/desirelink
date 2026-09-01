@@ -7,6 +7,7 @@ import { GoLiveStaging } from "@/components/live/go-live-staging";
 import { getActiveStreamForProvider } from "@/lib/live-streams";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { isLiveKitConfigured } from "@/lib/livekit";
+import { getLiveRequestPresets } from "@/lib/live-requests";
 
 export default async function GoLivePage() {
   const session = await getServerSession(authOptions);
@@ -27,10 +28,12 @@ export default async function GoLivePage() {
     redirect(`/live/${existing.id}`);
   }
 
+  const requestPresets = await getLiveRequestPresets(profile.id);
+
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-4 md:gap-6">
+    <div>
       {isLiveKitConfigured() ? (
-        <GoLiveStaging defaultTitle={`${profile.displayName}'s live stream`} />
+        <GoLiveStaging defaultTitle={`${profile.displayName}'s live stream`} defaultRequestOptions={requestPresets} />
       ) : (
         <p className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
           Live streaming isn&apos;t configured on this deployment yet.

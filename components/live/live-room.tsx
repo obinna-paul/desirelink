@@ -15,15 +15,23 @@ import {
   useLocalParticipant,
   useTracks,
 } from "@livekit/components-react";
-import { Heart, Radio, SwitchCamera, Users, X } from "lucide-react";
+import { Gift, Heart, ListChecks, MessageCircle, Radio, Send, SwitchCamera, Users, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { GiftPicker, type SendGiftOutcome } from "@/components/hearts/gift-picker";
+import type { SendGiftOutcome } from "@/components/hearts/gift-picker";
 import { FloatingHeartsLayer } from "@/components/live/floating-hearts";
+import {
+  CreatorRequestQueue,
+  LiveGiftTray,
+  ViewerRequestSheet,
+  type LiveRequestOptionView,
+  type LiveRequestView,
+} from "@/components/live/live-action-sheets";
 import { LiveOnboarding } from "@/components/live/live-onboarding";
 import { SubscribeChip } from "@/components/live/subscribe-chip";
 import { getPusherClient } from "@/lib/pusher-client";
+import { getUserChannelName } from "@/lib/message-channels";
 import { cn } from "@/lib/utils";
 import type { PublicTierView } from "@/lib/tiers";
 import {
@@ -31,7 +39,11 @@ import {
   LIVE_CHAT_MESSAGE_EVENT,
   LIVE_GIFT_SENT_EVENT,
   LIVE_REACTION_EVENT,
+  LIVE_REQUEST_CREATED_EVENT,
+  LIVE_REQUEST_COMPLETED_EVENT,
+  LIVE_REQUEST_UPDATED_EVENT,
   LIVE_STREAM_ENDED_EVENT,
+  liveHostChannelName,
 } from "@/lib/live-stream-channels";
 
 type ChatMessage = {
@@ -158,7 +170,7 @@ function ChatBubble({ entry, dense = false }: { entry: ChatEntry; dense?: boolea
   }
 
   return (
-    <div className={cn("flex items-start gap-2", dense && "drop-shadow")}>
+    <div className={cn("flex items-start gap-2", dense && "w-fit max-w-[88%] rounded-lg bg-black/40 px-2.5 py-1.5 backdrop-blur-sm")}>
       {!dense && (
         <Avatar className="h-7 w-7 shrink-0 border border-white/20">
           <AvatarImage src={entry.sender.avatarUrl} alt="" />
@@ -183,6 +195,9 @@ export function LiveRoom({
   initialHeartsTotal,
   provider,
   viewerHeartsBalance,
+  viewerProfileId,
+  heartGoal,
+  requestOptions,
   initialCameraEnabled = true,
   initialMicEnabled = true,
   tiers = [],
@@ -196,6 +211,9 @@ export function LiveRoom({
   initialHeartsTotal: number;
   provider: { id: string; username: string; displayName: string; avatarUrl: string };
   viewerHeartsBalance: number;
+  viewerProfileId: string;
+  heartGoal: number | null;
+  requestOptions: LiveRequestOptionView[];
   initialCameraEnabled?: boolean;
   initialMicEnabled?: boolean;
   tiers?: PublicTierView[];
@@ -206,6 +224,12 @@ export function LiveRoom({
   const [viewerCount, setViewerCount] = useState<number | null>(null);
   const [peakViewers, setPeakViewers] = useState(0);
   const [heartsTotal, setHeartsTotal] = useState(initialHeartsTotal);
+  const [heartsBalance, setHeartsBalance] = useState(viewerHeartsBalance);
+  const [requests, setRequests] = useState<LiveRequestView[]>([]);
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [hostQueueOpen, setHostQueueOpen] = useState(false);
+  const [chatHidden, setChatHidden] = useState(false);
   const [giftQueue, setGiftQueue] = useState<CelebrationGift[]>([]);
   const [activeCelebration, setActiveCelebration] = useState<CelebrationGift | null>(null);
   const [remoteReactionTick, setRemoteReactionTick] = useState(0);
@@ -218,6 +242,13 @@ export function LiveRoom({
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
   const giftIdRef = useRef(0);
   const systemIdRef = useRef(0);
+
+  function upsertRequest(request: LiveRequestView) {
+    setRequests((current) => {
+      const exists = current.some((item) => item.id === request.id);
+      return exists ? current.map((item) => (item.id === request.id ? { ...item, ...request } : item)) : [request, ...current];
+    });
+  }
 
   function pushSystemEntry(text: string) {
     setMessages((prev) => [...prev, { kind: "system", id: `system-${systemIdRef.current++}`, text }]);
@@ -255,13 +286,14 @@ export function LiveRoom({
     const channelName = liveStreamChannelName(streamId);
     const channel = client.subscribe(channelName) as PresenceChannel;
 
-    channel.bind("pusher:subscription_succeeded", () => setViewerCount(channel.members.count));
+    const audienceCount = () => Math.max(0, channel.members.count - 1);
+    channel.bind("pusher:subscription_succeeded", () => setViewerCount(audienceCount()));
     channel.bind("pusher:member_added", (member: { info?: PresenceMemberInfo }) => {
-      setViewerCount(channel.members.count);
+      setViewerCount(audienceCount());
       // Host-only: a per-viewer "joined" line would be noise in every viewer's own feed on any stream with real traffic.
       if (isHost && member.info?.displayName) pushSystemEntry(`${member.info.displayName} joined`);
     });
-    channel.bind("pusher:member_removed", () => setViewerCount(channel.members.count));
+    channel.bind("pusher:member_removed", () => setViewerCount(audienceCount()));
 
     function onChatMessage(message: ChatMessage) {
       setMessages((prev) =>
@@ -279,20 +311,49 @@ export function LiveRoom({
     function onEnded() {
       setEnded(true);
     }
+    function onRequestCompleted(event: { label: string; hearts: number; requester?: { displayName?: string } }) {
+      setHeartsTotal((total) => total + event.hearts);
+      if (event.requester?.displayName) pushSystemEntry(`${event.requester.displayName}'s request was completed`);
+    }
 
     channel.bind(LIVE_CHAT_MESSAGE_EVENT, onChatMessage);
     channel.bind(LIVE_GIFT_SENT_EVENT, onGift);
     channel.bind(LIVE_REACTION_EVENT, onReaction);
     channel.bind(LIVE_STREAM_ENDED_EVENT, onEnded);
+    channel.bind(LIVE_REQUEST_COMPLETED_EVENT, onRequestCompleted);
 
     return () => {
       channel.unbind(LIVE_CHAT_MESSAGE_EVENT, onChatMessage);
       channel.unbind(LIVE_GIFT_SENT_EVENT, onGift);
       channel.unbind(LIVE_REACTION_EVENT, onReaction);
       channel.unbind(LIVE_STREAM_ENDED_EVENT, onEnded);
+      channel.unbind(LIVE_REQUEST_COMPLETED_EVENT, onRequestCompleted);
       client.unsubscribe(channelName);
     };
   }, [streamId, isHost]);
+
+  useEffect(() => {
+    void fetch(`/api/live/${streamId}/requests`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (body?.requests) setRequests(body.requests);
+      });
+  }, [streamId]);
+
+  useEffect(() => {
+    const client = getPusherClient();
+    if (!client) return;
+    const channelName = isHost ? liveHostChannelName(streamId) : getUserChannelName(viewerProfileId);
+    const channel = client.subscribe(channelName);
+    const onRequest = (request: LiveRequestView) => upsertRequest(request);
+    channel.bind(LIVE_REQUEST_CREATED_EVENT, onRequest);
+    channel.bind(LIVE_REQUEST_UPDATED_EVENT, onRequest);
+    return () => {
+      channel.unbind(LIVE_REQUEST_CREATED_EVENT, onRequest);
+      channel.unbind(LIVE_REQUEST_UPDATED_EVENT, onRequest);
+      client.unsubscribe(channelName);
+    };
+  }, [isHost, streamId, viewerProfileId]);
 
   useEffect(() => {
     if (!confirmEnd) return;
@@ -322,6 +383,7 @@ export function LiveRoom({
     if (!res.ok) {
       return { ok: false, error: responseBody?.error ?? "Couldn't send that gift." };
     }
+    setHeartsBalance(responseBody.heartsBalance);
     return { ok: true, heartsBalance: responseBody.heartsBalance };
   }
 
@@ -336,25 +398,34 @@ export function LiveRoom({
     }
     setConfirmEnd(false);
     void (async () => {
-      await fetch(`/api/live/${streamId}/end`, { method: "POST" });
+      await fetch(`/api/live/${streamId}/end`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ peakViewers }),
+      });
       router.push("/");
     })();
   }
 
   const composer = (
-    <form onSubmit={sendChat} className="flex gap-2">
+    <form onSubmit={sendChat} className="flex min-w-0 flex-1 gap-2">
       <input
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Send a message…"
         maxLength={300}
-        className="flex-1 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none lg:border-border lg:bg-secondary lg:text-foreground lg:placeholder:text-muted-foreground"
+        className="min-h-11 min-w-0 flex-1 rounded-full border border-white/20 bg-black/[0.35] px-4 py-2 text-sm text-white placeholder:text-white/50 focus:border-white/40 focus:outline-none lg:border-border lg:bg-secondary lg:text-foreground lg:placeholder:text-muted-foreground"
       />
-      <Button type="submit" size="sm" disabled={!content.trim()}>
-        Send
-      </Button>
+      <button type="submit" disabled={!content.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-black transition-colors hover:bg-white/[0.85] disabled:bg-white/10 disabled:text-white/30" aria-label="Send message">
+        <Send className="h-4 w-4" aria-hidden="true" />
+      </button>
     </form>
   );
+
+  const activeViewerRequest = !isHost
+    ? requests.find((request) => request.status === "accepted" || request.status === "pending")
+    : null;
+  const pendingRequestCount = requests.filter((request) => request.status === "pending").length;
 
   if (ended) {
     return (
@@ -480,32 +551,63 @@ export function LiveRoom({
             </div>
           )}
 
+          {heartGoal && (
+            <div className="pointer-events-none absolute right-3 top-[calc(env(safe-area-inset-top)+4.6rem)] w-32 rounded-lg bg-black/45 px-2.5 py-2 backdrop-blur-md lg:right-5 lg:top-20">
+              <div className="flex items-center justify-between text-[10px] font-medium text-white/65"><span>Heart goal</span><span className="tabular-nums">{Math.min(100, Math.round((heartsTotal / heartGoal) * 100))}%</span></div>
+              <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/15"><span className="block h-full rounded-full bg-fuchsia-400 transition-[width]" style={{ width: `${Math.min(100, (heartsTotal / heartGoal) * 100)}%` }} /></div>
+            </div>
+          )}
+
+          {activeViewerRequest && (
+            <button type="button" onClick={() => setRequestOpen(true)} className="absolute left-3 top-[calc(env(safe-area-inset-top)+4.7rem)] z-10 flex min-h-10 max-w-[58%] items-center gap-2 rounded-lg bg-black/50 px-3 text-left text-xs text-white backdrop-blur-md lg:left-5 lg:top-20">
+              {activeViewerRequest.status === "accepted" ? <Heart className="h-4 w-4 shrink-0 text-emerald-300" fill="currentColor" aria-hidden="true" /> : <ListChecks className="h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />}
+              <span className="truncate">{activeViewerRequest.status === "accepted" ? "Accepted" : "Waiting"}: {activeViewerRequest.label}</span>
+            </button>
+          )}
+
           {/* Mobile-only: chat fades over the video like a live ticker. Sits higher in landscape to clear the floating footer below. */}
-          <div
+          {!chatHidden && <div
             ref={tickerRef}
-            className="pointer-events-none absolute inset-x-0 bottom-0 flex max-h-40 flex-col gap-1 overflow-y-auto p-3 text-sm [mask-image:linear-gradient(to_top,black_60%,transparent)] landscape:bottom-24 landscape:max-h-24 lg:hidden"
+            className="pointer-events-none absolute inset-x-0 bottom-24 flex max-h-48 flex-col items-start gap-1.5 overflow-hidden px-3 py-2 text-sm [mask-image:linear-gradient(to_top,black_72%,transparent)] landscape:max-h-28 lg:hidden"
           >
-            {messages.slice(-30).map((entry) => (
+            {messages.slice(-8).map((entry) => (
               <ChatBubble key={entry.id} entry={entry} dense />
             ))}
-          </div>
+          </div>}
 
           {!isHost && <LiveOnboarding />}
         </div>
 
         {/* Mobile-only footer: controls, gifting, and the composer, stacked under the video in portrait. In landscape there's little vertical room, so it floats over the video instead of squeezing it. */}
-        <div className="flex flex-col gap-2 border-t border-white/10 bg-black/90 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 landscape:absolute landscape:inset-x-0 landscape:bottom-0 landscape:border-t-0 landscape:bg-gradient-to-t landscape:from-black/95 landscape:via-black/80 landscape:to-transparent landscape:pt-8 lg:hidden">
-          {isHost && (
-            <HostControls initialCameraEnabled={initialCameraEnabled} initialMicEnabled={initialMicEnabled} />
+        <div className="absolute inset-x-0 bottom-0 z-20 flex items-end gap-2 bg-gradient-to-t from-black via-black/75 to-transparent px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-8 lg:hidden">
+          {isHost ? (
+            <div className="flex w-full items-center justify-between gap-3">
+              <HostControls initialCameraEnabled={initialCameraEnabled} initialMicEnabled={initialMicEnabled} />
+              <button type="button" onClick={() => setHostQueueOpen(true)} className="relative flex h-11 items-center gap-2 rounded-full bg-white px-4 text-xs font-semibold text-black" aria-label="Open request queue">
+                <ListChecks className="h-4 w-4" aria-hidden="true" /> Requests
+                {pendingRequestCount > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-fuchsia-600 px-1 text-[10px] text-white">{pendingRequestCount}</span>}
+              </button>
+            </div>
+          ) : (
+            <>
+              <button type="button" onClick={() => setChatHidden((current) => !current)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur" aria-label={chatHidden ? "Show live chat" : "Hide live chat"} aria-pressed={chatHidden}>
+                <MessageCircle className="h-5 w-5" aria-hidden="true" />
+              </button>
+              <button type="button" onClick={() => setGiftOpen(true)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur" aria-label="Send a gift">
+                <Gift className="h-5 w-5" aria-hidden="true" />
+              </button>
+              <button type="button" onClick={() => setRequestOpen(true)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur" aria-label="Make a request">
+                <ListChecks className="h-5 w-5" aria-hidden="true" />
+              </button>
+              {composer}
+            </>
           )}
-          {!isHost && <GiftPicker initialBalance={viewerHeartsBalance} onSend={sendGift} theme="dark" />}
-          {composer}
         </div>
 
         {/* Desktop-only: a persistent side panel — chat history, gifting, and controls all stay visible next to the video. Flush against the viewport edge now that the room takes over the full screen. */}
         <div className="hidden lg:flex lg:w-[340px] lg:shrink-0 lg:flex-col lg:overflow-hidden lg:border-l lg:border-border/60 lg:bg-background lg:text-foreground">
           <div className="border-b border-border/60 px-3 py-2.5">
-            <p className="text-sm font-semibold">Live chat</p>
+            <div className="flex items-center justify-between"><p className="text-sm font-semibold">Live chat</p>{isHost && <button type="button" onClick={() => setHostQueueOpen(true)} className="relative flex h-9 items-center gap-2 rounded-lg px-2 text-xs font-medium hover:bg-secondary"><ListChecks className="h-4 w-4" aria-hidden="true" />Requests{pendingRequestCount > 0 && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">{pendingRequestCount}</span>}</button>}</div>
           </div>
           <div ref={sidebarScrollRef} className="flex flex-1 flex-col gap-3 overflow-y-auto px-3 py-3">
             {messages.length === 0 ? (
@@ -518,11 +620,15 @@ export function LiveRoom({
             {isHost && (
               <HostControls initialCameraEnabled={initialCameraEnabled} initialMicEnabled={initialMicEnabled} />
             )}
-            {!isHost && <GiftPicker initialBalance={viewerHeartsBalance} onSend={sendGift} theme="light" />}
+            {!isHost && <div className="flex gap-2"><button type="button" onClick={() => setGiftOpen(true)} className="flex h-10 items-center gap-2 rounded-lg border border-border px-3 text-xs font-medium"><Gift className="h-4 w-4" aria-hidden="true" />Gift</button><button type="button" onClick={() => setRequestOpen(true)} className="flex h-10 items-center gap-2 rounded-lg border border-border px-3 text-xs font-medium"><ListChecks className="h-4 w-4" aria-hidden="true" />Request</button></div>}
             {composer}
           </div>
         </div>
       </LiveKitRoom>
+
+      {!isHost && <LiveGiftTray open={giftOpen} onClose={() => setGiftOpen(false)} balance={heartsBalance} onSend={sendGift} />}
+      {!isHost && <ViewerRequestSheet open={requestOpen} onClose={() => setRequestOpen(false)} streamId={streamId} options={requestOptions} balance={heartsBalance} requests={requests} onCreated={(request, spent) => { upsertRequest(request); setHeartsBalance((current) => Math.max(0, current - spent)); }} />}
+      {isHost && <CreatorRequestQueue open={hostQueueOpen} onClose={() => setHostQueueOpen(false)} requests={requests} onUpdated={upsertRequest} />}
     </div>
   );
 }
