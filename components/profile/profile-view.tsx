@@ -192,7 +192,7 @@ export function ProfileView({
         )}
 
         <div className="px-4 pb-5 sm:px-6 md:px-8 md:pb-7">
-          <div className="-mt-10 flex items-end gap-4 sm:-mt-12 md:-mt-14 md:items-start md:gap-6">
+          <div className="-mt-10 flex items-start gap-4 sm:-mt-12 md:-mt-14 md:gap-6">
             <ProfileAvatarEditor
               avatarUrl={profile.avatarUrl}
               displayName={profile.displayName}
@@ -202,19 +202,20 @@ export function ProfileView({
               liveStreamId={liveStreamId}
             />
 
-            <div className="min-w-0 flex-1 pb-1 md:pt-16">
-              <div className="flex min-w-0 items-center gap-2">
-                <h1 className="truncate font-heading text-xl font-semibold text-foreground sm:text-2xl md:text-3xl">
-                  {profile.displayName || `@${profile.username}`}
-                </h1>
-                <VerificationBadge profile={profile} />
-              </div>
+            <div className="min-w-0 flex-1 pt-11 sm:pt-14 md:pt-16">
               {profile.displayName && (
-                <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                <p className="truncate text-sm text-muted-foreground">
                   @{profile.username}
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 md:ml-[9.5rem]">
+            <h1 className="min-w-0 break-words font-heading text-xl font-semibold text-foreground sm:text-2xl md:text-3xl">
+              {profile.displayName || `@${profile.username}`}
+            </h1>
+            <VerificationBadge profile={profile} />
           </div>
 
           <div className="mt-4 grid max-w-xs grid-cols-3 divide-x divide-border sm:max-w-sm md:ml-[9.5rem] md:mt-4">
