@@ -33,7 +33,7 @@ export function PostActions({
           disabled={likeDisabled}
           className={cn(
             "inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors disabled:opacity-60",
-            liked ? "bg-neon-pink/10 text-neon-pink" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            liked ? "text-neon-pink" : "text-muted-foreground hover:text-foreground"
           )}
         >
           <Heart className={cn("h-5 w-5", liked && "fill-current")} aria-hidden="true" />
@@ -42,7 +42,7 @@ export function PostActions({
         <button
           type="button"
           onClick={onOpenComments}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
         >
           <MessageCircle className="h-5 w-5" aria-hidden="true" />
           {commentCount}
@@ -50,7 +50,7 @@ export function PostActions({
         <button
           type="button"
           onClick={onShare}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
         >
           <Share2 className="h-5 w-5" aria-hidden="true" />
           {shareCount}
