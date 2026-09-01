@@ -195,16 +195,6 @@ export default function HelpCenterPage() {
               Fans who&apos;ve gone quiet, and suggested posting times.
             </p>
           </FaqItem>
-          <FaqItem question="What does 'monetized' mean, and does it affect my Fans?">
-            <p>
-              Monetization only controls whether your engagement with Premium users (Udala&apos;s
-              platform-wide subscribers) counts toward the monthly rewards pool. It never affects your
-              own Fans — you keep earning from tier subscriptions whether you&apos;re monetized or not.
-              Once you meet the requirements shown in{" "}
-              <Link href="/creator-dashboard?tab=earnings">Creator Studio → Earnings</Link>, you can apply
-              — our team reviews each application manually before it&apos;s approved.
-            </p>
-          </FaqItem>
         </CategorySection>
 
         <CategorySection id="safety-reporting" title="Safety & Reporting" icon={ShieldCheck}>

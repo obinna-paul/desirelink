@@ -8,7 +8,6 @@ import { getCreatorProfilePosts } from "@/lib/posts";
 import { getCreatorStats } from "@/lib/creator";
 import { getPublicTiers } from "@/lib/tiers";
 import { getProviderServiceListings } from "@/lib/service-listings";
-import { isPremiumUser } from "@/lib/premium";
 import { getAttendingEvents, getProfileEvents } from "@/lib/events";
 import { getReviewSummary, getReviewsForProfile } from "@/lib/reviews";
 import { isProviderProfileType } from "@/lib/provider-types";
@@ -44,14 +43,13 @@ export default async function ProfilePage({
 
   const isProvider = isProviderProfileType(profile.profileType);
 
-  const [posts, subscriptions, serviceListings, events, attendingEvents, profileIsPremium, reviewSummary, reviews, stats] =
+  const [posts, subscriptions, serviceListings, events, attendingEvents, reviewSummary, reviews, stats] =
     await Promise.all([
       getCreatorProfilePosts(profile.id, profile.id),
       getPublicTiers(profile.id, profile.id),
       getProviderServiceListings(profile.id),
       getProfileEvents(profile.id, profile.id),
       getAttendingEvents(profile.id, profile.id),
-      isPremiumUser(profile.id),
       getReviewSummary(profile.id),
       getReviewsForProfile(profile.id),
       getCreatorStats(profile.id),
@@ -68,7 +66,6 @@ export default async function ProfilePage({
         events={isProvider ? events : attendingEvents}
         isOwner
         isProvider={isProvider}
-        isPremium={profileIsPremium}
         profileHref="/profile"
         activeSection={searchParams.section}
         reviewSummary={reviewSummary}

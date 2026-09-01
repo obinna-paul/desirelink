@@ -5,7 +5,6 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { flagContentIfNeeded } from "@/lib/moderation";
 import { getPostByIdForViewer } from "@/lib/posts";
-import { premiumLimitPayload, isPremiumUser } from "@/lib/premium";
 import { prisma } from "@/lib/prisma";
 import { readJson } from "@/lib/security/request";
 import { updatePostSchema } from "@/lib/validations/post";
@@ -133,16 +132,6 @@ export async function PATCH(
       data: { pinnedAt: null },
     });
     return NextResponse.json({ ok: true, pinned: false });
-  }
-
-  if (!(await isPremiumUser(profile.id))) {
-    return NextResponse.json(
-      premiumLimitPayload(
-        "post_editing",
-        "Editing published posts is a premium feature. Upgrade to udala premium to revise posts after publishing.",
-      ),
-      { status: 402 },
-    );
   }
 
   await prisma.post.update({

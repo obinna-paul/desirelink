@@ -12,8 +12,6 @@ import { getProfileVisibility, getVisibleDesires } from "@/lib/circles";
 import { getReviewableContexts, getReviewsForProfile, getReviewSummary } from "@/lib/reviews";
 import { confirmProviderPayment } from "@/lib/providers";
 import { getProviderServiceListings } from "@/lib/service-listings";
-import { trackContentView, trackProfileView as trackPremiumProfileView, trackServiceView } from "@/lib/rewards/tracking";
-import { isPremiumUser, recordProfileVisit } from "@/lib/premium";
 import { getAttendingEvents, getProfileEvents } from "@/lib/events";
 import { isProviderProfileType } from "@/lib/provider-types";
 
@@ -43,7 +41,7 @@ export default async function PublicProfilePage({
     !isOwner && session?.user?.id
       ? await prisma.profile.findUnique({
           where: { userId: session.user.id },
-          select: { id: true, isIncognito: true, heartsBalance: true },
+          select: { id: true, heartsBalance: true },
         })
       : null;
 
@@ -56,7 +54,10 @@ export default async function PublicProfilePage({
   }
 
   if (!isOwner) {
-    await recordProfileVisit(profile.id, viewerProfile);
+    await prisma.profile.update({
+      where: { id: profile.id },
+      data: { profileViews: { increment: 1 } },
+    });
   }
 
   if (searchParams.reference && viewerProfile) {
@@ -78,22 +79,11 @@ export default async function PublicProfilePage({
     getCreatorStats(profile.id),
   ]);
 
-  if (viewerProfile) {
-    await trackPremiumProfileView(profile.id, viewerProfile.id);
-    if (posts.length > 0) {
-      await trackContentView(profile.id, viewerProfile.id);
-    }
-    if (serviceListings.length > 0) {
-      await trackServiceView(profile.id, viewerProfile.id);
-    }
-  }
-
   const [reviewSummary, reviews, reviewableContexts] = await Promise.all([
     getReviewSummary(profile.id),
     getReviewsForProfile(profile.id),
     viewerProfile ? getReviewableContexts(viewerProfile.id, profile.id) : Promise.resolve([]),
   ]);
-  const profileIsPremium = await isPremiumUser(profile.id);
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -106,7 +96,6 @@ export default async function PublicProfilePage({
         events={isProvider ? events : attendingEvents}
         isOwner={isOwner}
         isProvider={isProvider}
-        isPremium={profileIsPremium}
         canMessage={!isOwner && Boolean(viewerProfile)}
         viewerHeartsBalance={viewerProfile?.heartsBalance ?? 0}
         canModerate={!isOwner && Boolean(viewerProfile)}

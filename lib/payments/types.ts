@@ -62,10 +62,10 @@ export type PayoutTransferResult = {
 
 /**
  * A payment provider's job, as this app uses it, has no need for
- * provider-side subscription objects: ProviderSubscription and
- * PremiumSubscription in our own database are the single source of truth for
- * subscription lifecycle (status, endsAt, retries). All a provider has to do
- * is move money and hand back a saved card to bill again later.
+ * provider-side subscription objects: ProviderSubscription in our own
+ * database is the single source of truth for subscription lifecycle
+ * (status, endsAt, retries). All a provider has to do is move money and
+ * hand back a saved card to bill again later.
  */
 export interface PaymentProvider {
   createCustomer(userId: string, email: string): Promise<string>;
@@ -74,7 +74,7 @@ export interface PaymentProvider {
    * Starts a hosted, redirect-based checkout for a first-time charge — used
    * whenever the customer has no saved card yet. `metadata` is round-tripped
    * back on the webhook event so the handler can tell which of our rows
-   * (Premium vs. a specific provider tier) this payment is for.
+   * this payment is for.
    */
   createCheckoutSession(
     customerId: string,

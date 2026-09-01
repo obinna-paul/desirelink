@@ -7,12 +7,10 @@ import { ProfileGrid } from "@/components/home/profile-grid";
 import { DiscoverFiltersPanel } from "@/components/discover/discover-filters";
 import {
   DEFAULT_RADIUS_KM,
-  hasAdvancedDiscoverFilters,
   parseDiscoverFilters,
   searchDiscoverProfiles,
   type DiscoverSearchParams,
 } from "@/lib/discover";
-import { isPremiumUser } from "@/lib/premium";
 
 export default async function DiscoverPage({
   searchParams,
@@ -30,8 +28,7 @@ export default async function DiscoverPage({
   });
 
   const filters = parseDiscoverFilters(searchParams);
-  const viewerIsPremium = viewerProfile ? await isPremiumUser(viewerProfile.id) : false;
-  const { profiles, note } = await searchDiscoverProfiles(filters, viewerProfile, viewerIsPremium);
+  const { profiles, note } = await searchDiscoverProfiles(filters, viewerProfile);
 
   const activeFilterCount =
     (filters.query ? 1 : 0) +
@@ -40,18 +37,16 @@ export default async function DiscoverPage({
     (filters.radiusKm !== DEFAULT_RADIUS_KM ? 1 : 0) +
     (filters.availability !== "any" ? 1 : 0) +
     (filters.sort !== "newest" ? 1 : 0) +
-    (viewerIsPremium && hasAdvancedDiscoverFilters(filters)
-      ? filters.accountTypes.length +
-        filters.desireCategories.length +
-        (filters.desireLevel ? 1 : 0) +
-        filters.bodyTypes.length +
-        (filters.lastActive !== "any" ? 1 : 0) +
-        (filters.verification !== "any" ? 1 : 0)
-      : 0);
+    filters.accountTypes.length +
+    filters.desireCategories.length +
+    (filters.desireLevel ? 1 : 0) +
+    filters.bodyTypes.length +
+    (filters.lastActive !== "any" ? 1 : 0) +
+    (filters.verification !== "any" ? 1 : 0);
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <DiscoverFiltersPanel initialFilters={filters} isPremium={viewerIsPremium} />
+      <DiscoverFiltersPanel initialFilters={filters} />
 
       <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
         <p className="text-sm text-muted-foreground">

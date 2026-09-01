@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { recordPostView } from "@/lib/premium";
 
 export async function POST(
   _req: Request,
@@ -28,7 +27,12 @@ export async function POST(
   if (!post)
     return NextResponse.json({ error: "Post not found" }, { status: 404 });
 
-  await recordPostView(params.postId, post.authorId, profile.id);
+  if (post.authorId !== profile.id) {
+    await prisma.post.update({
+      where: { id: params.postId },
+      data: { viewCount: { increment: 1 } },
+    });
+  }
 
   return NextResponse.json({ success: true }, { status: 200 });
 }

@@ -65,7 +65,6 @@ export function PaymentMethodManager({ initialCards }: { initialCards: PaymentMe
   const router = useRouter();
   const [cards, setCards] = useState(initialCards);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function setDefault(cardId: string) {
@@ -96,25 +95,12 @@ export function PaymentMethodManager({ initialCards }: { initialCards: PaymentMe
     router.refresh();
   }
 
-  async function addCard() {
-    setAdding(true);
-    setError(null);
-    const res = await fetch("/api/billing/cards", { method: "POST" });
-    const body = await res.json().catch(() => null);
-    setAdding(false);
-    if (!res.ok) {
-      setError(body?.error ?? "Couldn't start checkout.");
-      return;
-    }
-    window.location.href = body.checkoutUrl;
-  }
-
   return (
     <div className="flex flex-col gap-3">
       {cards.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-          No saved cards yet. Cards are saved automatically the first time you subscribe to something — udala
-          premium, or a provider&apos;s tier.
+          No saved cards yet. A card is saved automatically the first time you pay for something — buying hearts,
+          booking a service, getting an event ticket, or subscribing to a creator.
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -136,15 +122,10 @@ export function PaymentMethodManager({ initialCards }: { initialCards: PaymentMe
         </p>
       )}
 
-      {cards.length === 0 && (
-        <Button type="button" className="w-fit" disabled={adding} onClick={addCard}>
-          {adding ? "..." : "Add a card via udala premium"}
-        </Button>
-      )}
       {cards.length > 0 && (
         <p className="text-xs text-muted-foreground">
-          To use a different card, remove this one and subscribe again — udala doesn&apos;t yet support saving more
-          than one card at a time.
+          To use a different card, remove this one and make another payment — udala doesn&apos;t yet support saving
+          more than one card at a time.
         </p>
       )}
     </div>

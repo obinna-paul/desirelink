@@ -14,7 +14,6 @@ import {
 
 type GrowthPoint = { month: string; subscribers: number };
 type EarningsPoint = { month: string; earnings: number };
-type RewardsPoint = { month: string; amount: number };
 
 const AXIS_TICK = { fill: "hsl(var(--muted-foreground))", fontSize: 12 };
 const TOOLTIP_STYLE = {
@@ -141,42 +140,6 @@ export function EarningsChart({ data }: { data: EarningsPoint[] }) {
             formatter={(value) => [`₦${Number(value).toFixed(2)}`, "Earnings"]}
           />
           <Bar dataKey="earnings" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={24} />
-        </BarChart>
-      </ResponsiveContainer>
-    </ChartCard>
-  );
-}
-
-export function RewardsEarningsChart({ data }: { data: RewardsPoint[] }) {
-  return (
-    <ChartCard
-      title="Rewards pool payouts"
-      description="Your share of the monthly provider rewards pool"
-      tableCaption="Rewards pool payout in NGN by month"
-      rows={data.map((point) => ({
-        label: point.month,
-        value: `₦${point.amount.toFixed(2)}`,
-      }))}
-    >
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
-          <XAxis dataKey="month" tick={AXIS_TICK} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
-          <YAxis
-            tick={AXIS_TICK}
-            axisLine={false}
-            tickLine={false}
-            width={48}
-            tickFormatter={(value: number) => `₦${value}`}
-          />
-          <Tooltip
-            contentStyle={TOOLTIP_STYLE}
-            labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-            itemStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
-            cursor={{ fill: "hsl(var(--muted))" }}
-            formatter={(value) => [`₦${Number(value).toFixed(2)}`, "Payout"]}
-          />
-          <Bar dataKey="amount" fill="hsl(var(--accent-soft))" radius={[4, 4, 0, 0]} maxBarSize={24} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>

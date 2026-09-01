@@ -2,8 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 import { processPaymentEvent } from "@/lib/payments/webhook-handler";
 import { profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
-import { trackEventRsvp } from "@/lib/rewards/tracking";
-import { isPremiumUser } from "@/lib/premium";
 
 async function getOrCreatePaymentCustomerId(profileId: string, existingCustomerId: string | null): Promise<string> {
   if (existingCustomerId) return existingCustomerId;
@@ -182,7 +180,6 @@ export async function setRsvp(
     where: { eventId_userId: { eventId, userId: profileId } },
   });
   const previousStatus = existing?.status ?? null;
-  const viewerIsPremium = action === "going" && previousStatus !== "going" ? await isPremiumUser(profileId) : false;
 
   if (action === "going" && previousStatus !== "going" && event.priceCents > 0) {
     if (event.maxAttendees !== null && event.currentAttendees >= event.maxAttendees) {
@@ -199,47 +196,13 @@ export async function setRsvp(
 
   await prisma.$transaction(async (tx) => {
     if (action === "going" && previousStatus !== "going" && event.maxAttendees !== null && event.currentAttendees >= event.maxAttendees) {
-      if (viewerIsPremium) {
-        const confirmed = await tx.eventRsvp.findMany({
-          where: { eventId, status: "going", userId: { not: profileId } },
-          orderBy: { updatedAt: "asc" },
-          take: 100,
-          include: {
-            profile: {
-              select: {
-                premiumSubscription: { select: { status: true, currentPeriodEnd: true } },
-              },
-            },
-          },
-        });
-        const now = new Date();
-        const freeAttendee = confirmed.find((rsvp) => {
-          const premium = rsvp.profile.premiumSubscription;
-          return !(premium && premium.status === "active" && premium.currentPeriodEnd > now);
-        });
-
-        if (freeAttendee) {
-          await tx.eventRsvp.update({ where: { id: freeAttendee.id }, data: { status: "waitlist" } });
-          await tx.eventRsvp.upsert({
-            where: { eventId_userId: { eventId, userId: profileId } },
-            create: { eventId, userId: profileId, status: "going" },
-            update: { status: "going" },
-          });
-          savedStatus = "going";
-          message = "Your premium RSVP was prioritized for this limited event.";
-          return;
-        }
-      }
-
       await tx.eventRsvp.upsert({
         where: { eventId_userId: { eventId, userId: profileId } },
         create: { eventId, userId: profileId, status: "waitlist" },
         update: { status: "waitlist" },
       });
       savedStatus = "waitlist";
-      message = viewerIsPremium
-        ? "This event is full of premium attendees, so you're on the waitlist."
-        : "This event is full, so you're on the waitlist. Premium members get priority for limited spots.";
+      message = "This event is full, so you're on the waitlist.";
       return;
     }
 
@@ -255,10 +218,6 @@ export async function setRsvp(
       await tx.event.update({ where: { id: eventId }, data: { currentAttendees: { decrement: 1 } } });
     }
   });
-
-  if (savedStatus === "going" && previousStatus !== "going") {
-    await trackEventRsvp(event.hostId, profileId);
-  }
 
   return { ok: true, state: "updated", status: savedStatus, message };
 }

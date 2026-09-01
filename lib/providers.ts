@@ -149,12 +149,11 @@ export async function subscribeToProvider(
 }
 
 /**
- * Confirms a pending ProviderSubscription (or Premium subscription — see
- * lib/premium.ts) after the subscriber returns from checkout, by verifying
- * the transaction reference directly with the payment provider rather than
- * trusting the redirect alone (Paystack's recommended pattern). Safe to call
- * more than once — processPaymentEvent no-ops once the pending row is no
- * longer "pending".
+ * Confirms a pending ProviderSubscription after the subscriber returns from
+ * checkout, by verifying the transaction reference directly with the payment
+ * provider rather than trusting the redirect alone (Paystack's recommended
+ * pattern). Safe to call more than once — processPaymentEvent no-ops once
+ * the pending row is no longer "pending".
  */
 export async function confirmProviderPayment(reference: string): Promise<void> {
   const event = await paymentProvider.verifyTransaction(reference);

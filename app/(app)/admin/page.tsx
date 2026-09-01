@@ -26,9 +26,6 @@ export default async function AdminPage() {
         <Button asChild variant="outline" className="w-full sm:w-auto">
           <Link href="/admin/moderation">Open moderation queue</Link>
         </Button>
-        <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link href="/admin/monetization">Manage monetization</Link>
-        </Button>
       </div>
       <VerificationQueue initialRequests={requests} />
     </div>

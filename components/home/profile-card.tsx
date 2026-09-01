@@ -24,8 +24,6 @@ export function ProfileCard({
   const locationLabel = distanceLabel ?? (profile.showExactLocation ? preciseLocation : "");
   const visibleDesires = profile.desires.slice(0, 2);
   const activeStatus = profile.availabilityStatuses[0];
-  const premium = profile.premiumSubscription;
-  const isPremium = Boolean(premium && premium.status === "active" && premium.currentPeriodEnd > new Date());
 
   return (
     <Link
@@ -61,9 +59,6 @@ export function ProfileCard({
             <span className="rounded-full bg-black/70 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">
               {matchScore}% match
             </span>
-          )}
-          {isPremium && (
-            <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-black">Premium</span>
           )}
         </div>
 

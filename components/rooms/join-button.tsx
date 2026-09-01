@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Check, Clock, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { PremiumUpsell } from "@/components/premium/premium-upsell";
 import type { MembershipState } from "@/lib/rooms";
 
 export function JoinButton({
@@ -21,23 +20,17 @@ export function JoinButton({
   const [state, setState] = useState(initialState);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [premiumUpsell, setPremiumUpsell] = useState<string | null>(null);
 
   async function handleJoin() {
     setPending(true);
     setError(null);
-    setPremiumUpsell(null);
 
     const res = await fetch(`/api/rooms/${roomId}/join`, { method: "POST" });
     const body = await res.json().catch(() => null);
     setPending(false);
 
     if (!res.ok) {
-      if (body?.code === "PREMIUM_REQUIRED") {
-        setPremiumUpsell(body.error);
-      } else {
-        setError(body?.error ?? "Couldn't join this room. Try again.");
-      }
+      setError(body?.error ?? "Couldn't join this room. Try again.");
       return;
     }
 
@@ -78,15 +71,6 @@ export function JoinButton({
         <p role="alert" className="text-xs text-destructive">
           {error}
         </p>
-      )}
-      {premiumUpsell && (
-        <div className="max-w-sm">
-          <PremiumUpsell
-            compact
-            title="Room limit reached"
-            description={premiumUpsell}
-          />
-        </div>
       )}
     </div>
   );

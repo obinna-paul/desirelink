@@ -4,7 +4,6 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
-import { PREMIUM_SUBSCRIPTION_PRICE_CENTS } from "@/lib/premium";
 import { creditProviderWallet } from "@/lib/wallet";
 
 /**
@@ -88,12 +87,6 @@ export async function setDefaultPaymentMethod(profileId: string, cardId: string)
 }
 
 export type BillingOverview = {
-  premium: {
-    active: boolean;
-    status: string;
-    cancelAtPeriodEnd: boolean;
-    currentPeriodEnd: Date;
-  } | null;
   providerSubscriptions: {
     id: string;
     providerId: string;
@@ -144,8 +137,7 @@ async function getActiveProviderSubscriptionsForBilling(
 }
 
 export async function getBillingOverview(profileId: string): Promise<BillingOverview> {
-  const [premium, providerSubs, paymentMethods, transactions] = await Promise.all([
-    prisma.premiumSubscription.findUnique({ where: { userId: profileId } }),
+  const [providerSubs, paymentMethods, transactions] = await Promise.all([
     getActiveProviderSubscriptionsForBilling(profileId),
     getPaymentMethods(profileId),
     prisma.transaction.findMany({
@@ -157,15 +149,6 @@ export async function getBillingOverview(profileId: string): Promise<BillingOver
   ]);
 
   return {
-    premium:
-      premium && premium.status !== "pending" && premium.status !== "failed"
-        ? {
-            active: premium.status === "active",
-            status: premium.status,
-            cancelAtPeriodEnd: premium.cancelAtPeriodEnd,
-            currentPeriodEnd: premium.currentPeriodEnd,
-          }
-        : null,
     providerSubscriptions: providerSubs.map((sub) => ({
       id: sub.id,
       providerId: sub.providerId,
@@ -182,7 +165,7 @@ export async function getBillingOverview(profileId: string): Promise<BillingOver
       amountCents: transaction.amountCents,
       status: transaction.status,
       createdAt: transaction.createdAt,
-      description: transaction.isPremium ? "udala premium" : (transaction.tier?.name ?? "Payment"),
+      description: transaction.tier?.name ?? "Payment",
     })),
   };
 }
@@ -275,67 +258,6 @@ async function processProviderSubscription(
   return "retried";
 }
 
-async function processPremiumSubscription(
-  sub: { userId: string; status: string; currentPeriodEnd: Date; cancelAtPeriodEnd: boolean; pastDueSince: Date | null; paymentRetryCount: number; paymentCustomerId: string | null },
-  now: Date
-): Promise<"renewed" | "retried" | "cancelled" | "skipped"> {
-  if (sub.status === "active" && sub.cancelAtPeriodEnd && sub.currentPeriodEnd <= now) {
-    await prisma.premiumSubscription.update({ where: { userId: sub.userId }, data: { status: "cancelled" } });
-    return "cancelled";
-  }
-
-  if (sub.status === "past_due") {
-    const daysPastDue = (now.getTime() - (sub.pastDueSince ?? now).getTime()) / (1000 * 60 * 60 * 24);
-    if (daysPastDue >= PAST_DUE_CANCEL_AFTER_DAYS) {
-      await prisma.premiumSubscription.update({ where: { userId: sub.userId }, data: { status: "cancelled" } });
-      return "cancelled";
-    }
-    if (daysPastDue >= PAYMENT_RETRY_WINDOW_DAYS || sub.paymentRetryCount >= MAX_PAYMENT_RETRY_ATTEMPTS) {
-      return "skipped";
-    }
-  } else if (!(sub.status === "active" && sub.currentPeriodEnd <= now)) {
-    return "skipped";
-  }
-
-  if (!sub.paymentCustomerId) {
-    await prisma.premiumSubscription.update({
-      where: { userId: sub.userId },
-      data: { status: "past_due", pastDueSince: sub.pastDueSince ?? now, paymentRetryCount: sub.paymentRetryCount + 1 },
-    });
-    return "retried";
-  }
-
-  const { success, reference } = await chargeDefaultCard(
-    sub.paymentCustomerId,
-    sub.userId,
-    PREMIUM_SUBSCRIPTION_PRICE_CENTS,
-    { kind: "premium" }
-  );
-
-  if (success) {
-    const currentPeriodEnd = new Date(now);
-    currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
-    await prisma.premiumSubscription.update({
-      where: { userId: sub.userId },
-      data: { status: "active", currentPeriodStart: now, currentPeriodEnd, paymentSubscriptionId: reference, pastDueSince: null, paymentRetryCount: 0 },
-    });
-    await prisma.transaction.create({
-      data: { userId: sub.userId, amountCents: PREMIUM_SUBSCRIPTION_PRICE_CENTS, status: "succeeded", provider: "card", isPremium: true },
-    });
-    return "renewed";
-  }
-
-  await prisma.premiumSubscription.update({
-    where: { userId: sub.userId },
-    data: { status: "past_due", pastDueSince: sub.pastDueSince ?? now, paymentRetryCount: sub.paymentRetryCount + 1 },
-  });
-  await prisma.transaction.create({
-    data: { userId: sub.userId, amountCents: PREMIUM_SUBSCRIPTION_PRICE_CENTS, status: "failed", provider: "card", isPremium: true },
-  });
-  await notifyPaymentFailed(sub.userId);
-  return "retried";
-}
-
 /**
  * Meant to run daily. Renews any subscription due today, retries any
  * past-due one still inside its 7-day/3-attempt retry window, and cancels
@@ -354,14 +276,6 @@ export async function runSubscriptionRenewals(): Promise<{
   });
   for (const sub of providerSubs) {
     const outcome = await processProviderSubscription(sub, now);
-    if (outcome !== "skipped") counts[outcome]++;
-  }
-
-  const premiumSubs = await prisma.premiumSubscription.findMany({
-    where: { status: { in: ["active", "past_due"] } },
-  });
-  for (const sub of premiumSubs) {
-    const outcome = await processPremiumSubscription(sub, now);
     if (outcome !== "skipped") counts[outcome]++;
   }
 

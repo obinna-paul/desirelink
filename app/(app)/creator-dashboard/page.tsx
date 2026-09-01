@@ -28,10 +28,6 @@ import {
 import { getCreatorProfilePosts } from "@/lib/posts";
 import { getMyVerificationRequests } from "@/lib/verification";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
-import { ProviderEarningsDashboard } from "@/components/provider/provider-earnings-dashboard";
-import { getProviderEarningsDashboard } from "@/lib/rewards/earnings";
-import { MonetizationPanel } from "@/components/creator/monetization-panel";
-import { getMonetizationEligibility } from "@/lib/monetization";
 
 const SubscriberGrowthChart = dynamic(
   () =>
@@ -89,7 +85,6 @@ export default async function CreatorDashboardPage({
         <ContentTab profileId={profile.id} displayName={profile.displayName} />
       )}
       {tab === "applications" && <ApplicationsTab profileId={profile.id} />}
-      {tab === "earnings" && <EarningsTab profileId={profile.id} />}
       {tab === "analytics" && <AnalyticsTab profileId={profile.id} />}
       {tab === "verification" && (
         <VerificationTab
@@ -174,21 +169,6 @@ async function VerificationTab({
       isVerified={isVerifiedProvider}
       latestStatus={latest?.status ?? null}
     />
-  );
-}
-
-async function EarningsTab({ profileId }: { profileId: string }) {
-  const eligibility = await getMonetizationEligibility(profileId);
-  if (!eligibility) return null;
-
-  const earnings = await getProviderEarningsDashboard(profileId);
-  if (!earnings) return null;
-
-  return (
-    <div className="flex flex-col gap-3 md:gap-4">
-      <MonetizationPanel providerId={profileId} eligibility={eligibility} />
-      <ProviderEarningsDashboard data={earnings} providerId={profileId} />
-    </div>
   );
 }
 

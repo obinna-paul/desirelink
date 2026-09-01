@@ -5,7 +5,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateProfileSchema } from "@/lib/validations/profile";
 import { recalculateReputation } from "@/lib/reputation";
-import { isPremiumUser, premiumLimitPayload } from "@/lib/premium";
 import { readJson } from "@/lib/security/request";
 import { isProviderProfileType } from "@/lib/provider-types";
 
@@ -42,16 +41,6 @@ export async function PATCH(req: Request) {
         { status: 400 }
       );
     }
-  }
-
-  if (parsed.data.isIncognito && !(await isPremiumUser(currentProfile.id))) {
-    return NextResponse.json(
-      premiumLimitPayload(
-        "incognito",
-        "Incognito mode is available with udala premium."
-      ),
-      { status: 402 }
-    );
   }
 
   const { profileType, serviceCategories, ...rest } = parsed.data;

@@ -16,36 +16,16 @@ import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import type { PostView } from "@/lib/posts";
 
-function LockedPostBody({
-  reason,
-  authorUsername,
-}: {
-  reason: PostView["lockReason"];
-  authorUsername: string;
-}) {
-  const isPremiumLimit = reason === "premium_provider_limit";
-
+function LockedPostBody({ authorUsername }: { authorUsername: string }) {
   return (
     <div className="relative flex aspect-[4/5] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl bg-foreground px-6 text-center text-background md:rounded-lg">
       <span className="flex h-11 w-11 items-center justify-center rounded-full bg-background/10">
         <Lock className="h-5 w-5" aria-hidden="true" />
       </span>
-      <p className="font-heading text-lg italic font-medium">
-        {isPremiumLimit ? "Premium access" : "Subscriber exclusive"}
-      </p>
-      <p className="max-w-xs text-sm text-background/70">
-        {isPremiumLimit
-          ? "Free accounts can view 5 free provider posts per day. Upgrade for unlimited provider content."
-          : "Subscribe to this creator to see this post."}
-      </p>
+      <p className="font-heading text-lg italic font-medium">Subscriber exclusive</p>
+      <p className="max-w-xs text-sm text-background/70">Subscribe to this creator to see this post.</p>
       <Button asChild size="sm" className="mt-1">
-        <Link
-          href={
-            isPremiumLimit ? "/settings/billing" : `/profile/${authorUsername}`
-          }
-        >
-          {isPremiumLimit ? "Upgrade to Premium" : "Subscribe to Unlock"}
-        </Link>
+        <Link href={`/profile/${authorUsername}`}>Subscribe to Unlock</Link>
       </Button>
     </div>
   );
@@ -131,18 +111,9 @@ export function PostCard({
               <Lock className="h-3 w-3" aria-hidden="true" /> Premium
             </Badge>
           )}
-          {post.lockReason === "premium_provider_limit" && (
-            <Badge
-              variant="outline"
-              className="label-caps gap-1 text-muted-foreground"
-            >
-              <Lock className="h-3 w-3" aria-hidden="true" /> Limit reached
-            </Badge>
-          )}
           {post.viewerCanManage ? (
             <PostOwnerControls
               postId={post.id}
-              canEdit={post.viewerCanEdit}
               initialContent={post.content ?? ""}
               initialSubscriberOnly={post.isSubscriberOnly}
               isPinned={post.isPinned}
@@ -160,10 +131,7 @@ export function PostCard({
 
       {post.locked ? (
         <div className="px-3 md:px-4">
-          <LockedPostBody
-            reason={post.lockReason}
-            authorUsername={post.author.username}
-          />
+          <LockedPostBody authorUsername={post.author.username} />
         </div>
       ) : (
         <>
