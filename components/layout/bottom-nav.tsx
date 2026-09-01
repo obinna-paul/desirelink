@@ -23,12 +23,7 @@ export function BottomNav({ isProvider = false }: { isProvider?: boolean }) {
             aria-label={item.label}
             className="flex flex-1 flex-col items-center justify-center py-1"
           >
-            <span
-              className={cn(
-                "flex flex-col items-center gap-1 rounded-2xl px-3 py-1.5 transition-colors",
-                active && "bg-accent-tint"
-              )}
-            >
+            <span className="flex flex-col items-center gap-1 rounded-2xl px-3 py-1.5 transition-colors">
               <Icon
                 className={cn("h-5 w-5", active ? "text-primary" : "text-muted-foreground")}
                 aria-hidden="true"
