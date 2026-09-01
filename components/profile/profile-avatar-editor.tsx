@@ -87,8 +87,8 @@ export function ProfileAvatarEditor({
   }
 
   const avatarInner = (
-    <PresenceRing status={presenceStatus} size="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32" className="ring-offset-2 ring-offset-card">
-      <Avatar className="h-full w-full border-4 border-card bg-avatar-placeholder shadow-lift">
+    <PresenceRing status={presenceStatus} size="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32">
+      <Avatar className="h-full w-full border-2 border-card bg-avatar-placeholder shadow-lift">
         <AvatarImage src={preview} alt={displayName} className="object-cover" />
         <AvatarFallback className="text-xl md:text-2xl">
           {displayName.slice(0, 2).toUpperCase()}
