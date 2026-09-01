@@ -6,8 +6,10 @@ import { useMediaDevices, usePreviewTracks } from "@livekit/components-react";
 import type { LocalAudioTrack, LocalTrack, LocalVideoTrack } from "livekit-client";
 import {
   ArrowLeft,
+  Bell,
   Camera,
   Check,
+  ChevronDown,
   ChevronRight,
   CircleDollarSign,
   Heart,
@@ -101,14 +103,8 @@ export function GoLiveStaging({
   const router = useRouter();
   const [title, setTitle] = useState(defaultTitle);
   const [heartGoal, setHeartGoal] = useState<number | "">("");
-  const [requestOptions, setRequestOptions] = useState<RequestOption[]>(() =>
-    defaultRequestOptions.length >= 2
-      ? defaultRequestOptions
-      : [
-          { label: "", hearts: "" },
-          { label: "", hearts: "" },
-        ],
-  );
+  const [requestOptions, setRequestOptions] = useState<RequestOption[]>(defaultRequestOptions);
+  const [notifySubscribers, setNotifySubscribers] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewState, setPreviewState] = useState<PreviewState>("connecting");
@@ -175,9 +171,7 @@ export function GoLiveStaging({
   }
 
   function removeRequest(index: number) {
-    if (requestOptions.length > 2) {
-      setRequestOptions((current) => current.filter((_, optionIndex) => optionIndex !== index));
-    }
+    setRequestOptions((current) => current.filter((_, optionIndex) => optionIndex !== index));
   }
 
   function retryPreview() {
@@ -189,12 +183,16 @@ export function GoLiveStaging({
   }
 
   async function handleGoLive() {
-    const normalizedRequests = requestOptions.map((option) => ({
+    // Requests are optional - a row left completely blank is just an unused slot and is
+    // dropped silently. A row with only one side filled in is a genuine mistake, so that
+    // still blocks going live rather than being submitted half-formed.
+    const rows = requestOptions.map((option) => ({
       label: option.label.trim(),
       hearts: typeof option.hearts === "number" ? option.hearts : Number.NaN,
     }));
+    const normalizedRequests = rows.filter((option) => option.label || Number.isInteger(option.hearts));
     if (normalizedRequests.some((option) => !option.label || !Number.isInteger(option.hearts) || option.hearts < 1)) {
-      setError("Add a name and heart price for every request.");
+      setError("Finish or remove any request that's only partly filled in.");
       return;
     }
 
@@ -203,7 +201,12 @@ export function GoLiveStaging({
     const response = await fetch("/api/live", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, heartGoal: heartGoal === "" ? null : heartGoal, requestOptions: normalizedRequests }),
+      body: JSON.stringify({
+        title,
+        heartGoal: heartGoal === "" ? null : heartGoal,
+        requestOptions: normalizedRequests,
+        notifySubscribers,
+      }),
     });
     const body = await response.json().catch(() => null);
 
@@ -301,6 +304,8 @@ export function GoLiveStaging({
             removeRequest,
             heartGoal,
             setHeartGoal,
+            notifySubscribers,
+            setNotifySubscribers,
             audioDevices,
             videoDevices,
             audioDeviceId,
@@ -328,6 +333,8 @@ function SetupPanel({
   removeRequest,
   heartGoal,
   setHeartGoal,
+  notifySubscribers,
+  setNotifySubscribers,
   audioDevices,
   videoDevices,
   audioDeviceId,
@@ -348,6 +355,8 @@ function SetupPanel({
   removeRequest: (index: number) => void;
   heartGoal: number | "";
   setHeartGoal: (value: number | "") => void;
+  notifySubscribers: boolean;
+  setNotifySubscribers: (value: boolean) => void;
   audioDevices: MediaDeviceInfo[];
   videoDevices: MediaDeviceInfo[];
   audioDeviceId?: string;
@@ -359,8 +368,19 @@ function SetupPanel({
   previewState: PreviewState;
   handleGoLive: () => void;
 }) {
+  const footerRef = useRef<HTMLDivElement>(null);
+  const [showScrollHint, setShowScrollHint] = useState(true);
+
+  useEffect(() => {
+    const el = footerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => setShowScrollHint(!entry.isIntersecting), { threshold: 0.4 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <aside className="flex flex-col bg-[#111111] lg:h-dvh lg:border-l lg:border-white/10">
+    <aside className="relative flex flex-col bg-[#111111] lg:h-dvh lg:border-l lg:border-white/10">
       <div className="hidden items-center justify-between border-b border-white/10 px-6 py-5 lg:flex">
         <div>
           <p className="text-base font-semibold text-white">Set up your live</p>
@@ -378,29 +398,31 @@ function SetupPanel({
         <section className="space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-white">Viewer requests</p>
-              <p className="mt-1 text-xs leading-5 text-white/50">Offer clear choices. Hearts stay protected until you complete one.</p>
+              <p className="text-sm font-medium text-white">Viewer requests <span className="font-normal text-white/40">Optional</span></p>
+              <p className="mt-1 text-xs leading-5 text-white/50">Offer clear choices if you want them. Hearts stay protected until you complete one.</p>
             </div>
             <span className="shrink-0 text-xs tabular-nums text-white/40">{requestOptions.length}/{MAX_REQUESTS}</span>
           </div>
-          <div className="divide-y divide-white/10 border-y border-white/10">
-            {requestOptions.map((option, index) => (
-              <div key={index} className="grid grid-cols-[minmax(0,1fr)_88px_44px] items-center gap-3 py-3">
-                <label className="min-w-0">
-                  <span className="sr-only">Request {index + 1}</span>
-                  <input value={option.label} onChange={(event) => updateRequest(index, { label: event.target.value })} maxLength={60} placeholder={index === 0 ? "A short request" : "Another option"} className="h-10 w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30" />
-                </label>
-                <label className="relative">
-                  <Heart className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-fuchsia-400" aria-hidden="true" />
-                  <span className="sr-only">Heart price</span>
-                  <input type="number" min={1} max={10000} value={option.hearts} onChange={(event) => updateRequest(index, { hearts: event.target.value ? Number(event.target.value) : "" })} placeholder="Price" className="h-10 w-full bg-transparent pl-6 text-sm tabular-nums text-white outline-none placeholder:text-white/30" />
-                </label>
-                <button type="button" onClick={() => removeRequest(index)} disabled={requestOptions.length <= 2} className="flex h-11 w-11 items-center justify-center text-white/40 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-20" aria-label={`Remove request ${index + 1}`}>
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
-            ))}
-          </div>
+          {requestOptions.length > 0 && (
+            <div className="divide-y divide-white/10 border-y border-white/10">
+              {requestOptions.map((option, index) => (
+                <div key={index} className="grid grid-cols-[minmax(0,1fr)_88px_44px] items-center gap-3 py-3">
+                  <label className="min-w-0">
+                    <span className="sr-only">Request {index + 1}</span>
+                    <input value={option.label} onChange={(event) => updateRequest(index, { label: event.target.value })} maxLength={60} placeholder={index === 0 ? "A short request" : "Another option"} className="h-10 w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30" />
+                  </label>
+                  <label className="relative">
+                    <Heart className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-fuchsia-400" aria-hidden="true" />
+                    <span className="sr-only">Heart price</span>
+                    <input type="number" min={1} max={10000} value={option.hearts} onChange={(event) => updateRequest(index, { hearts: event.target.value ? Number(event.target.value) : "" })} placeholder="Price" className="h-10 w-full bg-transparent pl-6 text-sm tabular-nums text-white outline-none placeholder:text-white/30" />
+                  </label>
+                  <button type="button" onClick={() => removeRequest(index)} className="flex h-11 w-11 items-center justify-center text-white/40 transition-colors hover:text-white" aria-label={`Remove request ${index + 1}`}>
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           {requestOptions.length < MAX_REQUESTS && (
             <button type="button" onClick={addRequest} className="flex min-h-11 items-center gap-2 text-sm font-medium text-fuchsia-300 transition-colors hover:text-fuchsia-200">
               <Plus className="h-4 w-4" aria-hidden="true" /> Add request
@@ -416,20 +438,53 @@ function SetupPanel({
           <input id="heart-goal" type="number" min={1} max={1000000} value={heartGoal} onChange={(event) => setHeartGoal(event.target.value ? Number(event.target.value) : "")} placeholder="Set a goal for this live" className="h-12 w-full border-0 border-b border-white/20 bg-transparent px-0 text-sm text-white outline-none placeholder:text-white/30 focus:border-fuchsia-400" />
         </section>
 
+        <section>
+          <label htmlFor="notify-subscribers" className="flex min-h-11 cursor-pointer items-center justify-between gap-4">
+            <span className="flex items-start gap-2.5">
+              <Bell className="mt-0.5 h-4 w-4 shrink-0 text-white/[0.45]" aria-hidden="true" />
+              <span>
+                <span className="block text-sm font-medium text-white">Notify your subscribers</span>
+                <span className="mt-0.5 block text-xs leading-5 text-white/50">Let people who subscribe to you know you just went live.</span>
+              </span>
+            </span>
+            <button
+              type="button"
+              id="notify-subscribers"
+              role="switch"
+              aria-checked={notifySubscribers}
+              onClick={() => setNotifySubscribers(!notifySubscribers)}
+              className={cn(
+                "flex h-7 w-12 shrink-0 items-center rounded-full border border-white/[0.15] p-0.5 transition-colors",
+                notifySubscribers ? "bg-fuchsia-600" : "bg-white/10",
+              )}
+            >
+              <span className={cn("h-5 w-5 rounded-full bg-white shadow transition-transform", notifySubscribers ? "translate-x-5" : "translate-x-0")} />
+            </button>
+          </label>
+        </section>
+
         <section className="space-y-3 lg:hidden">
           <p className="text-sm font-medium text-white">Devices</p>
           <DeviceSelects {...{ audioDevices, videoDevices, audioDeviceId, videoDeviceId, setAudioDeviceId, setVideoDeviceId }} />
         </section>
 
         {error && <div role="alert" className="border-l-2 border-red-400 bg-red-400/10 px-3 py-2 text-sm leading-5 text-red-100">{error}</div>}
+
+        <div ref={footerRef} className="border-t border-white/10 pt-6 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+          <button type="button" disabled={pending || previewState === "error"} onClick={handleGoLive} className="flex min-h-12 w-full items-center justify-between rounded-lg bg-fuchsia-600 px-5 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(192,38,211,0.22)] transition-colors hover:bg-fuchsia-500 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none">
+            <span className="flex items-center gap-2"><Radio className="h-4 w-4" aria-hidden="true" />{pending ? "Starting live..." : "Go live"}</span>
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
-      <div className="sticky bottom-0 border-t border-white/10 bg-[#111111]/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur lg:px-6 lg:pb-6">
-        <button type="button" disabled={pending || previewState === "error"} onClick={handleGoLive} className="flex min-h-12 w-full items-center justify-between rounded-lg bg-fuchsia-600 px-5 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(192,38,211,0.22)] transition-colors hover:bg-fuchsia-500 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none">
-          <span className="flex items-center gap-2"><Radio className="h-4 w-4" aria-hidden="true" />{pending ? "Starting live..." : "Go live"}</span>
-          <ChevronRight className="h-4 w-4" aria-hidden="true" />
-        </button>
-      </div>
+      {showScrollHint && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+0.9rem)] z-30 flex justify-center transition-opacity duration-300 lg:hidden">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/45 text-white/70 backdrop-blur-md motion-safe:animate-bounce">
+            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </span>
+        </div>
+      )}
     </aside>
   );
 }

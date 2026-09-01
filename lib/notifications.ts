@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
-export type NotificationKind = "message" | "like" | "comment" | "reply" | "rsvp" | "subscription" | "review" | "booking";
+export type NotificationKind = "message" | "like" | "comment" | "reply" | "rsvp" | "subscription" | "review" | "booking" | "live";
 
 function isMissingNotificationSchema(error: unknown) {
   return (
@@ -39,6 +39,27 @@ export async function createNotification({
     if (!isMissingNotificationSchema(error)) throw error;
     console.warn("Notifications are unavailable until the Notification migration is applied.");
     return null;
+  }
+}
+
+export async function createNotificationsBulk(
+  notifications: Array<{
+    recipientId: string;
+    actorId?: string;
+    type: NotificationKind;
+    title: string;
+    body: string;
+    href: string;
+  }>,
+) {
+  const rows = notifications.filter((n) => n.recipientId !== n.actorId);
+  if (rows.length === 0) return;
+
+  try {
+    await prisma.notification.createMany({ data: rows });
+  } catch (error) {
+    if (!isMissingNotificationSchema(error)) throw error;
+    console.warn("Notifications are unavailable until the Notification migration is applied.");
   }
 }
 

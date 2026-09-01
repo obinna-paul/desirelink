@@ -14,7 +14,6 @@ import {
   liveHostChannelName,
 } from "@/lib/live-stream-channels";
 
-export const LIVE_REQUEST_MIN_OPTIONS = 2;
 export const LIVE_REQUEST_MAX_OPTIONS = 8;
 export const LIVE_REQUEST_MAX_HEARTS = 10_000;
 export const LIVE_REQUEST_EXPIRY_MINUTES = 10;
@@ -57,20 +56,26 @@ function serializeRequest(request: {
   };
 }
 
+/**
+ * Viewer requests are optional - a creator can go live with none. Rows left completely
+ * blank (no label, no price) are treated as unused slots and dropped rather than rejected;
+ * a row with only one side filled in is a genuine mistake and still fails validation.
+ */
 export function normalizeLiveRequestOptions(value: unknown):
   | { ok: true; options: LiveRequestOptionInput[] }
   | { ok: false; error: string } {
   if (!Array.isArray(value)) {
-    return { ok: false, error: "Add at least two request options." };
+    return { ok: true, options: [] };
   }
 
-  const options = value.map((item) => ({
+  const rows = value.map((item) => ({
     label: typeof item?.label === "string" ? item.label.trim().slice(0, 60) : "",
     hearts: typeof item?.hearts === "number" ? Math.trunc(item.hearts) : Number.NaN,
   }));
+  const options = rows.filter((row) => row.label || Number.isInteger(row.hearts));
 
-  if (options.length < LIVE_REQUEST_MIN_OPTIONS || options.length > LIVE_REQUEST_MAX_OPTIONS) {
-    return { ok: false, error: `Add between ${LIVE_REQUEST_MIN_OPTIONS} and ${LIVE_REQUEST_MAX_OPTIONS} request options.` };
+  if (options.length > LIVE_REQUEST_MAX_OPTIONS) {
+    return { ok: false, error: `Add up to ${LIVE_REQUEST_MAX_OPTIONS} request options.` };
   }
   if (options.some((option) => !option.label)) {
     return { ok: false, error: "Give every request a short name." };
