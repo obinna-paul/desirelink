@@ -1,15 +1,17 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import nextDynamic from "next/dynamic";
 import Image from "next/image";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { CalendarDays, Lock, MapPin, Pencil, Users, UserPlus, Video } from "lucide-react";
+import { CalendarDays, Lock, LogIn, MapPin, Pencil, Users, UserPlus, Video } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ShareButton } from "@/components/ui/share-button";
 import { SectionTab } from "@/components/layout/section-tab";
 import { ProfileGrid } from "@/components/home/profile-grid";
 import { EventGrid } from "@/components/events/event-grid";
@@ -18,9 +20,10 @@ import { ConfirmAttendanceButton } from "@/components/events/confirm-attendance-
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { EscrowNotice } from "@/components/payments/escrow-notice";
 import { formatCents } from "@/lib/creator";
-import { getEventDetail, getSimilarEvents } from "@/lib/events";
+import { canViewEvent, getEventDetail, getSimilarEvents } from "@/lib/events";
 import { confirmEventRsvpPayment, getEventAttendees, getViewerRsvpStatus } from "@/lib/rsvp";
 import { getGroupMessages, getMutedUserIds } from "@/lib/group-chat";
+import { absoluteUrl, SITE_NAME } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +33,68 @@ const GroupChat = nextDynamic(() =>
   import("@/components/chat/group-chat").then((mod) => mod.GroupChat)
 );
 
+async function getViewerProfileId(): Promise<string | null> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return null;
+  const profile = await prisma.profile.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true },
+  });
+  return profile?.id ?? null;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
+  const event = await prisma.event.findUnique({
+    where: { id: params.id },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      coverImageUrl: true,
+      isPrivate: true,
+      hostId: true,
+      startTime: true,
+      city: true,
+    },
+  });
+  if (!event) return { title: "Event not found" };
+
+  const viewerProfileId = await getViewerProfileId();
+  if (!canViewEvent(event, viewerProfileId)) {
+    return { title: "Private event", robots: { index: false, follow: false } };
+  }
+
+  const title = event.title;
+  const description = event.description
+    ? event.description.slice(0, 160)
+    : `Join this event on ${SITE_NAME}${event.city ? ` in ${event.city}` : ""}.`;
+  const url = absoluteUrl(`/events/${event.id}`);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    robots: event.isPrivate ? { index: false, follow: false } : undefined,
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      url,
+      images: event.coverImageUrl ? [{ url: event.coverImageUrl }] : undefined,
+    },
+    twitter: {
+      card: event.coverImageUrl ? "summary_large_image" : "summary",
+      title,
+      description,
+      images: event.coverImageUrl ? [event.coverImageUrl] : undefined,
+    },
+  };
+}
+
 export default async function EventDetailPage({
   params,
   searchParams,
@@ -38,39 +103,34 @@ export default async function EventDetailPage({
   searchParams: { section?: string; reference?: string };
 }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
+  const viewerProfile = session?.user?.id
+    ? await prisma.profile.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      })
+    : null;
 
-  const viewerProfile = await prisma.profile.findUnique({
-    where: { userId: session.user.id },
-    select: { id: true },
-  });
-  if (!viewerProfile) {
-    redirect("/login");
-  }
-
-  if (searchParams.reference) {
+  if (searchParams.reference && viewerProfile) {
     await confirmEventRsvpPayment(searchParams.reference);
   }
 
-  const event = await getEventDetail(params.id, viewerProfile.id);
+  const event = await getEventDetail(params.id, viewerProfile?.id ?? null);
   if (!event) {
     notFound();
   }
 
-  const isHost = event.hostId === viewerProfile.id;
-  const viewerRsvp = isHost ? null : await getViewerRsvpStatus(event.id, viewerProfile.id);
+  const isHost = viewerProfile ? event.hostId === viewerProfile.id : false;
+  const viewerRsvp = viewerProfile && !isHost ? await getViewerRsvpStatus(event.id, viewerProfile.id) : null;
   const canSeeFullGuestList = isHost || viewerRsvp === "going";
   const canAccessChat = canSeeFullGuestList;
   const section: EventSection = searchParams.section === "chat" ? "chat" : "details";
 
   const [attendees, similarEvents, chatMessages, mutedUserIds, heldTransaction] = await Promise.all([
     getEventAttendees(event.id, canSeeFullGuestList),
-    getSimilarEvents(event, viewerProfile.id),
+    getSimilarEvents(event, viewerProfile?.id ?? null),
     canAccessChat ? getGroupMessages("event", event.id) : Promise.resolve([]),
     canAccessChat ? getMutedUserIds("event", event.id) : Promise.resolve([]),
-    !isHost && event.priceCents > 0
+    viewerProfile && !isHost && event.priceCents > 0
       ? prisma.transaction.findFirst({
           where: { eventId: event.id, userId: viewerProfile.id, status: "succeeded", escrowStatus: "held" },
           select: { id: true },
@@ -82,8 +142,50 @@ export default async function EventDetailPage({
   const hostInitials = event.host.displayName.slice(0, 2).toUpperCase();
   const isFull = event.maxAttendees !== null && event.currentAttendees >= event.maxAttendees;
 
+  const jsonLd = event.isPrivate
+    ? null
+    : {
+        "@context": "https://schema.org",
+        "@type": "Event",
+        name: event.title,
+        description: event.description || undefined,
+        startDate: event.startTime.toISOString(),
+        endDate: event.endTime.toISOString(),
+        eventAttendanceMode:
+          event.format === "online"
+            ? "https://schema.org/OnlineEventAttendanceMode"
+            : event.format === "in_person"
+              ? "https://schema.org/OfflineEventAttendanceMode"
+              : "https://schema.org/MixedEventAttendanceMode",
+        eventStatus: "https://schema.org/EventScheduled",
+        image: event.coverImageUrl || undefined,
+        url: absoluteUrl(`/events/${event.id}`),
+        location:
+          event.format === "online"
+            ? { "@type": "VirtualLocation", url: absoluteUrl(`/events/${event.id}`) }
+            : { "@type": "Place", name: event.venueName || location, address: location || undefined },
+        organizer: {
+          "@type": "Person",
+          name: event.host.displayName,
+          url: absoluteUrl(`/profile/${event.host.username}`),
+        },
+        offers: {
+          "@type": "Offer",
+          price: (event.priceCents / 100).toFixed(2),
+          priceCurrency: "USD",
+          availability: isFull ? "https://schema.org/SoldOut" : "https://schema.org/InStock",
+          url: absoluteUrl(`/events/${event.id}`),
+        },
+      };
+
   return (
     <div className="flex flex-col gap-4 md:gap-6">
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
       <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm md:rounded-xl md:shadow-none">
         <div className="relative flex h-52 w-full items-center justify-center overflow-hidden bg-secondary md:h-56">
           {event.coverImageUrl ? (
@@ -176,7 +278,7 @@ export default async function EventDetailPage({
                   <Pencil className="h-4 w-4" aria-hidden="true" /> Manage this event
                 </Link>
               </Button>
-            ) : (
+            ) : viewerProfile ? (
               <>
                 <RsvpButtons
                   eventId={event.id}
@@ -185,10 +287,24 @@ export default async function EventDetailPage({
                 />
                 <ReportDialog targetType="event" targetId={event.id} label="Report event" />
               </>
+            ) : (
+              <Button asChild className="gap-1.5">
+                <Link href={`/login?callbackUrl=${encodeURIComponent(`/events/${event.id}`)}`}>
+                  <LogIn className="h-4 w-4" aria-hidden="true" /> Log in to RSVP
+                </Link>
+              </Button>
+            )}
+            {!event.isPrivate && (
+              <ShareButton
+                href={`/events/${event.id}`}
+                title={event.title}
+                label="Share"
+                variant="outline"
+              />
             )}
           </div>
 
-          {!isHost && event.priceCents > 0 && !heldTransaction && viewerRsvp !== "going" && (
+          {viewerProfile && !isHost && event.priceCents > 0 && !heldTransaction && viewerRsvp !== "going" && (
             <EscrowNotice subject="ticket payment" />
           )}
           {heldTransaction && <ConfirmAttendanceButton eventId={event.id} />}
@@ -240,7 +356,7 @@ export default async function EventDetailPage({
             </div>
           )}
         </>
-      ) : canAccessChat ? (
+      ) : canAccessChat && viewerProfile ? (
         <GroupChat
           channelType="event"
           channelId={event.id}

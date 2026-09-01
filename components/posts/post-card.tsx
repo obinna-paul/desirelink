@@ -53,9 +53,9 @@ export function PostCard({
   const [detailOpen, setDetailOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const shareUrl = useMemo(() => {
-    if (typeof window === "undefined") return `/profile/${post.author.username}`;
-    return `${window.location.origin}/profile/${post.author.username}?post=${post.id}`;
-  }, [post.author.username, post.id]);
+    if (typeof window === "undefined") return `/posts/${post.id}`;
+    return `${window.location.origin}/posts/${post.id}`;
+  }, [post.id]);
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 768px)");

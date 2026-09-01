@@ -68,7 +68,7 @@ export default async function ProfilePage({
         events={isProvider ? events : attendingEvents}
         isOwner
         isProvider={isProvider}
-        profileHref="/profile"
+        profileHref={`/profile/${profile.username}`}
         activeSection={searchParams.section}
         reviewSummary={reviewSummary}
         reviews={reviews}

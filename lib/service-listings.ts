@@ -48,6 +48,27 @@ export type HomeServiceListingView = Prisma.ServiceListingGetPayload<{
   include: typeof homeServiceListingInclude;
 }>;
 
+export async function getServiceListingById(id: string): Promise<HomeServiceListingView | null> {
+  try {
+    return await prisma.serviceListing.findFirst({
+      where: {
+        id,
+        provider: { isSuspended: false },
+      },
+      include: homeServiceListingInclude,
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2021" || error.code === "P2022")
+    ) {
+      console.warn("Service listing lookup is unavailable until service listing migrations are applied.");
+      return null;
+    }
+    throw error;
+  }
+}
+
 export async function getHomeServiceListings(limit = 24): Promise<HomeServiceListingView[]> {
   try {
     return await prisma.serviceListing.findMany({
