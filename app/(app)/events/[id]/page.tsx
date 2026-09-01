@@ -14,7 +14,9 @@ import { SectionTab } from "@/components/layout/section-tab";
 import { ProfileGrid } from "@/components/home/profile-grid";
 import { EventGrid } from "@/components/events/event-grid";
 import { RsvpButtons } from "@/components/events/rsvp-buttons";
+import { ConfirmAttendanceButton } from "@/components/events/confirm-attendance-button";
 import { ReportDialog } from "@/components/safety/report-dialog";
+import { EscrowNotice } from "@/components/payments/escrow-notice";
 import { formatCents } from "@/lib/creator";
 import { getEventDetail, getSimilarEvents } from "@/lib/events";
 import { confirmEventRsvpPayment, getEventAttendees, getViewerRsvpStatus } from "@/lib/rsvp";
@@ -63,11 +65,17 @@ export default async function EventDetailPage({
   const canAccessChat = canSeeFullGuestList;
   const section: EventSection = searchParams.section === "chat" ? "chat" : "details";
 
-  const [attendees, similarEvents, chatMessages, mutedUserIds] = await Promise.all([
+  const [attendees, similarEvents, chatMessages, mutedUserIds, heldTransaction] = await Promise.all([
     getEventAttendees(event.id, canSeeFullGuestList),
     getSimilarEvents(event, viewerProfile.id),
     canAccessChat ? getGroupMessages("event", event.id) : Promise.resolve([]),
     canAccessChat ? getMutedUserIds("event", event.id) : Promise.resolve([]),
+    !isHost && event.priceCents > 0
+      ? prisma.transaction.findFirst({
+          where: { eventId: event.id, userId: viewerProfile.id, status: "succeeded", escrowStatus: "held" },
+          select: { id: true },
+        })
+      : Promise.resolve(null),
   ]);
 
   const location = [event.venueName, event.address, event.city].filter(Boolean).join(", ");
@@ -179,6 +187,11 @@ export default async function EventDetailPage({
               </>
             )}
           </div>
+
+          {!isHost && event.priceCents > 0 && !heldTransaction && viewerRsvp !== "going" && (
+            <EscrowNotice subject="ticket payment" />
+          )}
+          {heldTransaction && <ConfirmAttendanceButton eventId={event.id} />}
         </div>
       </div>
 

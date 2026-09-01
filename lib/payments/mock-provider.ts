@@ -3,6 +3,7 @@ import type {
   PayoutRecipient,
   PayoutRecipientInput,
   PayoutTransferResult,
+  RefundResult,
   WebhookEvent,
   WebhookPaymentMethod,
 } from "./types";
@@ -127,6 +128,18 @@ export class MockPaymentProvider implements PaymentProvider {
     void reason;
     void metadata;
     return { reference: fakeId("trf"), status: "success" };
+  }
+
+  async refundTransaction(
+    transactionReference: string,
+    amountCents: number,
+    metadata: Record<string, string> = {},
+  ): Promise<RefundResult> {
+    await delay(SIMULATED_DELAY_MS);
+    void amountCents;
+    // Lets tests exercise the failed-refund path without a real provider error.
+    const status = metadata.simulateFailure === "true" ? "failed" : "success";
+    return { reference: transactionReference, status };
   }
 
   async verifyTransaction(reference: string): Promise<WebhookEvent> {

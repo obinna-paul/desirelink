@@ -60,6 +60,11 @@ export type PayoutTransferResult = {
   status: "success" | "pending" | "failed";
 };
 
+export type RefundResult = {
+  reference: string;
+  status: "success" | "pending" | "failed";
+};
+
 /**
  * A payment provider's job, as this app uses it, has no need for
  * provider-side subscription objects: ProviderSubscription and
@@ -117,6 +122,18 @@ export interface PaymentProvider {
    * processing function (see lib/payments/webhook-handler.ts).
    */
   verifyTransaction(reference: string): Promise<WebhookEvent>;
+
+  /**
+   * Refunds a previously successful charge, in full or in part (pass the
+   * charge's own reference, not a refund id). Used to return escrowed funds
+   * to the customer when a service booking or event RSVP is declined or
+   * cancelled before the money is released to the provider/host.
+   */
+  refundTransaction(
+    transactionReference: string,
+    amountCents: number,
+    metadata?: Record<string, string>
+  ): Promise<RefundResult>;
 
   /** `payload` must be the raw request body (string or Buffer), not parsed JSON — required for signature verification. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- provider-specific raw payload shape.

@@ -4,6 +4,7 @@ import { BriefcaseBusiness, Clock, MessageCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BookingRequestDialog } from "@/components/services/booking-request-dialog";
 import { formatCents } from "@/lib/creator";
 import type { ServiceListingView } from "@/lib/service-listings";
 
@@ -48,11 +49,14 @@ export function ServiceListingSummaryCard({
           <span className="font-semibold text-primary">{formatCents(listing.priceCents)}</span>
         </div>
         {!isOwner && (
-          <Button asChild variant="outline" className="gap-1.5">
-            <Link href={`/messages?with=${providerUsername}`}>
-              <MessageCircle className="h-4 w-4" aria-hidden="true" /> Contact provider
-            </Link>
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <BookingRequestDialog listingId={listing.id} title={listing.title} priceCents={listing.priceCents} />
+            <Button asChild variant="outline" className="gap-1.5">
+              <Link href={`/messages?with=${providerUsername}`}>
+                <MessageCircle className="h-4 w-4" aria-hidden="true" /> Contact provider
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
     </div>

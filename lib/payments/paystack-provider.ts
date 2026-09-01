@@ -5,6 +5,7 @@ import type {
   PayoutRecipient,
   PayoutRecipientInput,
   PayoutTransferResult,
+  RefundResult,
   WebhookEvent,
   WebhookPaymentMethod,
 } from "./types";
@@ -54,6 +55,17 @@ type PaystackTransferData = {
   reference: string;
   status: string;
 };
+
+type PaystackRefundData = {
+  transaction_reference: string;
+  status: string;
+};
+
+function normalizeRefundStatus(status: string): RefundResult["status"] {
+  if (status === "processed" || status === "success") return "success";
+  if (status === "failed") return "failed";
+  return "pending";
+}
 
 function toWebhookPaymentMethod(
   authorization: PaystackAuthorization | undefined,
@@ -257,6 +269,24 @@ export class PaystackProvider implements PaymentProvider {
     return {
       reference: transfer.reference,
       status: normalizeTransferStatus(transfer.status),
+    };
+  }
+
+  async refundTransaction(
+    transactionReference: string,
+    amountCents: number,
+    metadata: Record<string, string> = {},
+  ): Promise<RefundResult> {
+    const refund = await this.request<PaystackRefundData>("POST", "/refund", {
+      transaction: transactionReference,
+      amount: amountCents,
+      currency: currency(),
+      merchant_note: metadata.reason ?? "udala escrow refund",
+    });
+
+    return {
+      reference: refund.transaction_reference,
+      status: normalizeRefundStatus(refund.status),
     };
   }
 

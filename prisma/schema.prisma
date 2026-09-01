@@ -37,6 +37,21 @@ enum RsvpStatus {
   not_going
 }
 
+enum ServiceBookingStatus {
+  pending_payment
+  pending_provider
+  confirmed
+  declined
+  cancelled
+  completed
+}
+
+enum EscrowStatus {
+  held
+  released
+  refunded
+}
+
 enum RoomRole {
   admin
   member
@@ -306,6 +321,8 @@ model Profile {
   engagementMetricsAsUser         EngagementMetric[]        @relation("EngagementMetricUser")
   paymentMethods                  PaymentMethod[]
   serviceListings                 ServiceListing[]
+  serviceBookingsAsProvider       ServiceBooking[]          @relation("ServiceBookingProvider")
+  serviceBookingsAsCustomer       ServiceBooking[]          @relation("ServiceBookingCustomer")
   monetizationApplications        MonetizationApplication[]
   notificationsReceived           Notification[]            @relation("NotificationRecipient")
   notificationsActed              Notification[]            @relation("NotificationActor")
@@ -454,7 +471,48 @@ model ServiceListing {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  bookings ServiceBooking[]
+
   @@index([providerId])
+}
+
+/**
+ * A booking request against a ServiceListing. Created as "pending_payment"
+ * the instant a customer requests a slot (see
+ * app/api/service-listings/[id]/book/route.ts); once the charge succeeds it
+ * moves to "pending_provider" and the funds are held in escrow on the linked
+ * Transaction — the provider must accept or decline before the requested
+ * time. Funds only reach the provider's wallet once the customer confirms
+ * completion, or the release-escrow cron auto-releases after the scheduled
+ * time plus a grace period. Declining or cancelling refunds the customer in
+ * full.
+ */
+model ServiceBooking {
+  id          String               @id @default(cuid())
+  listingId   String
+  listing     ServiceListing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  providerId  String
+  provider    Profile              @relation("ServiceBookingProvider", fields: [providerId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Profile              @relation("ServiceBookingCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  requestedAt DateTime
+  note        String               @default("")
+  priceCents  Int
+  status      ServiceBookingStatus @default(pending_payment)
+
+  declineReason String?
+  respondedAt   DateTime?
+  completedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transaction Transaction?
+
+  @@index([listingId])
+  @@index([providerId])
+  @@index([customerId])
+  @@index([status])
 }
 
 model ProviderEarning {
@@ -880,17 +938,33 @@ model Transaction {
   event                  Event?                @relation(fields: [eventId], references: [id], onDelete: SetNull)
   providerSubscriptionId String?
   providerSubscription   ProviderSubscription? @relation(fields: [providerSubscriptionId], references: [id], onDelete: SetNull)
+  serviceBookingId       String?               @unique
+  serviceBooking         ServiceBooking?       @relation(fields: [serviceBookingId], references: [id], onDelete: SetNull)
   isPremium              Boolean               @default(false)
   amountCents            Int
   status                 String
   provider               String
+  /** The payment provider's own charge reference (Paystack's `reference`) — needed to issue a refund against this specific charge. Null for legacy rows recorded before this field existed. */
+  providerReference      String?
   createdAt              DateTime              @default(now())
+
+  /**
+   * Set only for payments that go through escrow (service bookings and paid
+   * event RSVPs) — null for everything else (hearts, creator-tier
+   * subscriptions), which credit the recipient's wallet immediately on
+   * success. "held" funds are not yet in the provider/host's wallet;
+   * "released" means they've been credited; "refunded" means they went back
+   * to the customer.
+   */
+  escrowStatus     EscrowStatus?
+  escrowReleasedAt DateTime?
 
   @@index([userId])
   @@index([subscriptionId])
   @@index([tierId])
   @@index([eventId])
   @@index([providerSubscriptionId])
+  @@index([escrowStatus])
 }
 
 /**

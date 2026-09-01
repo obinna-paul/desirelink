@@ -79,6 +79,7 @@ async function recordTransaction(
       amountCents: event.amountCents ?? 0,
       status: extra.status,
       provider: activeProviderName(),
+      providerReference: event.reference,
       providerSubscriptionId: extra.providerSubscriptionId,
       isPremium: extra.isPremium ?? false,
     },
@@ -238,11 +239,58 @@ async function handleEventRsvpEvent(
 
   await db.transaction.update({
     where: { id: pendingId },
-    data: { status: "succeeded" },
+    data: {
+      status: "succeeded",
+      providerReference: event.reference,
+      escrowStatus: "held",
+    },
   });
 
   if (event.paymentMethod)
     await upsertPaymentMethod(pending.userId, event.paymentMethod, db);
+}
+
+/**
+ * A service booking's payment — the pending row is the ServiceBooking
+ * itself, created "pending_payment" the moment the customer requests a slot
+ * (see lib/service-bookings.ts's createServiceBooking). On success this is
+ * the ONLY place the Transaction gets created, and it's deliberately left in
+ * escrow ("held") rather than crediting the provider's wallet — that only
+ * happens once the customer confirms completion (or the auto-release cron
+ * fires), so a provider can't get paid for a booking they never delivered.
+ */
+async function handleServiceBookingEvent(event: WebhookEvent, db: Db): Promise<void> {
+  const pendingId = event.metadata.pendingId;
+  if (!pendingId) return;
+
+  const pending = await db.serviceBooking.findUnique({ where: { id: pendingId } });
+  if (!pending || pending.status !== "pending_payment") return;
+
+  if (event.type === "charge.succeeded") {
+    await db.serviceBooking.update({
+      where: { id: pendingId },
+      data: { status: "pending_provider" },
+    });
+    await db.transaction.create({
+      data: {
+        userId: pending.customerId,
+        amountCents: event.amountCents ?? pending.priceCents,
+        status: "succeeded",
+        provider: activeProviderName(),
+        providerReference: event.reference,
+        serviceBookingId: pending.id,
+        escrowStatus: "held",
+      },
+    });
+    if (event.paymentMethod)
+      await upsertPaymentMethod(pending.customerId, event.paymentMethod, db);
+  } else {
+    await db.serviceBooking.update({
+      where: { id: pendingId },
+      data: { status: "cancelled", declineReason: "Payment failed." },
+    });
+    await notifyPaymentFailed(pending.customerId);
+  }
 }
 
 async function handlePremiumEvent(event: WebhookEvent, db: Db): Promise<void> {
@@ -342,6 +390,8 @@ async function dispatch(event: WebhookEvent, db: Db): Promise<void> {
       return handleHeartsPurchaseEvent(event, db);
     case "event_rsvp":
       return handleEventRsvpEvent(event, db);
+    case "service_booking":
+      return handleServiceBookingEvent(event, db);
     default:
       return;
   }

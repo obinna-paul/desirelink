@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { BriefcaseBusiness } from "lucide-react";
+import { BriefcaseBusiness, CalendarClock } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -39,10 +39,15 @@ export default async function ServicesPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div>
+      <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline" className="gap-1.5">
           <Link href={listServiceHref}>
             <BriefcaseBusiness className="h-4 w-4" aria-hidden="true" /> List a service
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="gap-1.5">
+          <Link href="/services/bookings">
+            <CalendarClock className="h-4 w-4" aria-hidden="true" /> My bookings
           </Link>
         </Button>
       </div>
