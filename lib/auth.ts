@@ -98,6 +98,11 @@ if (hasGoogleCredentials) {
       authorization: {
         params: {
           scope: "openid email profile",
+          // Forces Google to always show the account chooser instead of silently
+          // reusing whichever Google session the browser already has active -
+          // otherwise a user who picks "switch account" can end up completing the
+          // flow for an account they didn't mean to.
+          prompt: "select_account",
         },
       },
     })
