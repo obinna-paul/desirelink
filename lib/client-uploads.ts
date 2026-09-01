@@ -10,34 +10,49 @@
  * storage in dev) when Cloudinary isn't configured for this deployment - keeps local
  * development working without requiring Cloudinary credentials.
  */
-export async function uploadDirectToCloudinary(
-  file: File,
-  purpose: string,
-  fallbackUrl: string
-): Promise<{ url: string }> {
+
+type SignedUpload = {
+  apiKey: string;
+  cloudName: string;
+  folder: string;
+  timestamp: number;
+  signature: string;
+  transformation?: string;
+  resourceType: "image" | "video";
+};
+
+type CloudinaryUploadResult = {
+  url: string;
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
+};
+
+async function requestSignature(purpose: string): Promise<SignedUpload | null> {
   const signRes = await fetch("/api/upload/sign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ purpose }),
   });
 
-  if (signRes.status === 503) {
-    return uploadViaServerRoute(file, fallbackUrl);
-  }
+  if (signRes.status === 503) return null;
 
   if (!signRes.ok) {
     const body = await signRes.json().catch(() => null);
     throw new Error(body?.error ?? "Upload failed. Please try again.");
   }
 
-  const sign = await signRes.json();
+  return signRes.json();
+}
 
+async function postDirectToCloudinary(file: File, sign: SignedUpload): Promise<CloudinaryUploadResult> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("api_key", sign.apiKey);
   formData.append("timestamp", String(sign.timestamp));
   formData.append("signature", sign.signature);
   formData.append("folder", sign.folder);
+  if (sign.transformation) formData.append("transformation", sign.transformation);
 
   const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`, {
     method: "POST",
@@ -49,19 +64,49 @@ export async function uploadDirectToCloudinary(
     throw new Error(uploadBody?.error?.message ?? "Upload failed. Please try again.");
   }
 
-  return { url: uploadBody.secure_url as string };
+  return {
+    url: uploadBody.secure_url as string,
+    width: typeof uploadBody.width === "number" ? uploadBody.width : undefined,
+    height: typeof uploadBody.height === "number" ? uploadBody.height : undefined,
+    durationSeconds: typeof uploadBody.duration === "number" ? uploadBody.duration : undefined,
+  };
 }
 
-async function uploadViaServerRoute(file: File, fallbackUrl: string): Promise<{ url: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const res = await fetch(fallbackUrl, { method: "POST", body: formData });
-  const body = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    throw new Error(body?.error ?? "Upload failed. Please try again.");
+/** Simple uploads whose fallback route returns `{ url }` at the top level (verification docs). */
+export async function uploadDirectToCloudinary(
+  file: File,
+  purpose: string,
+  fallbackUrl: string
+): Promise<{ url: string }> {
+  const sign = await requestSignature(purpose);
+  if (!sign) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(fallbackUrl, { method: "POST", body: formData });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(body?.error ?? "Upload failed. Please try again.");
+    return { url: body.url as string };
   }
 
-  return { url: body.url as string };
+  return postDirectToCloudinary(file, sign);
+}
+
+/** Richer uploads (post/message media) whose fallback route returns `{ media: {...} }`,
+ * carrying width/height/duration alongside the url. */
+export async function uploadMediaDirectToCloudinary(
+  file: File,
+  purpose: string,
+  fallbackUrl: string
+): Promise<CloudinaryUploadResult> {
+  const sign = await requestSignature(purpose);
+  if (!sign) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(fallbackUrl, { method: "POST", body: formData });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(body?.error ?? "Upload failed. Please try again.");
+    return body.media as CloudinaryUploadResult;
+  }
+
+  return postDirectToCloudinary(file, sign);
 }

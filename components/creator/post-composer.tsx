@@ -35,6 +35,7 @@ import {
 } from "@/lib/pii";
 import { convertHeicFileToJpeg, isHeicFile } from "@/lib/heic-convert";
 import { useFocusTrap } from "@/lib/use-focus-trap";
+import { uploadMediaDirectToCloudinary } from "@/lib/client-uploads";
 import { cn } from "@/lib/utils";
 
 const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024;
@@ -188,31 +189,27 @@ export function PostComposer({
     metadataDetected: boolean,
     crop?: VideoCrop,
   ) {
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+    const isVideo = file.type.startsWith("video/");
 
-      const res = await fetch("/api/upload/post-media", {
-        method: "POST",
-        body: formData,
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        setError(body?.error ?? "Upload failed. Please try again.");
-        return;
-      }
+    try {
+      const media = await uploadMediaDirectToCloudinary(
+        file,
+        isVideo ? "post-video" : "post-image",
+        "/api/upload/post-media",
+      );
 
       setMediaItems((prev) => [
         ...prev,
         {
-          ...body.media,
+          ...media,
+          type: isVideo ? "video" : "image",
           displayAspectRatio,
           metadataDetected,
           crop,
         },
       ]);
-    } catch {
-      setError("Upload failed. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
     }
   }
 

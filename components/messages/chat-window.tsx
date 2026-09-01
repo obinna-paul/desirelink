@@ -45,6 +45,7 @@ import {
 import { getPusherClient } from "@/lib/pusher-client";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { useFocusTrap } from "@/lib/use-focus-trap";
+import { uploadMediaDirectToCloudinary } from "@/lib/client-uploads";
 import { cn } from "@/lib/utils";
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
@@ -339,15 +340,24 @@ export function ChatWindow({
   }
 
   async function uploadMessageMedia(file: File): Promise<ConversationMedia | null> {
-    const formData = new FormData();
-    formData.append("file", file);
-    const response = await fetch("/api/upload/message-media", { method: "POST", body: formData });
-    const body = await response.json().catch(() => null);
-    if (!response.ok) {
-      setError(body?.error ?? "Upload failed. Please try again.");
+    const isVideo = file.type.startsWith("video/");
+    const isAudio = file.type.startsWith("audio/");
+    const purpose = isVideo ? "message-video" : isAudio ? "message-audio" : "message-image";
+
+    try {
+      const media = await uploadMediaDirectToCloudinary(file, purpose, "/api/upload/message-media");
+      return {
+        url: media.url,
+        type: isVideo ? "video" : isAudio ? "audio" : "image",
+        mimeType: file.type,
+        width: media.width ?? null,
+        height: media.height ?? null,
+        durationSeconds: media.durationSeconds ?? null,
+      };
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
       return null;
     }
-    return body.media as ConversationMedia;
   }
 
   async function handleMediaSelected(event: React.ChangeEvent<HTMLInputElement>) {
