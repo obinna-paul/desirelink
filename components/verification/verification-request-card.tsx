@@ -16,7 +16,10 @@ import { Badge } from "@/components/ui/badge";
 import type { VerificationRequestType } from "@/lib/verification";
 
 const MAX_ID_FILE_SIZE = 5 * 1024 * 1024;
-const MAX_SELFIE_FILE_SIZE = 20 * 1024 * 1024;
+// A 5-second selfie clip at a modern phone's default camera settings (4K, high fps,
+// or a high-bitrate codec) routinely lands well past 20MB despite being genuinely
+// short - keep enough headroom that a normal, unedited recording never gets rejected.
+const MAX_SELFIE_FILE_SIZE = 50 * 1024 * 1024;
 const HEADINGS: Record<VerificationRequestType, string> = {
   host: "Please submit identification to host events.",
   service_provider: "Please submit identification to list services.",
@@ -161,7 +164,7 @@ export function VerificationRequestCard({
       return;
     }
     if (file.size > MAX_SELFIE_FILE_SIZE) {
-      setError("Video must be under 20MB.");
+      setError("Video must be under 50MB.");
       return;
     }
 

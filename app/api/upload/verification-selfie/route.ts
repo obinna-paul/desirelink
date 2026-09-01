@@ -8,7 +8,8 @@ import {
   isAllowedVideoFile,
 } from "@/lib/security/uploads";
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
+// Kept in sync with components/verification/verification-request-card.tsx's client-side check.
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
 
   if (file.size > MAX_FILE_SIZE) {
     return NextResponse.json(
-      { error: "Video must be under 20MB" },
+      { error: "Video must be under 50MB" },
       { status: 400 },
     );
   }
