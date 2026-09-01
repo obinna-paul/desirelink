@@ -6,7 +6,6 @@ import {
   CalendarDays,
   Ellipsis,
   LayoutGrid,
-  LineChart,
   LockKeyhole,
   MapPin,
   MessageCircle,
@@ -271,16 +270,19 @@ export function ProfileView({
             <div className="mt-4 flex items-center gap-2">
               {isOwner ? (
                 <>
-                  <Button
-                    asChild
-                    className="h-10 min-w-32 flex-1 sm:flex-none"
-                    variant="outline"
-                  >
+                  <Button asChild size="sm" className="flex-1" variant="outline">
                     <Link href="/profile/edit">Edit profile</Link>
                   </Button>
+                  {isProvider && (
+                    <Button asChild size="sm" className="flex-1">
+                      <Link href="/creator-dashboard">Dashboard</Link>
+                    </Button>
+                  )}
                   <ShareProfileButton
                     profileHref={profileHref}
                     displayName={profile.displayName}
+                    size="sm"
+                    className="sm:flex-1"
                   />
                 </>
               ) : (
@@ -339,25 +341,6 @@ export function ProfileView({
             </div>
           </div>
 
-          {isOwner && isProvider && (
-            <Link
-              href="/creator-dashboard"
-              className="mt-5 hidden items-center gap-3 border-t border-border pt-4 transition-colors hover:text-primary md:flex"
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background">
-                <LineChart className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold">
-                  Creative Studio
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  {stats.profileViews.toLocaleString()} measured profile views ·{" "}
-                  {stats.subscriberCount.toLocaleString()} subscribers
-                </span>
-              </span>
-            </Link>
-          )}
         </div>
       </section>
 
