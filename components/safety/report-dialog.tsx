@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Flag, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,13 +15,21 @@ export function ReportDialog({
   targetId,
   label = "Report",
   variant = "button",
+  open,
+  onOpenChange,
+  hideTrigger = false,
+  menu = false,
 }: {
   targetType: ReportTargetType;
   targetId: string;
   label?: string;
   variant?: "button" | "icon";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
+  menu?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [reason, setReason] = useState<string>(REPORT_REASONS[0]);
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -29,23 +37,30 @@ export function ReportDialog({
   const [submitted, setSubmitted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  useFocusTrap(open, dialogRef);
+  const dialogOpen = open ?? internalOpen;
+
+  const setDialogOpen = useCallback((nextOpen: boolean) => {
+    if (open === undefined) setInternalOpen(nextOpen);
+    onOpenChange?.(nextOpen);
+  }, [onOpenChange, open]);
+
+  useFocusTrap(dialogOpen, dialogRef);
 
   useEffect(() => {
-    if (!open) return;
+    if (!dialogOpen) return;
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") setDialogOpen(false);
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open]);
+  }, [dialogOpen, setDialogOpen]);
 
   function openDialog() {
     setReason(REPORT_REASONS[0]);
     setDetails("");
     setError(null);
     setSubmitted(false);
-    setOpen(true);
+    setDialogOpen(true);
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -71,7 +86,15 @@ export function ReportDialog({
 
   return (
     <>
-      {variant === "icon" ? (
+      {!hideTrigger && (menu ? (
+        <button
+          type="button"
+          onClick={openDialog}
+          className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-destructive hover:bg-destructive/10"
+        >
+          <Flag className="h-4 w-4" aria-hidden="true" /> {label}
+        </button>
+      ) : variant === "icon" ? (
         <button
           type="button"
           aria-label={label}
@@ -84,15 +107,15 @@ export function ReportDialog({
         <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={openDialog}>
           <Flag className="h-3.5 w-3.5" aria-hidden="true" /> {label}
         </Button>
-      )}
+      ))}
 
-      {open && (
+      {dialogOpen && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="report-dialog-title"
-          className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 p-3 backdrop-blur-sm sm:items-center sm:p-4"
-          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-background/80 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+          onClick={() => setDialogOpen(false)}
         >
           <div
             ref={dialogRef}
@@ -107,7 +130,7 @@ export function ReportDialog({
               <button
                 type="button"
                 aria-label="Close"
-                onClick={() => setOpen(false)}
+                onClick={() => setDialogOpen(false)}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <X className="h-4 w-4" aria-hidden="true" />
@@ -120,7 +143,7 @@ export function ReportDialog({
                 <p className="text-xs text-muted-foreground">
                   Thanks for letting us know. Our team will review it.
                 </p>
-                <Button type="button" size="sm" className="w-full sm:w-auto" onClick={() => setOpen(false)}>
+                <Button type="button" size="sm" className="w-full sm:w-auto" onClick={() => setDialogOpen(false)}>
                   Done
                 </Button>
               </div>
@@ -157,7 +180,7 @@ export function ReportDialog({
                   </p>
                 )}
                 <div className="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
-                  <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setOpen(false)}>
+                  <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setDialogOpen(false)}>
                     Cancel
                   </Button>
                   <Button type="submit" size="sm" className="w-full sm:w-auto" disabled={submitting}>

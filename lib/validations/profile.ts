@@ -19,6 +19,7 @@ export const updateProfileSchema = z.object({
   openToMeet: z.boolean(),
   showInSearch: z.boolean(),
   showExactLocation: z.boolean(),
+  showActivityStatus: z.boolean(),
   isIncognito: z.boolean(),
 });
 

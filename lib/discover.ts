@@ -162,7 +162,8 @@ function buildWhere(
 
   if (filters.lastActive !== "any") {
     const days = filters.lastActive === "day" ? 1 : filters.lastActive === "week" ? 7 : 30;
-    where.updatedAt = { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) };
+    where.showActivityStatus = true;
+    where.lastActiveAt = { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) };
   }
 
   if (filters.verification === "verified") {
