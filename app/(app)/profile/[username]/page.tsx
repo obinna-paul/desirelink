@@ -42,7 +42,7 @@ export default async function PublicProfilePage({
     !isOwner && session?.user?.id
       ? await prisma.profile.findUnique({
           where: { userId: session.user.id },
-          select: { id: true, heartsBalance: true },
+          select: { id: true, heartsBalance: true, profileType: true },
         })
       : null;
 
@@ -116,6 +116,7 @@ export default async function PublicProfilePage({
         stats={stats}
         presenceStatus={presenceStatus}
         liveStreamId={activeStream?.id ?? null}
+        viewerIsProvider={viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false}
       />
     </div>
   );

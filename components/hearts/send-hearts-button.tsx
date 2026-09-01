@@ -5,8 +5,19 @@ import { Heart } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { GiftPicker, type SendGiftOutcome } from "@/components/hearts/gift-picker";
+import { cn } from "@/lib/utils";
 
-export function SendHeartsButton({ providerId, initialBalance }: { providerId: string; initialBalance: number }) {
+export function SendHeartsButton({
+  providerId,
+  initialBalance,
+  size = "default",
+  className,
+}: {
+  providerId: string;
+  initialBalance: number;
+  size?: "default" | "sm";
+  className?: string;
+}) {
   const [open, setOpen] = useState(false);
 
   async function sendHearts(hearts: number): Promise<SendGiftOutcome> {
@@ -27,7 +38,8 @@ export function SendHeartsButton({ providerId, initialBalance }: { providerId: s
       <Button
         type="button"
         variant="outline"
-        className="h-11 flex-1 gap-1.5 sm:flex-none"
+        size={size}
+        className={cn("h-11 flex-1 gap-1.5 sm:flex-none", className)}
         aria-pressed={open}
         onClick={() => setOpen((current) => !current)}
       >

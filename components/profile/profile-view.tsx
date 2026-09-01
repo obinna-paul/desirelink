@@ -8,7 +8,6 @@ import {
   LayoutGrid,
   LockKeyhole,
   MapPin,
-  MessageCircle,
   Star,
   type LucideIcon,
 } from "lucide-react";
@@ -21,6 +20,7 @@ import {
   GRID_CLASSNAME,
 } from "@/components/profile/creator-content-grid";
 import { EventGridTile } from "@/components/profile/profile-grid-tiles";
+import { InviteButton } from "@/components/profile/invite-button";
 import { ProfileAvatarEditor } from "@/components/profile/profile-avatar-editor";
 import { ProfileSectionTab } from "@/components/profile/profile-section-tab";
 import { ProfileSetupActions } from "@/components/profile/profile-setup-actions";
@@ -126,6 +126,7 @@ export function ProfileView({
   stats,
   presenceStatus = "offline",
   liveStreamId = null,
+  viewerIsProvider = false,
 }: {
   profile: Profile & {
     partner: {
@@ -152,6 +153,7 @@ export function ProfileView({
   stats: CreatorStats;
   presenceStatus?: PresenceStatus;
   liveStreamId?: string | null;
+  viewerIsProvider?: boolean;
 }) {
   const section = normalizeSection(activeSection);
   const visibleFields = new Set(visibleProfileFields);
@@ -292,29 +294,72 @@ export function ProfileView({
                     className="sm:flex-1"
                   />
                 </>
-              ) : (
+              ) : isProvider ? (
                 <>
-                  {isProvider && subscription && (
+                  {canMessage && (
+                    <Button asChild size="sm" className="flex-1">
+                      <Link href={`/messages?with=${profile.username}`}>
+                        Message
+                      </Link>
+                    </Button>
+                  )}
+                  {subscription && (
                     <ProfileSubscribeButton
                       providerId={profile.id}
                       subscription={subscription}
+                      size="sm"
+                      className="flex-1 min-w-0"
                     />
                   )}
+                  <SendHeartsButton
+                    providerId={profile.id}
+                    initialBalance={viewerHeartsBalance}
+                    size="sm"
+                    className="sm:flex-1"
+                  />
+                  <details className="relative">
+                    <summary
+                      aria-label="More profile actions"
+                      className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted [&::-webkit-details-marker]:hidden"
+                    >
+                      <Ellipsis className="h-5 w-5" aria-hidden="true" />
+                    </summary>
+                    <div className="absolute right-0 top-12 z-20 flex min-w-48 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-lift">
+                      <ShareProfileButton
+                        profileHref={profileHref}
+                        displayName={profile.displayName}
+                      />
+                      {canModerate && (
+                        <>
+                          <ReportDialog
+                            targetType="profile"
+                            targetId={profile.id}
+                          />
+                          <BlockButton
+                            profileId={profile.id}
+                            initiallyBlocked={false}
+                          />
+                        </>
+                      )}
+                    </div>
+                  </details>
+                </>
+              ) : (
+                <>
                   {canMessage && (
                     <Button
                       asChild
                       className="h-10 min-w-32 flex-1 sm:flex-none"
                     >
                       <Link href={`/messages?with=${profile.username}`}>
-                        <MessageCircle className="h-4 w-4" aria-hidden="true" />{" "}
                         Message
                       </Link>
                     </Button>
                   )}
-                  {isProvider && (
-                    <SendHeartsButton
-                      providerId={profile.id}
-                      initialBalance={viewerHeartsBalance}
+                  {canMessage && viewerIsProvider && (
+                    <InviteButton
+                      recipientId={profile.id}
+                      recipientDisplayName={profile.displayName}
                     />
                   )}
                   <details className="relative">
