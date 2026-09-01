@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { uploadDirectToCloudinary } from "@/lib/client-uploads";
 import type { VerificationRequestType } from "@/lib/verification";
 
 const MAX_ID_FILE_SIZE = 5 * 1024 * 1024;
@@ -137,22 +138,11 @@ export function VerificationRequestCard({
     setUploadingId(true);
     setError(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      const res = await fetch("/api/upload/verification-id", {
-        method: "POST",
-        body: formData,
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        setError(body?.error ?? "Upload failed. Please try again.");
-        return;
-      }
-      setGovIdUrl(body.url);
-    } catch {
-      setError("Upload failed. Please try again.");
+      const { url } = await uploadDirectToCloudinary(file, "verification-id", "/api/upload/verification-id");
+      setGovIdUrl(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
     } finally {
       setUploadingId(false);
     }
@@ -171,22 +161,11 @@ export function VerificationRequestCard({
     setUploadingSelfie(true);
     setError(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      const res = await fetch("/api/upload/verification-selfie", {
-        method: "POST",
-        body: formData,
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        setError(body?.error ?? "Upload failed. Please try again.");
-        return;
-      }
-      setSelfieUrl(body.url);
-    } catch {
-      setError("Upload failed. Please try again.");
+      const { url } = await uploadDirectToCloudinary(file, "verification-selfie", "/api/upload/verification-selfie");
+      setSelfieUrl(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
     } finally {
       setUploadingSelfie(false);
     }
