@@ -14,6 +14,15 @@ const ALLOWED_VIDEO_TYPES = new Set([
   "video/webm",
   "video/quicktime",
 ]);
+const ALLOWED_AUDIO_TYPES = new Set([
+  "audio/webm",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "audio/x-m4a",
+  "audio/aac",
+]);
 
 export function isAllowedImageFile(file: File): boolean {
   return ALLOWED_IMAGE_TYPES.has(file.type);
@@ -25,6 +34,10 @@ export function isAllowedVideoFile(file: File): boolean {
 
 export function isAllowedPostMediaFile(file: File): boolean {
   return isAllowedImageFile(file) || isAllowedVideoFile(file);
+}
+
+export function isAllowedAudioFile(file: File): boolean {
+  return ALLOWED_AUDIO_TYPES.has(file.type);
 }
 
 export function allowedImageTypesLabel(): string {

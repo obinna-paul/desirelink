@@ -11,6 +11,8 @@ import {
   NEW_MESSAGE_EVENT,
 } from "@/lib/message-channels";
 import type {
+  ConversationMedia,
+  ConversationMediaType,
   ConversationMessage,
   ConversationParticipant,
   ConversationSummary,
@@ -38,26 +40,75 @@ const counterpartSelect = {
 
 const CONVERSATION_HISTORY_SCAN_LIMIT = 500;
 
-function isMissingReplySchema(error: unknown) {
+function isMissingMessageEnhancementSchema(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2021" || error.code === "P2022");
+}
+
+function mediaLabel(type: ConversationMediaType | null) {
+  if (type === "image") return "Photo";
+  if (type === "video") return "Video";
+  if (type === "audio") return "Voice note";
+  return "Message";
+}
+
+function isAllowedMessageMediaUrl(url: string) {
+  if (url.startsWith("/uploads/messages/")) return true;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname === "res.cloudinary.com" && parsed.pathname.includes("/udala/messages/");
+  } catch {
+    return false;
+  }
 }
 
 /** Every conversation the profile is part of, newest first, with an unread count per thread. */
 export async function getConversations(profileId: string): Promise<ConversationSummary[]> {
-  const messages = await prisma.message.findMany({
+  type ConversationRow = {
+    content: string;
+    mediaType: ConversationMediaType | null;
+    createdAt: Date;
+    readAt: Date | null;
+    senderId: string;
+    recipientId: string;
+    sender: ConversationParticipant;
+    recipient: ConversationParticipant;
+  };
+  let messages: ConversationRow[];
+  const baseQuery = {
     where: { OR: [{ senderId: profileId }, { recipientId: profileId }] },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "desc" as const },
     take: CONVERSATION_HISTORY_SCAN_LIMIT,
-    select: {
-      content: true,
-      createdAt: true,
-      readAt: true,
-      senderId: true,
-      recipientId: true,
-      sender: { select: counterpartSelect },
-      recipient: { select: counterpartSelect },
-    },
-  });
+  };
+  try {
+    messages = await prisma.message.findMany({
+      ...baseQuery,
+      select: {
+        content: true,
+        mediaType: true,
+        createdAt: true,
+        readAt: true,
+        senderId: true,
+        recipientId: true,
+        sender: { select: counterpartSelect },
+        recipient: { select: counterpartSelect },
+      },
+    });
+  } catch (error) {
+    if (!isMissingMessageEnhancementSchema(error)) throw error;
+    const legacyMessages = await prisma.message.findMany({
+      ...baseQuery,
+      select: {
+        content: true,
+        createdAt: true,
+        readAt: true,
+        senderId: true,
+        recipientId: true,
+        sender: { select: counterpartSelect },
+        recipient: { select: counterpartSelect },
+      },
+    });
+    messages = legacyMessages.map((message) => ({ ...message, mediaType: null }));
+  }
 
   const byCounterpart = new Map<string, ConversationSummary>();
 
@@ -69,7 +120,11 @@ export async function getConversations(profileId: string): Promise<ConversationS
     if (!entry) {
       entry = {
         counterpart,
-        lastMessage: { content: message.content, createdAt: message.createdAt, isMine },
+        lastMessage: {
+          content: message.content || mediaLabel(message.mediaType),
+          createdAt: message.createdAt,
+          isMine,
+        },
         unreadCount: 0,
       };
       byCounterpart.set(counterpart.id, entry);
@@ -100,11 +155,11 @@ export async function getConversation(
       where,
       orderBy: { createdAt: "asc" },
       include: {
-        replyTo: { select: { id: true, content: true, senderId: true } },
+        replyTo: { select: { id: true, content: true, senderId: true, mediaType: true } },
       },
     });
   } catch (error) {
-    if (!isMissingReplySchema(error)) throw error;
+    if (!isMissingMessageEnhancementSchema(error)) throw error;
     const legacyMessages = await prisma.message.findMany({
       where,
       orderBy: { createdAt: "asc" },
@@ -117,7 +172,17 @@ export async function getConversation(
         recipientId: true,
       },
     });
-    messages = legacyMessages.map((message) => ({ ...message, replyToId: null, replyTo: null }));
+    messages = legacyMessages.map((message) => ({
+      ...message,
+      replyToId: null,
+      replyTo: null,
+      mediaUrl: null,
+      mediaType: null,
+      mediaMimeType: null,
+      mediaWidth: null,
+      mediaHeight: null,
+      mediaDurationSeconds: null,
+    }));
   }
 
   const unreadIds = messages
@@ -147,14 +212,15 @@ export async function sendMessage(
   senderId: string,
   recipientId: string,
   content: string,
-  replyToId?: string | null
+  replyToId?: string | null,
+  media?: ConversationMedia | null
 ): Promise<SendMessageResult> {
   if (senderId === recipientId) {
     return { ok: false, status: 400, error: "You can't message yourself" };
   }
 
   const trimmed = content.trim();
-  if (!trimmed) {
+  if (!trimmed && !media) {
     return { ok: false, status: 400, error: "Message can't be empty" };
   }
   if (trimmed.length > MAX_MESSAGE_LENGTH) {
@@ -173,6 +239,10 @@ export async function sendMessage(
 
   if (await isBlockedEitherWay(senderId, recipientId)) {
     return { ok: false, status: 403, error: "You can't message this user" };
+  }
+
+  if (media && (!isAllowedMessageMediaUrl(media.url) || !["image", "video", "audio"].includes(media.type))) {
+    return { ok: false, status: 400, error: "Invalid message attachment" };
   }
 
   let validReplyToId: string | null = null;
@@ -200,15 +270,28 @@ export async function sendMessage(
         senderId,
         recipientId,
         content: trimmed,
+        ...(media
+          ? {
+              mediaUrl: media.url,
+              mediaType: media.type,
+              mediaMimeType: media.mimeType,
+              mediaWidth: media.width,
+              mediaHeight: media.height,
+              mediaDurationSeconds: media.durationSeconds,
+            }
+          : {}),
         ...(validReplyToId ? { replyToId: validReplyToId } : {}),
       },
       include: {
         sender: { select: counterpartSelect },
-        replyTo: { select: { id: true, content: true, senderId: true } },
+        replyTo: { select: { id: true, content: true, senderId: true, mediaType: true } },
       },
     });
   } catch (error) {
-    if (!isMissingReplySchema(error)) throw error;
+    if (!isMissingMessageEnhancementSchema(error)) throw error;
+    if (media) {
+      return { ok: false, status: 503, error: "Media messaging is being enabled. Try again shortly." };
+    }
     if (validReplyToId) {
       return { ok: false, status: 503, error: "Replies are being enabled. Send this as a new message for now." };
     }
@@ -224,14 +307,30 @@ export async function sendMessage(
         sender: { select: counterpartSelect },
       },
     });
-    message = { ...legacyMessage, replyToId: null, replyTo: null };
+    message = {
+      ...legacyMessage,
+      replyToId: null,
+      replyTo: null,
+      mediaUrl: null,
+      mediaType: null,
+      mediaMimeType: null,
+      mediaWidth: null,
+      mediaHeight: null,
+      mediaDurationSeconds: null,
+    };
   }
-  await flagContentIfNeeded({
-    contentType: "message",
-    contentId: message.id,
-    contentOwnerId: senderId,
-    content: message.content,
-  });
+  if (message.content) {
+    await flagContentIfNeeded({
+      contentType: "message",
+      contentId: message.id,
+      contentOwnerId: senderId,
+      content: message.content,
+    });
+  }
+
+  const notificationBody = message.content
+    ? message.content.length > 90 ? `${message.content.slice(0, 87)}...` : message.content
+    : `Sent a ${mediaLabel(message.mediaType).toLowerCase()}`;
 
   await Promise.all([
     triggerEvent(getConversationChannelName(senderId, recipientId), NEW_MESSAGE_EVENT, message),
@@ -241,7 +340,7 @@ export async function sendMessage(
       actorId: senderId,
       type: "message",
       title: `New message from ${message.sender.displayName}`,
-      body: message.content.length > 90 ? `${message.content.slice(0, 87)}...` : message.content,
+      body: notificationBody,
       href: `/messages?with=${message.sender.username}`,
     }),
   ]);

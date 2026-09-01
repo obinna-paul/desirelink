@@ -1,0 +1,2 @@
+ALTER TABLE "Profile"
+ADD COLUMN "showActivityStatus" BOOLEAN NOT NULL DEFAULT true;

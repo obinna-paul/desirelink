@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { ConversationList } from "@/components/messages/conversation-list";
 import { ChatWindow } from "@/components/messages/chat-window";
 import { getConversation, getConversations } from "@/lib/messages";
-import { isBlockedEitherWay } from "@/lib/block";
+import { getBlockRelationship } from "@/lib/block";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -44,16 +44,16 @@ export default async function MessagesPage({
     ? await getConversation(viewerProfile.id, validCounterpart.id)
     : [];
 
-  const isBlocked = validCounterpart
-    ? await isBlockedEitherWay(viewerProfile.id, validCounterpart.id)
-    : false;
+  const blockRelationship = validCounterpart
+    ? await getBlockRelationship(viewerProfile.id, validCounterpart.id)
+    : "none";
 
   return (
-    <div className="-mx-4 -mt-4 md:mx-0 md:mt-0">
-      <div className="flex h-[calc(100dvh-8.25rem)] min-h-[520px] overflow-hidden border-y border-border/60 bg-card md:h-[calc(100vh-10.5rem)] md:min-h-[520px] md:rounded-lg md:border md:shadow-sm">
+    <div className="-mx-4 -mt-4 md:mx-auto md:mt-0 md:max-w-6xl">
+      <div className="flex h-[calc(100dvh-8.25rem)] min-h-[520px] overflow-hidden border-y border-border/60 bg-card md:h-[calc(100vh-9.5rem)] md:min-h-[560px] md:rounded-lg md:border md:shadow-sm">
         <div
           className={cn(
-            "w-full shrink-0 border-r border-border/60 md:w-80",
+            "w-full shrink-0 border-r border-border/60 md:w-[320px]",
             validCounterpart && "hidden md:block"
           )}
         >
@@ -64,14 +64,20 @@ export default async function MessagesPage({
           />
         </div>
 
-        <div className={cn("flex min-w-0 flex-1 flex-col", !validCounterpart && "hidden md:flex")}>
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 flex-col",
+            !validCounterpart && "hidden md:flex",
+            validCounterpart && "fixed inset-0 z-[60] h-dvh bg-card md:static md:z-auto md:h-auto"
+          )}
+        >
           {validCounterpart ? (
             <div className="flex min-h-0 flex-1 flex-col">
               <ChatWindow
                 viewerProfileId={viewerProfile.id}
                 counterpart={validCounterpart}
                 initialMessages={initialMessages}
-                blocked={isBlocked}
+                blockRelationship={blockRelationship}
                 viewerHeartsBalance={viewerProfile.heartsBalance}
               />
             </div>

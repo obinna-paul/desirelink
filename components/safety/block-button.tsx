@@ -5,13 +5,16 @@ import { useRouter } from "next/navigation";
 import { ShieldOff, ShieldX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function BlockButton({
   profileId,
   initiallyBlocked,
+  menu = false,
 }: {
   profileId: string;
   initiallyBlocked: boolean;
+  menu?: boolean;
 }) {
   const router = useRouter();
   const [blocked, setBlocked] = useState(initiallyBlocked);
@@ -51,12 +54,15 @@ export function BlockButton({
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className={cn("flex flex-col gap-1", menu ? "w-full items-stretch" : "items-end")}>
       <Button
         type="button"
-        variant="outline"
+        variant={menu ? "ghost" : "outline"}
         size="sm"
-        className="gap-1.5 text-destructive hover:text-destructive"
+        className={cn(
+          "gap-1.5 text-destructive hover:text-destructive",
+          menu && "min-h-11 w-full justify-start rounded-lg px-3 text-sm font-medium"
+        )}
         disabled={pending}
         onClick={handleClick}
       >

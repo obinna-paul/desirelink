@@ -36,6 +36,7 @@ type BooleanFieldName =
   | "openToMeet"
   | "showInSearch"
   | "showExactLocation"
+  | "showActivityStatus"
   | "isIncognito";
 
 type EditableSectionId =
@@ -58,7 +59,7 @@ const EDIT_SECTIONS: {
   { id: "basics", label: "Basics", description: "Name, bio, identity", icon: UserRound },
   { id: "photos", label: "Photos", description: "Profile image", icon: Camera },
   { id: "location", label: "Location", description: "City and nearby matching", icon: MapPin },
-  { id: "privacy", label: "Privacy", description: "Search, location, incognito", icon: Lock },
+  { id: "privacy", label: "Privacy", description: "Visibility and activity", icon: Lock },
   { id: "availability", label: "Availability", description: "Chat and meet status", icon: Bell },
   { id: "verification", label: "Verification", description: "Identity and trust", icon: ShieldCheck, href: "/verification" },
 ];
@@ -228,6 +229,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       openToMeet: profile.openToMeet,
       showInSearch: profile.showInSearch,
       showExactLocation: profile.showExactLocation,
+      showActivityStatus: profile.showActivityStatus,
       isIncognito: profile.isIncognito,
     },
   });
@@ -371,6 +373,12 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
               description="Display your city and country when your profile is visible."
               control={control}
               name="showExactLocation"
+            />
+            <ToggleRow
+              label="Show activity status"
+              description="Let people you chat with see when you are online or were last active."
+              control={control}
+              name="showActivityStatus"
             />
             <ToggleRow
               label="Incognito mode"

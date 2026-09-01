@@ -105,6 +105,12 @@ enum ChatChannelType {
   event
 }
 
+enum MessageMediaType {
+  image
+  video
+  audio
+}
+
 enum VerificationRequestType {
   creator
   host
@@ -225,6 +231,7 @@ model Profile {
   isIncognito               Boolean   @default(false)
   showInSearch              Boolean   @default(true)
   showExactLocation         Boolean   @default(false)
+  showActivityStatus        Boolean   @default(true)
   isVerified                Boolean   @default(false)
   isVerifiedCreator         Boolean   @default(false)
   isVerifiedHost            Boolean   @default(false)
@@ -524,17 +531,23 @@ model EventRsvp {
 // --- Messaging ---------------------------------------------------------------
 
 model Message {
-  id          String    @id @default(cuid())
-  senderId    String
-  sender      Profile   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  recipientId String
-  recipient   Profile   @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  content     String
-  replyToId   String?
-  replyTo     Message?  @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies     Message[] @relation("MessageReplies")
-  createdAt   DateTime  @default(now())
-  readAt      DateTime?
+  id                   String            @id @default(cuid())
+  senderId             String
+  sender               Profile           @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId          String
+  recipient            Profile           @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  content              String
+  mediaUrl             String?
+  mediaType            MessageMediaType?
+  mediaMimeType        String?
+  mediaWidth           Int?
+  mediaHeight          Int?
+  mediaDurationSeconds Float?
+  replyToId            String?
+  replyTo              Message?          @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies              Message[]         @relation("MessageReplies")
+  createdAt            DateTime          @default(now())
+  readAt               DateTime?
 
   @@index([senderId])
   @@index([recipientId])

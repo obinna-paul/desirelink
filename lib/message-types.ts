@@ -48,6 +48,17 @@ export type ConversationSummary = {
   unreadCount: number;
 };
 
+export type ConversationMediaType = "image" | "video" | "audio";
+
+export type ConversationMedia = {
+  url: string;
+  type: ConversationMediaType;
+  mimeType: string | null;
+  width: number | null;
+  height: number | null;
+  durationSeconds: number | null;
+};
+
 export type ConversationMessage = {
   id: string;
   content: string;
@@ -56,5 +67,11 @@ export type ConversationMessage = {
   senderId: string;
   recipientId: string;
   replyToId: string | null;
-  replyTo: { id: string; content: string; senderId: string } | null;
+  replyTo: { id: string; content: string; senderId: string; mediaType: ConversationMediaType | null } | null;
+  mediaUrl: string | null;
+  mediaType: ConversationMediaType | null;
+  mediaMimeType: string | null;
+  mediaWidth: number | null;
+  mediaHeight: number | null;
+  mediaDurationSeconds: number | null;
 };

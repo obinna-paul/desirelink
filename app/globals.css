@@ -176,3 +176,84 @@
     @apply font-sans font-bold uppercase tracking-[0.06em];
   }
 }
+
+@layer components {
+  .chat-theme {
+    --chat-canvas: 30 33% 97%;
+    --chat-header: 36 50% 99%;
+    --chat-incoming: 28 24% 91%;
+    --chat-outgoing: 322 30% 34%;
+    --chat-outgoing-foreground: 0 0% 100%;
+    --chat-composer: 28 26% 93%;
+    --chat-border: 28 18% 86%;
+    --chat-date: 28 23% 90%;
+    --chat-status: 157 40% 31%;
+  }
+
+  .dark .chat-theme {
+    --chat-canvas: 24 8% 8%;
+    --chat-header: 24 8% 11%;
+    --chat-incoming: 24 7% 17%;
+    --chat-outgoing: 322 27% 38%;
+    --chat-outgoing-foreground: 0 0% 100%;
+    --chat-composer: 24 7% 16%;
+    --chat-border: 24 6% 22%;
+    --chat-date: 24 7% 16%;
+    --chat-status: 157 35% 55%;
+  }
+
+  .chat-typing-dot {
+    animation: chat-typing-bounce 1.1s ease-in-out infinite;
+  }
+
+  .chat-recording-bar {
+    animation: chat-recording-wave 0.9s ease-in-out infinite alternate;
+    transform-origin: center;
+  }
+}
+
+@keyframes chat-typing-bounce {
+  0%,
+  60%,
+  100% {
+    opacity: 0.45;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes chat-typing-fade {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes chat-recording-wave {
+  from {
+    opacity: 0.42;
+    transform: scaleY(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-typing-dot {
+    animation-name: chat-typing-fade;
+    transform: none;
+  }
+
+
+  .chat-recording-bar {
+    animation: none;
+  }
+}

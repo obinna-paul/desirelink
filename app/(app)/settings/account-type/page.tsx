@@ -51,6 +51,7 @@ export default async function AccountTypeSettingsPage({
       openToMeet: true,
       showInSearch: true,
       showExactLocation: true,
+      showActivityStatus: true,
       isIncognito: true,
     },
   });

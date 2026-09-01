@@ -49,6 +49,13 @@ const EXTENSION_BY_TYPE: Record<string, string> = {
   "video/mp4": "mp4",
   "video/quicktime": "mov",
   "video/webm": "webm",
+  "audio/webm": "webm",
+  "audio/mp4": "m4a",
+  "audio/mpeg": "mp3",
+  "audio/ogg": "ogg",
+  "audio/wav": "wav",
+  "audio/x-m4a": "m4a",
+  "audio/aac": "aac",
 };
 
 function extensionFor(contentType: string, resourceType: UploadResourceType): string {
