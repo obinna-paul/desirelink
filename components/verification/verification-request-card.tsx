@@ -242,10 +242,10 @@ export function VerificationRequestCard({
     <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
       <div>
         <h3 className="text-base font-semibold">{HEADINGS[requestType]}</h3>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
           Submitting lets you continue right away - we review manually
-          afterward. If the identification turns out to be incorrect or fake,
-          your account will be suspended.
+          afterward, and you&rsquo;ll be notified if your identification
+          doesn&rsquo;t pass verification.
         </p>
         {latestStatus === "denied" && (
           <p className="mt-1 text-xs text-destructive">
@@ -273,14 +273,33 @@ export function VerificationRequestCard({
         />
       </div>
 
-      <p className="-mt-2 text-xs leading-5 text-muted-foreground">
-        Your government ID must clearly show your name and photo. For the
-        selfie, record a 5-second video of yourself saying just two words -
-        &ldquo;Udala&rdquo; and your name - clearly, in your own natural voice.
-        We don&rsquo;t accept AI-generated voices, avatars, or characters. The
-        video is used only to confirm you&rsquo;re a real person and is deleted
-        immediately after review - it&rsquo;s never used for anything else.
-      </p>
+      <div className="rounded-xl bg-muted/50 p-3.5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          What we need
+        </p>
+        <ul className="mt-2.5 flex flex-col gap-2.5 text-sm leading-6 text-foreground">
+          <li className="flex gap-2.5">
+            <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
+            <span>
+              <span className="font-semibold">Government ID</span> that clearly shows your name and photo.
+            </span>
+          </li>
+          <li className="flex gap-2.5">
+            <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
+            <span>
+              <span className="font-semibold">A 5-second selfie video</span> of yourself clearly saying
+              &ldquo;Udala&rdquo; and your name, in your own natural voice. AI-generated voices, avatars, or
+              characters aren&rsquo;t accepted.
+            </span>
+          </li>
+          <li className="flex gap-2.5">
+            <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
+            <span>
+              Both are used only to confirm you&rsquo;re a real person, and are deleted immediately after review.
+            </span>
+          </li>
+        </ul>
+      </div>
 
       <input
         ref={idInputRef}
