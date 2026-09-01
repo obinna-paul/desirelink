@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isAllowedAudioFile, isAllowedImageFile, isAllowedVideoFile } from "@/lib/security/uploads";
-import { storeUpload } from "@/lib/uploads";
+import { storeUpload, uploadErrorResponse } from "@/lib/uploads";
 
 const MAX_IMAGE_SIZE = 12 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
@@ -57,7 +57,6 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
-    console.error("[upload/message-media] failed", error);
-    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 502 });
+    return uploadErrorResponse(error, "[upload/message-media]");
   }
 }

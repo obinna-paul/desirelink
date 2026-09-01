@@ -4,6 +4,8 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomBytes } from "crypto";
 
+import { NextResponse } from "next/server";
+
 import { cloudinary } from "@/lib/cloudinary";
 
 export type UploadResourceType = "image" | "video";
@@ -35,6 +37,20 @@ export function isCloudinaryConfigured(): boolean {
     process.env.CLOUDINARY_URL ||
       (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET)
   );
+}
+
+/** Thrown instead of attempting a doomed local write when Cloudinary isn't configured on a
+ * platform (Vercel) whose serverless functions have a read-only filesystem - without this,
+ * the write throws a raw EROFS/ENOENT deep inside fs, which every upload route's catch block
+ * then flattens into an indistinguishable generic "Upload failed" with no way to tell a real
+ * transient failure from a deployment that's simply missing its Cloudinary environment vars. */
+export class UploadStorageNotConfiguredError extends Error {
+  constructor() {
+    super(
+      "Media storage isn't configured for this deployment. Set CLOUDINARY_URL (or CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET) in the environment - Vercel's serverless filesystem is read-only, so local upload storage doesn't work there."
+    );
+    this.name = "UploadStorageNotConfiguredError";
+  }
 }
 
 const EXTENSION_BY_TYPE: Record<string, string> = {
@@ -118,5 +134,18 @@ async function storeLocally(options: StoreUploadOptions): Promise<StoredUpload> 
 }
 
 export async function storeUpload(options: StoreUploadOptions): Promise<StoredUpload> {
-  return isCloudinaryConfigured() ? uploadToCloudinary(options) : storeLocally(options);
+  if (isCloudinaryConfigured()) return uploadToCloudinary(options);
+  if (process.env.VERCEL) throw new UploadStorageNotConfiguredError();
+  return storeLocally(options);
+}
+
+/** Shared catch-block handler for every upload route: logs the real error server-side, and
+ * tells the caller exactly when the deployment is simply missing its Cloudinary config
+ * instead of flattening that into the same generic message as a real transient failure. */
+export function uploadErrorResponse(error: unknown, logPrefix: string): NextResponse {
+  console.error(`${logPrefix} failed`, error);
+  if (error instanceof UploadStorageNotConfiguredError) {
+    return NextResponse.json({ error: error.message }, { status: 503 });
+  }
+  return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 502 });
 }
