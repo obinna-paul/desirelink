@@ -14,6 +14,7 @@ import { confirmProviderPayment } from "@/lib/providers";
 import { getProviderServiceListings } from "@/lib/service-listings";
 import { getAttendingEvents, getProfileEvents } from "@/lib/events";
 import { isProviderProfileType } from "@/lib/provider-types";
+import { getOwnPresenceStatus, getPresenceStatus } from "@/lib/presence";
 
 export default async function PublicProfilePage({
   params,
@@ -69,14 +70,23 @@ export default async function PublicProfilePage({
   const viewerOrOwnerId = isOwner ? profile.id : (viewerProfile?.id ?? null);
   const isProvider = isProviderProfileType(profile.profileType);
 
-  const [posts, subscriptions, serviceListings, events, attendingEvents, stats] = await Promise.all([
+  const [posts, subscriptions, serviceListings, events, attendingEvents, stats, activeStream] = await Promise.all([
     getCreatorProfilePosts(profile.id, viewerOrOwnerId),
     getPublicTiers(profile.id, viewerOrOwnerId),
     getProviderServiceListings(profile.id),
     getProfileEvents(profile.id, viewerOrOwnerId),
     getAttendingEvents(profile.id, viewerOrOwnerId),
     getCreatorStats(profile.id),
+    isProvider
+      ? prisma.liveStream.findFirst({ where: { providerId: profile.id, status: "live" }, select: { id: true } })
+      : Promise.resolve(null),
   ]);
+
+  const presenceStatus = activeStream
+    ? "live"
+    : isOwner
+      ? getOwnPresenceStatus(profile)
+      : getPresenceStatus(profile, false);
 
   const [reviewSummary, reviews, reviewableContexts] = await Promise.all([
     getReviewSummary(profile.id),
@@ -104,6 +114,8 @@ export default async function PublicProfilePage({
         profileHref={`/profile/${profile.username}`}
         activeSection={searchParams.section}
         stats={stats}
+        presenceStatus={presenceStatus}
+        liveStreamId={activeStream?.id ?? null}
       />
     </div>
   );

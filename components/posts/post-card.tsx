@@ -6,6 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Eye, Lock } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PresenceRing } from "@/components/ui/presence-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CommentsSheet } from "@/components/posts/comments-sheet";
@@ -120,16 +121,22 @@ export function PostCard({
       <div className="flex items-center justify-between gap-2 px-3 pt-3 md:px-4 md:pt-4">
         {showAuthor ? (
           <Link
-            href={`/profile/${post.author.username}`}
+            href={
+              post.author.presenceStatus === "live" && post.author.activeStreamId
+                ? `/live/${post.author.activeStreamId}`
+                : `/profile/${post.author.username}`
+            }
             className="flex min-w-0 items-center gap-2.5"
           >
-            <Avatar className="h-10 w-10 border border-border">
-              <AvatarImage
-                src={post.author.avatarUrl}
-                alt={post.author.displayName}
-              />
-              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-            </Avatar>
+            <PresenceRing status={post.author.presenceStatus} size="h-10 w-10">
+              <Avatar className="h-full w-full">
+                <AvatarImage
+                  src={post.author.avatarUrl}
+                  alt={post.author.displayName}
+                />
+                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+              </Avatar>
+            </PresenceRing>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">
                 {post.author.displayName}

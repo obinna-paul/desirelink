@@ -28,6 +28,7 @@ import { ProfileSubscribeButton } from "@/components/profile/profile-subscribe-b
 import { ShareProfileButton } from "@/components/profile/share-profile-button";
 import { SwipeableSection } from "@/components/profile/swipeable-section";
 import { VerificationBadge } from "@/components/profile/verification-badge";
+import type { PresenceStatus } from "@/lib/presence";
 import { ReviewDialog } from "@/components/reviews/review-dialog";
 import { ReviewsSection } from "@/components/reviews/reviews-section";
 import { BlockButton } from "@/components/safety/block-button";
@@ -123,6 +124,8 @@ export function ProfileView({
   visibleProfileFields,
   viewerHeartsBalance = 0,
   stats,
+  presenceStatus = "offline",
+  liveStreamId = null,
 }: {
   profile: Profile & {
     partner: {
@@ -147,6 +150,8 @@ export function ProfileView({
   visibleProfileFields: ProfileFieldName[];
   viewerHeartsBalance?: number;
   stats: CreatorStats;
+  presenceStatus?: PresenceStatus;
+  liveStreamId?: string | null;
 }) {
   const section = normalizeSection(activeSection);
   const visibleFields = new Set(visibleProfileFields);
@@ -191,6 +196,8 @@ export function ProfileView({
               displayName={profile.displayName}
               descriptor={descriptor}
               isOwner={isOwner}
+              presenceStatus={presenceStatus}
+              liveStreamId={liveStreamId}
             />
 
             <div className="min-w-0 flex-1 pb-1 md:pt-16">

@@ -60,6 +60,11 @@ const config: Config = {
           pink: "hsl(var(--neon-pink))",
           cyan: "hsl(var(--neon-cyan))",
         },
+        presence: {
+          offline: "hsl(var(--muted-foreground))",
+          online: "hsl(var(--presence-online))",
+          live: "hsl(var(--presence-live))",
+        },
         "avatar-placeholder": "hsl(var(--avatar-placeholder))",
         trust: "hsl(var(--trust))",
         "accent-soft": "hsl(var(--accent-soft))",

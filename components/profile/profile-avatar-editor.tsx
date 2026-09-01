@@ -2,11 +2,14 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Camera, Loader2 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PresenceRing } from "@/components/ui/presence-avatar";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
 import { ImageViewerDialog } from "@/components/profile/image-viewer-dialog";
+import type { PresenceStatus } from "@/lib/presence";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const AVATAR_CROP_PRESETS = [{ id: "square", label: "Square", ratio: 1 }] as const;
@@ -17,11 +20,15 @@ export function ProfileAvatarEditor({
   displayName,
   descriptor,
   isOwner,
+  presenceStatus = "offline",
+  liveStreamId = null,
 }: {
   avatarUrl: string;
   displayName: string;
   descriptor: string;
   isOwner: boolean;
+  presenceStatus?: PresenceStatus;
+  liveStreamId?: string | null;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -79,22 +86,38 @@ export function ProfileAvatarEditor({
     void upload(file);
   }
 
+  const avatarInner = (
+    <PresenceRing status={presenceStatus} size="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32" className="ring-offset-2 ring-offset-card">
+      <Avatar className="h-full w-full border-4 border-card bg-avatar-placeholder shadow-lift">
+        <AvatarImage src={preview} alt={displayName} className="object-cover" />
+        <AvatarFallback className="text-xl md:text-2xl">
+          {displayName.slice(0, 2).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+    </PresenceRing>
+  );
+
   return (
     <div className="flex shrink-0 flex-col items-center">
       <div className="relative">
-        <button
-          type="button"
-          onClick={() => preview && setShowFullView(true)}
-          aria-label={`View ${displayName}'s profile photo`}
-          className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <Avatar className="h-24 w-24 border-4 border-card bg-avatar-placeholder shadow-lift sm:h-28 sm:w-28 md:h-32 md:w-32">
-            <AvatarImage src={preview} alt={displayName} className="object-cover" />
-            <AvatarFallback className="text-xl md:text-2xl">
-              {displayName.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        </button>
+        {presenceStatus === "live" && liveStreamId ? (
+          <Link
+            href={`/live/${liveStreamId}`}
+            aria-label={`${displayName} is live - tap to watch`}
+            className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            {avatarInner}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => preview && setShowFullView(true)}
+            aria-label={`View ${displayName}'s profile photo`}
+            className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            {avatarInner}
+          </button>
+        )}
 
         {isOwner && (
           <button

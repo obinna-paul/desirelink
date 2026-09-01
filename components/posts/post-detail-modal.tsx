@@ -7,7 +7,9 @@ import { formatDistanceToNow } from "date-fns";
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Share2, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PresenceRing } from "@/components/ui/presence-avatar";
 import { PostVideoPlayer } from "@/components/posts/post-video-player";
+import type { PresenceStatus } from "@/lib/presence";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { CommentComposer, CommentsList, usePostComments } from "@/components/posts/post-comments-shared";
@@ -42,7 +44,13 @@ export function PostDetailModal({
   media: PostMediaItem[];
   caption: string | null;
   createdAt: string;
-  author: { username: string; displayName: string; avatarUrl: string };
+  author: {
+    username: string;
+    displayName: string;
+    avatarUrl: string;
+    presenceStatus: PresenceStatus;
+    activeStreamId: string | null;
+  };
   viewerCanManage: boolean;
   isSubscriberOnly: boolean;
   isPinned: boolean;
@@ -163,11 +171,20 @@ export function PostDetailModal({
 
         <div className="flex h-full w-full flex-col md:w-[380px] md:shrink-0">
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
-            <Link href={`/profile/${author.username}`} className="flex min-w-0 items-center gap-2.5">
-              <Avatar className="h-9 w-9 border border-border">
-                <AvatarImage src={author.avatarUrl} alt={author.displayName} />
-                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-              </Avatar>
+            <Link
+              href={
+                author.presenceStatus === "live" && author.activeStreamId
+                  ? `/live/${author.activeStreamId}`
+                  : `/profile/${author.username}`
+              }
+              className="flex min-w-0 items-center gap-2.5"
+            >
+              <PresenceRing status={author.presenceStatus} size="h-9 w-9">
+                <Avatar className="h-full w-full">
+                  <AvatarImage src={author.avatarUrl} alt={author.displayName} />
+                  <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                </Avatar>
+              </PresenceRing>
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold">{author.displayName}</p>
                 <p className="text-xs text-muted-foreground">{timeAgo}</p>

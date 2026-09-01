@@ -10,9 +10,7 @@ import { liveStreamChannelName, LIVE_GIFT_SENT_EVENT, LIVE_STREAM_ENDED_EVENT } 
 import { settleGift } from "@/lib/hearts";
 import { refundOpenLiveRequests, type LiveRequestOptionInput } from "@/lib/live-requests";
 import { createNotificationsBulk } from "@/lib/notifications";
-
-/** How long since lastActiveAt counts as "online" for the chat-only ring (no live badge). */
-const ONLINE_WINDOW_MS = 5 * 60 * 1000;
+import { ONLINE_WINDOW_MS } from "@/lib/presence";
 
 function generateRoomName(): string {
   return `live-${randomBytes(12).toString("hex")}`;
@@ -224,6 +222,7 @@ export async function getLiveRingFeed(viewerProfileId: string | null, limit = 20
           isIncognito: false,
           profileType: { in: [...PROVIDER_PROFILE_TYPES] },
           id: { notIn: Array.from(liveProviderIds) },
+          showActivityStatus: true,
           lastActiveAt: { gt: new Date(Date.now() - ONLINE_WINDOW_MS) },
         },
         orderBy: { lastActiveAt: "desc" },

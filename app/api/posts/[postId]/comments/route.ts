@@ -9,6 +9,7 @@ import { isActiveSubscriber } from "@/lib/posts";
 import { prisma } from "@/lib/prisma";
 import { readJson } from "@/lib/security/request";
 import { createNotification } from "@/lib/notifications";
+import { getLiveStreamIdsByProvider, getPresenceStatus, type PresenceStatus } from "@/lib/presence";
 
 const commentSchema = z.object({
   content: z.string().trim().min(1, "Comment can't be empty").max(1000, "Comments must be 1000 characters or fewer"),
@@ -28,17 +29,31 @@ function isMissingPostArchiveError(error: unknown): boolean {
   );
 }
 
-function serializeComment(comment: {
+type CommentAuthor = {
   id: string;
-  content: string;
-  createdAt: Date;
-  author: { id: string; username: string; displayName: string; avatarUrl: string };
-}) {
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+  lastActiveAt: Date | null;
+  showActivityStatus: boolean;
+};
+
+function serializeComment(
+  comment: { id: string; content: string; createdAt: Date; author: CommentAuthor },
+  liveStreamIds: Map<string, string>,
+) {
   return {
     id: comment.id,
     content: comment.content,
     createdAt: comment.createdAt.toISOString(),
-    author: comment.author,
+    author: {
+      id: comment.author.id,
+      username: comment.author.username,
+      displayName: comment.author.displayName,
+      avatarUrl: comment.author.avatarUrl,
+      presenceStatus: getPresenceStatus(comment.author, liveStreamIds.has(comment.author.id)),
+      activeStreamId: liveStreamIds.get(comment.author.id) ?? null,
+    },
     replies: [],
   };
 }
@@ -47,27 +62,54 @@ type RawNode = {
   id: string;
   content: string;
   createdAt: Date;
-  author: { id: string; username: string; displayName: string; avatarUrl: string };
+  author: CommentAuthor;
   replies?: RawNode[];
 };
 
-function normalizeThread(node: RawNode): {
+function collectAuthorIds(nodes: RawNode[]): string[] {
+  const ids = new Set<string>();
+  const visit = (node: RawNode) => {
+    ids.add(node.author.id);
+    (node.replies ?? []).forEach(visit);
+  };
+  nodes.forEach(visit);
+  return Array.from(ids);
+}
+
+function normalizeThread(
+  node: RawNode,
+  liveStreamIds: Map<string, string>,
+): {
   id: string;
   content: string;
   createdAt: string;
-  author: { id: string; username: string; displayName: string; avatarUrl: string };
+  author: { id: string; username: string; displayName: string; avatarUrl: string; presenceStatus: PresenceStatus; activeStreamId: string | null };
   replies: ReturnType<typeof normalizeThread>[];
 } {
   return {
     id: node.id,
     content: node.content,
     createdAt: node.createdAt.toISOString(),
-    author: node.author,
-    replies: (node.replies ?? []).map(normalizeThread),
+    author: {
+      id: node.author.id,
+      username: node.author.username,
+      displayName: node.author.displayName,
+      avatarUrl: node.author.avatarUrl,
+      presenceStatus: getPresenceStatus(node.author, liveStreamIds.has(node.author.id)),
+      activeStreamId: liveStreamIds.get(node.author.id) ?? null,
+    },
+    replies: (node.replies ?? []).map((reply) => normalizeThread(reply, liveStreamIds)),
   };
 }
 
-const AUTHOR_SELECT = { id: true, username: true, displayName: true, avatarUrl: true } as const;
+const AUTHOR_SELECT = {
+  id: true,
+  username: true,
+  displayName: true,
+  avatarUrl: true,
+  lastActiveAt: true,
+  showActivityStatus: true,
+} as const;
 const PAGE_SIZE = 15;
 
 export async function GET(req: Request, { params }: { params: { postId: string } }) {
@@ -139,7 +181,8 @@ export async function GET(req: Request, { params }: { params: { postId: string }
 
   const hasMore = rows.length > PAGE_SIZE;
   const page = hasMore ? rows.slice(0, PAGE_SIZE) : rows;
-  const comments = page.map(normalizeThread);
+  const liveStreamIds = await getLiveStreamIdsByProvider(collectAuthorIds(page));
+  const comments = page.map((node) => normalizeThread(node, liveStreamIds));
 
   return NextResponse.json({
     comments,
@@ -210,7 +253,7 @@ export async function POST(req: Request, { params }: { params: { postId: string 
       content: parsed.data.content,
     },
     include: {
-      author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+      author: { select: AUTHOR_SELECT },
     },
   });
 
@@ -234,5 +277,6 @@ export async function POST(req: Request, { params }: { params: { postId: string 
   });
 
   const count = await prisma.postComment.count({ where: { postId: params.postId } });
-  return NextResponse.json({ comment: serializeComment(comment), count }, { status: 201 });
+  const liveStreamIds = await getLiveStreamIdsByProvider([comment.author.id]);
+  return NextResponse.json({ comment: serializeComment(comment, liveStreamIds), count }, { status: 201 });
 }
