@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import useSWR from "swr";
 import type { Profile } from "@prisma/client";
 import {
   Check,
@@ -16,7 +17,7 @@ import {
 
 import { cn } from "@/lib/utils";
 
-type SetupProfile = Pick<
+export type SetupProfile = Pick<
   Profile,
   | "avatarUrl"
   | "bio"
@@ -31,7 +32,23 @@ type SetupProfile = Pick<
   | "isVerifiedHost"
 >;
 
-export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
+async function fetchSetupStatus(url: string): Promise<{ profile: SetupProfile }> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Could not load setup status");
+  return res.json();
+}
+
+export function ProfileSetupActions({ profile: initialProfile }: { profile: SetupProfile }) {
+  // Server-rendered `initialProfile` seeds the first paint; the SWR fetch keeps it live so
+  // the checklist and progress bar reflect edits made elsewhere without a full page reload.
+  const { data } = useSWR<{ profile: SetupProfile }>("/api/profile/setup-status", fetchSetupStatus, {
+    fallbackData: { profile: initialProfile },
+    revalidateOnFocus: true,
+    revalidateOnMount: true,
+    refreshInterval: 30_000,
+    dedupingInterval: 3_000,
+  });
+  const profile = data?.profile ?? initialProfile;
   const hasVerification = profile.isVerified || profile.isVerifiedCreator || profile.isVerifiedHost;
 
   const actions = useMemo(
@@ -40,7 +57,7 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
         id: "photo",
         title: "Add profile photo",
         description: "Help people recognize you",
-        href: "/profile/edit",
+        href: "/profile/edit?section=photos",
         done: Boolean(profile.avatarUrl),
         icon: UserRound,
       },
@@ -48,7 +65,7 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
         id: "bio",
         title: "Write your bio",
         description: "At least 20 characters",
-        href: "/profile/edit",
+        href: "/profile/edit?section=basics",
         done: profile.bio.trim().length >= 20,
         icon: FileText,
       },
@@ -56,7 +73,7 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
         id: "city",
         title: "Add your city",
         description: "Power nearby recommendations",
-        href: "/profile/edit",
+        href: "/profile/edit?section=location",
         done: Boolean(profile.city),
         icon: MapPin,
       },
@@ -64,7 +81,7 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
         id: "country",
         title: "Add your country",
         description: "Improve regional discovery",
-        href: "/profile/edit",
+        href: "/profile/edit?section=location",
         done: Boolean(profile.country),
         icon: Globe2,
       },
@@ -72,7 +89,7 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
         id: "availability",
         title: "Set availability",
         description: "Show when you are open to chat or meet",
-        href: "/profile/edit",
+        href: "/profile/edit?section=availability",
         done: profile.openToChat || profile.openToMeet,
         icon: Radio,
       },
@@ -80,7 +97,7 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
         id: "verification",
         title: "Verify identity",
         description: "Build trust across messages, events, and circles",
-        href: "/profile/edit",
+        href: "/verification",
         done: hasVerification,
         icon: ShieldCheck,
       },
@@ -88,7 +105,7 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
         id: "discovery",
         title: "Appear in Discover",
         description: "Let compatible people find you",
-        href: "/profile/edit",
+        href: "/profile/edit?section=privacy",
         done: profile.showInSearch,
         icon: Eye,
       },
@@ -96,7 +113,7 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
         id: "location-privacy",
         title: "Keep location private",
         description: "Use nearby signals without exact location",
-        href: "/profile/edit",
+        href: "/profile/edit?section=privacy",
         done: !profile.showExactLocation,
         icon: ShieldCheck,
       },
@@ -104,7 +121,7 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
         id: "visibility",
         title: "Review visibility",
         description: "Confirm search and privacy settings",
-        href: "/profile/edit",
+        href: "/profile/edit?section=privacy",
         done: profile.showInSearch && !profile.showExactLocation,
         icon: Eye,
       },

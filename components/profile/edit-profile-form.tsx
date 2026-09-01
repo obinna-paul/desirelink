@@ -39,7 +39,7 @@ type BooleanFieldName =
   | "showActivityStatus"
   | "isIncognito";
 
-type EditableSectionId =
+export type EditableSectionId =
   | "basics"
   | "photos"
   | "location"
@@ -194,11 +194,17 @@ function SectionShell({
   );
 }
 
-export function EditProfileForm({ profile }: { profile: Profile }) {
+export function EditProfileForm({
+  profile,
+  initialSection,
+}: {
+  profile: Profile;
+  initialSection?: EditableSectionId;
+}) {
   const router = useRouter();
   const [isDesktop, setIsDesktop] = useState(false);
-  const [activeSection, setActiveSection] = useState<EditableSectionId>("basics");
-  const [mobileSection, setMobileSection] = useState<EditableSectionId | null>(null);
+  const [activeSection, setActiveSection] = useState<EditableSectionId>(initialSection ?? "basics");
+  const [mobileSection, setMobileSection] = useState<EditableSectionId | null>(initialSection ?? null);
   const [status, setStatus] = useState<"idle" | "saving" | "success">("idle");
   const [serverError, setServerError] = useState<string | null>(null);
   const [locationStatus, setLocationStatus] = useState<"idle" | "locating" | "success" | "error">("idle");
@@ -360,7 +366,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
 
     if (sectionId === "privacy") {
       return (
-        <SectionShell title="Privacy" description="Control discoverability, location visibility, and premium privacy features.">
+        <SectionShell title="Privacy" description="Control discoverability, location visibility, and activity status.">
           <div className="flex flex-col gap-3">
             <ToggleRow
               label="Show in search results"

@@ -9,7 +9,7 @@ import { getHomeServiceListings } from "@/lib/service-listings";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { AvailableNowSidebar } from "@/components/home/available-now-sidebar";
 import { ExplorerDiscoveryPanel } from "@/components/home/explorer-discovery-panel";
-import { ProfileSetupActions } from "@/components/profile/profile-setup-actions";
+import { HomeOnlyQuickActions } from "@/components/layout/home-only-quick-actions";
 
 const BASE_NEARBY_MIN = 8;
 const BASE_NEARBY_MAX = 22;
@@ -52,7 +52,7 @@ export async function RightRail() {
       aria-label="People nearby"
       className="sticky top-16 hidden h-[calc(100vh-4rem)] w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border/60 bg-sidebar px-5 py-6 xl:flex"
     >
-      {viewerProfile && isProvider && <ProfileSetupActions profile={viewerProfile} />}
+      {viewerProfile && isProvider && <HomeOnlyQuickActions profile={viewerProfile} />}
       {viewerProfile && !isProvider && (
         <ExplorerDiscoveryPanel
           onlineCreators={onlineCreators}
