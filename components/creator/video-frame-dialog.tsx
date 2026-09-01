@@ -9,6 +9,9 @@ import { useFocusTrap } from "@/lib/use-focus-trap";
 type Offset = { x: number; y: number };
 type DragState = { pointerId: number; startX: number; startY: number; startOffset: Offset } | null;
 
+/** Widest the frame is ever allowed to render, matching the old `max-w-md` cap on desktop. */
+const MAX_FRAME_WIDTH_PX = 448;
+
 /**
  * Video can't be pixel-cropped in the browser the way a photo is, so instead of redrawing
  * pixels this records where the creator panned/zoomed within the post's chosen frame (as
@@ -20,12 +23,15 @@ export function VideoFrameDialog({
   ratio,
   onCancel,
   onConfirm,
+  onError,
   title = "Adjust video",
 }: {
   file: File;
   ratio: number;
   onCancel: () => void;
   onConfirm: (result: { crop: VideoCrop; width: number; height: number; durationSeconds: number }) => void;
+  /** Called when the browser can't decode this file (e.g. an unsupported codec/container), or metadata never loads within a reasonable time — otherwise the dialog is stuck forever with a disabled confirm button and no feedback. */
+  onError?: () => void;
   title?: string;
 }) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -34,17 +40,35 @@ export function VideoFrameDialog({
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState<Offset>({ x: 0, y: 0 });
   const [frameWidth, setFrameWidth] = useState(0);
+  const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
   const frameRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const dragRef = useRef<DragState>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  // Guards the error paths below against firing after this effect's own cleanup — e.g. React
+  // Strict Mode's mount/cleanup/remount in dev, or a fast re-selection — where revoking the
+  // blob URL mid-decode can otherwise fire a spurious `error` on the now-discarded <video>
+  // instance and incorrectly abort a perfectly valid clip.
+  const cancelledRef = useRef(false);
 
   useFocusTrap(true, dialogRef);
 
   useEffect(() => {
+    cancelledRef.current = false;
     const url = URL.createObjectURL(file);
     setVideoUrl(url);
-    return () => URL.revokeObjectURL(url);
+    // Some codecs/containers never fire `loadedmetadata` (or `error`) in a given browser —
+    // without this, the dialog is stuck forever with a disabled confirm button and no feedback.
+    const timeout = window.setTimeout(() => {
+      if (!cancelledRef.current && !videoRef.current?.duration) onError?.();
+    }, 8000);
+    return () => {
+      cancelledRef.current = true;
+      window.clearTimeout(timeout);
+      URL.revokeObjectURL(url);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onError is a stable callback from the caller, not a reactive dependency of loading this file
   }, [file]);
 
   useEffect(() => {
@@ -63,7 +87,22 @@ export function VideoFrameDialog({
     return () => observer.disconnect();
   }, []);
 
+  // Measures the space actually available for the frame (independent of the frame's own
+  // size) so the frame can be capped by whichever of width/height is more restrictive —
+  // critical for tall ratios like 9:16, which would otherwise grow past the available
+  // height and cover the control bar below it.
+  useEffect(() => {
+    const el = previewRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) =>
+      setPreviewSize({ width: entries[0].contentRect.width, height: entries[0].contentRect.height })
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   function handleLoadedMetadata() {
+    if (cancelledRef.current) return;
     const el = videoRef.current;
     if (!el) return;
     setNaturalSize({ width: el.videoWidth, height: el.videoHeight });
@@ -71,7 +110,17 @@ export function VideoFrameDialog({
     void el.play().catch(() => {});
   }
 
+  function handleVideoError() {
+    if (cancelledRef.current) return;
+    onError?.();
+  }
+
   const frameHeight = frameWidth / ratio;
+  const fittedFrameWidth =
+    previewSize.width > 0 && previewSize.height > 0
+      ? Math.min(previewSize.width, MAX_FRAME_WIDTH_PX, previewSize.height * ratio)
+      : Math.min(previewSize.width || MAX_FRAME_WIDTH_PX, MAX_FRAME_WIDTH_PX);
+  const fittedFrameHeight = fittedFrameWidth / ratio;
 
   function baseScaleFor(zoomLevel: number) {
     if (!naturalSize || !frameWidth) return zoomLevel;
@@ -150,15 +199,19 @@ export function VideoFrameDialog({
           </button>
         </div>
 
-        <div className="flex flex-1 items-center justify-center overflow-hidden p-3 sm:p-5">
+        <div ref={previewRef} className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-3 sm:p-5">
           <div
             ref={frameRef}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
-            className="relative w-full max-w-md touch-none overflow-hidden bg-white/5"
-            style={{ aspectRatio: ratio, cursor: "grab" }}
+            className="relative touch-none overflow-hidden bg-white/5"
+            style={{
+              width: fittedFrameWidth || undefined,
+              height: fittedFrameHeight || undefined,
+              cursor: "grab",
+            }}
           >
             {videoUrl && (
               <video
@@ -168,6 +221,7 @@ export function VideoFrameDialog({
                 loop
                 playsInline
                 onLoadedMetadata={handleLoadedMetadata}
+                onError={handleVideoError}
                 draggable={false}
                 className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
                 style={
@@ -184,7 +238,7 @@ export function VideoFrameDialog({
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 border-t border-white/10 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3">
+        <div className="relative z-10 flex flex-col gap-4 border-t border-white/10 bg-black/70 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 shadow-[0_-8px_24px_rgba(0,0,0,0.45)] backdrop-blur-sm">
           <input
             type="range"
             min={1}

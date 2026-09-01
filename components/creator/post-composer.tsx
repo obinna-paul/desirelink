@@ -33,11 +33,42 @@ import {
   hasImageMetadataSignature,
   type PiiFinding,
 } from "@/lib/pii";
+import { convertHeicFileToJpeg, isHeicFile } from "@/lib/heic-convert";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { cn } from "@/lib/utils";
 
 const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_FILE_SIZE = 100 * 1024 * 1024;
+/** Generous enough for a real clip, short enough that nobody attaches a feature-length video to a post. */
+const MAX_VIDEO_DURATION_SECONDS = 3 * 60;
+
+/** Reads a video's duration without ever attaching it to the DOM — resolves 0 (never rejects) if the browser can't read metadata within the timeout, so an unreadable file falls through to the frame dialog's own error handling instead of blocking selection here. */
+function readVideoDurationSeconds(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    let settled = false;
+    const finish = (value: number) => {
+      if (settled) return;
+      settled = true;
+      video.removeAttribute("src");
+      video.load();
+      URL.revokeObjectURL(url);
+      resolve(value);
+    };
+    const timeout = window.setTimeout(() => finish(0), 8000);
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      window.clearTimeout(timeout);
+      finish(Number.isFinite(video.duration) ? video.duration : 0);
+    };
+    video.onerror = () => {
+      window.clearTimeout(timeout);
+      finish(0);
+    };
+    video.src = url;
+  });
+}
 
 type UploadedMedia = PostMediaItem & {
   metadataDetected: boolean;
@@ -216,33 +247,57 @@ export function PostComposer({
 
     const videosToReview: File[] = [];
     const imagesToReview: PendingCrop[] = [];
+    let lastError: string | null = null;
 
     for (const file of files) {
-      const isImage = file.type.startsWith("image/");
-      const isVideo = file.type.startsWith("video/");
-      if (!isImage && !isVideo) {
-        setError("Choose image or video files only.");
-        continue;
-      }
-      if (isImage && file.size > MAX_IMAGE_FILE_SIZE) {
-        setError("Each image must be under 8MB.");
-        continue;
-      }
-      if (isVideo && file.size > MAX_VIDEO_FILE_SIZE) {
-        setError("Each video must be under 100MB.");
-        continue;
-      }
+      try {
+        let workingFile = file;
 
-      if (isVideo) {
-        videosToReview.push(file);
-        continue;
-      }
+        if (isHeicFile(workingFile)) {
+          try {
+            workingFile = await convertHeicFileToJpeg(workingFile);
+          } catch {
+            lastError =
+              "One photo couldn't be converted from HEIC. Try exporting it as JPEG or PNG first.";
+            continue;
+          }
+        }
 
-      const metadataDetected = hasImageMetadataSignature(
-        await file.arrayBuffer(),
-      );
-      imagesToReview.push({ file, metadataDetected });
+        const isImage = workingFile.type.startsWith("image/");
+        const isVideo = workingFile.type.startsWith("video/");
+        if (!isImage && !isVideo) {
+          lastError = "Choose image or video files only.";
+          continue;
+        }
+        if (isImage && workingFile.size > MAX_IMAGE_FILE_SIZE) {
+          lastError = "Each image must be under 8MB.";
+          continue;
+        }
+        if (isVideo && workingFile.size > MAX_VIDEO_FILE_SIZE) {
+          lastError = "Each video must be under 100MB.";
+          continue;
+        }
+
+        if (isVideo) {
+          const durationSeconds = await readVideoDurationSeconds(workingFile);
+          if (durationSeconds > MAX_VIDEO_DURATION_SECONDS) {
+            lastError = `Videos must be ${Math.round(MAX_VIDEO_DURATION_SECONDS / 60)} minutes or shorter.`;
+            continue;
+          }
+          videosToReview.push(workingFile);
+          continue;
+        }
+
+        const metadataDetected = hasImageMetadataSignature(
+          await workingFile.arrayBuffer(),
+        );
+        imagesToReview.push({ file: workingFile, metadataDetected });
+      } catch {
+        lastError = "One file couldn't be processed. Try a different photo or video.";
+      }
     }
+
+    if (lastError) setError(lastError);
 
     // Every photo and video goes through the frame/adjust screen, cropped to the post's
     // chosen dimension - this is what keeps the feed WYSIWYG with what was previewed here.
@@ -293,6 +348,13 @@ export function PostComposer({
 
   function handleVideoFrameCancel() {
     setVideoQueue((prev) => prev.slice(1));
+  }
+
+  function handleVideoFrameError() {
+    setVideoQueue((prev) => prev.slice(1));
+    setError(
+      "A video couldn't be opened. Try a different one, or export it as MP4 first.",
+    );
   }
 
   function removeMedia(url: string) {
@@ -613,7 +675,7 @@ export function PostComposer({
         <input
           ref={inputRef}
           type="file"
-          accept="image/*,video/mp4,video/webm,video/quicktime"
+          accept="image/*,video/*"
           multiple={postMode === "carousel"}
           className="hidden"
           onChange={handleFiles}
@@ -858,6 +920,7 @@ export function PostComposer({
             ratio={selectedRatio}
             onCancel={handleVideoFrameCancel}
             onConfirm={handleVideoFrameConfirm}
+            onError={handleVideoFrameError}
           />
         )
       )}
