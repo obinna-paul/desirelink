@@ -59,7 +59,6 @@ export async function POST(req: Request) {
       permissions: {
         create: buildPermissionFieldNames({
           profileFields: parsed.data.profileFields,
-          desireCategories: parsed.data.desireCategories,
         }).map((fieldName) => ({ fieldName, visible: true })),
       },
     },

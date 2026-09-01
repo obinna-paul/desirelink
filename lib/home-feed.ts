@@ -20,11 +20,6 @@ export function profileCardSelect() {
     isVerifiedCreator: true,
     isVerifiedHost: true,
     isTrustedMember: true,
-    desires: {
-      where: { privacy: "public" },
-      select: { id: true, category: true },
-      take: 4,
-    },
     availabilityStatuses: {
       where: { expiresAt: { gt: new Date() } },
       select: { status: true, expiresAt: true },
@@ -87,21 +82,6 @@ export async function getHomeFeed(
     case "chat": {
       const profiles = await prisma.profile.findMany({
         where: { ...visible, ...notSelf, openToChat: true },
-        select: profileCardSelect(),
-        orderBy: { updatedAt: "desc" },
-        take: 24,
-      });
-      return { profiles };
-    }
-
-    case "flirt": {
-      const profiles = await prisma.profile.findMany({
-        where: {
-          ...visible,
-          ...notSelf,
-          openToChat: true,
-          desires: { some: { category: "Flirting" } },
-        },
         select: profileCardSelect(),
         orderBy: { updatedAt: "desc" },
         take: 24,

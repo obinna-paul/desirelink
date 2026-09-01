@@ -33,7 +33,6 @@ export async function RightRail() {
           isVerifiedCreator: true,
           isVerifiedHost: true,
           profileType: true,
-          _count: { select: { desires: true } },
         },
       })
     : null;

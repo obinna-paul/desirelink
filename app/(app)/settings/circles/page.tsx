@@ -14,13 +14,7 @@ export default async function CirclesSettingsPage() {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: {
-      id: true,
-      desires: {
-        select: { category: true },
-        orderBy: { category: "asc" },
-      },
-    },
+    select: { id: true },
   });
 
   if (!profile) {
@@ -37,10 +31,7 @@ export default async function CirclesSettingsPage() {
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <CircleManager
-        initialCircles={circles}
-        desireCategories={profile.desires.map((desire) => desire.category)}
-      />
+      <CircleManager initialCircles={circles} />
     </div>
   );
 }

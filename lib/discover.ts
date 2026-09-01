@@ -1,4 +1,4 @@
-import type { AvailabilityStatusType, DesireLevel, Prisma, ProfileType } from "@prisma/client";
+import type { AvailabilityStatusType, Prisma, ProfileType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
@@ -18,14 +18,6 @@ export type AvailabilityFilterValue = (typeof AVAILABILITY_FILTER_OPTIONS)[numbe
 
 export const RADIUS_OPTIONS = [10, 25, 50, 100, 250] as const;
 export const DEFAULT_RADIUS_KM = 50;
-
-export const DESIRE_LEVEL_FILTER_OPTIONS: { value: DesireLevel; label: string }[] = [
-  { value: "curious", label: "Open to" },
-  { value: "interested", label: "Interested" },
-  { value: "looking", label: "Looking for" },
-  { value: "regular", label: "Usually enjoy" },
-  { value: "hard_limit", label: "Avoid" },
-];
 
 export const DISCOVER_SORT_OPTIONS = [
   { value: "newest", label: "Newest" },
@@ -67,8 +59,6 @@ export type DiscoverFilters = {
   genders: string[];
   orientations: string[];
   accountTypes: ProfileType[];
-  desireCategories: string[];
-  desireLevel: DesireLevel | null;
   bodyTypes: string[];
   lastActive: LastActiveFilterValue;
   verification: VerificationFilterValue;
@@ -91,7 +81,6 @@ function toSingle(value: SearchParamValue): string | undefined {
 
 export function parseDiscoverFilters(searchParams: DiscoverSearchParams): DiscoverFilters {
   const radiusParam = toSingle(searchParams.radius);
-  const desireLevelParam = toSingle(searchParams.desireLevel);
   const availabilityParam = toSingle(searchParams.availability);
   const sortParam = toSingle(searchParams.sort);
   const lastActiveParam = toSingle(searchParams.lastActive);
@@ -102,10 +91,6 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
     genders: toArray(searchParams.gender),
     orientations: toArray(searchParams.orientation),
     accountTypes: [],
-    desireCategories: toArray(searchParams.desire),
-    desireLevel: DESIRE_LEVEL_FILTER_OPTIONS.some((option) => option.value === desireLevelParam)
-      ? (desireLevelParam as DesireLevel)
-      : null,
     bodyTypes: toArray(searchParams.bodyType),
     lastActive: LAST_ACTIVE_FILTER_OPTIONS.some((option) => option.value === lastActiveParam)
       ? (lastActiveParam as LastActiveFilterValue)
@@ -165,15 +150,6 @@ function buildWhere(
 
   if (filters.accountTypes.length > 0) {
     where.profileType = { in: filters.accountTypes };
-  }
-
-  if (filters.desireCategories.length > 0) {
-    where.desires = {
-      some: {
-        category: { in: filters.desireCategories },
-        ...(filters.desireLevel ? { level: filters.desireLevel } : {}),
-      },
-    };
   }
 
   if (filters.bodyTypes.length > 0) {

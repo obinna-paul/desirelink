@@ -2,13 +2,10 @@ import type { AvailabilityStatusType, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect } from "@/lib/home-feed";
-import { DESIRE_LEVEL_WEIGHT, scoreDesireOverlap, type DesireScoreInput } from "@/lib/recommendation-scoring";
 
 const DEFAULT_RECOMMENDATION_LIMIT = 6;
 const MAX_RECOMMENDATION_LIMIT = 50;
 const CANDIDATE_LIMIT = 250;
-
-export { DESIRE_LEVEL_WEIGHT, scoreDesireOverlap, type DesireScoreInput };
 
 const ACTIVE_MEETING_STATUSES = new Set<AvailabilityStatusType>([
   "available_tonight",
@@ -26,10 +23,6 @@ const ACTIVE_CHAT_STATUSES = new Set<AvailabilityStatusType>([
 function recommendationProfileSelect() {
   return {
     ...profileCardSelect(),
-    desires: {
-      where: { privacy: "public" },
-      select: { id: true, category: true, level: true },
-    },
     locationLat: true,
     locationLng: true,
     openToChat: true,
@@ -47,9 +40,6 @@ function viewerProfileSelect() {
     country: true,
     openToChat: true,
     openToMeet: true,
-    desires: {
-      select: { category: true, level: true },
-    },
     availabilityStatuses: {
       where: { expiresAt: { gt: new Date() } },
       select: { status: true, expiresAt: true },
@@ -84,13 +74,6 @@ function hasUsableLocation(profile: {
   locationLng: number;
 }): boolean {
   return profile.locationLat !== 0 || profile.locationLng !== 0;
-}
-
-function scoreDesires(
-  viewer: ViewerRecommendationProfile,
-  candidate: RecommendationProfileData
-): { score: number; reasons: string[] } {
-  return scoreDesireOverlap(viewer.desires, candidate.desires);
 }
 
 function scoreProximity(
@@ -170,19 +153,16 @@ function scoreCandidate(
   viewer: ViewerRecommendationProfile,
   candidate: RecommendationProfileData
 ): ProfileRecommendation {
-  const desire = scoreDesires(viewer, candidate);
   const proximity = scoreProximity(viewer, candidate);
   const availability = scoreAvailability(viewer, candidate);
   const activity = scoreActivity(candidate.updatedAt);
 
-  const compatibilityScore = Math.round(
-    desire.score + proximity.score + availability.score + activity.score
-  );
+  const compatibilityScore = Math.round(proximity.score + availability.score + activity.score);
 
   return {
     profile: candidate,
     compatibilityScore,
-    reasons: [...desire.reasons, ...proximity.reasons, ...availability.reasons, ...activity.reasons]
+    reasons: [...proximity.reasons, ...availability.reasons, ...activity.reasons]
       .filter(Boolean)
       .slice(0, 3),
   };

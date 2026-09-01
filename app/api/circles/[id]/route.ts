@@ -63,13 +63,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       },
     }),
     prisma.circlePermission.deleteMany({ where: { circleId: params.id } }),
-    ...(parsed.data.profileFields.length + parsed.data.desireCategories.length > 0
+    ...(parsed.data.profileFields.length > 0
       ? [
           prisma.circlePermission.createMany({
-            data: buildPermissionRows(params.id, {
-              profileFields: parsed.data.profileFields,
-              desireCategories: parsed.data.desireCategories,
-            }),
+            data: buildPermissionRows(params.id, { profileFields: parsed.data.profileFields }),
           }),
         ]
       : []),

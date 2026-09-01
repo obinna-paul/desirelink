@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { DESIRE_CATEGORIES } from "@/lib/desire-options";
 import type { ProfileFieldName } from "@/lib/circles";
 
 const profileFieldNameSchema: z.ZodType<ProfileFieldName> = z.enum([
@@ -10,11 +9,8 @@ const profileFieldNameSchema: z.ZodType<ProfileFieldName> = z.enum([
   "availability",
 ]);
 
-const desireCategorySchema = z.enum(DESIRE_CATEGORIES as unknown as [string, ...string[]]);
-
 export const circleVisibilitySchema = z.object({
   profileFields: z.array(profileFieldNameSchema).default([]),
-  desireCategories: z.array(desireCategorySchema).default([]),
 });
 
 export const createCircleSchema = circleVisibilitySchema.extend({

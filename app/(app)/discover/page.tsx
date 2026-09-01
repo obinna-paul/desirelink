@@ -38,8 +38,6 @@ export default async function DiscoverPage({
     (filters.availability !== "any" ? 1 : 0) +
     (filters.sort !== "newest" ? 1 : 0) +
     filters.accountTypes.length +
-    filters.desireCategories.length +
-    (filters.desireLevel ? 1 : 0) +
     filters.bodyTypes.length +
     (filters.lastActive !== "any" ? 1 : 0) +
     (filters.verification !== "any" ? 1 : 0);

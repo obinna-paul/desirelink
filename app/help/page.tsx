@@ -176,7 +176,7 @@ export default function HelpCenterPage() {
               A <strong>Limited</strong> tier caps the number of Fans — useful for VIP circles or
               private-access tiers. <strong>Requires approval</strong> means new Fans show up
               under{" "}
-              <Link href="/creator-dashboard?tab=applications">Creator Studio → Applications</Link>{" "}
+              <Link href="/creator-dashboard?tab=audience">Creator Studio → Audience</Link>{" "}
               for you to accept or deny before they get access.
             </p>
           </FaqItem>
@@ -189,7 +189,7 @@ export default function HelpCenterPage() {
           </FaqItem>
           <FaqItem question="Where can I see my Fan growth and earnings?">
             <p>
-              The <Link href="/creator-dashboard?tab=analytics">Analytics tab</Link> on your dashboard
+              The <Link href="/creator-dashboard?tab=audience">Audience tab</Link> on your dashboard
               charts both over time, and the{" "}
               <Link href="/creator-dashboard?tab=assistant">Assistant tab</Link> surfaces your top fans,
               Fans who&apos;ve gone quiet, and suggested posting times.

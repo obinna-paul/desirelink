@@ -15,11 +15,8 @@ import {
   Lock,
   MapPin,
   ShieldCheck,
-  Sparkles,
-  Store,
   type LucideIcon,
   UserRound,
-  WalletCards,
 } from "lucide-react";
 
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
@@ -48,7 +45,7 @@ type EditableSectionId =
   | "privacy"
   | "availability";
 
-type EditSectionId = EditableSectionId | "desires" | "services" | "verification" | "monetization";
+type EditSectionId = EditableSectionId | "verification";
 
 const EDIT_SECTIONS: {
   id: EditSectionId;
@@ -63,10 +60,7 @@ const EDIT_SECTIONS: {
   { id: "location", label: "Location", description: "City and nearby matching", icon: MapPin },
   { id: "privacy", label: "Privacy", description: "Search, location, incognito", icon: Lock },
   { id: "availability", label: "Availability", description: "Chat and meet status", icon: Bell },
-  { id: "desires", label: "Preferences", description: "Shape recommendations", icon: Sparkles, href: "/profile/edit/preferences" },
-  { id: "services", label: "Services", description: "Listings and bookings", icon: Store, href: "/profile/edit/services" },
   { id: "verification", label: "Verification", description: "Identity and trust", icon: ShieldCheck, href: "/verification" },
-  { id: "monetization", label: "Earnings", description: "Stats and payouts", icon: WalletCards, providerOnly: true, href: "/creator-dashboard" },
 ];
 
 function FieldWrapper({

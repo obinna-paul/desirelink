@@ -11,7 +11,6 @@ import {
   MapPin,
   Radio,
   ShieldCheck,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 
@@ -30,9 +29,7 @@ type SetupProfile = Pick<
   | "isVerified"
   | "isVerifiedCreator"
   | "isVerifiedHost"
-> & {
-  _count: { desires: number };
-};
+>;
 
 export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
   const hasVerification = profile.isVerified || profile.isVerifiedCreator || profile.isVerifiedHost;
@@ -70,14 +67,6 @@ export function ProfileSetupActions({ profile }: { profile: SetupProfile }) {
         href: "/profile/edit",
         done: Boolean(profile.country),
         icon: Globe2,
-      },
-      {
-        id: "desires",
-        title: "Set preferences",
-        description: "Improve recommendations and match quality",
-        href: "/profile/edit/preferences",
-        done: profile._count.desires > 0,
-        icon: Sparkles,
       },
       {
         id: "availability",

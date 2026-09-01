@@ -3,19 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
-import type { DesireLevel } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
-import { DESIRE_CATEGORIES, getPreferenceLabel } from "@/lib/desire-options";
 import {
   AVAILABILITY_FILTER_OPTIONS,
   BODY_TYPE_FILTER_OPTIONS,
   DEFAULT_RADIUS_KM,
-  DESIRE_LEVEL_FILTER_OPTIONS,
   DISCOVER_SORT_OPTIONS,
   LAST_ACTIVE_FILTER_OPTIONS,
   RADIUS_OPTIONS,
@@ -140,9 +137,6 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
 const toDropdownOptions = (values: readonly string[]): DropdownOption[] =>
   values.map((value) => ({ value, label: value }));
 
-const toPreferenceDropdownOptions = (values: readonly string[]): DropdownOption[] =>
-  values.map((value) => ({ value, label: getPreferenceLabel(value) }));
-
 export function DiscoverFiltersPanel({
   initialFilters,
 }: {
@@ -151,8 +145,6 @@ export function DiscoverFiltersPanel({
   const router = useRouter();
   const [genders, setGenders] = useState<string[]>(initialFilters.genders);
   const [orientations, setOrientations] = useState<string[]>(initialFilters.orientations);
-  const [desireCategories, setDesireCategories] = useState<string[]>(initialFilters.desireCategories);
-  const [desireLevel, setDesireLevel] = useState<DesireLevel | "">(initialFilters.desireLevel ?? "");
   const [bodyTypes, setBodyTypes] = useState<string[]>(initialFilters.bodyTypes);
   const [lastActive, setLastActive] = useState<LastActiveFilterValue>(initialFilters.lastActive);
   const [verification, setVerification] = useState<VerificationFilterValue>(initialFilters.verification);
@@ -171,9 +163,7 @@ export function DiscoverFiltersPanel({
     (radiusKm !== String(DEFAULT_RADIUS_KM) ? 1 : 0) +
     (availability !== "any" ? 1 : 0) +
     (sort !== "newest" ? 1 : 0) +
-    desireCategories.length +
     bodyTypes.length +
-    (desireLevel ? 1 : 0) +
     (lastActive !== "any" ? 1 : 0) +
     (verification !== "any" ? 1 : 0);
 
@@ -182,9 +172,7 @@ export function DiscoverFiltersPanel({
     if (initialFilters.query) params.set("q", initialFilters.query);
     genders.forEach((value) => params.append("gender", value));
     orientations.forEach((value) => params.append("orientation", value));
-    desireCategories.forEach((value) => params.append("desire", value));
     bodyTypes.forEach((value) => params.append("bodyType", value));
-    if (desireLevel) params.set("desireLevel", desireLevel);
     if (lastActive !== "any") params.set("lastActive", lastActive);
     if (verification !== "any") params.set("verification", verification);
     params.set("radius", radiusKm);
@@ -197,8 +185,6 @@ export function DiscoverFiltersPanel({
   function clearFilters() {
     setGenders([]);
     setOrientations([]);
-    setDesireCategories([]);
-    setDesireLevel("");
     setBodyTypes([]);
     setLastActive("any");
     setVerification("any");
@@ -305,27 +291,6 @@ export function DiscoverFiltersPanel({
             </h2>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <MultiSelectDropdown
-              label="Preferences"
-              options={toPreferenceDropdownOptions(DESIRE_CATEGORIES)}
-              selected={desireCategories}
-              onChange={setDesireCategories}
-              footer={
-                <Select
-                  aria-label="Preference level"
-                  value={desireLevel}
-                  onChange={(event) => setDesireLevel(event.target.value as DesireLevel | "")}
-                  className="h-10 w-full text-xs"
-                >
-                  <option value="">Any level</option>
-                  {DESIRE_LEVEL_FILTER_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              }
-            />
             <MultiSelectDropdown
               label="Body type"
               options={toDropdownOptions(BODY_TYPE_FILTER_OPTIONS)}

@@ -21,7 +21,7 @@ describe("signup flow", () => {
     mockSignIn.mockResolvedValue({ ok: true });
   });
 
-  it("creates an account, signs in, and routes to desire onboarding", async () => {
+  it("creates an account, signs in, and routes to profile setup", async () => {
     const submittedBodies: unknown[] = [];
     server.use(
       rest.post("http://localhost/api/signup", async (req, res, ctx) => {

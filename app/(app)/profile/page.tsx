@@ -26,7 +26,6 @@ export default async function ProfilePage({
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
     include: {
-      desires: { orderBy: { createdAt: "asc" } },
       partner: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
     },
   });
@@ -59,7 +58,6 @@ export default async function ProfilePage({
     <div className="flex flex-col gap-4 md:gap-6">
       <ProfileView
         profile={profile}
-        desires={profile.desires}
         posts={posts}
         subscription={subscriptions[0] ?? null}
         serviceListings={serviceListings}

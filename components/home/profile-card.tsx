@@ -4,7 +4,6 @@ import { BadgeCheck, MapPin, Radio } from "lucide-react";
 
 import type { ProfileCardData } from "@/lib/home-feed";
 import { AVAILABILITY_STATUS_LABELS } from "@/lib/availability-options";
-import { getPreferenceLabel } from "@/lib/desire-options";
 
 export function ProfileCard({
   profile,
@@ -22,7 +21,6 @@ export function ProfileCard({
         : `${Math.round(profile.distanceKm)} km away`
       : null;
   const locationLabel = distanceLabel ?? (profile.showExactLocation ? preciseLocation : "");
-  const visibleDesires = profile.desires.slice(0, 2);
   const activeStatus = profile.availabilityStatuses[0];
 
   return (
@@ -85,17 +83,8 @@ export function ProfileCard({
             <Radio className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden="true" />
             <span className="truncate">{AVAILABILITY_STATUS_LABELS[activeStatus.status]}</span>
           </span>
-        ) : visibleDesires.length > 0 ? (
-          <span className="truncate text-xs text-muted-foreground">
-            {visibleDesires.map((desire) => getPreferenceLabel(desire.category)).join(" · ")}
-          </span>
         ) : (
           <span className="text-xs text-muted-foreground">View profile</span>
-        )}
-        {activeStatus && visibleDesires.length > 0 && (
-          <span className="ml-auto truncate text-xs text-muted-foreground">
-            {getPreferenceLabel(visibleDesires[0].category)}
-          </span>
         )}
       </div>
       {activeStatus && (

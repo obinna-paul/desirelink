@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import dynamic from "next/dynamic";
 import { getServerSession } from "next-auth";
-import { DollarSign, Eye, Users } from "lucide-react";
+import { ArrowLeft, DollarSign, Users } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -9,9 +10,9 @@ import { isProviderProfileType } from "@/lib/provider-types";
 import { DashboardTabs } from "@/components/creator/dashboard-tabs";
 import { StatCard } from "@/components/creator/stat-card";
 import { AudienceList } from "@/components/creator/audience-list";
-import { ContentList } from "@/components/creator/content-list";
 import { ApplicationsList } from "@/components/creator/applications-list";
 import { CreatorAssistantPanel } from "@/components/creator/assistant-panel";
+import { WalletOverviewSection } from "@/components/wallet/wallet-overview-section";
 import { ChartSkeleton } from "@/components/ui/skeleton";
 import {
   CREATOR_DASHBOARD_TABS,
@@ -25,7 +26,6 @@ import {
   getSubscribers,
   isCreatorDashboardTab,
 } from "@/lib/creator";
-import { getCreatorProfilePosts } from "@/lib/posts";
 import { getMyVerificationRequests } from "@/lib/verification";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
 
@@ -76,16 +76,18 @@ export default async function CreatorDashboardPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
+      <Link
+        href="/profile/edit"
+        className="inline-flex min-h-11 w-fit items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Profile settings
+      </Link>
+
       <DashboardTabs activeTab={tab} tabs={CREATOR_DASHBOARD_TABS} />
 
-      {tab === "overview" && <OverviewTab profileId={profile.id} />}
+      {tab === "wallet" && <WalletTab profileId={profile.id} />}
       {tab === "assistant" && <AssistantTab profileId={profile.id} />}
       {tab === "audience" && <AudienceTab profileId={profile.id} />}
-      {tab === "content" && (
-        <ContentTab profileId={profile.id} displayName={profile.displayName} />
-      )}
-      {tab === "applications" && <ApplicationsTab profileId={profile.id} />}
-      {tab === "analytics" && <AnalyticsTab profileId={profile.id} />}
       {tab === "verification" && (
         <VerificationTab
           profileId={profile.id}
@@ -101,55 +103,48 @@ export default async function CreatorDashboardPage({
   );
 }
 
+async function WalletTab({ profileId }: { profileId: string }) {
+  const stats = await getCreatorStats(profileId);
+
+  return (
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4">
+        <StatCard label="Active Fans" value={String(stats.subscriberCount)} icon={Users} />
+        <StatCard
+          label="Total revenue"
+          value={formatCents(stats.totalRevenueCents)}
+          icon={DollarSign}
+          highlight
+        />
+      </div>
+      <WalletOverviewSection profileId={profileId} />
+    </div>
+  );
+}
+
 async function AssistantTab({ profileId }: { profileId: string }) {
   const insights = await getCreatorAssistantInsights(profileId);
   return <CreatorAssistantPanel insights={insights} />;
 }
 
-async function OverviewTab({ profileId }: { profileId: string }) {
-  const stats = await getCreatorStats(profileId);
+async function AudienceTab({ profileId }: { profileId: string }) {
+  const [subscribers, applications, growth, earnings] = await Promise.all([
+    getSubscribers(profileId),
+    getCreatorApplications(profileId),
+    getSubscriberGrowth(profileId),
+    getEarningsByMonth(profileId),
+  ]);
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:gap-4">
-      <StatCard
-        label="Active Fans"
-        value={String(stats.subscriberCount)}
-        icon={Users}
-      />
-      <StatCard
-        label="Total revenue"
-        value={formatCents(stats.totalRevenueCents)}
-        icon={DollarSign}
-        highlight
-      />
-      <StatCard
-        label="Profile views"
-        value={stats.profileViews.toLocaleString()}
-        icon={Eye}
-      />
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-2">
+        <SubscriberGrowthChart data={growth} />
+        <EarningsChart data={earnings} />
+      </div>
+      <AudienceList subscribers={subscribers} />
+      {applications.length > 0 && <ApplicationsList initialApplications={applications} />}
     </div>
   );
-}
-
-async function AudienceTab({ profileId }: { profileId: string }) {
-  const subscribers = await getSubscribers(profileId);
-  return <AudienceList subscribers={subscribers} />;
-}
-
-async function ContentTab({
-  profileId,
-  displayName,
-}: {
-  profileId: string;
-  displayName: string;
-}) {
-  const posts = await getCreatorProfilePosts(profileId, profileId);
-  return <ContentList initialPosts={posts} creatorDisplayName={displayName} />;
-}
-
-async function ApplicationsTab({ profileId }: { profileId: string }) {
-  const applications = await getCreatorApplications(profileId);
-  return <ApplicationsList initialApplications={applications} />;
 }
 
 async function VerificationTab({
@@ -169,19 +164,5 @@ async function VerificationTab({
       isVerified={isVerifiedProvider}
       latestStatus={latest?.status ?? null}
     />
-  );
-}
-
-async function AnalyticsTab({ profileId }: { profileId: string }) {
-  const [growth, earnings] = await Promise.all([
-    getSubscriberGrowth(profileId),
-    getEarningsByMonth(profileId),
-  ]);
-
-  return (
-    <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-2">
-      <SubscriberGrowthChart data={growth} />
-      <EarningsChart data={earnings} />
-    </div>
   );
 }

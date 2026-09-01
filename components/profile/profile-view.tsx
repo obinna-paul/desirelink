@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { Desire, Profile } from "@prisma/client";
+import type { Profile } from "@prisma/client";
 import {
   BriefcaseBusiness,
   CalendarDays,
@@ -35,8 +35,6 @@ import { BlockButton } from "@/components/safety/block-button";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { SendHeartsButton } from "@/components/hearts/send-hearts-button";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { getPreferenceLabel } from "@/lib/desire-options";
 import { getProfileCapabilityLabel } from "@/lib/profile-capabilities";
 import type { CreatorStats } from "@/lib/creator";
 import type { UpcomingEvent } from "@/lib/events";
@@ -110,7 +108,6 @@ function ProfileStat({
 
 export function ProfileView({
   profile,
-  desires,
   posts,
   subscription,
   serviceListings,
@@ -135,7 +132,6 @@ export function ProfileView({
       avatarUrl: string;
     } | null;
   };
-  desires: Desire[];
   posts: PostView[];
   subscription: PublicTierView | null;
   serviceListings: ServiceListingView[];
@@ -168,9 +164,6 @@ export function ProfileView({
         (context) => context.contextType === "transaction",
       )
     : reviewableContexts;
-  const visiblePreferences = desires
-    .filter((desire) => isOwner || desire.privacy === "public")
-    .slice(0, 5);
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-5xl">
@@ -273,31 +266,6 @@ export function ProfileView({
                   @{profile.partner.username}
                 </Link>
               </p>
-            )}
-
-            {visiblePreferences.length > 0 && (
-              <div
-                className="mt-3 flex flex-wrap gap-1.5"
-                aria-label="Preferences"
-              >
-                {visiblePreferences.map((preference) => (
-                  <Badge
-                    key={preference.id}
-                    variant="outline"
-                    className="rounded-full bg-background/50 font-normal"
-                  >
-                    {getPreferenceLabel(preference.category)}
-                  </Badge>
-                ))}
-                {isOwner && (
-                  <Link
-                    href="/profile/edit/preferences"
-                    className="inline-flex min-h-7 items-center px-1 text-xs font-medium text-primary hover:underline"
-                  >
-                    Edit
-                  </Link>
-                )}
-              </div>
             )}
 
             <div className="mt-4 flex items-center gap-2">
@@ -510,9 +478,7 @@ export function ProfileView({
 
       {isOwner && (
         <div className="hidden md:block">
-          <ProfileSetupActions
-            profile={{ ...profile, _count: { desires: desires.length } }}
-          />
+          <ProfileSetupActions profile={profile} />
         </div>
       )}
     </div>

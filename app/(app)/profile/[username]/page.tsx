@@ -8,7 +8,7 @@ import { getCreatorProfilePosts } from "@/lib/posts";
 import { getCreatorStats } from "@/lib/creator";
 import { getPublicTiers } from "@/lib/tiers";
 import { getBlockRelationship } from "@/lib/block";
-import { getProfileVisibility, getVisibleDesires } from "@/lib/circles";
+import { getProfileVisibility } from "@/lib/circles";
 import { getReviewableContexts, getReviewsForProfile, getReviewSummary } from "@/lib/reviews";
 import { confirmProviderPayment } from "@/lib/providers";
 import { getProviderServiceListings } from "@/lib/service-listings";
@@ -65,7 +65,6 @@ export default async function PublicProfilePage({
   }
 
   const visibility = await getProfileVisibility(profile.id, viewerProfile?.id ?? null, isOwner);
-  const desires = await getVisibleDesires(profile.id, visibility);
 
   const viewerOrOwnerId = isOwner ? profile.id : (viewerProfile?.id ?? null);
   const isProvider = isProviderProfileType(profile.profileType);
@@ -89,7 +88,6 @@ export default async function PublicProfilePage({
     <div className="flex flex-col gap-4 md:gap-6">
       <ProfileView
         profile={profile}
-        desires={desires}
         posts={posts}
         subscription={subscriptions[0] ?? null}
         serviceListings={serviceListings}

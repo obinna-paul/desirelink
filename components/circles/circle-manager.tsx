@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, Plus, Save, Trash2, UserPlus, X } from "lucide-react";
 
@@ -9,26 +9,21 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  desirePermissionKey,
-  parseDesirePermissionKey,
   PROFILE_FIELD_PERMISSIONS,
   type CircleWithDetails,
   type ProfileFieldName,
 } from "@/lib/circles";
-import { getPreferenceLabel } from "@/lib/desire-options";
 
 type CircleFormState = {
   name: string;
   description: string;
   profileFields: ProfileFieldName[];
-  desireCategories: string[];
 };
 
 const EMPTY_FORM: CircleFormState = {
   name: "",
   description: "",
   profileFields: ["bio"],
-  desireCategories: [],
 };
 
 function circleToForm(circle: CircleWithDetails): CircleFormState {
@@ -42,9 +37,6 @@ function circleToForm(circle: CircleWithDetails): CircleFormState {
       .filter((fieldName): fieldName is ProfileFieldName =>
         PROFILE_FIELD_PERMISSIONS.some((field) => field.key === fieldName)
       ),
-    desireCategories: visiblePermissions
-      .map((permission) => parseDesirePermissionKey(permission.fieldName))
-      .filter((category): category is string => Boolean(category)),
   };
 }
 
@@ -77,12 +69,10 @@ function PermissionSwitch({
 
 function CircleEditor({
   circle,
-  desireCategories,
   onUpdated,
   onDeleted,
 }: {
   circle: CircleWithDetails;
-  desireCategories: string[];
   onUpdated: (circle: CircleWithDetails) => void;
   onDeleted: (circleId: string) => void;
 }) {
@@ -281,33 +271,6 @@ function CircleEditor({
               ))}
             </div>
           </div>
-
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Preferences
-            </p>
-            {desireCategories.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-                Add preferences to your profile to control them here.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {desireCategories.map((category) => (
-                  <PermissionSwitch
-                    key={desirePermissionKey(category)}
-                    label={getPreferenceLabel(category)}
-                    checked={form.desireCategories.includes(category)}
-                    onCheckedChange={(checked) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        desireCategories: toggleValue(prev.desireCategories, category, checked),
-                      }))
-                    }
-                  />
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
@@ -338,10 +301,8 @@ function CircleEditor({
 
 export function CircleManager({
   initialCircles,
-  desireCategories,
 }: {
   initialCircles: CircleWithDetails[];
-  desireCategories: string[];
 }) {
   const router = useRouter();
   const [circles, setCircles] = useState(initialCircles);
@@ -349,8 +310,6 @@ export function CircleManager({
   const [createForm, setCreateForm] = useState<CircleFormState>(EMPTY_FORM);
   const [status, setStatus] = useState<"idle" | "saving">("idle");
   const [error, setError] = useState<string | null>(null);
-
-  const uniqueDesireCategories = useMemo(() => Array.from(new Set(desireCategories)).sort(), [desireCategories]);
 
   async function createCircle(event: React.FormEvent) {
     event.preventDefault();
@@ -386,7 +345,7 @@ export function CircleManager({
           <div>
             <h2 className="text-sm font-semibold">Public baseline</h2>
             <p className="text-xs text-muted-foreground">
-              Everyone can see your name, avatar, badges, bio, and public preferences.
+              Everyone can see your name, avatar, badges, and bio.
             </p>
           </div>
         </div>
@@ -403,7 +362,6 @@ export function CircleManager({
           <CircleEditor
             key={circle.id}
             circle={circle}
-            desireCategories={uniqueDesireCategories}
             onUpdated={(updated) =>
               setCircles((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
             }

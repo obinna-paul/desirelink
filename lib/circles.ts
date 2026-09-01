@@ -1,6 +1,5 @@
 import type { Prisma } from "@prisma/client";
 
-import { DESIRE_CATEGORIES } from "@/lib/desire-options";
 import { prisma } from "@/lib/prisma";
 
 export const PROFILE_FIELD_PERMISSIONS = [
@@ -36,14 +35,6 @@ export function isProfileFieldName(value: string): value is ProfileFieldName {
   return PROFILE_FIELD_NAMES.includes(value as ProfileFieldName);
 }
 
-export function desirePermissionKey(category: string) {
-  return `desire:${category}`;
-}
-
-export function parseDesirePermissionKey(fieldName: string) {
-  return fieldName.startsWith("desire:") ? fieldName.slice("desire:".length) : null;
-}
-
 export const CIRCLE_INCLUDE = {
   members: {
     include: {
@@ -67,26 +58,16 @@ export type CircleWithDetails = Prisma.CircleGetPayload<{ include: typeof CIRCLE
 
 export type ProfileVisibility = {
   profileFields: ProfileFieldName[];
-  desireCategories: string[];
   circleNames: string[];
 };
 
-export function buildPermissionFieldNames(input: {
-  profileFields: ProfileFieldName[];
-  desireCategories: string[];
-}) {
-  return [
-    ...input.profileFields,
-    ...input.desireCategories.map((category) => desirePermissionKey(category)),
-  ];
+export function buildPermissionFieldNames(input: { profileFields: ProfileFieldName[] }) {
+  return [...input.profileFields];
 }
 
 export function buildPermissionRows(
   circleId: string,
-  input: {
-    profileFields: ProfileFieldName[];
-    desireCategories: string[];
-  }
+  input: { profileFields: ProfileFieldName[] }
 ): Prisma.CirclePermissionCreateManyInput[] {
   return buildPermissionFieldNames(input).map((fieldName) => ({
     circleId,
@@ -109,18 +90,13 @@ export async function getProfileVisibility(
   isOwner: boolean
 ): Promise<ProfileVisibility> {
   if (isOwner) {
-    return {
-      profileFields: ALL_PROFILE_FIELD_NAMES,
-      desireCategories: [...DESIRE_CATEGORIES],
-      circleNames: [],
-    };
+    return { profileFields: ALL_PROFILE_FIELD_NAMES, circleNames: [] };
   }
 
   const profileFields = new Set<ProfileFieldName>(PUBLIC_PROFILE_FIELD_NAMES);
-  const desireCategories = new Set<string>();
 
   if (!viewerProfileId) {
-    return { profileFields: Array.from(profileFields), desireCategories: [], circleNames: [] };
+    return { profileFields: Array.from(profileFields), circleNames: [] };
   }
 
   const memberships = await prisma.circleMember.findMany({
@@ -131,37 +107,14 @@ export async function getProfileVisibility(
   for (const membership of memberships) {
     for (const permission of membership.circle.permissions) {
       if (!permission.visible) continue;
-
       if (isProfileFieldName(permission.fieldName)) {
         profileFields.add(permission.fieldName);
-        continue;
-      }
-
-      const desireCategory = parseDesirePermissionKey(permission.fieldName);
-      if (desireCategory) {
-        desireCategories.add(desireCategory);
       }
     }
   }
 
   return {
     profileFields: Array.from(profileFields),
-    desireCategories: Array.from(desireCategories),
     circleNames: memberships.map((membership) => membership.circle.name),
   };
-}
-
-export async function getVisibleDesires(profileId: string, visibility: ProfileVisibility) {
-  return prisma.desire.findMany({
-    where: {
-      userId: profileId,
-      OR: [
-        { privacy: "public" },
-        ...(visibility.desireCategories.length > 0
-          ? [{ category: { in: visibility.desireCategories } }]
-          : []),
-      ],
-    },
-    orderBy: { createdAt: "asc" },
-  });
 }

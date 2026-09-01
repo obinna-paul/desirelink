@@ -19,19 +19,13 @@ function profile(overrides: Partial<ProfileCardData> = {}): ProfileCardData {
     isVerifiedCreator: true,
     isVerifiedHost: false,
     isTrustedMember: false,
-    desires: [
-      { id: "desire-1", category: "Dinner" },
-      { id: "desire-2", category: "Events" },
-      { id: "desire-3", category: "Travel" },
-      { id: "desire-4", category: "Music" },
-    ],
     availabilityStatuses: [{ status: "available_tonight", expiresAt: new Date(Date.now() + 60 * 60 * 1000) }],
     ...overrides,
   };
 }
 
 describe("ProfileCard", () => {
-  it("renders profile identity, location, desires, and match score", () => {
+  it("renders profile identity, location, and match score", () => {
     const { container } = render(<ProfileCard profile={profile()} matchScore={91} />);
 
     expect(screen.getByRole("link")).toHaveAttribute("href", "/profile/mara");
@@ -39,7 +33,6 @@ describe("ProfileCard", () => {
     expect(screen.getByText("@mara")).toBeInTheDocument();
     expect(screen.getByText("Lagos, NG")).toBeInTheDocument();
     expect(screen.getByText("91% match")).toBeInTheDocument();
-    expect(screen.getByText("Dinner")).toBeInTheDocument();
     expect(container.querySelector('[aria-label="Verified"]')).toBeInTheDocument();
   });
 });

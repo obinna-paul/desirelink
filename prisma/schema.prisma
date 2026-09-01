@@ -10,20 +10,6 @@ datasource db {
 
 // --- Enums ---------------------------------------------------------------
 
-enum DesireLevel {
-  curious
-  interested
-  looking
-  regular
-  hard_limit
-}
-
-enum PrivacyLevel {
-  public
-  followers
-  private
-}
-
 enum SubscriptionStatus {
   active
   cancelled
@@ -278,7 +264,6 @@ model Profile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  desires                Desire[]
   creatorTiers           CreatorTier[]
   subscriptionsAsSub     Subscription[]        @relation("SubscriptionSubscriber")
   subscriptionsAsCreator Subscription[]        @relation("SubscriptionCreator")
@@ -327,22 +312,6 @@ model Profile {
   @@index([city, country])
   @@index([profileType])
   @@index([locationLat, locationLng])
-}
-
-// --- Desires -----------------------------------------------------------------
-
-model Desire {
-  id        String       @id @default(cuid())
-  userId    String
-  profile   Profile      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category  String
-  level     DesireLevel
-  privacy   PrivacyLevel
-  createdAt DateTime     @default(now())
-
-  @@unique([userId, category])
-  @@index([userId])
-  @@index([category])
 }
 
 // --- Partner linking (Pair accounts) ----------------------------------------

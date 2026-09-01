@@ -3,18 +3,15 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const CREATOR_DASHBOARD_TABS = [
-  { value: "overview", label: "Overview" },
+  { value: "wallet", label: "Wallet" },
   { value: "assistant", label: "Assistant" },
   { value: "audience", label: "Audience" },
-  { value: "content", label: "Content" },
-  { value: "applications", label: "Applications" },
-  { value: "analytics", label: "Analytics" },
   { value: "verification", label: "Verification" },
 ] as const;
 
 export type CreatorDashboardTab = (typeof CREATOR_DASHBOARD_TABS)[number]["value"];
 
-export const DEFAULT_CREATOR_DASHBOARD_TAB: CreatorDashboardTab = "overview";
+export const DEFAULT_CREATOR_DASHBOARD_TAB: CreatorDashboardTab = "wallet";
 
 export function isCreatorDashboardTab(value: string | undefined): value is CreatorDashboardTab {
   return CREATOR_DASHBOARD_TABS.some((tab) => tab.value === value);
