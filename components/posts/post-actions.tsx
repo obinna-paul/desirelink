@@ -1,87 +1,34 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { Heart, MessageCircle, Share2 } from "lucide-react";
 
-import { CommentsSheet } from "@/components/posts/comments-sheet";
 import { cn } from "@/lib/utils";
 
 export function PostActions({
-  postId,
-  authorUsername,
-  initialCounts,
-  initialViewerLiked,
-  liked: controlledLiked,
-  reactionCount: controlledReactionCount,
+  liked,
+  reactionCount,
+  commentCount,
+  shareCount,
   onToggleLike,
+  onOpenComments,
+  onShare,
   likeDisabled = false,
 }: {
-  postId: string;
-  authorUsername: string;
-  initialCounts: { reactions: number; comments: number; shares: number };
-  initialViewerLiked: boolean;
-  liked?: boolean;
-  reactionCount?: number;
-  onToggleLike?: () => Promise<void> | void;
+  liked: boolean;
+  reactionCount: number;
+  commentCount: number;
+  shareCount: number;
+  onToggleLike: () => void;
+  onOpenComments: () => void;
+  onShare: () => void;
   likeDisabled?: boolean;
 }) {
-  const [uncontrolledLiked, setUncontrolledLiked] = useState(initialViewerLiked);
-  const [uncontrolledReactionCount, setUncontrolledReactionCount] = useState(initialCounts.reactions);
-  const [commentCount, setCommentCount] = useState(initialCounts.comments);
-  const [shareCount, setShareCount] = useState(initialCounts.shares);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const liked = controlledLiked ?? uncontrolledLiked;
-  const reactionCount = controlledReactionCount ?? uncontrolledReactionCount;
-  const shareUrl = useMemo(() => {
-    if (typeof window === "undefined") return `/profile/${authorUsername}`;
-    return `${window.location.origin}/profile/${authorUsername}?post=${postId}`;
-  }, [authorUsername, postId]);
-
-  async function toggleLike() {
-    if (onToggleLike) {
-      await onToggleLike();
-      return;
-    }
-
-    const previousLiked = liked;
-    const previousCount = reactionCount;
-    setUncontrolledLiked(!liked);
-    setUncontrolledReactionCount((count) => count + (liked ? -1 : 1));
-
-    const res = await fetch(`/api/posts/${postId}/reactions`, { method: "POST" });
-    if (!res.ok) {
-      setUncontrolledLiked(previousLiked);
-      setUncontrolledReactionCount(previousCount);
-      return;
-    }
-    const body = await res.json().catch(() => null);
-    if (typeof body?.liked === "boolean") setUncontrolledLiked(body.liked);
-    if (typeof body?.count === "number") setUncontrolledReactionCount(body.count);
-  }
-
-  async function sharePost() {
-    const canShare = typeof navigator !== "undefined" && "share" in navigator;
-    if (canShare) {
-      await navigator.share({ title: "Udala post", url: shareUrl }).catch(() => null);
-    } else if (typeof navigator !== "undefined" && navigator.clipboard) {
-      await navigator.clipboard.writeText(shareUrl).catch(() => null);
-    }
-
-    const res = await fetch(`/api/posts/${postId}/shares`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ target: canShare ? "web_share" : "copy_link" }),
-    });
-    const body = await res.json().catch(() => null);
-    if (typeof body?.count === "number") setShareCount(body.count);
-  }
-
   return (
     <div className="flex flex-col gap-3 border-t border-border/60 pt-2">
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
-          onClick={toggleLike}
+          onClick={onToggleLike}
           aria-pressed={liked}
           disabled={likeDisabled}
           className={cn(
@@ -94,7 +41,7 @@ export function PostActions({
         </button>
         <button
           type="button"
-          onClick={() => setSheetOpen(true)}
+          onClick={onOpenComments}
           className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
           <MessageCircle className="h-5 w-5" aria-hidden="true" />
@@ -102,21 +49,13 @@ export function PostActions({
         </button>
         <button
           type="button"
-          onClick={sharePost}
+          onClick={onShare}
           className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
           <Share2 className="h-5 w-5" aria-hidden="true" />
           {shareCount}
         </button>
       </div>
-
-      <CommentsSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        postId={postId}
-        authorUsername={authorUsername}
-        onCommentCountChange={setCommentCount}
-      />
     </div>
   );
 }

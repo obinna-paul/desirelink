@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Eye, Lock } from "lucide-react";
@@ -8,8 +8,10 @@ import { Eye, Lock } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CommentsSheet } from "@/components/posts/comments-sheet";
 import { PostActions } from "@/components/posts/post-actions";
 import { PostCaption } from "@/components/posts/post-caption";
+import { PostDetailModal } from "@/components/posts/post-detail-modal";
 import { PostEventAttachment } from "@/components/posts/post-event-attachment";
 import { PostMediaCarousel } from "@/components/posts/post-media-carousel";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
@@ -45,6 +47,39 @@ export function PostCard({
   const [liked, setLiked] = useState(post.viewerLiked);
   const [reactionCount, setReactionCount] = useState(post.counts.reactions);
   const [likePending, setLikePending] = useState(false);
+  const [commentCount, setCommentCount] = useState(post.counts.comments);
+  const [shareCount, setShareCount] = useState(post.counts.shares);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const shareUrl = useMemo(() => {
+    if (typeof window === "undefined") return `/profile/${post.author.username}`;
+    return `${window.location.origin}/profile/${post.author.username}?post=${post.id}`;
+  }, [post.author.username, post.id]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  async function sharePost() {
+    const canShare = typeof navigator !== "undefined" && "share" in navigator;
+    if (canShare) {
+      await navigator.share({ title: "Udala post", url: shareUrl }).catch(() => null);
+    } else if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(shareUrl).catch(() => null);
+    }
+
+    const res = await fetch(`/api/posts/${post.id}/shares`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target: canShare ? "web_share" : "copy_link" }),
+    });
+    const body = await res.json().catch(() => null);
+    if (typeof body?.count === "number") setShareCount(body.count);
+  }
 
   async function toggleLike(forceLike = false) {
     if (likePending) return;
@@ -155,17 +190,45 @@ export function PostCard({
           </div>
           <div className="px-3 md:px-4">
             <PostActions
-              postId={post.id}
-              authorUsername={post.author.username}
-              initialCounts={post.counts}
-              initialViewerLiked={post.viewerLiked}
               liked={liked}
               reactionCount={reactionCount}
+              commentCount={commentCount}
+              shareCount={shareCount}
               onToggleLike={() => toggleLike()}
+              onOpenComments={() => setDetailOpen(true)}
+              onShare={sharePost}
               likeDisabled={likePending}
             />
           </div>
           {post.content && <PostCaption content={post.content} />}
+
+          <CommentsSheet
+            open={detailOpen && (!isDesktop || post.mediaItems.length === 0)}
+            onClose={() => setDetailOpen(false)}
+            postId={post.id}
+            authorUsername={post.author.username}
+            onCommentCountChange={setCommentCount}
+          />
+          <PostDetailModal
+            open={detailOpen && isDesktop && post.mediaItems.length > 0}
+            onClose={() => setDetailOpen(false)}
+            postId={post.id}
+            media={post.mediaItems}
+            caption={post.content}
+            createdAt={post.createdAt}
+            author={post.author}
+            viewerCanManage={post.viewerCanManage}
+            isSubscriberOnly={post.isSubscriberOnly}
+            isPinned={post.isPinned}
+            liked={liked}
+            reactionCount={reactionCount}
+            onToggleLike={() => toggleLike()}
+            likeDisabled={likePending}
+            shareCount={shareCount}
+            onShare={sharePost}
+            commentCount={commentCount}
+            onCommentCountChange={setCommentCount}
+          />
         </>
       )}
     </article>
