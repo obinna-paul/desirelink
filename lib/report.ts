@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { queueModerationFlag } from "@/lib/moderation";
 import { recalculateReputation } from "@/lib/reputation";
 
-export const REPORT_TARGET_TYPES = ["profile", "message", "group_message", "post", "post_comment", "room_post", "event"] as const;
+export const REPORT_TARGET_TYPES = ["profile", "message", "group_message", "post", "post_comment", "event"] as const;
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
 
 export function isReportTargetType(value: unknown): value is ReportTargetType {
@@ -43,10 +43,6 @@ async function resolveReportedUserId(targetType: ReportTargetType, targetId: str
     case "post_comment": {
       const comment = await prisma.postComment.findUnique({ where: { id: targetId }, select: { authorId: true } });
       return comment?.authorId ?? null;
-    }
-    case "room_post": {
-      const post = await prisma.roomPost.findUnique({ where: { id: targetId }, select: { authorId: true } });
-      return post?.authorId ?? null;
     }
     case "event": {
       const event = await prisma.event.findUnique({ where: { id: targetId }, select: { hostId: true } });

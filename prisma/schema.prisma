@@ -38,16 +38,6 @@ enum EscrowStatus {
   refunded
 }
 
-enum RoomRole {
-  admin
-  member
-}
-
-enum RoomMemberStatus {
-  pending
-  approved
-}
-
 enum ReportStatus {
   pending
   reviewed
@@ -81,7 +71,6 @@ enum ReportTargetType {
   group_message
   post
   post_comment
-  room_post
   event
 }
 
@@ -101,7 +90,6 @@ enum ReviewContextType {
 }
 
 enum ChatChannelType {
-  room
   event
 }
 
@@ -278,9 +266,6 @@ model Profile {
   eventRsvps             EventRsvp[]
   sentMessages           Message[]             @relation("MessageSender")
   receivedMessages       Message[]             @relation("MessageRecipient")
-  createdRooms           Room[]
-  roomMemberships        RoomMember[]
-  roomPosts              RoomPost[]
   posts                  Post[]
   postComments           PostComment[]
   postReactions          PostReaction[]
@@ -574,56 +559,9 @@ model Notification {
   @@index([recipientId, readAt])
 }
 
-// --- Rooms / communities -------------------------------------------------
-
-model Room {
-  id            String   @id @default(cuid())
-  name          String
-  description   String
-  isPrivate     Boolean  @default(false)
-  coverImageUrl String
-  createdById   String
-  createdBy     Profile  @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-
-  members RoomMember[]
-  posts   RoomPost[]
-
-  @@index([createdById])
-}
-
-model RoomMember {
-  id        String           @id @default(cuid())
-  roomId    String
-  room      Room             @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  userId    String
-  profile   Profile          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      RoomRole
-  status    RoomMemberStatus @default(approved)
-  createdAt DateTime         @default(now())
-
-  @@unique([roomId, userId])
-  @@index([roomId])
-  @@index([userId])
-}
-
-model RoomPost {
-  id        String   @id @default(cuid())
-  roomId    String
-  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    Profile  @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  content   String
-  mediaUrls Json
-  createdAt DateTime @default(now())
-
-  @@index([roomId])
-  @@index([authorId])
-}
-
-// --- Group chat (rooms & events) --------------------------------------------
-// channelId is polymorphic (a Room.id or an Event.id depending on channelType),
-// so it's a plain indexed string rather than a foreign key.
+// --- Group chat (events) --------------------------------------------
+// channelId is polymorphic (an Event.id, keyed by channelType), so it's a
+// plain indexed string rather than a foreign key.
 
 model GroupMessage {
   id          String          @id @default(cuid())

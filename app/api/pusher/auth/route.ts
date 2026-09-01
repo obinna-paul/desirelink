@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { pusherServer, AVAILABILITY_CHANNEL } from "@/lib/pusher-server";
-import { canAccessRoomChat } from "@/lib/rooms";
 import { canAccessEventChat } from "@/lib/rsvp";
 
 export async function POST(req: Request) {
@@ -38,23 +37,6 @@ export async function POST(req: Request) {
     const authResponse = pusherServer.authorizeChannel(socketId, channelName, {
       user_id: profile.id,
       user_info: { displayName: profile.displayName },
-    });
-    return NextResponse.json(authResponse);
-  }
-
-  // presence-room-{roomId}: anyone who can see the room's content may subscribe.
-  if (channelName.startsWith("presence-room-")) {
-    const roomId = channelName.slice("presence-room-".length);
-    if (!(await canAccessRoomChat(roomId, profile.id))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    const authResponse = pusherServer.authorizeChannel(socketId, channelName, {
-      user_id: profile.id,
-      user_info: {
-        username: profile.username,
-        displayName: profile.displayName,
-        avatarUrl: profile.avatarUrl,
-      },
     });
     return NextResponse.json(authResponse);
   }

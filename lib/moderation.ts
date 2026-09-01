@@ -32,7 +32,6 @@ export type ModerationContentType =
   | "group_message"
   | "post"
   | "post_comment"
-  | "room_post"
   | "event";
 
 export function scanForModerationIssues(content: string): string[] {
@@ -155,15 +154,6 @@ async function getContentPreview(contentType: string, contentId: string) {
         ? { title: `Comment by ${comment.author.displayName}`, body: comment.content, ownerId: comment.authorId }
         : null;
     }
-    case "room_post": {
-      const post = await prisma.roomPost.findUnique({
-        where: { id: contentId },
-        select: { content: true, authorId: true, author: { select: { displayName: true, username: true } } },
-      });
-      return post
-        ? { title: `Room post by ${post.author.displayName}`, body: post.content, ownerId: post.authorId }
-        : null;
-    }
     case "event": {
       const event = await prisma.event.findUnique({
         where: { id: contentId },
@@ -228,9 +218,6 @@ async function removeContent(contentType: string, contentId: string) {
       return true;
     case "post_comment":
       await prisma.postComment.deleteMany({ where: { id: contentId } });
-      return true;
-    case "room_post":
-      await prisma.roomPost.deleteMany({ where: { id: contentId } });
       return true;
     case "group_message": {
       const message = await prisma.groupMessage.findUnique({
