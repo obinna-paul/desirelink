@@ -35,7 +35,6 @@ import { BlockButton } from "@/components/safety/block-button";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { SendHeartsButton } from "@/components/hearts/send-hearts-button";
 import { Button } from "@/components/ui/button";
-import { getProfileCapabilityLabel } from "@/lib/profile-capabilities";
 import type { CreatorStats } from "@/lib/creator";
 import type { UpcomingEvent } from "@/lib/events";
 import type { PostView } from "@/lib/posts";
@@ -160,11 +159,6 @@ export function ProfileView({
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
   const freePosts = posts.filter((post) => !post.isSubscriberOnly);
   const premiumPosts = posts.filter((post) => post.isSubscriberOnly);
-  const descriptor = getProfileCapabilityLabel({
-    profileType: profile.profileType,
-    hostsEvents: isProvider && events.length > 0,
-    offersServices: serviceListings.length > 0,
-  });
   const subscriptionReviewContexts = isProvider
     ? reviewableContexts.filter(
         (context) => context.contextType === "transaction",
@@ -196,7 +190,6 @@ export function ProfileView({
             <ProfileAvatarEditor
               avatarUrl={profile.avatarUrl}
               displayName={profile.displayName}
-              descriptor={descriptor}
               isOwner={isOwner}
               presenceStatus={presenceStatus}
               liveStreamId={liveStreamId}

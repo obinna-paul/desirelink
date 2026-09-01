@@ -18,14 +18,12 @@ const CROP_SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "
 export function ProfileAvatarEditor({
   avatarUrl,
   displayName,
-  descriptor,
   isOwner,
   presenceStatus = "offline",
   liveStreamId = null,
 }: {
   avatarUrl: string;
   displayName: string;
-  descriptor: string;
   isOwner: boolean;
   presenceStatus?: PresenceStatus;
   liveStreamId?: string | null;
@@ -135,10 +133,6 @@ export function ProfileAvatarEditor({
           </button>
         )}
       </div>
-
-      <p className="mt-2 max-w-[10rem] truncate text-center text-xs font-medium text-muted-foreground">
-        {descriptor}
-      </p>
 
       {isOwner && (
         <input
