@@ -6,6 +6,7 @@ import { BriefcaseBusiness, CheckCircle2, Clock, MapPin, MessageCircle } from "l
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { BookingRequestDialog } from "@/components/services/booking-request-dialog";
 import { formatCents } from "@/lib/creator";
 import type { HomeServiceListingView } from "@/lib/service-listings";
 
@@ -93,11 +94,14 @@ function ServiceListingCard({
         </div>
 
         {!isOwnListing && viewerProfileId && (
-          <Button asChild className="w-full gap-1.5">
-            <Link href={`/messages?with=${provider.username}`}>
-              <MessageCircle className="h-4 w-4" aria-hidden="true" /> Contact provider
-            </Link>
-          </Button>
+          <div className="flex flex-col gap-2">
+            <BookingRequestDialog listingId={listing.id} title={listing.title} priceCents={listing.priceCents} />
+            <Button asChild variant="outline" className="w-full gap-1.5">
+              <Link href={`/messages?with=${provider.username}`}>
+                <MessageCircle className="h-4 w-4" aria-hidden="true" /> Contact provider
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
     </article>
