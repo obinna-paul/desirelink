@@ -14,6 +14,8 @@ export default function LandingPage() {
     <AuthShell
       title="Log in to udala"
       description="Continue to your private social space, messages, events, and creator circles."
+      hideLogoIcon
+      hideFooter
     >
       <LoginForm />
     </AuthShell>

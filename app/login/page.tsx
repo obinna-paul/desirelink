@@ -13,6 +13,8 @@ export default function LoginPage() {
     <AuthShell
       title="Welcome back"
       description="Log in to continue your conversations, plans, and creator access."
+      hideLogoIcon
+      hideFooter
     >
       <LoginForm />
     </AuthShell>
