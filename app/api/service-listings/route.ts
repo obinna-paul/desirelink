@@ -49,7 +49,7 @@ export async function POST(req: Request) {
   if (!isProviderProfileType(profile.profileType)) {
     return NextResponse.json(
       {
-        error: "Switch to a provider account before listing services.",
+        error: "Switch to a creator account before listing services.",
         code: "PROVIDER_ACCOUNT_REQUIRED",
         actionHref: "/settings/account-type?intent=service",
       },

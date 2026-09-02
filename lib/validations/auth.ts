@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { USERNAME_PATTERN } from "@/lib/username";
 
-export const ACCOUNT_TYPE_VALUES = ["EXPLORER", "PROVIDER"] as const;
+export const ACCOUNT_TYPE_VALUES = ["EXPLORER", "CREATOR"] as const;
 
 export const usernameFieldSchema = z
   .string()

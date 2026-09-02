@@ -17,12 +17,12 @@ export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   lastUpdated: LAST_UPDATED,
   intro:
-    "udala (“we,” “us,” “our”) operates a private, adult-only (18+) social platform for creators, providers, and members. This policy explains what personal information we collect, why we collect it, and the choices you have.",
+    "udala (“we,” “us,” “our”) operates a private, adult-only (18+) social platform for creators and members. This policy explains what personal information we collect, why we collect it, and the choices you have.",
   sections: [
     {
       heading: "1. Information we collect",
       bullets: [
-        "Account & profile information: email, username, display name, bio, gender, orientation, photos, city and location, and account type (Explorer or Provider).",
+        "Account & profile information: email, username, display name, bio, gender, orientation, photos, city and location, and account type (Explorer or Creator).",
         "Content you create: posts, comments, messages, live streams, service listings, and reviews.",
         "Verification information: creators and service providers submit a government ID photo and a short selfie video so we can confirm they're real adults. These are reviewed manually and deleted immediately afterward — we never use them for anything else.",
         "Payment information: subscriptions, hearts, and service bookings are processed by Paystack. We don't store your full card details ourselves.",
@@ -141,7 +141,7 @@ export const TERMS_OF_USE: LegalDocument = {
       heading: "5. Payments, subscriptions & hearts",
       paragraphs: [
         "Some features — subscriptions, hearts and gifting, service bookings — involve real payments processed through Paystack. Prices, subscription terms, and refund eligibility are shown at the time of purchase; hearts and gifts are generally non-refundable once sent.",
-        "Providers are responsible for accurately describing their services and for fulfilling what they offer.",
+        "Creators are responsible for accurately describing their services and for fulfilling what they offer.",
       ],
     },
     {

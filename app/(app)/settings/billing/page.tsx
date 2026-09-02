@@ -33,10 +33,10 @@ export default async function BillingSettingsPage({
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">Provider subscriptions</h2>
+        <h2 className="text-sm font-semibold">Creator subscriptions</h2>
         {overview.providerSubscriptions.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border/60 bg-card p-6 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:shadow-none">
-            You&apos;re not subscribed to any providers yet.
+            You&apos;re not subscribed to any creators yet.
           </div>
         ) : (
           <ul className="flex flex-col gap-2">

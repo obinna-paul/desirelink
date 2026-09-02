@@ -66,10 +66,10 @@ export default async function VerificationPage() {
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
           <div className="text-sm text-muted-foreground">
             <p>
-              Identity verification is for provider accounts listing services or posting premium content.
+              Identity verification is for creator accounts listing services or posting premium content.
             </p>
             <Link href="/settings/account-type" className="mt-2 inline-block font-medium text-foreground hover:underline">
-              Switch to a provider account
+              Switch to a creator account
             </Link>
           </div>
         </div>

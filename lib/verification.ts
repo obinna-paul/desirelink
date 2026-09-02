@@ -63,7 +63,7 @@ export async function submitVerificationRequest(
     return {
       ok: false,
       status: 403,
-      error: "Switch to a provider account before verifying",
+      error: "Switch to a creator account before verifying",
     };
   }
 

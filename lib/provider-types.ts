@@ -2,10 +2,10 @@ import type { ProfileType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
-export const PROVIDER_PROFILE_TYPES: readonly ProfileType[] = ["PROVIDER"];
+export const CREATOR_PROFILE_TYPES: readonly ProfileType[] = ["CREATOR"];
 
 export function isProviderProfileType(profileType: ProfileType): boolean {
-  return profileType === "PROVIDER";
+  return profileType === "CREATOR";
 }
 
 export async function getProviderProfile(providerId: string) {

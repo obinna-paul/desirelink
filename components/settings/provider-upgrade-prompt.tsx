@@ -7,16 +7,16 @@ import { cn } from "@/lib/utils";
 const COPY = {
   "premium-post": {
     eyebrow: "Premium content",
-    title: "Switch to a provider account to publish paid posts.",
+    title: "Switch to a creator account to publish paid posts.",
     description:
-      "Provider accounts can create premium posts, list services, and set up monetization.",
+      "Creator accounts can create premium posts, list services, and set up monetization.",
     cta: "Switch account",
   },
   service: {
     eyebrow: "Service listings",
-    title: "Switch to a provider account before listing services.",
+    title: "Switch to a creator account before listing services.",
     description:
-      "Provider accounts can list paid services, add cover photos, manage bookings, and track earnings.",
+      "Creator accounts can list paid services, add cover photos, manage bookings, and track earnings.",
     cta: "Switch account",
   },
 } as const;

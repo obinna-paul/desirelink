@@ -72,7 +72,7 @@ export default async function SettingsPage() {
               href="/settings/account-type"
               className="flex min-h-11 shrink-0 items-center rounded-full bg-foreground px-4 text-sm font-semibold text-background transition-colors hover:bg-foreground/90"
             >
-              Switch to Provider
+              Switch to Creator
             </Link>
           )}
         </div>

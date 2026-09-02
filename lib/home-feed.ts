@@ -128,7 +128,7 @@ export async function getHomeFeed(
 
     case "creators": {
       const profiles = await prisma.profile.findMany({
-        where: { ...visible, ...notSelf, profileType: "PROVIDER" },
+        where: { ...visible, ...notSelf, profileType: "CREATOR" },
         select: profileCardSelect(),
         orderBy: { updatedAt: "desc" },
         take: 24,

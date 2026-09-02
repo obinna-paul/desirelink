@@ -81,7 +81,7 @@ export async function POST(req: Request) {
   if (isSubscriberOnly && !canPostPremiumContent) {
     return NextResponse.json(
       {
-        error: "Switch to a provider account before publishing premium posts.",
+        error: "Switch to a creator account before publishing premium posts.",
         code: "PROVIDER_ACCOUNT_REQUIRED",
         actionHref: "/settings/account-type?intent=premium-post",
       },

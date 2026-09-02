@@ -13,7 +13,7 @@ function profile(overrides: Partial<ProfileCardData> = {}): ProfileCardData {
     city: "Lagos",
     country: "NG",
     showExactLocation: true,
-    profileType: "PROVIDER",
+    profileType: "CREATOR",
     serviceCategories: [],
     isVerified: true,
     isVerifiedCreator: true,

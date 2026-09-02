@@ -96,7 +96,7 @@ enum VerificationRequestStatus {
 
 enum ProfileType {
   EXPLORER
-  PROVIDER
+  CREATOR
 }
 
 enum PartnerInviteStatus {

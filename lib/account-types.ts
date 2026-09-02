@@ -4,13 +4,14 @@ export const ACCOUNT_TYPE_OPTIONS: { value: ProfileType; label: string; descript
   {
     value: "EXPLORER",
     label: "Explorer",
-    description: "Browse, match, and connect. No pressure to create or provide anything.",
+    description:
+      "Interact with creators, subscribe to their content, and patronize services. Comes with a wallet for spending hearts.",
   },
   {
-    value: "PROVIDER",
-    label: "Provider",
+    value: "CREATOR",
+    label: "Creator",
     description:
-      "Create exclusive photos, videos, and posts, and/or offer paid services — escort, private chef, massage, and more. Turn on whichever fits you.",
+      "List paid services, go live, and post exclusive photos and videos. Earn from hearts in DMs, build a rating on your profile, and track it all from your dashboard.",
   },
 ];
 

@@ -9,7 +9,7 @@ import type { ProviderUpgradeIntent } from "@/components/settings/provider-upgra
 
 const INTENT_COPY: Record<ProviderUpgradeIntent | "default", { title: string; description: string; redirectTo: string }> = {
   default: {
-    title: "Switch to a provider account",
+    title: "Switch to a creator account",
     description:
       "This changes what you can create on Udala — premium posts, service listings, or both. You can verify your identity afterward.",
     redirectTo: "/settings",
@@ -45,7 +45,7 @@ export function SwitchToProviderForm({
     const res = await fetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...currentProfile, profileType: "PROVIDER" }),
+      body: JSON.stringify({ ...currentProfile, profileType: "CREATOR" }),
     });
 
     if (!res.ok) {
@@ -81,7 +81,7 @@ export function SwitchToProviderForm({
           Cancel
         </Button>
         <Button type="button" disabled={status === "submitting"} onClick={handleSwitch} className="h-11">
-          {status === "submitting" ? "Switching..." : "Switch to Provider"}
+          {status === "submitting" ? "Switching..." : "Switch to Creator"}
         </Button>
       </div>
     </div>

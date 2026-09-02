@@ -7,7 +7,7 @@ import { getProviderProfile } from "@/lib/provider-types";
 import { creditProviderWallet } from "@/lib/wallet";
 import { safeConfirmPayment } from "@/lib/payments/safe-call";
 
-export { PROVIDER_PROFILE_TYPES, isProviderProfileType, getProviderProfile } from "@/lib/provider-types";
+export { CREATOR_PROFILE_TYPES, isProviderProfileType, getProviderProfile } from "@/lib/provider-types";
 
 const SUBSCRIPTION_LENGTH_MONTHS = 1;
 

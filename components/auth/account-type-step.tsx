@@ -5,7 +5,7 @@ import type { ProfileType } from "@prisma/client";
 import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
 import { cn } from "@/lib/utils";
 
-/** Signup's account-type step: a simple Explorer/Provider choice. */
+/** Signup's account-type step: a simple Explorer/Creator choice. */
 export function AccountTypeStep({
   value,
   onChange,

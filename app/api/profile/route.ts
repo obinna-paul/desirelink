@@ -37,7 +37,7 @@ export async function PATCH(req: Request) {
       currentProfile.profileType === "EXPLORER" && isProviderProfileType(parsed.data.profileType);
     if (!isValidUpgrade) {
       return NextResponse.json(
-        { error: "Only switching from Explorer to a provider account type is allowed" },
+        { error: "Only switching from Explorer to a creator account type is allowed" },
         { status: 400 }
       );
     }

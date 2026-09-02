@@ -3,7 +3,7 @@ import "server-only";
 import { randomBytes } from "crypto";
 
 import { prisma } from "@/lib/prisma";
-import { isProviderProfileType, PROVIDER_PROFILE_TYPES } from "@/lib/provider-types";
+import { isProviderProfileType, CREATOR_PROFILE_TYPES } from "@/lib/provider-types";
 import { createLiveKitToken, getLiveKitUrl, isLiveKitConfigured } from "@/lib/livekit";
 import { triggerEvent } from "@/lib/pusher-server";
 import { liveStreamChannelName, LIVE_GIFT_SENT_EVENT, LIVE_STREAM_ENDED_EVENT } from "@/lib/live-stream-channels";
@@ -220,7 +220,7 @@ export async function getLiveRingFeed(viewerProfileId: string | null, limit = 20
         where: {
           ...notSelf,
           isIncognito: false,
-          profileType: { in: [...PROVIDER_PROFILE_TYPES] },
+          profileType: { in: [...CREATOR_PROFILE_TYPES] },
           id: { notIn: Array.from(liveProviderIds) },
           showActivityStatus: true,
           lastActiveAt: { gt: new Date(Date.now() - ONLINE_WINDOW_MS) },

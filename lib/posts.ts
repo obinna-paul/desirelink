@@ -379,7 +379,7 @@ export async function getFeedPosts(
   const where =
     subscribedCreatorIds.size > 0
       ? { authorId: { in: Array.from(subscribedCreatorIds) } }
-      : { author: { profileType: "PROVIDER" as const, isIncognito: false } };
+      : { author: { profileType: "CREATOR" as const, isIncognito: false } };
 
   let posts: RawPost[];
   try {
