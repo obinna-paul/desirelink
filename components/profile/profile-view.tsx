@@ -309,7 +309,7 @@ export function ProfileView({
                     >
                       <Ellipsis className="h-5 w-5" aria-hidden="true" />
                     </summary>
-                    <div className="absolute right-0 top-12 z-20 flex min-w-48 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-lift">
+                    <div className="absolute right-0 top-12 z-30 flex min-w-48 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-lift">
                       <ShareProfileButton
                         profileHref={profileHref}
                         displayName={profile.displayName}
@@ -354,7 +354,7 @@ export function ProfileView({
                     >
                       <Ellipsis className="h-5 w-5" aria-hidden="true" />
                     </summary>
-                    <div className="absolute right-0 top-12 z-20 flex min-w-48 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-lift">
+                    <div className="absolute right-0 top-12 z-30 flex min-w-48 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-lift">
                       <ShareProfileButton
                         profileHref={profileHref}
                         displayName={profile.displayName}
