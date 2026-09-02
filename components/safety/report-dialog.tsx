@@ -6,8 +6,8 @@ import { Flag, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { REPORT_REASONS } from "@/lib/report";
-import type { ReportTargetType } from "@/lib/report";
+import { REPORT_REASONS } from "@/lib/report-shared";
+import type { ReportTargetType } from "@/lib/report-shared";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 
 export function ReportDialog({

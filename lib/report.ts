@@ -2,22 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { queueModerationFlag } from "@/lib/moderation";
 import { recalculateReputation } from "@/lib/reputation";
 
-export const REPORT_TARGET_TYPES = ["profile", "message", "post", "post_comment"] as const;
-export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
-
-export function isReportTargetType(value: unknown): value is ReportTargetType {
-  return typeof value === "string" && (REPORT_TARGET_TYPES as readonly string[]).includes(value);
-}
-
-export const REPORT_REASONS = [
-  "Harassment or abuse",
-  "Spam or scam",
-  "Fake profile or impersonation",
-  "Underage user",
-  "Non-consensual content",
-  "Illegal activity",
-  "Other",
-] as const;
+export {
+  REPORT_TARGET_TYPES,
+  type ReportTargetType,
+  isReportTargetType,
+  REPORT_REASONS,
+} from "@/lib/report-shared";
+import type { ReportTargetType } from "@/lib/report-shared";
 
 const MAX_DETAILS_LENGTH = 2000;
 
