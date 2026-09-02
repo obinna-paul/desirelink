@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ScrollText, ShieldAlert, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, ScrollText, ShieldAlert, Users, type LucideIcon } from "lucide-react";
 
 import type { AdminRole } from "@/lib/admin/access";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/accounts", label: "Accounts", icon: Users },
   { href: "/admin/moderation", label: "Moderation", icon: ShieldAlert, requiresRole: ["MODERATOR", "SUPERADMIN"] },
   { href: "/admin/audit", label: "Audit log", icon: ScrollText, requiresRole: ["SUPERADMIN"] },
 ];
@@ -57,7 +58,8 @@ export function AdminShell({
 
         <nav aria-label="Admin sections" className="flex gap-1 overflow-x-auto px-2 py-2 md:flex-col md:overflow-visible md:px-3 md:py-4">
           {items.map((item) => {
-            const active = pathname === item.href;
+            const active =
+              item.href === "/admin" ? pathname === item.href : pathname === item.href || pathname?.startsWith(`${item.href}/`);
             const Icon = item.icon;
             return (
               <Link
