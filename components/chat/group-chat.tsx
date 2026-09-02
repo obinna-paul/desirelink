@@ -311,9 +311,7 @@ export function GroupChat({
         </form>
       ) : (
         <p className="text-center text-xs text-muted-foreground">
-          {channelType === "event"
-            ? "RSVP as Going to join the conversation."
-            : "Join this room to send messages."}
+          Join this room to send messages.
         </p>
       )}
     </div>

@@ -103,8 +103,7 @@ export function PartnerLinkPanel({ initialState }: { initialState: PartnerState 
       ) : (
         <>
           <p className="text-xs text-muted-foreground">
-            Link your accounts to show up as a linked pair. Both of you need to be signed up as a Pair
-            account.
+            Link your accounts to show up as a linked pair.
           </p>
           <div className="flex gap-2">
             <Input

@@ -63,7 +63,7 @@ export function ProfileCard({
         <div className="absolute inset-x-0 bottom-0 p-3 text-white md:p-4">
           <div className="flex min-w-0 items-center gap-1.5">
             <p className="truncate text-sm font-semibold md:text-base">{profile.displayName}</p>
-            {(profile.isVerified || profile.isTrustedMember || profile.isVerifiedCreator || profile.isVerifiedHost) && (
+            {(profile.isVerified || profile.isTrustedMember || profile.isVerifiedCreator) && (
               <BadgeCheck className="h-4 w-4 shrink-0 text-white" aria-label="Verified" />
             )}
           </div>

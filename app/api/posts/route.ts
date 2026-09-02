@@ -24,8 +24,8 @@ function missingPostSchemaMessage(error: Prisma.PrismaClientKnownRequestError) {
   const target = String(
     error.meta?.table ?? error.meta?.column ?? "post schema",
   );
-  if (target.includes("Post.postType") || target.includes("Post.eventId")) {
-    return "Post creation needs the feed interaction database repair. Add Post.postType and Post.eventId in Neon SQL Editor.";
+  if (target.includes("Post.postType")) {
+    return "Post creation needs the feed interaction database repair. Add Post.postType in Neon SQL Editor.";
   }
   if (
     target.includes("PostComment") ||
@@ -54,9 +54,6 @@ export async function POST(req: Request) {
       displayName: true,
       avatarUrl: true,
       isSuspended: true,
-      city: true,
-      locationLat: true,
-      locationLng: true,
       profileType: true,
     },
   });
@@ -79,18 +76,8 @@ export async function POST(req: Request) {
     );
   }
 
-  const { content, isSubscriberOnly, postType, event } = parsed.data;
+  const { content, isSubscriberOnly, postType } = parsed.data;
   const canPostPremiumContent = isProviderProfileType(profile.profileType);
-  if (postType === "event" && !canPostPremiumContent) {
-    return NextResponse.json(
-      {
-        error: "Switch to a provider account before hosting events.",
-        code: "PROVIDER_ACCOUNT_REQUIRED",
-        actionHref: "/settings/account-type?intent=event",
-      },
-      { status: 403 },
-    );
-  }
   if (isSubscriberOnly && !canPostPremiumContent) {
     return NextResponse.json(
       {
@@ -120,53 +107,24 @@ export async function POST(req: Request) {
       url,
       type: "image" as const,
     }));
-  const firstImage =
-    mediaItems.find((item) => item.type === "image")?.url ?? "";
 
   let post: {
     id: string;
     content: string;
     mediaUrls: unknown;
-    postType: "standard" | "event" | "live";
-    eventId: string | null;
+    postType: "standard" | "live";
     isSubscriberOnly: boolean;
     createdAt: Date;
   };
   try {
-    post = await prisma.$transaction(async (tx) => {
-      const attachedEvent =
-        postType === "event" && event
-          ? await tx.event.create({
-              data: {
-                hostId: profile.id,
-                title: event.title,
-                description: content.trim() || event.title,
-                eventType: event.eventType,
-                startTime: new Date(event.startTime),
-                endTime: new Date(event.endTime),
-                venueName: event.venueName,
-                address: event.address,
-                city: event.city.trim() || profile.city,
-                lat: event.lat ?? profile.locationLat,
-                lng: event.lng ?? profile.locationLng,
-                maxAttendees: event.maxAttendees,
-                priceCents: event.priceCents,
-                isPrivate: event.isPrivate,
-                coverImageUrl: firstImage,
-              },
-            })
-          : null;
-
-      return tx.post.create({
-        data: {
-          authorId: profile.id,
-          content: content.trim(),
-          mediaUrls: mediaItems,
-          postType,
-          eventId: attachedEvent?.id,
-          isSubscriberOnly: canPostPremiumContent ? isSubscriberOnly : false,
-        },
-      });
+    post = await prisma.post.create({
+      data: {
+        authorId: profile.id,
+        content: content.trim(),
+        mediaUrls: mediaItems,
+        postType,
+        isSubscriberOnly: canPostPremiumContent ? isSubscriberOnly : false,
+      },
     });
   } catch (error) {
     if (isMissingSchemaError(error)) {

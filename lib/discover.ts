@@ -49,7 +49,6 @@ export const VERIFICATION_FILTER_OPTIONS = [
   { value: "verified", label: "Verified" },
   { value: "trusted", label: "Trusted member" },
   { value: "verified_creator", label: "Verified creator" },
-  { value: "verified_host", label: "Verified host" },
 ] as const;
 
 export type VerificationFilterValue = (typeof VERIFICATION_FILTER_OPTIONS)[number]["value"];
@@ -171,7 +170,6 @@ function buildWhere(
       OR: [
         { isVerified: true },
         { isVerifiedCreator: true },
-        { isVerifiedHost: true },
         { isTrustedMember: true },
       ],
     });
@@ -179,8 +177,6 @@ function buildWhere(
     where.isTrustedMember = true;
   } else if (filters.verification === "verified_creator") {
     where.isVerifiedCreator = true;
-  } else if (filters.verification === "verified_host") {
-    where.isVerifiedHost = true;
   }
 
   if (filters.availability === "active") {

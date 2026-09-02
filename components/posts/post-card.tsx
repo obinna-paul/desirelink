@@ -12,7 +12,6 @@ import { CommentsSheet } from "@/components/posts/comments-sheet";
 import { PostActions } from "@/components/posts/post-actions";
 import { PostCaption } from "@/components/posts/post-caption";
 import { PostDetailModal } from "@/components/posts/post-detail-modal";
-import { PostEventAttachment } from "@/components/posts/post-event-attachment";
 import { PostMediaCarousel } from "@/components/posts/post-media-carousel";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { ReportDialog } from "@/components/safety/report-dialog";
@@ -176,11 +175,6 @@ export function PostCard({
             liked={liked}
             onDoubleTapLike={() => toggleLike(true)}
           />
-          {post.event && (
-            <div className="px-3 md:px-4">
-              <PostEventAttachment event={post.event} />
-            </div>
-          )}
           <div className="flex items-center gap-1.5 px-3 pt-2 text-xs text-muted-foreground md:px-4">
             <Eye className="h-3.5 w-3.5" aria-hidden="true" />
             <span>

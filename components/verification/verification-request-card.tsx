@@ -18,7 +18,6 @@ import type { VerificationRequestType } from "@/lib/verification";
 const MAX_ID_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_SELFIE_FILE_SIZE = 20 * 1024 * 1024;
 const HEADINGS: Record<VerificationRequestType, string> = {
-  host: "Please submit identification to host events.",
   service_provider: "Please submit identification to list services.",
   creator: "Please submit identification to post premium content.",
 };

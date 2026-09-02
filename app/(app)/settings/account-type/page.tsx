@@ -7,11 +7,10 @@ import { isProviderProfileType } from "@/lib/provider-types";
 import { SwitchToProviderForm } from "@/components/settings/switch-to-provider-form";
 import type { ProviderUpgradeIntent } from "@/components/settings/provider-upgrade-prompt";
 
-const PROVIDER_UPGRADE_INTENTS: readonly ProviderUpgradeIntent[] = ["premium-post", "event", "service"];
+const PROVIDER_UPGRADE_INTENTS: readonly ProviderUpgradeIntent[] = ["premium-post", "service"];
 const PROVIDER_INTENT_REDIRECTS: Record<ProviderUpgradeIntent | "default", string> = {
   default: "/settings",
   "premium-post": "/create",
-  event: "/events/new",
   service: "/services/new",
 };
 

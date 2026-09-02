@@ -19,9 +19,7 @@ import { EmptyProfileSection } from "@/components/profile/empty-profile-section"
 import {
   PostGridSection,
   ServiceGridSection,
-  GRID_CLASSNAME,
 } from "@/components/profile/creator-content-grid";
-import { EventGridTile } from "@/components/profile/profile-grid-tiles";
 import { ProfileAvatarEditor } from "@/components/profile/profile-avatar-editor";
 import { ProfileSectionTab } from "@/components/profile/profile-section-tab";
 import { ProfileSetupActions } from "@/components/profile/profile-setup-actions";
@@ -37,7 +35,6 @@ import { SendHeartsButton } from "@/components/hearts/send-hearts-button";
 import { Button } from "@/components/ui/button";
 import { getProfileCapabilityLabel } from "@/lib/profile-capabilities";
 import type { CreatorStats } from "@/lib/creator";
-import type { UpcomingEvent } from "@/lib/events";
 import type { PostView } from "@/lib/posts";
 import type {
   ReviewableContext,
@@ -48,7 +45,7 @@ import type { ServiceListingView } from "@/lib/service-listings";
 import type { PublicTierView } from "@/lib/tiers";
 import type { ProfileFieldName } from "@/lib/circles";
 
-type ProfileSection = "posts" | "premium" | "events" | "services" | "reviews";
+type ProfileSection = "posts" | "premium" | "services" | "reviews";
 
 const PROFILE_SECTIONS: {
   id: ProfileSection;
@@ -57,7 +54,6 @@ const PROFILE_SECTIONS: {
 }[] = [
   { id: "posts", label: "Posts", icon: LayoutGrid },
   { id: "premium", label: "Premium", icon: LockKeyhole },
-  { id: "events", label: "Events", icon: CalendarDays },
   { id: "services", label: "Services", icon: BriefcaseBusiness },
   { id: "reviews", label: "Reviews", icon: Star },
 ];
@@ -111,7 +107,6 @@ export function ProfileView({
   posts,
   subscription,
   serviceListings,
-  events,
   isOwner,
   isProvider,
   profileHref,
@@ -135,7 +130,6 @@ export function ProfileView({
   posts: PostView[];
   subscription: PublicTierView | null;
   serviceListings: ServiceListingView[];
-  events: UpcomingEvent[];
   isOwner: boolean;
   isProvider: boolean;
   profileHref: string;
@@ -156,7 +150,6 @@ export function ProfileView({
   const premiumPosts = posts.filter((post) => post.isSubscriberOnly);
   const descriptor = getProfileCapabilityLabel({
     profileType: profile.profileType,
-    hostsEvents: isProvider && events.length > 0,
     offersServices: serviceListings.length > 0,
   });
   const subscriptionReviewContexts = isProvider
@@ -408,26 +401,6 @@ export function ProfileView({
               }
             />
           )}
-
-          {section === "events" &&
-            (events.length ? (
-              <div className={GRID_CLASSNAME}>
-                {events.map((event) => (
-                  <EventGridTile key={event.id} event={event} />
-                ))}
-              </div>
-            ) : (
-              <EmptyProfileSection
-                title="No events yet"
-                description={
-                  isOwner
-                    ? "Events you host or attend will appear here."
-                    : "There are no public events to show."
-                }
-                actionHref={isOwner ? "/events" : undefined}
-                actionLabel={isOwner ? "Explore events" : undefined}
-              />
-            ))}
 
           {section === "services" && (
             <ServiceGridSection

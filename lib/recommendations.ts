@@ -10,7 +10,6 @@ const CANDIDATE_LIMIT = 250;
 const ACTIVE_MEETING_STATUSES = new Set<AvailabilityStatusType>([
   "available_tonight",
   "open_to_meeting",
-  "looking_for_event",
   "couple_looking",
 ]);
 

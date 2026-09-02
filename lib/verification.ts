@@ -5,7 +5,6 @@ import { isProviderProfileType } from "@/lib/provider-types";
 
 export const VERIFICATION_REQUEST_TYPES = [
   "creator",
-  "host",
   "service_provider",
 ] as const;
 export type VerificationRequestType =
@@ -53,7 +52,6 @@ export async function submitVerificationRequest(
     select: {
       profileType: true,
       isVerifiedCreator: true,
-      isVerifiedHost: true,
       isVerifiedServiceProvider: true,
     },
   });
@@ -75,9 +73,6 @@ export async function submitVerificationRequest(
       status: 400,
       error: "You're already a verified creator",
     };
-  }
-  if (requestType === "host" && profile.isVerifiedHost) {
-    return { ok: false, status: 400, error: "You're already a verified host" };
   }
   if (requestType === "service_provider" && profile.isVerifiedServiceProvider) {
     return {
@@ -121,9 +116,9 @@ export async function submitVerificationRequest(
 
 /**
  * A single unified "identity on file" check that drives every verification gate
- * (hosting events, listing services, posting premium content). Submitting ANY one
- * of the three request types satisfies all of them - identity verification is one
- * process, not three - and having ever submitted (even while pending review) is
+ * (listing services, posting premium content). Submitting ANY one of the request
+ * types satisfies all of them - identity verification is one process, not
+ * several - and having ever submitted (even while pending review) is
  * enough to proceed; only a denied request (which also suspends the account, see
  * denyVerificationRequest) blocks further action, via the separate isSuspended checks.
  */
@@ -133,7 +128,6 @@ export async function hasIdentityOnFile(profileId: string): Promise<boolean> {
     select: {
       isVerified: true,
       isVerifiedCreator: true,
-      isVerifiedHost: true,
       isVerifiedServiceProvider: true,
     },
   });
@@ -141,7 +135,6 @@ export async function hasIdentityOnFile(profileId: string): Promise<boolean> {
   if (
     profile.isVerified ||
     profile.isVerifiedCreator ||
-    profile.isVerifiedHost ||
     profile.isVerifiedServiceProvider
   ) {
     return true;
@@ -211,10 +204,9 @@ export type ReviewVerificationResult =
 
 const VERIFICATION_FIELD: Record<
   VerificationRequestType,
-  "isVerifiedCreator" | "isVerifiedHost" | "isVerifiedServiceProvider"
+  "isVerifiedCreator" | "isVerifiedServiceProvider"
 > = {
   creator: "isVerifiedCreator",
-  host: "isVerifiedHost",
   service_provider: "isVerifiedServiceProvider",
 };
 

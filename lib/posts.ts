@@ -1,4 +1,4 @@
-import { Prisma, type ProfileType, type RsvpStatus } from "@prisma/client";
+import { Prisma, type ProfileType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import type { PostMediaItem } from "@/lib/post-shared";
@@ -37,8 +37,7 @@ type RawPost = {
   id: string;
   content: string;
   mediaUrls: unknown;
-  postType: "standard" | "event" | "live";
-  eventId: string | null;
+  postType: "standard" | "live";
   isSubscriberOnly: boolean;
   viewCount: number;
   pinnedAt: Date | null;
@@ -50,24 +49,6 @@ type RawPost = {
     avatarUrl: string;
     profileType: ProfileType;
   };
-  event: {
-    id: string;
-    title: string;
-    description: string;
-    eventType: string;
-    startTime: Date;
-    endTime: Date;
-    venueName: string;
-    address: string;
-    city: string;
-    maxAttendees: number | null;
-    currentAttendees: number;
-    priceCents: number;
-    isPrivate: boolean;
-    coverImageUrl: string;
-    hostId: string;
-    rsvps: { status: RsvpStatus }[];
-  } | null;
   comments: RawComment[];
   reactions: { id: string }[];
   _count: { comments: number; reactions: number; shares: number };
@@ -101,32 +82,12 @@ type RawComment = {
   replies?: RawComment[];
 };
 
-export type PostEventView = {
-  id: string;
-  title: string;
-  description: string;
-  eventType: string;
-  startTime: string;
-  endTime: string;
-  venueName: string;
-  address: string;
-  city: string;
-  maxAttendees: number | null;
-  currentAttendees: number;
-  priceCents: number;
-  isPrivate: boolean;
-  coverImageUrl: string;
-  hostId: string;
-  viewerRsvpStatus: "going" | "interested" | "not_going" | null;
-};
-
 export type PostView = {
   id: string;
   content: string | null;
   mediaUrls: string[];
   mediaItems: PostMediaItem[];
-  postType: "standard" | "event" | "live";
-  event: PostEventView | null;
+  postType: "standard" | "live";
   isSubscriberOnly: boolean;
   locked: boolean;
   lockReason: PostLockReason | null;
@@ -234,34 +195,6 @@ function toPostView(
     content: locked ? null : post.content,
     mediaUrls: locked ? [] : mediaItems.map((item) => item.url),
     mediaItems: locked ? [] : mediaItems,
-    event:
-      locked || !post.event
-        ? null
-        : {
-            id: post.event.id,
-            title: post.event.title,
-            description: post.event.description,
-            eventType: post.event.eventType,
-            startTime: post.event.startTime.toISOString(),
-            endTime: post.event.endTime.toISOString(),
-            venueName: post.event.venueName,
-            address: post.event.address,
-            city: post.event.city,
-            maxAttendees: post.event.maxAttendees,
-            currentAttendees: post.event.currentAttendees,
-            priceCents: post.event.priceCents,
-            isPrivate: post.event.isPrivate,
-            coverImageUrl: post.event.coverImageUrl,
-            hostId: post.event.hostId,
-            viewerRsvpStatus:
-              post.event.rsvps[0]?.status === "waitlist"
-                ? null
-                : ((post.event.rsvps[0]?.status as
-                    | "going"
-                    | "interested"
-                    | "not_going"
-                    | undefined) ?? null),
-          },
     author: post.author,
     counts: post._count,
     viewerLiked: post.reactions.length > 0,
@@ -277,36 +210,11 @@ function postSelect(viewerProfileId: string | null) {
     content: true,
     mediaUrls: true,
     postType: true,
-    eventId: true,
     isSubscriberOnly: true,
     viewCount: true,
     pinnedAt: true,
     createdAt: true,
     author: { select: postAuthorSelect },
-    event: {
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        eventType: true,
-        startTime: true,
-        endTime: true,
-        venueName: true,
-        address: true,
-        city: true,
-        maxAttendees: true,
-        currentAttendees: true,
-        priceCents: true,
-        isPrivate: true,
-        coverImageUrl: true,
-        hostId: true,
-        rsvps: {
-          where: { userId: viewerProfileId ?? "__anonymous__" },
-          select: { status: true },
-          take: 1,
-        },
-      },
-    },
     reactions: {
       where: {
         userId: viewerProfileId ?? "__anonymous__",
@@ -431,7 +339,7 @@ export async function getFeedPosts(
   const where =
     subscribedCreatorIds.size > 0
       ? { authorId: { in: Array.from(subscribedCreatorIds) } }
-      : { author: { profileType: "CREATOR" as const, isIncognito: false } };
+      : { author: { profileType: "PROVIDER" as const, isIncognito: false } };
 
   let posts: RawPost[];
   try {

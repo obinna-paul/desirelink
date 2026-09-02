@@ -6,7 +6,6 @@ export const setAvailabilitySchema = z.object({
     "out_tonight",
     "open_to_meeting",
     "chatting_only",
-    "looking_for_event",
     "couple_looking",
   ]),
   durationHours: z.number().int().min(1).max(48).default(12),

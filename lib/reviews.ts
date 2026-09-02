@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { recalculateReputation } from "@/lib/reputation";
 
-export const REVIEW_CONTEXT_TYPES = ["event", "transaction"] as const;
+export const REVIEW_CONTEXT_TYPES = ["transaction"] as const;
 export type ReviewContextType = (typeof REVIEW_CONTEXT_TYPES)[number];
 
 export function isReviewContextType(value: unknown): value is ReviewContextType {
@@ -9,25 +9,6 @@ export function isReviewContextType(value: unknown): value is ReviewContextType 
 }
 
 const MAX_COMMENT_LENGTH = 1000;
-
-async function attendedEventIds(profileId: string): Promise<Set<string>> {
-  const [hosted, going] = await Promise.all([
-    prisma.event.findMany({ where: { hostId: profileId }, select: { id: true } }),
-    prisma.eventRsvp.findMany({
-      where: { userId: profileId, status: "going" },
-      select: { eventId: true },
-    }),
-  ]);
-  return new Set([...hosted.map((e) => e.id), ...going.map((r) => r.eventId)]);
-}
-
-async function canReviewEvent(reviewerId: string, revieweeId: string, eventId: string): Promise<boolean> {
-  const [reviewerEvents, revieweeEvents] = await Promise.all([
-    attendedEventIds(reviewerId),
-    attendedEventIds(revieweeId),
-  ]);
-  return reviewerEvents.has(eventId) && revieweeEvents.has(eventId);
-}
 
 async function canReviewTransaction(
   reviewerId: string,
@@ -48,16 +29,14 @@ async function canReviewTransaction(
 
 export type ReviewableContext = { contextType: ReviewContextType; contextId: string; label: string };
 
-/** Shared events attended together and completed subscription transactions between the two, not yet reviewed. */
+/** Completed subscription transactions between the two, not yet reviewed. */
 export async function getReviewableContexts(
   reviewerId: string,
   revieweeId: string
 ): Promise<ReviewableContext[]> {
   if (reviewerId === revieweeId) return [];
 
-  const [reviewerEvents, revieweeEvents, transactions, existingReviews] = await Promise.all([
-    attendedEventIds(reviewerId),
-    attendedEventIds(revieweeId),
+  const [transactions, existingReviews] = await Promise.all([
     prisma.transaction.findMany({
       where: {
         status: "succeeded",
@@ -76,19 +55,9 @@ export async function getReviewableContexts(
   ]);
 
   const reviewedKeys = new Set(existingReviews.map((r) => `${r.contextType}:${r.contextId}`));
-  const sharedEventIds = Array.from(reviewerEvents).filter((id) => revieweeEvents.has(id));
-
-  const events = sharedEventIds.length
-    ? await prisma.event.findMany({ where: { id: { in: sharedEventIds } }, select: { id: true, title: true } })
-    : [];
 
   const contexts: ReviewableContext[] = [];
 
-  for (const event of events) {
-    if (!reviewedKeys.has(`event:${event.id}`)) {
-      contexts.push({ contextType: "event", contextId: event.id, label: event.title });
-    }
-  }
   for (const transaction of transactions) {
     if (!reviewedKeys.has(`transaction:${transaction.id}`)) {
       contexts.push({
@@ -126,16 +95,13 @@ export async function submitReview(
     return { ok: false, status: 400, error: `Comment must be under ${MAX_COMMENT_LENGTH} characters` };
   }
 
-  const eligible =
-    contextType === "event"
-      ? await canReviewEvent(reviewerId, revieweeId, contextId)
-      : await canReviewTransaction(reviewerId, revieweeId, contextId);
+  const eligible = await canReviewTransaction(reviewerId, revieweeId, contextId);
 
   if (!eligible) {
     return {
       ok: false,
       status: 403,
-      error: "You can only review someone after attending an event together or completing a transaction with them",
+      error: "You can only review someone after completing a transaction with them",
     };
   }
 

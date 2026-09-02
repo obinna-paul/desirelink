@@ -164,13 +164,6 @@ async function getContentPreview(contentType: string, contentId: string) {
         ? { title: `Room post by ${post.author.displayName}`, body: post.content, ownerId: post.authorId }
         : null;
     }
-    case "event": {
-      const event = await prisma.event.findUnique({
-        where: { id: contentId },
-        select: { title: true, description: true, hostId: true },
-      });
-      return event ? { title: event.title, body: event.description, ownerId: event.hostId } : null;
-    }
     default:
       return null;
   }
@@ -245,9 +238,6 @@ async function removeContent(contentType: string, contentId: string) {
       }
       return true;
     }
-    case "event":
-      await prisma.event.deleteMany({ where: { id: contentId } });
-      return true;
     default:
       return false;
   }

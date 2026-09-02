@@ -12,7 +12,6 @@ import { getProfileVisibility } from "@/lib/circles";
 import { getReviewableContexts, getReviewsForProfile, getReviewSummary } from "@/lib/reviews";
 import { confirmProviderPayment } from "@/lib/providers";
 import { getProviderServiceListings } from "@/lib/service-listings";
-import { getAttendingEvents, getProfileEvents } from "@/lib/events";
 import { isProviderProfileType } from "@/lib/provider-types";
 
 export default async function PublicProfilePage({
@@ -69,12 +68,10 @@ export default async function PublicProfilePage({
   const viewerOrOwnerId = isOwner ? profile.id : (viewerProfile?.id ?? null);
   const isProvider = isProviderProfileType(profile.profileType);
 
-  const [posts, subscriptions, serviceListings, events, attendingEvents, stats] = await Promise.all([
+  const [posts, subscriptions, serviceListings, stats] = await Promise.all([
     getCreatorProfilePosts(profile.id, viewerOrOwnerId),
     getPublicTiers(profile.id, viewerOrOwnerId),
     getProviderServiceListings(profile.id),
-    getProfileEvents(profile.id, viewerOrOwnerId),
-    getAttendingEvents(profile.id, viewerOrOwnerId),
     getCreatorStats(profile.id),
   ]);
 
@@ -91,7 +88,6 @@ export default async function PublicProfilePage({
         posts={posts}
         subscription={subscriptions[0] ?? null}
         serviceListings={serviceListings}
-        events={isProvider ? events : attendingEvents}
         isOwner={isOwner}
         isProvider={isProvider}
         canMessage={!isOwner && Boolean(viewerProfile)}

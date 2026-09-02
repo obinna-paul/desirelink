@@ -94,7 +94,6 @@ export default async function CreatorDashboardPage({
           isVerifiedProvider={
             profile.isVerified ||
             profile.isVerifiedCreator ||
-            profile.isVerifiedHost ||
             profile.isVerifiedServiceProvider
           }
         />

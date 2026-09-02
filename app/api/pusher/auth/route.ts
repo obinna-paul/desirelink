@@ -5,7 +5,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { pusherServer, AVAILABILITY_CHANNEL } from "@/lib/pusher-server";
 import { canAccessRoomChat } from "@/lib/rooms";
-import { canAccessEventChat } from "@/lib/rsvp";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -46,23 +45,6 @@ export async function POST(req: Request) {
   if (channelName.startsWith("presence-room-")) {
     const roomId = channelName.slice("presence-room-".length);
     if (!(await canAccessRoomChat(roomId, profile.id))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    const authResponse = pusherServer.authorizeChannel(socketId, channelName, {
-      user_id: profile.id,
-      user_info: {
-        username: profile.username,
-        displayName: profile.displayName,
-        avatarUrl: profile.avatarUrl,
-      },
-    });
-    return NextResponse.json(authResponse);
-  }
-
-  // presence-event-{eventId}: the host, or anyone RSVP'd "going", may subscribe.
-  if (channelName.startsWith("presence-event-")) {
-    const eventId = channelName.slice("presence-event-".length);
-    if (!(await canAccessEventChat(eventId, profile.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const authResponse = pusherServer.authorizeChannel(socketId, channelName, {

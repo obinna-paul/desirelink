@@ -4,7 +4,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAvailableNow } from "@/lib/availability";
 import { getLiveRingFeed } from "@/lib/live-streams";
-import { getRecommendedEventsForUser } from "@/lib/event-recommendations";
 import { getHomeServiceListings } from "@/lib/service-listings";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { AvailableNowSidebar } from "@/components/home/available-now-sidebar";
@@ -31,17 +30,15 @@ export async function RightRail() {
           showExactLocation: true,
           isVerified: true,
           isVerifiedCreator: true,
-          isVerifiedHost: true,
           profileType: true,
         },
       })
     : null;
   const isProvider = viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false;
 
-  const [items, onlineCreators, recommendedEvents, serviceListings] = await Promise.all([
+  const [items, onlineCreators, serviceListings] = await Promise.all([
     getAvailableNow(20, viewerProfile?.id),
     !isProvider && viewerProfile ? getLiveRingFeed(viewerProfile.id, 4) : Promise.resolve([]),
-    !isProvider && session?.user?.id ? getRecommendedEventsForUser(session.user.id, 3) : Promise.resolve(null),
     !isProvider && viewerProfile ? getHomeServiceListings(3) : Promise.resolve([]),
   ]);
   const baseNearbyCount =
@@ -56,7 +53,6 @@ export async function RightRail() {
       {viewerProfile && !isProvider && (
         <ExplorerDiscoveryPanel
           onlineCreators={onlineCreators}
-          events={recommendedEvents ?? []}
           services={serviceListings}
         />
       )}

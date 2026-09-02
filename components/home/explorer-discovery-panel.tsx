@@ -1,30 +1,23 @@
 import Link from "next/link";
-import { CalendarDays, Compass, Radio, BriefcaseBusiness } from "lucide-react";
+import { Compass, Radio, BriefcaseBusiness } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatCents } from "@/lib/creator";
 import type { LiveRingEntry } from "@/lib/live-streams";
-import type { EventRecommendation } from "@/lib/event-recommendations";
 import type { HomeServiceListingView } from "@/lib/service-listings";
 
 function initials(name: string) {
   return name.trim().slice(0, 2).toUpperCase() || "U";
 }
 
-function formatEventDate(startTime: Date | string) {
-  return new Date(startTime).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
 export function ExplorerDiscoveryPanel({
   onlineCreators,
-  events,
   services,
 }: {
   onlineCreators: LiveRingEntry[];
-  events: EventRecommendation[];
   services: HomeServiceListingView[];
 }) {
-  const hasAnything = onlineCreators.length > 0 || events.length > 0 || services.length > 0;
+  const hasAnything = onlineCreators.length > 0 || services.length > 0;
 
   return (
     <section className="flex flex-col gap-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm md:shadow-card">
@@ -35,7 +28,7 @@ export function ExplorerDiscoveryPanel({
 
       {!hasAnything && (
         <p className="text-sm text-muted-foreground">
-          Nothing new right now. Check back soon for creators, events, and services near you.
+          Nothing new right now. Check back soon for creators and services near you.
         </p>
       )}
 
@@ -73,40 +66,6 @@ export function ExplorerDiscoveryPanel({
                     aria-hidden={!creator.isLive}
                   >
                     {creator.isLive ? "Live" : null}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {events.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <CalendarDays className="h-3.5 w-3.5 text-neon-pink" aria-hidden="true" />
-              Upcoming events
-            </div>
-            <Link href="/events" className="text-xs font-semibold text-neon-pink hover:underline">
-              See all
-            </Link>
-          </div>
-          <ul className="mt-2 flex flex-col gap-2">
-            {events.map(({ event }) => (
-              <li key={event.id}>
-                <Link
-                  href={`/events/${event.id}`}
-                  className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/45 px-3 py-2 transition-colors hover:border-neon-pink/40 hover:bg-accent/60"
-                >
-                  <span className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-lg border border-border/60 bg-card text-[10px] font-bold uppercase leading-none text-neon-pink">
-                    {formatEventDate(event.startTime)}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-foreground">{event.title}</span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      Hosted by {event.host.displayName}
-                    </span>
                   </span>
                 </Link>
               </li>

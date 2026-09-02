@@ -5,7 +5,6 @@ export function VerificationBadge({ profile }: { profile: Profile }) {
   const isVerifiedProvider =
     profile.isVerified ||
     profile.isVerifiedCreator ||
-    profile.isVerifiedHost ||
     profile.isVerifiedServiceProvider;
 
   const badges = [

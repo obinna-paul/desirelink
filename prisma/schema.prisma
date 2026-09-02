@@ -16,13 +16,6 @@ enum SubscriptionStatus {
   expired
 }
 
-enum RsvpStatus {
-  going
-  interested
-  waitlist
-  not_going
-}
-
 enum ServiceBookingStatus {
   pending_payment
   pending_provider
@@ -59,7 +52,6 @@ enum AvailabilityStatusType {
   out_tonight
   open_to_meeting
   chatting_only
-  looking_for_event
   couple_looking
 }
 
@@ -82,12 +74,10 @@ enum ReportTargetType {
   post
   post_comment
   room_post
-  event
 }
 
 enum PostType {
   standard
-  event
   live
 }
 
@@ -96,13 +86,11 @@ enum PostReactionType {
 }
 
 enum ReviewContextType {
-  event
   transaction
 }
 
 enum ChatChannelType {
   room
-  event
 }
 
 enum MessageMediaType {
@@ -113,7 +101,6 @@ enum MessageMediaType {
 
 enum VerificationRequestType {
   creator
-  host
   service_provider
 }
 
@@ -125,9 +112,7 @@ enum VerificationRequestStatus {
 
 enum ProfileType {
   EXPLORER
-  CREATOR
-  PAIR
-  SERVICE_PROVIDER
+  PROVIDER
 }
 
 enum PartnerInviteStatus {
@@ -234,7 +219,6 @@ model Profile {
   showActivityStatus        Boolean   @default(true)
   isVerified                Boolean   @default(false)
   isVerifiedCreator         Boolean   @default(false)
-  isVerifiedHost            Boolean   @default(false)
   isVerifiedServiceProvider Boolean   @default(false)
   isTrustedMember           Boolean   @default(false)
   isSuspended               Boolean   @default(false)
@@ -274,8 +258,6 @@ model Profile {
   creatorTiers           CreatorTier[]
   subscriptionsAsSub     Subscription[]        @relation("SubscriptionSubscriber")
   subscriptionsAsCreator Subscription[]        @relation("SubscriptionCreator")
-  hostedEvents           Event[]
-  eventRsvps             EventRsvp[]
   sentMessages           Message[]             @relation("MessageSender")
   receivedMessages       Message[]             @relation("MessageRecipient")
   createdRooms           Room[]
@@ -482,55 +464,6 @@ model PaymentMethod {
   @@index([userId])
 }
 
-// --- Events ------------------------------------------------------------------
-
-model Event {
-  id               String   @id @default(cuid())
-  hostId           String
-  host             Profile  @relation(fields: [hostId], references: [id], onDelete: Cascade)
-  title            String
-  description      String
-  eventType        String
-  format           String   @default("in_person")
-  onlineUrl        String?
-  startTime        DateTime
-  endTime          DateTime
-  venueName        String
-  address          String
-  city             String   @default("")
-  lat              Float
-  lng              Float
-  maxAttendees     Int?
-  currentAttendees Int      @default(0)
-  priceCents       Int      @default(0)
-  isPrivate        Boolean  @default(false)
-  coverImageUrl    String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  rsvps        EventRsvp[]
-  transactions Transaction[]
-  feedPosts    Post[]
-
-  @@index([hostId])
-  @@index([startTime])
-}
-
-model EventRsvp {
-  id        String     @id @default(cuid())
-  eventId   String
-  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  userId    String
-  profile   Profile    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status    RsvpStatus
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-
-  @@unique([eventId, userId])
-  @@index([eventId])
-  @@index([userId])
-}
-
 // --- Messaging ---------------------------------------------------------------
 
 model Message {
@@ -621,9 +554,9 @@ model RoomPost {
   @@index([authorId])
 }
 
-// --- Group chat (rooms & events) --------------------------------------------
-// channelId is polymorphic (a Room.id or an Event.id depending on channelType),
-// so it's a plain indexed string rather than a foreign key.
+// --- Group chat (rooms) -----------------------------------------------------
+// channelId is a Room.id — kept as a plain indexed string rather than a
+// foreign key so ChatChannelType can grow new channel kinds later.
 
 model GroupMessage {
   id          String          @id @default(cuid())
@@ -661,8 +594,6 @@ model Post {
   content          String
   mediaUrls        Json
   postType         PostType       @default(standard)
-  eventId          String?
-  event            Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
   isSubscriberOnly Boolean        @default(false)
   isArchived       Boolean        @default(false)
   viewCount        Int            @default(0)
@@ -674,7 +605,6 @@ model Post {
   shares           PostShare[]
 
   @@index([authorId])
-  @@index([eventId])
   @@index([isArchived])
   @@index([postType])
 }
@@ -858,8 +788,6 @@ model Transaction {
   subscription           Subscription?         @relation(fields: [subscriptionId], references: [id])
   tierId                 String?
   tier                   CreatorTier?          @relation(fields: [tierId], references: [id], onDelete: SetNull)
-  eventId                String?
-  event                  Event?                @relation(fields: [eventId], references: [id], onDelete: SetNull)
   providerSubscriptionId String?
   providerSubscription   ProviderSubscription? @relation(fields: [providerSubscriptionId], references: [id], onDelete: SetNull)
   serviceBookingId       String?               @unique
@@ -874,12 +802,11 @@ model Transaction {
   createdAt              DateTime              @default(now())
 
   /**
-   * Set only for payments that go through escrow (service bookings and paid
-   * event RSVPs) — null for everything else (hearts, creator-tier
-   * subscriptions), which credit the recipient's wallet immediately on
-   * success. "held" funds are not yet in the provider/host's wallet;
-   * "released" means they've been credited; "refunded" means they went back
-   * to the customer.
+   * Set only for payments that go through escrow (service bookings) — null
+   * for everything else (hearts, creator-tier subscriptions), which credit
+   * the recipient's wallet immediately on success. "held" funds are not yet
+   * in the provider's wallet; "released" means they've been credited;
+   * "refunded" means they went back to the customer.
    */
   escrowStatus     EscrowStatus?
   escrowReleasedAt DateTime?
@@ -887,7 +814,6 @@ model Transaction {
   @@index([userId])
   @@index([subscriptionId])
   @@index([tierId])
-  @@index([eventId])
   @@index([providerSubscriptionId])
   @@index([escrowStatus])
 }
@@ -928,7 +854,7 @@ model Review {
   @@index([contextType, contextId])
 }
 
-// --- Verification (creators & hosts) ----------------------------------------
+// --- Verification (creators & service providers) ---------------------------
 
 model VerificationRequest {
   id          String                    @id @default(cuid())

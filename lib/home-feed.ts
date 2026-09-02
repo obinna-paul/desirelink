@@ -18,7 +18,6 @@ export function profileCardSelect() {
     serviceCategories: true,
     isVerified: true,
     isVerifiedCreator: true,
-    isVerifiedHost: true,
     isTrustedMember: true,
     availabilityStatuses: {
       where: { expiresAt: { gt: new Date() } },
@@ -129,7 +128,7 @@ export async function getHomeFeed(
 
     case "creators": {
       const profiles = await prisma.profile.findMany({
-        where: { ...visible, ...notSelf, profileType: "CREATOR" },
+        where: { ...visible, ...notSelf, profileType: "PROVIDER" },
         select: profileCardSelect(),
         orderBy: { updatedAt: "desc" },
         take: 24,
@@ -139,7 +138,7 @@ export async function getHomeFeed(
 
     case "couples": {
       const profiles = await prisma.profile.findMany({
-        where: { ...visible, ...notSelf, profileType: "PAIR" },
+        where: { ...visible, ...notSelf, partnerId: { not: null } },
         select: profileCardSelect(),
         orderBy: { updatedAt: "desc" },
         take: 24,
@@ -156,9 +155,6 @@ export async function getHomeFeed(
       });
       return { profiles, note: "Fresh faces: the newest members to join udala." };
     }
-
-    case "events":
-      return { profiles: [] };
 
     case "browse":
     default: {

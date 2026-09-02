@@ -4,7 +4,7 @@
  * imports here, so this file is safe to pull into "use client" components.
  */
 
-export type ChannelType = "room" | "event";
+export type ChannelType = "room";
 
 export function chatChannelName(channelType: ChannelType, channelId: string): string {
   return `presence-${channelType}-${channelId}`;

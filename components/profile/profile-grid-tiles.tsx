@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   BriefcaseBusiness,
-  CalendarDays,
   Copy,
   Eye,
   Lock,
@@ -13,7 +12,6 @@ import {
 } from "lucide-react";
 
 import { formatCents } from "@/lib/creator";
-import type { UpcomingEvent } from "@/lib/events";
 import type { PostView } from "@/lib/posts";
 import type { ServiceListingView } from "@/lib/service-listings";
 
@@ -142,43 +140,6 @@ export function PostGridTile({
           {post.viewCount.toLocaleString()}
         </span>
       </div>
-    </TileShell>
-  );
-}
-
-export function EventGridTile({ event }: { event: UpcomingEvent }) {
-  const date = new Date(event.startTime).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-
-  return (
-    <TileShell
-      href={`/events/${event.id}`}
-      ariaLabel={`Event: ${event.title}, ${date}`}
-    >
-      {event.coverImageUrl ? (
-        <Image
-          src={event.coverImageUrl}
-          alt=""
-          fill
-          sizes={TILE_SIZES}
-          className="object-cover"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-muted">
-          <CalendarDays
-            className="h-7 w-7 text-muted-foreground/60"
-            aria-hidden="true"
-          />
-        </div>
-      )}
-      <TileCaption>
-        <p className="truncate text-xs font-semibold text-foreground">
-          {event.title}
-        </p>
-        <p className="truncate text-[11px] text-muted-foreground">{date}</p>
-      </TileCaption>
     </TileShell>
   );
 }

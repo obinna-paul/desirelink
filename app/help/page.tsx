@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
-  CalendarDays,
   CreditCard,
   ShieldCheck,
   Sparkles,
@@ -14,13 +13,12 @@ import { FaqItem } from "@/components/help/faq-item";
 
 export const metadata: Metadata = {
   title: "Help Center — udala",
-  description: "Answers to common questions about your account, payments, events, creator tools, and safety on udala.",
+  description: "Answers to common questions about your account, payments, creator tools, and safety on udala.",
 };
 
 const CATEGORIES = [
   { id: "account-privacy", title: "Account & Privacy", icon: UserCog },
   { id: "payments-subscriptions", title: "Payments & Subscriptions", icon: CreditCard },
-  { id: "events-meetups", title: "Events & Meetups", icon: CalendarDays },
   { id: "creators", title: "Creators", icon: Sparkles },
   { id: "safety-reporting", title: "Safety & Reporting", icon: ShieldCheck },
 ] as const;
@@ -91,14 +89,13 @@ export default function HelpCenterPage() {
               <Link href="/profile/edit">Profile → Edit → Privacy &amp; visibility</Link>.
             </p>
           </FaqItem>
-          <FaqItem question="What's the difference between Verified, Verified Creator, and Verified Host?">
+          <FaqItem question="What's the difference between Verified and Verified Creator?">
             <p>
               <strong>Verified</strong> is a self-service attestation you toggle yourself from{" "}
-              <Link href="/profile/edit">Profile → Edit</Link>. <strong>Verified Creator</strong> and{" "}
-              <strong>Verified Host</strong> badges are different — they require submitting a
-              government ID and a selfie for manual review, from{" "}
-              <Link href="/creator-dashboard?tab=verification">Creator Studio → Verification</Link> or{" "}
-              <Link href="/events/manage">Manage Events</Link>.
+              <Link href="/profile/edit">Profile → Edit</Link>. The <strong>Verified Creator</strong>{" "}
+              badge is different — it requires submitting a government ID and a selfie for manual
+              review, from{" "}
+              <Link href="/creator-dashboard?tab=verification">Creator Studio → Verification</Link>.
             </p>
           </FaqItem>
           <FaqItem question="What are Circles, and how do I manage who's in them?">
@@ -123,42 +120,6 @@ export default function HelpCenterPage() {
               Go to{" "}
               <Link href="/settings/subscriptions">Settings → Subscriptions</Link>, find the
               subscription, and cancel it. You keep access until the current billing period ends.
-            </p>
-          </FaqItem>
-          <FaqItem question={'What happens if I RSVP "Going" to a priced event?'}>
-            <p>
-              You&apos;ll be walked through checkout before your spot is confirmed — RSVPing alone
-              doesn&apos;t reserve a paid spot until payment completes.
-            </p>
-          </FaqItem>
-        </CategorySection>
-
-        <CategorySection id="events-meetups" title="Events & Meetups" icon={CalendarDays}>
-          <FaqItem question="What do Going, Interested, and Can't Go actually do?">
-            <p>
-              &ldquo;Going&rdquo; confirms your attendance (and completes payment first, if the event is
-              priced). &ldquo;Interested&rdquo; signals you might attend without committing, and shows up
-              in the host&apos;s RSVP breakdown. &ldquo;Can&apos;t Go&rdquo; simply removes any prior RSVP.
-            </p>
-          </FaqItem>
-          <FaqItem question="What's the difference between a public and private event?">
-            <p>
-              Public events appear in <Link href="/events">Events</Link> browsing for everyone. Private
-              events still accept RSVPs the same way, but only show up if someone already has the direct
-              link.
-            </p>
-          </FaqItem>
-          <FaqItem question="Can I chat with other attendees before the event?">
-            <p>
-              Yes — every event has its own group chat, open to the host and anyone RSVP&apos;d
-              &ldquo;Going,&rdquo; right on the event page&apos;s Chat tab.
-            </p>
-          </FaqItem>
-          <FaqItem question="How do I host my own event?">
-            <p>
-              Create one from <Link href="/events/new">Host a new event</Link>, then manage RSVPs,
-              edit details, and moderate the event chat from{" "}
-              <Link href="/events/manage">Manage Events</Link>.
             </p>
           </FaqItem>
         </CategorySection>
@@ -206,9 +167,9 @@ export default function HelpCenterPage() {
               <Link href="/safety/blocked">Safety Center → Blocked</Link>.
             </p>
           </FaqItem>
-          <FaqItem question="How do I report a profile, message, post, or event?">
+          <FaqItem question="How do I report a profile, message, or post?">
             <p>
-              Look for the report flag icon on the profile, message, post, or event in question, choose
+              Look for the report flag icon on the profile, message, or post in question, choose
               a reason, and add optional details. Track your submissions from{" "}
               <Link href="/safety/reports">Safety Center → My Reports</Link>.
             </p>

@@ -165,90 +165,6 @@ async function handleHeartsPurchaseEvent(
 }
 
 /**
- * A priced event's "going" RSVP checkout — the pending row here is the
- * Transaction itself (created against `eventId` by lib/rsvp.ts's setRsvp),
- * not a dedicated model like the other kinds, so success/failure updates
- * that same row rather than creating a new ledger entry.
- */
-async function handleEventRsvpEvent(
-  event: WebhookEvent,
-  db: Db,
-): Promise<void> {
-  const pendingId = event.metadata.pendingId;
-  if (!pendingId) return;
-
-  const pending = await db.transaction.findUnique({ where: { id: pendingId } });
-  if (!pending || pending.status !== "pending" || !pending.eventId) return;
-
-  if (event.type !== "charge.succeeded") {
-    await db.transaction.update({
-      where: { id: pendingId },
-      data: { status: "failed" },
-    });
-    await notifyPaymentFailed(pending.userId);
-    return;
-  }
-
-  const eventRow = await db.event.findUnique({
-    where: { id: pending.eventId },
-  });
-  if (!eventRow) {
-    await db.transaction.update({
-      where: { id: pendingId },
-      data: { status: "failed" },
-    });
-    return;
-  }
-
-  if (
-    eventRow.maxAttendees !== null &&
-    eventRow.currentAttendees >= eventRow.maxAttendees
-  ) {
-    const existingRsvp = await db.eventRsvp.findUnique({
-      where: {
-        eventId_userId: { eventId: eventRow.id, userId: pending.userId },
-      },
-    });
-    if (existingRsvp?.status !== "going") {
-      await db.transaction.update({
-        where: { id: pendingId },
-        data: { status: "failed" },
-      });
-      return;
-    }
-  }
-
-  const existingRsvp = await db.eventRsvp.findUnique({
-    where: { eventId_userId: { eventId: eventRow.id, userId: pending.userId } },
-  });
-
-  await db.eventRsvp.upsert({
-    where: { eventId_userId: { eventId: eventRow.id, userId: pending.userId } },
-    create: { eventId: eventRow.id, userId: pending.userId, status: "going" },
-    update: { status: "going" },
-  });
-
-  if (existingRsvp?.status !== "going") {
-    await db.event.update({
-      where: { id: eventRow.id },
-      data: { currentAttendees: { increment: 1 } },
-    });
-  }
-
-  await db.transaction.update({
-    where: { id: pendingId },
-    data: {
-      status: "succeeded",
-      providerReference: event.reference,
-      escrowStatus: "held",
-    },
-  });
-
-  if (event.paymentMethod)
-    await upsertPaymentMethod(pending.userId, event.paymentMethod, db);
-}
-
-/**
  * A service booking's payment — the pending row is the ServiceBooking
  * itself, created "pending_payment" the moment the customer requests a slot
  * (see lib/service-bookings.ts's createServiceBooking). On success this is
@@ -342,8 +258,6 @@ async function dispatch(event: WebhookEvent, db: Db): Promise<void> {
       return handleProviderTierEvent(event, db);
     case "hearts_purchase":
       return handleHeartsPurchaseEvent(event, db);
-    case "event_rsvp":
-      return handleEventRsvpEvent(event, db);
     case "service_booking":
       return handleServiceBookingEvent(event, db);
     default:

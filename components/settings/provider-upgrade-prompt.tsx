@@ -9,14 +9,7 @@ const COPY = {
     eyebrow: "Premium content",
     title: "Switch to a provider account to publish paid posts.",
     description:
-      "Provider accounts can create premium posts, host events, list services, and set up monetization.",
-    cta: "Switch account",
-  },
-  event: {
-    eyebrow: "Event hosting",
-    title: "Switch to a provider account before hosting events.",
-    description:
-      "After switching, you can request host verification and publish events people can discover and RSVP to.",
+      "Provider accounts can create premium posts, list services, and set up monetization.",
     cta: "Switch account",
   },
   service: {

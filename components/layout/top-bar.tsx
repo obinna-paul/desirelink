@@ -32,8 +32,8 @@ export async function TopBar() {
       <div className="flex flex-col gap-2 md:hidden">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <div className="flex items-center">
-            <Button asChild variant="ghost" size="icon" aria-label="Events and services">
-              <Link href="/work">
+            <Button asChild variant="ghost" size="icon" aria-label="Services">
+              <Link href="/services">
                 <Briefcase className="h-5 w-5" aria-hidden="true" />
               </Link>
             </Button>

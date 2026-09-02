@@ -4,7 +4,6 @@ export const AVAILABILITY_STATUS_OPTIONS: { value: AvailabilityStatusType; label
   { value: "available_tonight", label: "Available tonight" },
   { value: "open_to_meeting", label: "Open to meeting" },
   { value: "chatting_only", label: "Chatting only" },
-  { value: "looking_for_event", label: "Looking for an event" },
   { value: "couple_looking", label: "Couple looking" },
   { value: "out_tonight", label: "Out tonight" },
 ];
@@ -14,7 +13,6 @@ export const AVAILABILITY_STATUS_LABELS: Record<AvailabilityStatusType, string> 
   out_tonight: "Out tonight",
   open_to_meeting: "Open to meeting",
   chatting_only: "Chatting only",
-  looking_for_event: "Looking for an event",
   couple_looking: "Couple looking",
 };
 

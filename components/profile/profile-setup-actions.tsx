@@ -29,7 +29,6 @@ export type SetupProfile = Pick<
   | "showExactLocation"
   | "isVerified"
   | "isVerifiedCreator"
-  | "isVerifiedHost"
 >;
 
 async function fetchSetupStatus(url: string): Promise<{ profile: SetupProfile }> {
@@ -49,7 +48,7 @@ export function ProfileSetupActions({ profile: initialProfile }: { profile: Setu
     dedupingInterval: 3_000,
   });
   const profile = data?.profile ?? initialProfile;
-  const hasVerification = profile.isVerified || profile.isVerifiedCreator || profile.isVerifiedHost;
+  const hasVerification = profile.isVerified || profile.isVerifiedCreator;
 
   const actions = useMemo(
     () => [

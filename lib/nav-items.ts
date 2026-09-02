@@ -1,6 +1,5 @@
 import {
   Briefcase,
-  CalendarDays,
   Compass,
   Home,
   LineChart,
@@ -29,7 +28,6 @@ export const primaryNavItems: NavItem[] = [
 ];
 
 export const secondaryNavItems: NavItem[] = [
-  { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/services", label: "Services", icon: Briefcase },
   { href: "/communities", label: "Communities", icon: Users },
   { href: "/wallet", label: "Wallet", icon: Wallet },
