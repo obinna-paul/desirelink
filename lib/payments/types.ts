@@ -60,6 +60,8 @@ export type PayoutTransferResult = {
   status: "success" | "pending" | "failed";
 };
 
+export type Bank = { name: string; code: string };
+
 export type RefundResult = {
   reference: string;
   status: "success" | "pending" | "failed";
@@ -99,6 +101,12 @@ export interface PaymentProvider {
 
   /** Detaches/deactivates a saved card so it can no longer be charged. */
   detachPaymentMethod(customerId: string, paymentMethodId: string): Promise<void>;
+
+  /** Lists supported payout banks (name + code) so payout setup can offer a dropdown instead of a raw bank-code field. */
+  getBanks(): Promise<Bank[]>;
+
+  /** Resolves the account holder's name straight from the bank for a given account number + bank code — so payout setup never has to ask the user to type their own name (which risks a mismatch that fails the actual transfer). */
+  resolveAccountName(accountNumber: string, bankCode: string): Promise<string>;
 
   /** Creates or refreshes a provider payout recipient. Paystack stores the actual bank details. */
   createPayoutRecipient(input: PayoutRecipientInput): Promise<PayoutRecipient>;

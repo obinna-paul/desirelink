@@ -100,28 +100,43 @@ export async function POST(req: Request, { params }: { params: { providerId: str
   if ("error" in auth) return auth.error;
 
   const body = await req.json().catch(() => null);
-  const name = typeof body?.name === "string" && body.name.trim() ? body.name.trim() : auth.profile.displayName;
   const accountNumber = typeof body?.accountNumber === "string" ? body.accountNumber.trim() : "";
   const bankCode = typeof body?.bankCode === "string" ? body.bankCode.trim() : "";
   const bankName = typeof body?.bankName === "string" ? body.bankName.trim() : "";
-  const recipientType =
-    typeof body?.recipientType === "string" && body.recipientType.trim() ? body.recipientType.trim() : "nuban";
-  const country = typeof body?.country === "string" ? body.country.trim().toUpperCase() : "";
-  const currency = typeof body?.currency === "string" && body.currency.trim() ? body.currency.trim().toUpperCase() : "NGN";
 
-  if (!accountNumber || !bankCode || !bankName) {
-    return NextResponse.json({ error: "accountNumber, bankCode, and bankName are required" }, { status: 400 });
+  if (!/^\d{10}$/.test(accountNumber) || !bankCode || !bankName) {
+    return NextResponse.json({ error: "Choose a bank and enter a valid 10-digit account number." }, { status: 400 });
   }
 
-  const recipient = await paymentProvider.createPayoutRecipient({
-    name,
-    recipientType,
-    accountNumber,
-    bankCode,
-    bankName,
-    country,
-    currency,
-  });
+  // Never trust a client-supplied account name — always resolve it ourselves right
+  // before creating the recipient, so a payout can never be set up against a name
+  // that doesn't actually match the bank account (which would fail the transfer).
+  let name: string;
+  try {
+    name = await paymentProvider.resolveAccountName(accountNumber, bankCode);
+  } catch (error) {
+    console.error("[payout-setup] failed to resolve account name", error);
+    return NextResponse.json(
+      { error: "Couldn't verify that account number. Double-check the bank and number." },
+      { status: 400 },
+    );
+  }
+
+  let recipient;
+  try {
+    recipient = await paymentProvider.createPayoutRecipient({
+      name,
+      recipientType: "nuban",
+      accountNumber,
+      bankCode,
+      bankName,
+      country: "NG",
+      currency: "NGN",
+    });
+  } catch (error) {
+    console.error("[payout-setup] failed to create payout recipient", error);
+    return NextResponse.json({ error: "Couldn't save your payout details. Try again shortly." }, { status: 502 });
+  }
 
   const profile = await prisma.profile.update({
     where: { id: auth.profile.id },

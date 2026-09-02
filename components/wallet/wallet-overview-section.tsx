@@ -24,19 +24,20 @@ export async function WalletOverviewSection({ profileId }: { profileId: string }
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="rounded-2xl bg-foreground p-5 text-background">
+      <div className="rounded-2xl bg-primary p-5 text-primary-foreground shadow-card">
         {overview.isProvider ? (
           <>
-            <p className="label-caps text-background/60">Wallet balance</p>
-            <p className="font-heading mt-1.5 text-3xl italic font-semibold">{formatCents(overview.walletBalanceCents)}</p>
-            <p className="mt-1 text-[11px] text-background/60">
-              A {Math.round(WALLET_WITHDRAWAL_FEE_RATE * 100)}% fee applies at withdrawal.
+            <p className="label-caps text-primary-foreground/70">Wallet balance</p>
+            <p className="mt-1.5 text-3xl font-bold tabular-nums">{formatCents(overview.walletBalanceCents)}</p>
+            <p className="mt-1 text-[11px] text-primary-foreground/70">
+              A {Math.round(WALLET_WITHDRAWAL_FEE_RATE * 100)}% fee applies. Withdrawals are reviewed and paid out
+              within 2–3 business days.
             </p>
           </>
         ) : (
-          <p className="label-caps text-background/60">Wallet</p>
+          <p className="label-caps text-primary-foreground/70">Wallet</p>
         )}
-        <div className="mt-3 flex items-center gap-2 text-sm font-semibold text-background/85">
+        <div className="mt-3 flex items-center gap-2 rounded-full bg-primary-foreground/10 px-3 py-1.5 text-sm font-semibold w-fit">
           <Heart className="h-4 w-4" aria-hidden="true" fill="currentColor" />
           {overview.heartsBalance.toLocaleString()} Hearts available to send
         </div>
@@ -44,6 +45,7 @@ export async function WalletOverviewSection({ profileId }: { profileId: string }
           <div className="mt-4">
             <WithdrawWalletButton
               disabled={!overview.payoutReady || overview.walletBalanceCents < MINIMUM_WITHDRAWAL_CENTS}
+              className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
             />
           </div>
         )}

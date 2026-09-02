@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 import { processPaymentEvent } from "@/lib/payments/webhook-handler";
+import { safeConfirmPayment } from "@/lib/payments/safe-call";
 import { profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
 
 async function getOrCreatePaymentCustomerId(profileId: string, existingCustomerId: string | null): Promise<string> {
@@ -28,51 +29,56 @@ async function createEventRsvpCheckout(
   priceCents: number,
   urls: { successUrl: string; cancelUrl: string }
 ): Promise<RsvpResult> {
-  const profile = await prisma.profile.findUniqueOrThrow({
-    where: { id: profileId },
-    select: { paymentCustomerId: true },
-  });
-  const customerId = await getOrCreatePaymentCustomerId(profileId, profile.paymentCustomerId);
-  const defaultCard = await prisma.paymentMethod.findFirst({ where: { userId: profileId, isDefault: true } });
+  try {
+    const profile = await prisma.profile.findUniqueOrThrow({
+      where: { id: profileId },
+      select: { paymentCustomerId: true },
+    });
+    const customerId = await getOrCreatePaymentCustomerId(profileId, profile.paymentCustomerId);
+    const defaultCard = await prisma.paymentMethod.findFirst({ where: { userId: profileId, isDefault: true } });
 
-  if (defaultCard) {
-    const { reference, success } = await paymentProvider.chargeSavedPaymentMethod(
-      customerId,
-      defaultCard.externalId,
-      priceCents,
-      { kind: "event_rsvp" }
-    );
-    if (!success) {
-      return { ok: false, status: 402, error: "Your saved card was declined. Try updating your payment method." };
+    if (defaultCard) {
+      const { reference, success } = await paymentProvider.chargeSavedPaymentMethod(
+        customerId,
+        defaultCard.externalId,
+        priceCents,
+        { kind: "event_rsvp" }
+      );
+      if (!success) {
+        return { ok: false, status: 402, error: "Your saved card was declined. Try updating your payment method." };
+      }
+
+      const transaction = await prisma.transaction.create({
+        data: { userId: profileId, eventId, amountCents: priceCents, status: "pending", provider: "card" },
+      });
+      await processPaymentEvent({
+        type: "charge.succeeded",
+        customerId,
+        paymentMethod: null,
+        amountCents: priceCents,
+        reference,
+        metadata: { kind: "event_rsvp", pendingId: transaction.id },
+      });
+      return { ok: true, state: "updated", status: "going" };
     }
 
     const transaction = await prisma.transaction.create({
-      data: { userId: profileId, eventId, amountCents: priceCents, status: "pending", provider: "card" },
+      data: { userId: profileId, eventId, amountCents: priceCents, status: "pending", provider: "paystack" },
     });
-    await processPaymentEvent({
-      type: "charge.succeeded",
+
+    const checkoutUrl = await paymentProvider.createCheckoutSession(
       customerId,
-      paymentMethod: null,
-      amountCents: priceCents,
-      reference,
-      metadata: { kind: "event_rsvp", pendingId: transaction.id },
-    });
-    return { ok: true, state: "updated", status: "going" };
+      priceCents,
+      urls.successUrl,
+      urls.cancelUrl,
+      { kind: "event_rsvp", pendingId: transaction.id }
+    );
+
+    return { ok: true, state: "checkout", checkoutUrl };
+  } catch (error) {
+    console.error("[payments] createEventRsvpCheckout failed", error);
+    return { ok: false, status: 502, error: "We couldn't reach the payment provider. Please try again in a moment." };
   }
-
-  const transaction = await prisma.transaction.create({
-    data: { userId: profileId, eventId, amountCents: priceCents, status: "pending", provider: "paystack" },
-  });
-
-  const checkoutUrl = await paymentProvider.createCheckoutSession(
-    customerId,
-    priceCents,
-    urls.successUrl,
-    urls.cancelUrl,
-    { kind: "event_rsvp", pendingId: transaction.id }
-  );
-
-  return { ok: true, state: "checkout", checkoutUrl };
 }
 
 export const RSVP_ACTIONS = ["going", "interested", "not_going"] as const;
@@ -230,6 +236,8 @@ export async function setRsvp(
  * longer "pending".
  */
 export async function confirmEventRsvpPayment(reference: string): Promise<void> {
-  const event = await paymentProvider.verifyTransaction(reference);
-  await processPaymentEvent(event);
+  await safeConfirmPayment("confirmEventRsvpPayment", async () => {
+    const event = await paymentProvider.verifyTransaction(reference);
+    await processPaymentEvent(event);
+  });
 }

@@ -5,7 +5,9 @@ import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { isAdminUser } from "@/lib/admin";
 import { getPendingVerificationRequests } from "@/lib/verification";
+import { getPendingWithdrawals } from "@/lib/wallet";
 import { VerificationQueue } from "@/components/admin/verification-queue";
+import { WithdrawalsQueue } from "@/components/admin/withdrawals-queue";
 import { Button } from "@/components/ui/button";
 
 export default async function AdminPage() {
@@ -18,16 +20,28 @@ export default async function AdminPage() {
     notFound();
   }
 
-  const requests = await getPendingVerificationRequests();
+  const [requests, withdrawals] = await Promise.all([
+    getPendingVerificationRequests(),
+    getPendingWithdrawals(),
+  ]);
 
   return (
-    <div className="flex flex-col gap-4 md:gap-6">
+    <div className="flex flex-col gap-6 md:gap-8">
       <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
         <Button asChild variant="outline" className="w-full sm:w-auto">
           <Link href="/admin/moderation">Open moderation queue</Link>
         </Button>
       </div>
-      <VerificationQueue initialRequests={requests} />
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-foreground">Verification requests</h2>
+        <VerificationQueue initialRequests={requests} />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-foreground">Withdrawal requests</h2>
+        <WithdrawalsQueue initialWithdrawals={withdrawals} />
+      </section>
     </div>
   );
 }
