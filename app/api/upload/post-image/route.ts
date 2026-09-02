@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { storeUpload } from "@/lib/uploads";
+import { storeUpload, uploadErrorResponse } from "@/lib/uploads";
 import { allowedImageTypesLabel, isAllowedImageFile } from "@/lib/security/uploads";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -51,7 +51,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url }, { status: 200 });
   } catch (error) {
-    console.error("[upload/post-image] failed", error);
-    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 502 });
+    return uploadErrorResponse(error, "[upload/post-image]");
   }
 }

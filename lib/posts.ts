@@ -2,6 +2,7 @@ import { Prisma, type ProfileType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import type { PostMediaItem } from "@/lib/post-shared";
+import { getLiveStreamIdsByProvider, getPresenceStatus, type PresenceStatus } from "@/lib/presence";
 
 const FEED_LIMIT = 30;
 const PROFILE_POSTS_LIMIT = 50;
@@ -31,6 +32,17 @@ const postAuthorSelect = {
   displayName: true,
   avatarUrl: true,
   profileType: true,
+  lastActiveAt: true,
+  showActivityStatus: true,
+} as const;
+
+const commentAuthorSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  avatarUrl: true,
+  lastActiveAt: true,
+  showActivityStatus: true,
 } as const;
 
 type RawPost = {
@@ -48,6 +60,8 @@ type RawPost = {
     displayName: string;
     avatarUrl: string;
     profileType: ProfileType;
+    lastActiveAt: Date | null;
+    showActivityStatus: boolean;
   };
   comments: RawComment[];
   reactions: { id: string }[];
@@ -65,6 +79,8 @@ export type PostCommentView = {
     username: string;
     displayName: string;
     avatarUrl: string;
+    presenceStatus: PresenceStatus;
+    activeStreamId: string | null;
   };
   replies: PostCommentView[];
 };
@@ -78,6 +94,8 @@ type RawComment = {
     username: string;
     displayName: string;
     avatarUrl: string;
+    lastActiveAt: Date | null;
+    showActivityStatus: boolean;
   };
   replies?: RawComment[];
 };
@@ -100,6 +118,8 @@ export type PostView = {
     displayName: string;
     avatarUrl: string;
     profileType: ProfileType;
+    presenceStatus: PresenceStatus;
+    activeStreamId: string | null;
   };
   counts: { comments: number; reactions: number; shares: number };
   viewerLiked: boolean;
@@ -163,20 +183,45 @@ export function toMediaItems(value: unknown): PostMediaItem[] {
   });
 }
 
-function toCommentView(comment: RawComment): PostCommentView {
+function toCommentView(comment: RawComment, liveStreamIds: Map<string, string>): PostCommentView {
   return {
     id: comment.id,
     content: comment.content,
     createdAt: comment.createdAt.toISOString(),
-    author: comment.author,
-    replies: (comment.replies ?? []).map(toCommentView),
+    author: {
+      id: comment.author.id,
+      username: comment.author.username,
+      displayName: comment.author.displayName,
+      avatarUrl: comment.author.avatarUrl,
+      presenceStatus: getPresenceStatus(comment.author, liveStreamIds.has(comment.author.id)),
+      activeStreamId: liveStreamIds.get(comment.author.id) ?? null,
+    },
+    replies: (comment.replies ?? []).map((reply) => toCommentView(reply, liveStreamIds)),
   };
+}
+
+/** Collects every author id appearing in a page of posts (post authors + preview-comment
+ * authors, one level of replies deep) so callers can batch a single live-status lookup
+ * instead of querying per post. */
+function collectPostAuthorIds(posts: RawPost[]): string[] {
+  const ids = new Set<string>();
+  for (const post of posts) {
+    ids.add(post.author.id);
+    for (const comment of post.comments) {
+      ids.add(comment.author.id);
+      for (const reply of comment.replies ?? []) {
+        ids.add(reply.author.id);
+      }
+    }
+  }
+  return Array.from(ids);
 }
 
 function toPostView(
   post: RawPost,
   hasSubscriberAccess: boolean,
   viewerProfileId: string | null = null,
+  liveStreamIds: Map<string, string> = new Map(),
 ): PostView {
   const lockReason: PostLockReason | null =
     post.isSubscriberOnly && !hasSubscriberAccess ? "subscriber_only" : null;
@@ -195,12 +240,20 @@ function toPostView(
     content: locked ? null : post.content,
     mediaUrls: locked ? [] : mediaItems.map((item) => item.url),
     mediaItems: locked ? [] : mediaItems,
-    author: post.author,
+    author: {
+      id: post.author.id,
+      username: post.author.username,
+      displayName: post.author.displayName,
+      avatarUrl: post.author.avatarUrl,
+      profileType: post.author.profileType,
+      presenceStatus: getPresenceStatus(post.author, liveStreamIds.has(post.author.id)),
+      activeStreamId: liveStreamIds.get(post.author.id) ?? null,
+    },
     counts: post._count,
     viewerLiked: post.reactions.length > 0,
     viewerCanManage: post.author.id === viewerProfileId,
     viewerCanEdit: post.author.id === viewerProfileId,
-    comments: locked ? [] : post.comments.map(toCommentView),
+    comments: locked ? [] : post.comments.map((comment) => toCommentView(comment, liveStreamIds)),
   };
 }
 
@@ -231,14 +284,7 @@ function postSelect(viewerProfileId: string | null) {
         id: true,
         content: true,
         createdAt: true,
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
+        author: { select: commentAuthorSelect },
         replies: {
           orderBy: { createdAt: "asc" as const },
           take: 2,
@@ -246,14 +292,7 @@ function postSelect(viewerProfileId: string | null) {
             id: true,
             content: true,
             createdAt: true,
-            author: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
+            author: { select: commentAuthorSelect },
           },
         },
       },
@@ -315,7 +354,8 @@ export async function getCreatorProfilePosts(
     });
   }
 
-  return posts.map((post) => toPostView(post, hasSubscriberAccess, viewerProfileId));
+  const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
+  return posts.map((post) => toPostView(post, hasSubscriberAccess, viewerProfileId, liveStreamIds));
 }
 
 export async function getFeedPosts(
@@ -362,11 +402,13 @@ export async function getFeedPosts(
     });
   }
 
+  const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
   return posts.map((post) =>
     toPostView(
       post,
       post.author.id === viewerProfileId || subscribedCreatorIds.has(post.author.id),
       viewerProfileId,
+      liveStreamIds,
     ),
   );
 }
@@ -388,8 +430,9 @@ export async function getPublicFeedPosts(
       select: postSelect(viewerProfileId),
     });
 
+    const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
     return posts.map((post) =>
-      toPostView(post, post.author.id === viewerProfileId || !post.isSubscriberOnly, viewerProfileId),
+      toPostView(post, post.author.id === viewerProfileId || !post.isSubscriberOnly, viewerProfileId, liveStreamIds),
     );
   } catch (error) {
     if (isMissingPostArchiveError(error)) {
@@ -408,8 +451,9 @@ export async function getPublicFeedPosts(
         select: postSelect(viewerProfileId),
       });
 
+      const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
       return posts.map((post) =>
-        toPostView(post, post.author.id === viewerProfileId || !post.isSubscriberOnly, viewerProfileId),
+        toPostView(post, post.author.id === viewerProfileId || !post.isSubscriberOnly, viewerProfileId, liveStreamIds),
       );
     }
     if (isMissingSchemaError(error)) {
@@ -451,5 +495,6 @@ export async function getPostByIdForViewer(
       ? await isActiveSubscriber(viewerProfileId, post.author.id)
       : false);
 
-  return toPostView(post, hasSubscriberAccess, viewerProfileId);
+  const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds([post]));
+  return toPostView(post, hasSubscriberAccess, viewerProfileId, liveStreamIds);
 }

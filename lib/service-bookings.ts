@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 import { processPaymentEvent } from "@/lib/payments/webhook-handler";
+import { safeConfirmPayment } from "@/lib/payments/safe-call";
 import { creditProviderWallet } from "@/lib/wallet";
 import type { ServiceBooking } from "@prisma/client";
 
@@ -83,48 +84,57 @@ export async function createServiceBooking(
     },
   });
 
-  const profile = await prisma.profile.findUniqueOrThrow({
-    where: { id: customerId },
-    select: { paymentCustomerId: true },
-  });
-  const paymentCustomerId = await getOrCreatePaymentCustomerId(customerId, profile.paymentCustomerId);
-  const defaultCard = await prisma.paymentMethod.findFirst({ where: { userId: customerId, isDefault: true } });
+  try {
+    const profile = await prisma.profile.findUniqueOrThrow({
+      where: { id: customerId },
+      select: { paymentCustomerId: true },
+    });
+    const paymentCustomerId = await getOrCreatePaymentCustomerId(customerId, profile.paymentCustomerId);
+    const defaultCard = await prisma.paymentMethod.findFirst({ where: { userId: customerId, isDefault: true } });
 
-  if (defaultCard) {
-    const { reference, success } = await paymentProvider.chargeSavedPaymentMethod(
-      paymentCustomerId,
-      defaultCard.externalId,
-      listing.priceCents,
-      { kind: "service_booking" },
-    );
-    if (!success) {
-      await prisma.serviceBooking.update({
-        where: { id: booking.id },
-        data: { status: "cancelled", declineReason: "Payment failed." },
+    if (defaultCard) {
+      const { reference, success } = await paymentProvider.chargeSavedPaymentMethod(
+        paymentCustomerId,
+        defaultCard.externalId,
+        listing.priceCents,
+        { kind: "service_booking" },
+      );
+      if (!success) {
+        await prisma.serviceBooking.update({
+          where: { id: booking.id },
+          data: { status: "cancelled", declineReason: "Payment failed." },
+        });
+        return { ok: false, status: 402, error: "Your saved card was declined. Try updating your payment method." };
+      }
+
+      await processPaymentEvent({
+        type: "charge.succeeded",
+        customerId: paymentCustomerId,
+        paymentMethod: null,
+        amountCents: listing.priceCents,
+        reference,
+        metadata: { kind: "service_booking", pendingId: booking.id },
       });
-      return { ok: false, status: 402, error: "Your saved card was declined. Try updating your payment method." };
+      return { ok: true, state: "pending_provider", bookingId: booking.id };
     }
 
-    await processPaymentEvent({
-      type: "charge.succeeded",
-      customerId: paymentCustomerId,
-      paymentMethod: null,
-      amountCents: listing.priceCents,
-      reference,
-      metadata: { kind: "service_booking", pendingId: booking.id },
+    const checkoutUrl = await paymentProvider.createCheckoutSession(
+      paymentCustomerId,
+      listing.priceCents,
+      urls.successUrl,
+      urls.cancelUrl,
+      { kind: "service_booking", pendingId: booking.id },
+    );
+
+    return { ok: true, state: "checkout", bookingId: booking.id, checkoutUrl };
+  } catch (error) {
+    console.error("[payments] createServiceBooking failed", error);
+    await prisma.serviceBooking.update({
+      where: { id: booking.id },
+      data: { status: "cancelled", declineReason: "Payment failed." },
     });
-    return { ok: true, state: "pending_provider", bookingId: booking.id };
+    return { ok: false, status: 502, error: "We couldn't reach the payment provider. Please try again in a moment." };
   }
-
-  const checkoutUrl = await paymentProvider.createCheckoutSession(
-    paymentCustomerId,
-    listing.priceCents,
-    urls.successUrl,
-    urls.cancelUrl,
-    { kind: "service_booking", pendingId: booking.id },
-  );
-
-  return { ok: true, state: "checkout", bookingId: booking.id, checkoutUrl };
 }
 
 /**
@@ -133,8 +143,10 @@ export async function createServiceBooking(
  * Safe to call more than once.
  */
 export async function confirmServiceBookingPayment(reference: string): Promise<void> {
-  const event = await paymentProvider.verifyTransaction(reference);
-  await processPaymentEvent(event);
+  await safeConfirmPayment("confirmServiceBookingPayment", async () => {
+    const event = await paymentProvider.verifyTransaction(reference);
+    await processPaymentEvent(event);
+  });
 }
 
 export type BookingActionResult =

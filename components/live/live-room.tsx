@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConnectionState, Track } from "livekit-client";
+import type { LocalVideoTrack } from "livekit-client";
 import type { PresenceChannel } from "pusher-js";
 import {
   ConnectionStateToast,
@@ -128,7 +129,17 @@ function HostControls({
   async function flipCamera() {
     const next = facingMode === "user" ? "environment" : "user";
     setFacingMode(next);
-    if (camOn) await localParticipant.setCameraEnabled(true, { facingMode: next });
+    if (!camOn) return;
+    // setCameraEnabled(true, options) only applies `options` when it has to create a brand new
+    // track (camera going off -> on); if a camera track is already published it just unmutes the
+    // existing one and silently ignores the facingMode, so flipping does nothing. Restarting the
+    // live video track directly is what actually swaps which physical camera is capturing.
+    const videoTrack = localParticipant.getTrackPublication(Track.Source.Camera)?.track as LocalVideoTrack | undefined;
+    if (videoTrack) {
+      await videoTrack.restartTrack({ facingMode: next });
+    } else {
+      await localParticipant.setCameraEnabled(true, { facingMode: next });
+    }
   }
 
   return (

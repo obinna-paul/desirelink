@@ -16,3 +16,24 @@ if (process.env.CLOUDINARY_URL) {
 }
 
 export { cloudinary };
+
+/**
+ * Signs upload params for a direct browser-to-Cloudinary upload. Needed because Vercel's
+ * Node.js serverless functions cap request bodies at ~4.5MB — a real phone-recorded video
+ * (or even a several-MB photo) routed through our own API route as multipart form data gets
+ * silently rejected by the platform before our handler ever runs, which the client sees as a
+ * generic failed fetch. Signing here (api_secret never leaves the server) lets the browser
+ * upload the file bytes straight to Cloudinary instead, bypassing that limit entirely.
+ */
+export function createSignedUploadParams(paramsToSign: Record<string, string | number>) {
+  const config = cloudinary.config();
+  if (!config.api_key || !config.api_secret || !config.cloud_name) {
+    throw new Error("Cloudinary is not configured");
+  }
+
+  const timestamp = Math.round(Date.now() / 1000);
+  const fullParams = { ...paramsToSign, timestamp };
+  const signature = cloudinary.utils.api_sign_request(fullParams, config.api_secret);
+
+  return { ...fullParams, signature, apiKey: config.api_key, cloudName: config.cloud_name };
+}

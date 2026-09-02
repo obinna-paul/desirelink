@@ -1,4 +1,5 @@
 import type {
+  Bank,
   PaymentProvider,
   PayoutRecipient,
   PayoutRecipientInput,
@@ -80,6 +81,27 @@ export class MockPaymentProvider implements PaymentProvider {
     await delay(SIMULATED_DELAY_MS);
     void paymentMethodId;
     this.cardsByCustomer.delete(customerId);
+  }
+
+  async getBanks(): Promise<Bank[]> {
+    await delay(SIMULATED_DELAY_MS);
+    return [
+      { name: "Access Bank", code: "044" },
+      { name: "First Bank of Nigeria", code: "011" },
+      { name: "GTBank", code: "058" },
+      { name: "Kuda Bank", code: "50211" },
+      { name: "UBA", code: "033" },
+      { name: "Zenith Bank", code: "057" },
+    ];
+  }
+
+  async resolveAccountName(accountNumber: string, bankCode: string): Promise<string> {
+    await delay(SIMULATED_DELAY_MS);
+    void bankCode;
+    if (accountNumber.length !== 10) {
+      throw new Error("Could not resolve that account number.");
+    }
+    return "MOCK TEST ACCOUNT";
   }
 
   async createPayoutRecipient(input: PayoutRecipientInput): Promise<PayoutRecipient> {

@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { formatCents } from "@/lib/creator";
 
-export function WithdrawWalletButton({ disabled }: { disabled: boolean }) {
+export function WithdrawWalletButton({ disabled, className }: { disabled: boolean; className?: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,19 +26,23 @@ export function WithdrawWalletButton({ disabled }: { disabled: boolean }) {
       return;
     }
 
-    setSuccess(`${formatCents(body.netAmountCents)} is on its way to your bank (${formatCents(body.feeCents)} fee).`);
+    setSuccess(
+      `Withdrawal requested: ${formatCents(body.netAmountCents)} (${formatCents(body.feeCents)} fee). Reviewed and paid out within 2–3 business days.`
+    );
     router.refresh();
   }
 
   return (
     <div className="flex flex-col gap-2">
       {error && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="rounded-lg bg-destructive/15 px-2.5 py-1.5 text-xs font-medium text-destructive">
           {error}
         </p>
       )}
-      {success && <p className="text-xs text-neon-cyan">{success}</p>}
-      <Button type="button" onClick={withdraw} disabled={disabled || pending} className="w-fit">
+      {success && (
+        <p className="rounded-lg bg-primary-foreground/10 px-2.5 py-1.5 text-xs font-medium">{success}</p>
+      )}
+      <Button type="button" onClick={withdraw} disabled={disabled || pending} className={cn("w-fit", className)}>
         {pending ? "…" : "Withdraw to bank"}
       </Button>
     </div>

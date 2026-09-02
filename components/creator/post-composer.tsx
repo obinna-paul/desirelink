@@ -34,11 +34,13 @@ import {
   type PiiFinding,
 } from "@/lib/pii";
 import { convertHeicFileToJpeg, isHeicFile } from "@/lib/heic-convert";
+import { readFileAsArrayBuffer, sniffMediaKind } from "@/lib/media-sniff";
 import { useFocusTrap } from "@/lib/use-focus-trap";
+import { uploadMediaDirectToCloudinary } from "@/lib/client-uploads";
 import { cn } from "@/lib/utils";
 
-const MAX_IMAGE_FILE_SIZE = 8 * 1024 * 1024;
-const MAX_VIDEO_FILE_SIZE = 100 * 1024 * 1024;
+const MAX_IMAGE_FILE_SIZE = 30 * 1024 * 1024;
+const MAX_VIDEO_FILE_SIZE = 300 * 1024 * 1024;
 /** Generous enough for a real clip, short enough that nobody attaches a feature-length video to a post. */
 const MAX_VIDEO_DURATION_SECONDS = 3 * 60;
 
@@ -188,31 +190,27 @@ export function PostComposer({
     metadataDetected: boolean,
     crop?: VideoCrop,
   ) {
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+    const isVideo = file.type.startsWith("video/");
 
-      const res = await fetch("/api/upload/post-media", {
-        method: "POST",
-        body: formData,
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        setError(body?.error ?? "Upload failed. Please try again.");
-        return;
-      }
+    try {
+      const media = await uploadMediaDirectToCloudinary(
+        file,
+        isVideo ? "post-video" : "post-image",
+        "/api/upload/post-media",
+      );
 
       setMediaItems((prev) => [
         ...prev,
         {
-          ...body.media,
+          ...media,
+          type: isVideo ? "video" : "image",
           displayAspectRatio,
           metadataDetected,
           crop,
         },
       ]);
-    } catch {
-      setError("Upload failed. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
     }
   }
 
@@ -263,18 +261,28 @@ export function PostComposer({
           }
         }
 
-        const isImage = workingFile.type.startsWith("image/");
-        const isVideo = workingFile.type.startsWith("video/");
+        let isImage = workingFile.type.startsWith("image/");
+        let isVideo = workingFile.type.startsWith("video/");
+
+        // Some Android pickers, cloud-download managers, and OS/browser combos hand us a
+        // File with an empty or generic `type` - fall back to sniffing the real header bytes
+        // rather than rejecting a perfectly valid photo or video outright.
+        if (!isImage && !isVideo) {
+          const sniffed = await sniffMediaKind(workingFile).catch(() => null);
+          isImage = sniffed === "image";
+          isVideo = sniffed === "video";
+        }
+
         if (!isImage && !isVideo) {
           lastError = "Choose image or video files only.";
           continue;
         }
         if (isImage && workingFile.size > MAX_IMAGE_FILE_SIZE) {
-          lastError = "Each image must be under 8MB.";
+          lastError = `Each image must be under ${MAX_IMAGE_FILE_SIZE / (1024 * 1024)}MB.`;
           continue;
         }
         if (isVideo && workingFile.size > MAX_VIDEO_FILE_SIZE) {
-          lastError = "Each video must be under 100MB.";
+          lastError = `Each video must be under ${MAX_VIDEO_FILE_SIZE / (1024 * 1024)}MB.`;
           continue;
         }
 
@@ -288,9 +296,17 @@ export function PostComposer({
           continue;
         }
 
-        const metadataDetected = hasImageMetadataSignature(
-          await workingFile.arrayBuffer(),
-        );
+        // Metadata sniffing is a nice-to-have notice, not a gate - if reading the file for it
+        // fails (e.g. a cloud-sync placeholder still resolving to disk), the photo still goes
+        // through; a genuinely unreadable file will surface a clear error at the crop step instead.
+        let metadataDetected = false;
+        try {
+          metadataDetected = hasImageMetadataSignature(
+            await readFileAsArrayBuffer(workingFile),
+          );
+        } catch {
+          metadataDetected = false;
+        }
         imagesToReview.push({ file: workingFile, metadataDetected });
       } catch {
         lastError = "One file couldn't be processed. Try a different photo or video.";

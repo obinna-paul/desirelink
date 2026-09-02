@@ -6,10 +6,8 @@ import {
   CalendarDays,
   Ellipsis,
   LayoutGrid,
-  LineChart,
   LockKeyhole,
   MapPin,
-  MessageCircle,
   Star,
   type LucideIcon,
 } from "lucide-react";
@@ -20,6 +18,7 @@ import {
   PostGridSection,
   ServiceGridSection,
 } from "@/components/profile/creator-content-grid";
+import { InviteButton } from "@/components/profile/invite-button";
 import { ProfileAvatarEditor } from "@/components/profile/profile-avatar-editor";
 import { ProfileSectionTab } from "@/components/profile/profile-section-tab";
 import { ProfileSetupActions } from "@/components/profile/profile-setup-actions";
@@ -27,13 +26,12 @@ import { ProfileSubscribeButton } from "@/components/profile/profile-subscribe-b
 import { ShareProfileButton } from "@/components/profile/share-profile-button";
 import { SwipeableSection } from "@/components/profile/swipeable-section";
 import { VerificationBadge } from "@/components/profile/verification-badge";
+import type { PresenceStatus } from "@/lib/presence";
 import { ReviewDialog } from "@/components/reviews/review-dialog";
 import { ReviewsSection } from "@/components/reviews/reviews-section";
 import { BlockButton } from "@/components/safety/block-button";
 import { ReportDialog } from "@/components/safety/report-dialog";
-import { SendHeartsButton } from "@/components/hearts/send-hearts-button";
 import { Button } from "@/components/ui/button";
-import { getProfileCapabilityLabel } from "@/lib/profile-capabilities";
 import type { CreatorStats } from "@/lib/creator";
 import type { PostView } from "@/lib/posts";
 import type {
@@ -117,8 +115,10 @@ export function ProfileView({
   reviews,
   reviewableContexts = [],
   visibleProfileFields,
-  viewerHeartsBalance = 0,
   stats,
+  presenceStatus = "offline",
+  liveStreamId = null,
+  viewerIsProvider = false,
 }: {
   profile: Profile & {
     partner: {
@@ -140,18 +140,16 @@ export function ProfileView({
   reviews: ReviewData[];
   reviewableContexts?: ReviewableContext[];
   visibleProfileFields: ProfileFieldName[];
-  viewerHeartsBalance?: number;
   stats: CreatorStats;
+  presenceStatus?: PresenceStatus;
+  liveStreamId?: string | null;
+  viewerIsProvider?: boolean;
 }) {
   const section = normalizeSection(activeSection);
   const visibleFields = new Set(visibleProfileFields);
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
   const freePosts = posts.filter((post) => !post.isSubscriberOnly);
   const premiumPosts = posts.filter((post) => post.isSubscriberOnly);
-  const descriptor = getProfileCapabilityLabel({
-    profileType: profile.profileType,
-    offersServices: serviceListings.length > 0,
-  });
   const subscriptionReviewContexts = isProvider
     ? reviewableContexts.filter(
         (context) => context.contextType === "transaction",
@@ -160,11 +158,11 @@ export function ProfileView({
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-5xl">
-      <section className="overflow-hidden border-y border-border bg-card shadow-sm sm:rounded-2xl sm:border">
+      <section className="border-y border-border bg-card shadow-sm sm:rounded-2xl sm:border">
         {isOwner ? (
           <BannerUploader bannerUrl={profile.bannerUrl} />
         ) : profile.bannerUrl ? (
-          <div className="relative aspect-[3/1] w-full bg-muted md:aspect-[16/5]">
+          <div className="relative aspect-[3/1] w-full overflow-hidden bg-muted sm:rounded-t-2xl md:aspect-[16/5]">
             <Image
               src={profile.bannerUrl}
               alt={`${profile.displayName}'s cover photo`}
@@ -175,31 +173,33 @@ export function ProfileView({
             />
           </div>
         ) : (
-          <div className="aspect-[3/1] w-full bg-muted md:aspect-[16/5]" />
+          <div className="aspect-[3/1] w-full bg-muted sm:rounded-t-2xl md:aspect-[16/5]" />
         )}
 
         <div className="px-4 pb-5 sm:px-6 md:px-8 md:pb-7">
-          <div className="-mt-10 flex items-end gap-4 sm:-mt-12 md:-mt-14 md:items-start md:gap-6">
+          <div className="-mt-10 flex items-start gap-4 sm:-mt-12 md:-mt-14 md:gap-6">
             <ProfileAvatarEditor
               avatarUrl={profile.avatarUrl}
               displayName={profile.displayName}
-              descriptor={descriptor}
               isOwner={isOwner}
+              presenceStatus={presenceStatus}
+              liveStreamId={liveStreamId}
             />
 
-            <div className="min-w-0 flex-1 pb-1 md:pt-16">
-              <div className="flex min-w-0 items-center gap-2">
-                <h1 className="truncate font-heading text-xl font-semibold text-foreground sm:text-2xl md:text-3xl">
-                  {profile.displayName || `@${profile.username}`}
-                </h1>
-                <VerificationBadge profile={profile} />
-              </div>
+            <div className="min-w-0 flex-1 pt-11 sm:pt-14 md:pt-16">
               {profile.displayName && (
-                <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                <p className="truncate text-sm text-muted-foreground">
                   @{profile.username}
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 md:ml-[9.5rem]">
+            <h1 className="min-w-0 break-words font-heading text-xl font-semibold text-foreground sm:text-2xl md:text-3xl">
+              {profile.displayName || `@${profile.username}`}
+            </h1>
+            <VerificationBadge profile={profile} />
           </div>
 
           <div className="mt-4 grid max-w-xs grid-cols-3 divide-x divide-border sm:max-w-sm md:ml-[9.5rem] md:mt-4">
@@ -264,41 +264,36 @@ export function ProfileView({
             <div className="mt-4 flex items-center gap-2">
               {isOwner ? (
                 <>
-                  <Button
-                    asChild
-                    className="h-10 min-w-32 flex-1 sm:flex-none"
-                    variant="outline"
-                  >
+                  <Button asChild size="sm" className="flex-1" variant="outline">
                     <Link href="/profile/edit">Edit profile</Link>
                   </Button>
+                  {isProvider && (
+                    <Button asChild size="sm" className="flex-1">
+                      <Link href="/creator-dashboard">Dashboard</Link>
+                    </Button>
+                  )}
                   <ShareProfileButton
                     profileHref={profileHref}
                     displayName={profile.displayName}
+                    size="sm"
+                    className="sm:flex-1"
                   />
                 </>
-              ) : (
+              ) : isProvider ? (
                 <>
-                  {isProvider && subscription && (
-                    <ProfileSubscribeButton
-                      providerId={profile.id}
-                      subscription={subscription}
-                    />
-                  )}
                   {canMessage && (
-                    <Button
-                      asChild
-                      className="h-10 min-w-32 flex-1 sm:flex-none"
-                    >
+                    <Button asChild size="sm" className="flex-1">
                       <Link href={`/messages?with=${profile.username}`}>
-                        <MessageCircle className="h-4 w-4" aria-hidden="true" />{" "}
                         Message
                       </Link>
                     </Button>
                   )}
-                  {isProvider && (
-                    <SendHeartsButton
+                  {subscription && (
+                    <ProfileSubscribeButton
                       providerId={profile.id}
-                      initialBalance={viewerHeartsBalance}
+                      subscription={subscription}
+                      size="sm"
+                      className="flex-1"
                     />
                   )}
                   <details className="relative">
@@ -308,7 +303,52 @@ export function ProfileView({
                     >
                       <Ellipsis className="h-5 w-5" aria-hidden="true" />
                     </summary>
-                    <div className="absolute right-0 top-12 z-20 flex min-w-48 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-lift">
+                    <div className="absolute right-0 top-12 z-30 flex min-w-48 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-lift">
+                      <ShareProfileButton
+                        profileHref={profileHref}
+                        displayName={profile.displayName}
+                      />
+                      {canModerate && (
+                        <>
+                          <ReportDialog
+                            targetType="profile"
+                            targetId={profile.id}
+                          />
+                          <BlockButton
+                            profileId={profile.id}
+                            initiallyBlocked={false}
+                          />
+                        </>
+                      )}
+                    </div>
+                  </details>
+                </>
+              ) : (
+                <>
+                  {canMessage && (
+                    <Button
+                      asChild
+                      className="h-10 min-w-32 flex-1 sm:flex-none"
+                    >
+                      <Link href={`/messages?with=${profile.username}`}>
+                        Message
+                      </Link>
+                    </Button>
+                  )}
+                  {canMessage && viewerIsProvider && (
+                    <InviteButton
+                      recipientId={profile.id}
+                      recipientDisplayName={profile.displayName}
+                    />
+                  )}
+                  <details className="relative">
+                    <summary
+                      aria-label="More profile actions"
+                      className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted [&::-webkit-details-marker]:hidden"
+                    >
+                      <Ellipsis className="h-5 w-5" aria-hidden="true" />
+                    </summary>
+                    <div className="absolute right-0 top-12 z-30 flex min-w-48 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-lift">
                       <ShareProfileButton
                         profileHref={profileHref}
                         displayName={profile.displayName}
@@ -332,25 +372,6 @@ export function ProfileView({
             </div>
           </div>
 
-          {isOwner && isProvider && (
-            <Link
-              href="/creator-dashboard"
-              className="mt-5 hidden items-center gap-3 border-t border-border pt-4 transition-colors hover:text-primary md:flex"
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background">
-                <LineChart className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold">
-                  Creative Studio
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  {stats.profileViews.toLocaleString()} measured profile views ·{" "}
-                  {stats.subscriberCount.toLocaleString()} subscribers
-                </span>
-              </span>
-            </Link>
-          )}
         </div>
       </section>
 

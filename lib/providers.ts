@@ -5,6 +5,7 @@ import { paymentProvider } from "@/lib/payments";
 import { processPaymentEvent } from "@/lib/payments/webhook-handler";
 import { getProviderProfile } from "@/lib/provider-types";
 import { creditProviderWallet } from "@/lib/wallet";
+import { safeConfirmPayment } from "@/lib/payments/safe-call";
 
 export { PROVIDER_PROFILE_TYPES, isProviderProfileType, getProviderProfile } from "@/lib/provider-types";
 
@@ -102,50 +103,55 @@ export async function subscribeToProvider(
     }
   }
 
-  const subscriber = await prisma.profile.findUniqueOrThrow({
-    where: { id: subscriberId },
-    select: { paymentCustomerId: true },
-  });
-  const customerId = await getOrCreatePaymentCustomerId(subscriberId, subscriber.paymentCustomerId);
-  const defaultCard = await prisma.paymentMethod.findFirst({ where: { userId: subscriberId, isDefault: true } });
-
   const startsAt = new Date();
   const endsAt = new Date(startsAt);
   endsAt.setMonth(endsAt.getMonth() + SUBSCRIPTION_LENGTH_MONTHS);
 
-  if (defaultCard) {
-    const { reference, success } = await paymentProvider.chargeSavedPaymentMethod(
-      customerId,
-      defaultCard.externalId,
-      tier.priceCents,
-      { kind: "provider_tier", providerId, tierId }
-    );
-    if (!success) {
-      return { ok: false, status: 402, error: "Your saved card was declined. Try updating your payment method." };
+  try {
+    const subscriber = await prisma.profile.findUniqueOrThrow({
+      where: { id: subscriberId },
+      select: { paymentCustomerId: true },
+    });
+    const customerId = await getOrCreatePaymentCustomerId(subscriberId, subscriber.paymentCustomerId);
+    const defaultCard = await prisma.paymentMethod.findFirst({ where: { userId: subscriberId, isDefault: true } });
+
+    if (defaultCard) {
+      const { reference, success } = await paymentProvider.chargeSavedPaymentMethod(
+        customerId,
+        defaultCard.externalId,
+        tier.priceCents,
+        { kind: "provider_tier", providerId, tierId }
+      );
+      if (!success) {
+        return { ok: false, status: 402, error: "Your saved card was declined. Try updating your payment method." };
+      }
+      await prisma.providerSubscription.create({
+        data: { subscriberId, providerId, tierId, status: "active", paymentSubscriptionId: reference, startsAt, endsAt },
+      });
+      await prisma.transaction.create({
+        data: { userId: subscriberId, tierId, amountCents: tier.priceCents, status: "succeeded", provider: "card" },
+      });
+      await creditProviderWallet(providerId, tier.priceCents);
+      return { ok: true, state: "subscribed" };
     }
-    await prisma.providerSubscription.create({
-      data: { subscriberId, providerId, tierId, status: "active", paymentSubscriptionId: reference, startsAt, endsAt },
+
+    const pending = await prisma.providerSubscription.create({
+      data: { subscriberId, providerId, tierId, status: "pending", startsAt, endsAt },
     });
-    await prisma.transaction.create({
-      data: { userId: subscriberId, tierId, amountCents: tier.priceCents, status: "succeeded", provider: "card" },
-    });
-    await creditProviderWallet(providerId, tier.priceCents);
-    return { ok: true, state: "subscribed" };
+
+    const checkoutUrl = await paymentProvider.createCheckoutSession(
+      customerId,
+      tier.priceCents,
+      urls.successUrl,
+      urls.cancelUrl,
+      { kind: "provider_tier", pendingId: pending.id }
+    );
+
+    return { ok: true, state: "checkout", checkoutUrl };
+  } catch (error) {
+    console.error("[payments] subscribeToProvider failed", error);
+    return { ok: false, status: 502, error: "We couldn't reach the payment provider. Please try again in a moment." };
   }
-
-  const pending = await prisma.providerSubscription.create({
-    data: { subscriberId, providerId, tierId, status: "pending", startsAt, endsAt },
-  });
-
-  const checkoutUrl = await paymentProvider.createCheckoutSession(
-    customerId,
-    tier.priceCents,
-    urls.successUrl,
-    urls.cancelUrl,
-    { kind: "provider_tier", pendingId: pending.id }
-  );
-
-  return { ok: true, state: "checkout", checkoutUrl };
 }
 
 /**
@@ -156,8 +162,10 @@ export async function subscribeToProvider(
  * the pending row is no longer "pending".
  */
 export async function confirmProviderPayment(reference: string): Promise<void> {
-  const event = await paymentProvider.verifyTransaction(reference);
-  await processPaymentEvent(event);
+  await safeConfirmPayment("confirmProviderPayment", async () => {
+    const event = await paymentProvider.verifyTransaction(reference);
+    await processPaymentEvent(event);
+  });
 }
 
 export type ProviderUnsubscribeResult = { ok: true } | { ok: false; status: number; error: string };

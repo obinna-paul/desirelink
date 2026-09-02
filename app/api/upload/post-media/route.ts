@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
-import { storeUpload } from "@/lib/uploads";
+import { storeUpload, uploadErrorResponse } from "@/lib/uploads";
 import { prisma } from "@/lib/prisma";
 import {
   allowedPostMediaTypesLabel,
@@ -11,8 +11,8 @@ import {
   isAllowedVideoFile,
 } from "@/lib/security/uploads";
 
-const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
-const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 30 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 300 * 1024 * 1024;
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -46,10 +46,10 @@ export async function POST(req: Request) {
 
   const isVideo = isAllowedVideoFile(file);
   if (isAllowedImageFile(file) && file.size > MAX_IMAGE_SIZE) {
-    return NextResponse.json({ error: "Image must be under 8MB" }, { status: 400 });
+    return NextResponse.json({ error: `Image must be under ${MAX_IMAGE_SIZE / (1024 * 1024)}MB` }, { status: 400 });
   }
   if (isVideo && file.size > MAX_VIDEO_SIZE) {
-    return NextResponse.json({ error: "Video must be under 100MB" }, { status: 400 });
+    return NextResponse.json({ error: `Video must be under ${MAX_VIDEO_SIZE / (1024 * 1024)}MB` }, { status: 400 });
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -76,7 +76,6 @@ export async function POST(req: Request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("[upload/post-media] failed", error);
-    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 502 });
+    return uploadErrorResponse(error, "[upload/post-media]");
   }
 }

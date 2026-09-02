@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
-import { storeUpload } from "@/lib/uploads";
+import { storeUpload, uploadErrorResponse } from "@/lib/uploads";
 import {
   allowedVideoTypesLabel,
   isAllowedVideoFile,
 } from "@/lib/security/uploads";
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
+// Kept in sync with components/verification/verification-request-card.tsx's client-side check.
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
 
   if (file.size > MAX_FILE_SIZE) {
     return NextResponse.json(
-      { error: "Video must be under 20MB" },
+      { error: "Video must be under 50MB" },
       { status: 400 },
     );
   }
@@ -49,10 +50,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url }, { status: 200 });
   } catch (error) {
-    console.error("[upload/verification-selfie] failed", error);
-    return NextResponse.json(
-      { error: "Upload failed. Please try again." },
-      { status: 502 },
-    );
+    return uploadErrorResponse(error, "[upload/verification-selfie]");
   }
 }

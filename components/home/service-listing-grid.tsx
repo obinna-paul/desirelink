@@ -6,6 +6,7 @@ import { BriefcaseBusiness, CheckCircle2, Clock, MapPin, MessageCircle } from "l
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ShareButton } from "@/components/ui/share-button";
 import { BookingRequestDialog } from "@/components/services/booking-request-dialog";
 import { formatCents } from "@/lib/creator";
 import type { HomeServiceListingView } from "@/lib/service-listings";
@@ -40,7 +41,7 @@ function ServiceListingCard({
 
   return (
     <article className="group flex min-h-full flex-col overflow-hidden rounded-lg border border-border/70 bg-card transition-[border-color,box-shadow,transform] hover:border-foreground/20 hover:shadow-lift md:hover:-translate-y-0.5">
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-avatar-placeholder">
+      <Link href={`/services/${listing.id}`} className="relative aspect-[16/10] w-full overflow-hidden bg-avatar-placeholder">
         {listing.coverImageUrl ? (
           <Image src={listing.coverImageUrl} alt="" fill sizes="(min-width: 768px) 33vw, 100vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
         ) : (
@@ -48,7 +49,7 @@ function ServiceListingCard({
             <BriefcaseBusiness className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
           </div>
         )}
-      </div>
+      </Link>
 
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-start gap-3">
@@ -79,7 +80,11 @@ function ServiceListingCard({
 
         <div className="flex flex-1 flex-col gap-2">
           <p className="text-[11px] font-semibold uppercase text-primary">{listing.category}</p>
-          <h2 className="text-base font-semibold leading-snug">{listing.title}</h2>
+          <h2 className="text-base font-semibold leading-snug">
+            <Link href={`/services/${listing.id}`} className="hover:underline">
+              {listing.title}
+            </Link>
+          </h2>
           {listing.description && (
             <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{listing.description}</p>
           )}
@@ -90,7 +95,16 @@ function ServiceListingCard({
             <Clock className="h-4 w-4" aria-hidden="true" />
             {formatDuration(listing.durationMinutes)}
           </span>
-          <span className="text-sm font-semibold text-foreground">{formatCents(listing.priceCents)}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-foreground">{formatCents(listing.priceCents)}</span>
+            <ShareButton
+              href={`/services/${listing.id}`}
+              title={listing.title}
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+            />
+          </div>
         </div>
 
         {!isOwnListing && viewerProfileId && (

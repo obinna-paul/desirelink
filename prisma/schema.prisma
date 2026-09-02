@@ -31,16 +31,6 @@ enum EscrowStatus {
   refunded
 }
 
-enum RoomRole {
-  admin
-  member
-}
-
-enum RoomMemberStatus {
-  pending
-  approved
-}
-
 enum ReportStatus {
   pending
   reviewed
@@ -70,10 +60,8 @@ enum ModerationStatus {
 enum ReportTargetType {
   profile
   message
-  group_message
   post
   post_comment
-  room_post
 }
 
 enum PostType {
@@ -87,10 +75,6 @@ enum PostReactionType {
 
 enum ReviewContextType {
   transaction
-}
-
-enum ChatChannelType {
-  room
 }
 
 enum MessageMediaType {
@@ -260,9 +244,6 @@ model Profile {
   subscriptionsAsCreator Subscription[]        @relation("SubscriptionCreator")
   sentMessages           Message[]             @relation("MessageSender")
   receivedMessages       Message[]             @relation("MessageRecipient")
-  createdRooms           Room[]
-  roomMemberships        RoomMember[]
-  roomPosts              RoomPost[]
   posts                  Post[]
   postComments           PostComment[]
   postReactions          PostReaction[]
@@ -278,9 +259,6 @@ model Profile {
   transactions           Transaction[]
   reviewsGiven           Review[]              @relation("ReviewReviewer")
   reviewsReceived        Review[]              @relation("ReviewReviewee")
-  groupMessages          GroupMessage[]
-  chatMutesReceived      GroupChatMute[]       @relation("GroupChatMuteTarget")
-  chatMutesIssued        GroupChatMute[]       @relation("GroupChatMuteIssuer")
   verificationRequests   VerificationRequest[]
 
   providerSubscriptionsAsSub      ProviderSubscription[] @relation("ProviderSubscriptionSubscriber")
@@ -505,84 +483,6 @@ model Notification {
 
   @@index([recipientId, createdAt])
   @@index([recipientId, readAt])
-}
-
-// --- Rooms / communities -------------------------------------------------
-
-model Room {
-  id            String   @id @default(cuid())
-  name          String
-  description   String
-  isPrivate     Boolean  @default(false)
-  coverImageUrl String
-  createdById   String
-  createdBy     Profile  @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-
-  members RoomMember[]
-  posts   RoomPost[]
-
-  @@index([createdById])
-}
-
-model RoomMember {
-  id        String           @id @default(cuid())
-  roomId    String
-  room      Room             @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  userId    String
-  profile   Profile          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      RoomRole
-  status    RoomMemberStatus @default(approved)
-  createdAt DateTime         @default(now())
-
-  @@unique([roomId, userId])
-  @@index([roomId])
-  @@index([userId])
-}
-
-model RoomPost {
-  id        String   @id @default(cuid())
-  roomId    String
-  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    Profile  @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  content   String
-  mediaUrls Json
-  createdAt DateTime @default(now())
-
-  @@index([roomId])
-  @@index([authorId])
-}
-
-// --- Group chat (rooms) -----------------------------------------------------
-// channelId is a Room.id — kept as a plain indexed string rather than a
-// foreign key so ChatChannelType can grow new channel kinds later.
-
-model GroupMessage {
-  id          String          @id @default(cuid())
-  channelType ChatChannelType
-  channelId   String
-  senderId    String
-  sender      Profile         @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  content     String
-  createdAt   DateTime        @default(now())
-
-  @@index([channelType, channelId])
-  @@index([senderId])
-}
-
-model GroupChatMute {
-  id          String          @id @default(cuid())
-  channelType ChatChannelType
-  channelId   String
-  userId      String
-  profile     Profile         @relation("GroupChatMuteTarget", fields: [userId], references: [id], onDelete: Cascade)
-  mutedById   String
-  mutedBy     Profile         @relation("GroupChatMuteIssuer", fields: [mutedById], references: [id], onDelete: Cascade)
-  createdAt   DateTime        @default(now())
-
-  @@unique([channelType, channelId, userId])
-  @@index([channelType, channelId])
 }
 
 // --- Creator posts -------------------------------------------------------

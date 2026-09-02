@@ -8,8 +8,8 @@ import { checkRateLimit } from "@/lib/security/rate-limit";
 import { liveStreamChannelName, LIVE_CHAT_MESSAGE_EVENT } from "@/lib/live-stream-channels";
 
 /**
- * Live-stream chat is broadcast-only and not persisted — it's a transient
- * companion to the video, not a record like room/event chat (lib/group-chat.ts).
+ * Live-stream chat is broadcast-only and not persisted — a transient
+ * companion to the video, not a stored record.
  */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);

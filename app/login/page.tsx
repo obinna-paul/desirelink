@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { AuthShell } from "@/components/auth/auth-shell";
 import { LoginForm } from "@/components/auth/login-form";
@@ -13,8 +14,12 @@ export default function LoginPage() {
     <AuthShell
       title="Welcome back"
       description="Log in to continue your conversations, plans, and creator access."
+      hideLogoIcon
+      hideFooter
     >
-      <LoginForm />
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
     </AuthShell>
   );
 }

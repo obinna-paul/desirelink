@@ -17,16 +17,22 @@ export function AuthShell({
   title,
   description,
   children,
+  hideLogoIcon = false,
+  hideFooter = false,
 }: {
   title: string;
   description: string;
   children: React.ReactNode;
+  hideLogoIcon?: boolean;
+  /** Suppresses the default "18+ / safety standards" footer paragraph - use when the page's
+   * own content (e.g. LoginForm's consent checkbox) already covers that agreement. */
+  hideFooter?: boolean;
 }) {
   return (
     <main className="min-h-dvh bg-[#f7f1f4] text-[#1b141b] lg:h-dvh lg:overflow-hidden">
       <div className="flex min-h-dvh flex-col px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-[calc(env(safe-area-inset-top)+1.25rem)] lg:hidden">
         <header className="flex justify-center">
-          <AuthLogo compact />
+          <AuthLogo compact hideIcon={hideLogoIcon} />
         </header>
 
         <section className="mt-10 text-center">
@@ -39,20 +45,22 @@ export function AuthShell({
         <section className="mt-9 flex-1">
           {children}
 
-          <p className="mt-6 text-center text-xs leading-5 text-[#786a73]">
-            By continuing, you confirm you are at least 18 years old and agree to Udala&apos;s{" "}
-            <Link href="/help" className="font-semibold text-[#8f285d] underline-offset-4 hover:underline">
-              safety standards
-            </Link>
-            .
-          </p>
+          {!hideFooter && (
+            <p className="mt-6 text-center text-xs leading-5 text-[#786a73]">
+              By continuing, you confirm you are at least 18 years old and agree to udala&apos;s{" "}
+              <Link href="/help" className="font-semibold text-[#8f285d] underline-offset-4 hover:underline">
+                safety standards
+              </Link>
+              .
+            </p>
+          )}
         </section>
       </div>
 
       <div className="hidden min-h-dvh lg:grid lg:h-dvh lg:grid-cols-[minmax(0,0.96fr)_minmax(480px,1.04fr)]">
         <section className="hidden h-dvh flex-col justify-between overflow-hidden border-r border-[#1e1722] bg-[#07090d] px-9 py-5 text-white lg:flex xl:px-12">
           <div>
-            <AuthLogo variant="dark" />
+            <AuthLogo variant="dark" hideIcon={hideLogoIcon} />
           </div>
 
           <div className="flex flex-1 flex-col justify-center py-2">
@@ -101,13 +109,15 @@ export function AuthShell({
 
             {children}
 
-            <p className="mt-5 text-xs leading-5 text-[#786a73]">
-              By continuing, you confirm you are at least 18 years old and agree to Udala&apos;s{" "}
-              <Link href="/help" className="font-semibold text-[#8f285d] underline-offset-4 hover:underline">
-                safety standards
-              </Link>
-              .
-            </p>
+            {!hideFooter && (
+              <p className="mt-5 text-xs leading-5 text-[#786a73]">
+                By continuing, you confirm you are at least 18 years old and agree to udala&apos;s{" "}
+                <Link href="/help" className="font-semibold text-[#8f285d] underline-offset-4 hover:underline">
+                  safety standards
+                </Link>
+                .
+              </p>
+            )}
           </div>
         </section>
       </div>

@@ -34,8 +34,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: requestOptions.error }, { status: 400 });
   }
   const heartGoal = typeof body?.heartGoal === "number" ? body.heartGoal : null;
+  const notifySubscribers = body?.notifySubscribers !== false;
 
-  const result = await startLiveStream(profile.id, title, requestOptions.options, heartGoal);
+  const result = await startLiveStream(profile.id, title, requestOptions.options, heartGoal, notifySubscribers);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }

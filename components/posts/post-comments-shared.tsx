@@ -6,6 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Loader2, Send, User } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PresenceRing } from "@/components/ui/presence-avatar";
 import { Badge } from "@/components/ui/badge";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { cn } from "@/lib/utils";
@@ -92,15 +93,21 @@ function CommentThread({
   return (
     <li>
       <div className="flex gap-2.5">
-        <Avatar
-          className={cn(
-            "h-9 w-9 shrink-0",
-            isAuthor ? "ring-2 ring-primary ring-offset-1 ring-offset-card" : "border border-border"
-          )}
+        <Link
+          href={
+            comment.author.presenceStatus === "live" && comment.author.activeStreamId
+              ? `/live/${comment.author.activeStreamId}`
+              : `/profile/${comment.author.username}`
+          }
+          className="shrink-0"
         >
-          <AvatarImage src={comment.author.avatarUrl} alt={comment.author.displayName} />
-          <AvatarFallback className="text-[11px]">{initials(comment.author.displayName)}</AvatarFallback>
-        </Avatar>
+          <PresenceRing status={comment.author.presenceStatus} size="h-9 w-9">
+            <Avatar className={cn("h-full w-full", isAuthor && "ring-2 ring-primary ring-offset-1 ring-offset-card")}>
+              <AvatarImage src={comment.author.avatarUrl} alt={comment.author.displayName} />
+              <AvatarFallback className="text-[11px]">{initials(comment.author.displayName)}</AvatarFallback>
+            </Avatar>
+          </PresenceRing>
+        </Link>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
             <Link

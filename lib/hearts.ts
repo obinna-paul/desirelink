@@ -5,6 +5,7 @@ import { paymentProvider } from "@/lib/payments";
 import { processPaymentEvent } from "@/lib/payments/webhook-handler";
 import { getHeartPackage, HEART_UNIT_PRICE_CENTS } from "@/lib/hearts-shared";
 import { isProviderProfileType } from "@/lib/provider-types";
+import { safeConfirmPayment } from "@/lib/payments/safe-call";
 
 export type GiftContext = "live_stream" | "profile" | "chat";
 
@@ -116,60 +117,65 @@ export async function purchaseHearts(
     return { ok: false, status: 400, error: "Unknown hearts package." };
   }
 
-  const profile = await prisma.profile.findUniqueOrThrow({
-    where: { id: profileId },
-    select: { paymentCustomerId: true },
-  });
-  const customerId = await getOrCreatePaymentCustomerId(profileId, profile.paymentCustomerId);
-  const defaultCard = await prisma.paymentMethod.findFirst({ where: { userId: profileId, isDefault: true } });
+  try {
+    const profile = await prisma.profile.findUniqueOrThrow({
+      where: { id: profileId },
+      select: { paymentCustomerId: true },
+    });
+    const customerId = await getOrCreatePaymentCustomerId(profileId, profile.paymentCustomerId);
+    const defaultCard = await prisma.paymentMethod.findFirst({ where: { userId: profileId, isDefault: true } });
 
-  if (defaultCard) {
-    const { reference, success } = await paymentProvider.chargeSavedPaymentMethod(
-      customerId,
-      defaultCard.externalId,
-      pkg.priceCents,
-      { kind: "hearts_purchase" }
-    );
-    if (!success) {
-      return { ok: false, status: 402, error: "Your saved card was declined. Try updating your payment method." };
+    if (defaultCard) {
+      const { reference, success } = await paymentProvider.chargeSavedPaymentMethod(
+        customerId,
+        defaultCard.externalId,
+        pkg.priceCents,
+        { kind: "hearts_purchase" }
+      );
+      if (!success) {
+        return { ok: false, status: 402, error: "Your saved card was declined. Try updating your payment method." };
+      }
+
+      const [, updated] = await prisma.$transaction([
+        prisma.heartPurchase.create({
+          data: {
+            userId: profileId,
+            hearts: pkg.hearts,
+            amountCents: pkg.priceCents,
+            status: "succeeded",
+            paymentReference: reference,
+          },
+        }),
+        prisma.profile.update({
+          where: { id: profileId },
+          data: { heartsBalance: { increment: pkg.hearts } },
+          select: { heartsBalance: true },
+        }),
+        prisma.transaction.create({
+          data: { userId: profileId, amountCents: pkg.priceCents, status: "succeeded", provider: "card" },
+        }),
+      ]);
+
+      return { ok: true, state: "purchased", hearts: pkg.hearts, balance: updated.heartsBalance };
     }
 
-    const [, updated] = await prisma.$transaction([
-      prisma.heartPurchase.create({
-        data: {
-          userId: profileId,
-          hearts: pkg.hearts,
-          amountCents: pkg.priceCents,
-          status: "succeeded",
-          paymentReference: reference,
-        },
-      }),
-      prisma.profile.update({
-        where: { id: profileId },
-        data: { heartsBalance: { increment: pkg.hearts } },
-        select: { heartsBalance: true },
-      }),
-      prisma.transaction.create({
-        data: { userId: profileId, amountCents: pkg.priceCents, status: "succeeded", provider: "card" },
-      }),
-    ]);
+    const pending = await prisma.heartPurchase.create({
+      data: { userId: profileId, hearts: pkg.hearts, amountCents: pkg.priceCents, status: "pending" },
+    });
 
-    return { ok: true, state: "purchased", hearts: pkg.hearts, balance: updated.heartsBalance };
+    const checkoutUrl = await paymentProvider.createCheckoutSession(
+      customerId,
+      pkg.priceCents,
+      urls.successUrl,
+      urls.cancelUrl,
+      { kind: "hearts_purchase", pendingId: pending.id }
+    );
+
+    return { ok: true, state: "checkout", checkoutUrl };
+  } catch (error) {
+    console.error("[payments] purchaseHearts failed", error);
+    return { ok: false, status: 502, error: "We couldn't reach the payment provider. Please try again in a moment." };
   }
-
-  const pending = await prisma.heartPurchase.create({
-    data: { userId: profileId, hearts: pkg.hearts, amountCents: pkg.priceCents, status: "pending" },
-  });
-
-  const checkoutUrl = await paymentProvider.createCheckoutSession(
-    customerId,
-    pkg.priceCents,
-    urls.successUrl,
-    urls.cancelUrl,
-    { kind: "hearts_purchase", pendingId: pending.id }
-  );
-
-  return { ok: true, state: "checkout", checkoutUrl };
 }
 
 /**
@@ -179,6 +185,8 @@ export async function purchaseHearts(
  * processPaymentEvent no-ops once the pending row is no longer "pending".
  */
 export async function confirmHeartsPurchase(reference: string): Promise<void> {
-  const event = await paymentProvider.verifyTransaction(reference);
-  await processPaymentEvent(event);
+  await safeConfirmPayment("confirmHeartsPurchase", async () => {
+    const event = await paymentProvider.verifyTransaction(reference);
+    await processPaymentEvent(event);
+  });
 }

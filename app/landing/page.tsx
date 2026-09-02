@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { AuthShell } from "@/components/auth/auth-shell";
 import { LoginForm } from "@/components/auth/login-form";
@@ -14,8 +15,12 @@ export default function LandingPage() {
     <AuthShell
       title="Log in to udala"
       description="Continue to your private social space, messages, and creator circles."
+      hideLogoIcon
+      hideFooter
     >
-      <LoginForm />
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
     </AuthShell>
   );
 }

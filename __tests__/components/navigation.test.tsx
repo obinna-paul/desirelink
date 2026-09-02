@@ -9,20 +9,20 @@ const navigation = jest.requireMock("next/navigation") as {
 
 describe("navigation", () => {
   it("renders primary and secondary sidebar navigation for a provider", () => {
-    navigation.__setPathname("/events");
+    navigation.__setPathname("/services");
     render(<SidebarNav isProvider />);
 
     expect(screen.getByRole("complementary", { name: /primary navigation/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /home/i })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: /events/i })).toHaveAttribute("href", "/events");
+    expect(screen.getByRole("link", { name: /services/i })).toHaveAttribute("href", "/services");
     expect(screen.getByRole("link", { name: /creator studio/i })).toHaveAttribute("href", "/creator-dashboard");
   });
 
   it("hides Creator Studio from an explorer's sidebar navigation", () => {
-    navigation.__setPathname("/events");
+    navigation.__setPathname("/services");
     render(<SidebarNav />);
 
-    expect(screen.getByRole("link", { name: /events/i })).toHaveAttribute("href", "/events");
+    expect(screen.getByRole("link", { name: /services/i })).toHaveAttribute("href", "/services");
     expect(screen.queryByRole("link", { name: /creator studio/i })).not.toBeInTheDocument();
   });
 
@@ -35,4 +35,3 @@ describe("navigation", () => {
     expect(screen.getByRole("link", { name: /messages/i })).toHaveAttribute("href", "/messages");
   });
 });
-

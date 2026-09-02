@@ -9,9 +9,8 @@ import { triggerEvent } from "@/lib/pusher-server";
 import { liveStreamChannelName, LIVE_GIFT_SENT_EVENT, LIVE_STREAM_ENDED_EVENT } from "@/lib/live-stream-channels";
 import { settleGift } from "@/lib/hearts";
 import { refundOpenLiveRequests, type LiveRequestOptionInput } from "@/lib/live-requests";
-
-/** How long since lastActiveAt counts as "online" for the chat-only ring (no live badge). */
-const ONLINE_WINDOW_MS = 5 * 60 * 1000;
+import { createNotificationsBulk } from "@/lib/notifications";
+import { ONLINE_WINDOW_MS } from "@/lib/presence";
 
 function generateRoomName(): string {
   return `live-${randomBytes(12).toString("hex")}`;
@@ -26,6 +25,7 @@ export async function startLiveStream(
   title: string,
   options: LiveRequestOptionInput[],
   heartGoal?: number | null,
+  notifySubscribers = false,
 ): Promise<StartLiveStreamResult> {
   if (!isLiveKitConfigured()) {
     return { ok: false, status: 503, error: "Live streaming isn't configured yet." };
@@ -43,12 +43,13 @@ export async function startLiveStream(
     where: { providerId, status: "live" },
     select: { id: true, roomName: true, title: true },
   });
+  const streamTitle = title.trim().slice(0, 120) || `${profile.displayName}'s live stream`;
   const stream =
     existing ??
     (await prisma.liveStream.create({
       data: {
         providerId,
-        title: title.trim().slice(0, 120) || `${profile.displayName}'s live stream`,
+        title: streamTitle,
         roomName: generateRoomName(),
         heartGoal: heartGoal && heartGoal > 0 ? Math.min(Math.trunc(heartGoal), 1_000_000) : null,
         requestOptions: {
@@ -57,6 +58,27 @@ export async function startLiveStream(
       },
       select: { id: true, roomName: true, title: true },
     }));
+
+  // Only alert subscribers for a stream that's genuinely just starting - reconnecting to an
+  // already-live session (e.g. a page refresh) hits the `existing` branch and must stay silent.
+  if (!existing && notifySubscribers) {
+    const subscribers = await prisma.subscription.findMany({
+      where: { creatorId: providerId, status: "active" },
+      select: { subscriberId: true },
+    });
+    if (subscribers.length > 0) {
+      await createNotificationsBulk(
+        subscribers.map(({ subscriberId }) => ({
+          recipientId: subscriberId,
+          actorId: providerId,
+          type: "live" as const,
+          title: `${profile.displayName} is live`,
+          body: streamTitle,
+          href: `/live/${stream.id}`,
+        })),
+      );
+    }
+  }
 
   const token = await createLiveKitToken({
     roomName: stream.roomName,
@@ -200,6 +222,7 @@ export async function getLiveRingFeed(viewerProfileId: string | null, limit = 20
           isIncognito: false,
           profileType: { in: [...PROVIDER_PROFILE_TYPES] },
           id: { notIn: Array.from(liveProviderIds) },
+          showActivityStatus: true,
           lastActiveAt: { gt: new Date(Date.now() - ONLINE_WINDOW_MS) },
         },
         orderBy: { lastActiveAt: "desc" },

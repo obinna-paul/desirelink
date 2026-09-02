@@ -7,7 +7,9 @@ import { formatDistanceToNow } from "date-fns";
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Share2, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PresenceRing } from "@/components/ui/presence-avatar";
 import { PostVideoPlayer } from "@/components/posts/post-video-player";
+import type { PresenceStatus } from "@/lib/presence";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { CommentComposer, CommentsList, usePostComments } from "@/components/posts/post-comments-shared";
@@ -42,7 +44,13 @@ export function PostDetailModal({
   media: PostMediaItem[];
   caption: string | null;
   createdAt: string;
-  author: { username: string; displayName: string; avatarUrl: string };
+  author: {
+    username: string;
+    displayName: string;
+    avatarUrl: string;
+    presenceStatus: PresenceStatus;
+    activeStreamId: string | null;
+  };
   viewerCanManage: boolean;
   isSubscriberOnly: boolean;
   isPinned: boolean;
@@ -163,11 +171,20 @@ export function PostDetailModal({
 
         <div className="flex h-full w-full flex-col md:w-[380px] md:shrink-0">
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
-            <Link href={`/profile/${author.username}`} className="flex min-w-0 items-center gap-2.5">
-              <Avatar className="h-9 w-9 border border-border">
-                <AvatarImage src={author.avatarUrl} alt={author.displayName} />
-                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-              </Avatar>
+            <Link
+              href={
+                author.presenceStatus === "live" && author.activeStreamId
+                  ? `/live/${author.activeStreamId}`
+                  : `/profile/${author.username}`
+              }
+              className="flex min-w-0 items-center gap-2.5"
+            >
+              <PresenceRing status={author.presenceStatus} size="h-9 w-9">
+                <Avatar className="h-full w-full">
+                  <AvatarImage src={author.avatarUrl} alt={author.displayName} />
+                  <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                </Avatar>
+              </PresenceRing>
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold">{author.displayName}</p>
                 <p className="text-xs text-muted-foreground">{timeAgo}</p>
@@ -223,7 +240,7 @@ export function PostDetailModal({
                 disabled={likeDisabled}
                 className={cn(
                   "inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors disabled:opacity-60",
-                  liked ? "bg-neon-pink/10 text-neon-pink" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  liked ? "text-neon-pink" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <Heart className={cn("h-5 w-5", liked && "fill-current")} aria-hidden="true" />
@@ -236,7 +253,7 @@ export function PostDetailModal({
               <button
                 type="button"
                 onClick={onShare}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Share2 className="h-5 w-5" aria-hidden="true" />
                 {shareCount}

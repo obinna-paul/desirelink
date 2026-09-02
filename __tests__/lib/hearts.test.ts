@@ -9,6 +9,7 @@ jest.mock("@/lib/payments", () => ({ paymentProvider: {} }));
 jest.mock("@/lib/payments/webhook-handler", () => ({ processPaymentEvent: jest.fn() }));
 
 import { settleGift, sendHeartsToProvider } from "@/lib/hearts";
+import { HEART_UNIT_PRICE_CENTS } from "@/lib/hearts-shared";
 import { prisma } from "@/lib/prisma";
 
 const mockPrisma = prisma as unknown as {
@@ -51,6 +52,7 @@ describe("settleGift", () => {
     mockPrisma.gift.create.mockResolvedValue({ id: "gift-1" });
 
     const result = await settleGift({ senderId: "a", receiverId: "b", hearts: 10, context: "profile" });
+    const expectedValueCents = 10 * HEART_UNIT_PRICE_CENTS;
 
     expect(result).toEqual({
       ok: true,
@@ -61,10 +63,17 @@ describe("settleGift", () => {
     });
     expect(mockPrisma.profile.update).toHaveBeenNthCalledWith(2, {
       where: { id: "b" },
-      data: { walletBalanceCents: { increment: 15000 } },
+      data: { walletBalanceCents: { increment: expectedValueCents } },
     });
     expect(mockPrisma.gift.create).toHaveBeenCalledWith({
-      data: { streamId: null, senderId: "a", receiverId: "b", hearts: 10, valueCents: 15000, context: "profile" },
+      data: {
+        streamId: null,
+        senderId: "a",
+        receiverId: "b",
+        hearts: 10,
+        valueCents: expectedValueCents,
+        context: "profile",
+      },
     });
   });
 });

@@ -81,7 +81,7 @@ export function LiveGiftTray({
             <Gift className="h-5 w-5" aria-hidden="true" />
           </span>
         </div>
-        <GiftPicker initialBalance={balance} onSend={onSend} theme="dark" />
+        <GiftPicker initialBalance={balance} onSend={onSend} theme="dark" showBalance={false} />
         <p className="flex items-start gap-2 text-xs leading-5 text-white/45">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           Gifts support the creator immediately and cannot be refunded.

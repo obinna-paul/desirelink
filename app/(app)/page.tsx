@@ -8,6 +8,7 @@ import { FeedTabs } from "@/components/home/feed-tabs";
 import { getPublicFeedPosts } from "@/lib/posts";
 import { getLiveRingFeed } from "@/lib/live-streams";
 import { isProviderProfileType } from "@/lib/provider-types";
+import { getOwnPresenceStatus } from "@/lib/presence";
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
@@ -25,15 +26,19 @@ export default async function HomePage() {
       profileType: true,
       locationLat: true,
       locationLng: true,
+      lastActiveAt: true,
     },
   });
 
-  const [posts, ring] = await Promise.all([
+  const isProvider = viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false;
+
+  const [posts, ring, myActiveStream] = await Promise.all([
     getPublicFeedPosts(viewerProfile?.id ?? null),
     getLiveRingFeed(viewerProfile?.id ?? null),
+    isProvider && viewerProfile
+      ? prisma.liveStream.findFirst({ where: { providerId: viewerProfile.id, status: "live" }, select: { id: true } })
+      : null,
   ]);
-
-  const isProvider = viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false;
 
   return (
     <div className="flex flex-col gap-3 md:gap-5">
@@ -46,6 +51,8 @@ export default async function HomePage() {
                 displayName: viewerProfile.displayName,
                 avatarUrl: viewerProfile.avatarUrl,
                 isProvider,
+                presenceStatus: getOwnPresenceStatus(viewerProfile),
+                activeStreamId: myActiveStream?.id ?? null,
               }
             : null
         }

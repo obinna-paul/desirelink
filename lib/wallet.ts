@@ -38,7 +38,7 @@ export async function creditProviderWallet(
 export type WithdrawWalletResult =
   | {
       ok: true;
-      status: "success" | "pending";
+      status: "pending";
       amountCents: number;
       feeCents: number;
       netAmountCents: number;
@@ -46,10 +46,15 @@ export type WithdrawWalletResult =
   | { ok: false; status: number; error: string };
 
 /**
- * Withdraws a provider's full wallet balance on demand — the wallet unifies
- * every earning source (gift hearts, tier subscriptions, and the monthly
- * rewards pool; see creditProviderWallet's callers), so there's exactly one
- * withdrawal flow and one fee, applied here rather than per-earning.
+ * Requests a withdrawal of a provider's full wallet balance — the wallet
+ * unifies every earning source (gift hearts, tier subscriptions, and the
+ * monthly rewards pool; see creditProviderWallet's callers), so there's
+ * exactly one withdrawal flow and one fee, applied here rather than
+ * per-earning. The balance is debited immediately (so it can't be withdrawn
+ * twice), but the actual bank transfer does NOT happen here — withdrawal
+ * requests are reviewed manually and the transfer is only sent once an admin
+ * approves the request (see approveWithdrawal in lib/admin.ts), typically
+ * within 2-3 business days.
  */
 export async function withdrawWalletBalance(
   providerId: string,
@@ -88,53 +93,25 @@ export async function withdrawWalletBalance(
   const feeCents = Math.round(amountCents * WALLET_WITHDRAWAL_FEE_RATE);
   const netAmountCents = amountCents - feeCents;
 
-  const withdrawal = await prisma.walletWithdrawal.create({
-    data: {
-      providerId,
-      amountCents,
-      feeCents,
-      netAmountCents,
-      status: "pending",
-    },
-  });
-
-  const transfer = await paymentProvider.createPayoutTransfer(
-    profile.payoutRecipientCode,
-    netAmountCents,
-    `udala wallet withdrawal for ${profile.displayName}`,
-    { providerId, withdrawalId: withdrawal.id },
-  );
-
-  if (transfer.status === "failed") {
-    await prisma.walletWithdrawal.update({
-      where: { id: withdrawal.id },
-      data: { status: "failed", payoutReference: transfer.reference },
-    });
-    return {
-      ok: false,
-      status: 502,
-      error: "Withdrawal failed. Try again shortly.",
-    };
-  }
-
   await prisma.$transaction([
     prisma.profile.update({
       where: { id: providerId },
       data: { walletBalanceCents: { decrement: amountCents } },
     }),
-    prisma.walletWithdrawal.update({
-      where: { id: withdrawal.id },
+    prisma.walletWithdrawal.create({
       data: {
-        status: transfer.status,
-        payoutReference: transfer.reference,
-        paidAt: transfer.status === "success" ? new Date() : null,
+        providerId,
+        amountCents,
+        feeCents,
+        netAmountCents,
+        status: "pending",
       },
     }),
   ]);
 
   return {
     ok: true,
-    status: transfer.status,
+    status: "pending",
     amountCents,
     feeCents,
     netAmountCents,
@@ -219,4 +196,79 @@ export async function getWalletOverview(profileId: string) {
     giftsSent,
     withdrawals,
   };
+}
+
+/** Every withdrawal request still awaiting admin review, oldest first. */
+export async function getPendingWithdrawals() {
+  return prisma.walletWithdrawal.findMany({
+    where: { status: "pending" },
+    orderBy: { createdAt: "asc" },
+    include: {
+      provider: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+    },
+  });
+}
+
+export type ApproveWithdrawalResult =
+  | { ok: true; status: "success" | "pending" }
+  | { ok: false; status: number; error: string };
+
+/**
+ * An admin's approval of a pending withdrawal request — this is the ONLY
+ * place the actual Paystack transfer is sent (see withdrawWalletBalance's
+ * doc comment for why it isn't sent at request time). On failure, the
+ * provider's wallet balance is refunded so the request can be retried.
+ */
+export async function approveWithdrawal(withdrawalId: string): Promise<ApproveWithdrawalResult> {
+  const withdrawal = await prisma.walletWithdrawal.findUnique({
+    where: { id: withdrawalId },
+    include: { provider: { select: { payoutRecipientCode: true, displayName: true } } },
+  });
+  if (!withdrawal) {
+    return { ok: false, status: 404, error: "Withdrawal request not found." };
+  }
+  if (withdrawal.status !== "pending") {
+    return { ok: false, status: 400, error: "This request has already been resolved." };
+  }
+  if (!withdrawal.provider.payoutRecipientCode) {
+    return { ok: false, status: 400, error: "This provider no longer has payout details on file." };
+  }
+
+  let transfer;
+  try {
+    transfer = await paymentProvider.createPayoutTransfer(
+      withdrawal.provider.payoutRecipientCode,
+      withdrawal.netAmountCents,
+      `udala wallet withdrawal for ${withdrawal.provider.displayName}`,
+      { providerId: withdrawal.providerId, withdrawalId: withdrawal.id },
+    );
+  } catch (error) {
+    console.error("[payments] approveWithdrawal failed to start transfer", error);
+    return { ok: false, status: 502, error: "We couldn't reach the payment provider. Try again shortly." };
+  }
+
+  if (transfer.status === "failed") {
+    await prisma.$transaction([
+      prisma.walletWithdrawal.update({
+        where: { id: withdrawal.id },
+        data: { status: "failed", payoutReference: transfer.reference },
+      }),
+      prisma.profile.update({
+        where: { id: withdrawal.providerId },
+        data: { walletBalanceCents: { increment: withdrawal.amountCents } },
+      }),
+    ]);
+    return { ok: false, status: 502, error: "The transfer failed. The provider's wallet balance has been refunded." };
+  }
+
+  await prisma.walletWithdrawal.update({
+    where: { id: withdrawal.id },
+    data: {
+      status: transfer.status,
+      payoutReference: transfer.reference,
+      paidAt: transfer.status === "success" ? new Date() : null,
+    },
+  });
+
+  return { ok: true, status: transfer.status };
 }

@@ -3,18 +3,17 @@
  * client (buy-hearts UI, gift picker) — no server-only imports here.
  */
 
-/** 1 heart = 1500 kobo (₦15) of real money, credited to the receiving provider's wallet in full (the platform's cut is only taken at withdrawal — see WALLET_WITHDRAWAL_FEE_RATE in lib/wallet.ts). */
-export const HEART_UNIT_PRICE_CENTS = 1500;
+/** 1 heart = 100,000 kobo (₦1,000) of real money, credited to the receiving provider's wallet in full (the platform's cut is only taken at withdrawal — see WALLET_WITHDRAWAL_FEE_RATE in lib/wallet.ts). */
+export const HEART_UNIT_PRICE_CENTS = 100_000;
 
 export type HeartPackage = { id: string; hearts: number; priceCents: number };
 
-/** Bigger packages give proportionally more hearts per naira, same "buy more, save more" shape as most gifting economies. */
-export const HEART_PACKAGES: HeartPackage[] = [
-  { id: "starter", hearts: 100, priceCents: 150_000 },
-  { id: "popular", hearts: 550, priceCents: 750_000 },
-  { id: "value", hearts: 1200, priceCents: 1_500_000 },
-  { id: "supporter", hearts: 6500, priceCents: 7_500_000 },
-];
+/** Flat rate — every package is exactly `hearts * HEART_UNIT_PRICE_CENTS`, no bulk discount. */
+export const HEART_PACKAGES: HeartPackage[] = [5, 10, 15, 20].map((hearts) => ({
+  id: `hearts_${hearts}`,
+  hearts,
+  priceCents: hearts * HEART_UNIT_PRICE_CENTS,
+}));
 
 export function getHeartPackage(id: string): HeartPackage | undefined {
   return HEART_PACKAGES.find((pkg) => pkg.id === id);

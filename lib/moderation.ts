@@ -1,9 +1,6 @@
 import type { ModerationStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { triggerEvent } from "@/lib/pusher-server";
-import { chatChannelName } from "@/lib/group-chat-channels";
-import { GROUP_MESSAGE_DELETED_EVENT } from "@/lib/group-chat-channels";
 
 export const MODERATION_KEYWORDS = [
   "scam",
@@ -29,11 +26,8 @@ export type ModerationAction = "review" | "remove" | "warn" | "suspend";
 export type ModerationContentType =
   | "profile"
   | "message"
-  | "group_message"
   | "post"
-  | "post_comment"
-  | "room_post"
-  | "event";
+  | "post_comment";
 
 export function scanForModerationIssues(content: string): string[] {
   const normalized = content.toLowerCase();
@@ -128,15 +122,6 @@ async function getContentPreview(contentType: string, contentId: string) {
         ? { title: `Message from ${message.sender.displayName}`, body: message.content, ownerId: message.senderId }
         : null;
     }
-    case "group_message": {
-      const message = await prisma.groupMessage.findUnique({
-        where: { id: contentId },
-        select: { content: true, senderId: true, sender: { select: { displayName: true, username: true } } },
-      });
-      return message
-        ? { title: `Group message from ${message.sender.displayName}`, body: message.content, ownerId: message.senderId }
-        : null;
-    }
     case "post": {
       const post = await prisma.post.findUnique({
         where: { id: contentId },
@@ -153,15 +138,6 @@ async function getContentPreview(contentType: string, contentId: string) {
       });
       return comment
         ? { title: `Comment by ${comment.author.displayName}`, body: comment.content, ownerId: comment.authorId }
-        : null;
-    }
-    case "room_post": {
-      const post = await prisma.roomPost.findUnique({
-        where: { id: contentId },
-        select: { content: true, authorId: true, author: { select: { displayName: true, username: true } } },
-      });
-      return post
-        ? { title: `Room post by ${post.author.displayName}`, body: post.content, ownerId: post.authorId }
         : null;
     }
     default:
@@ -222,22 +198,6 @@ async function removeContent(contentType: string, contentId: string) {
     case "post_comment":
       await prisma.postComment.deleteMany({ where: { id: contentId } });
       return true;
-    case "room_post":
-      await prisma.roomPost.deleteMany({ where: { id: contentId } });
-      return true;
-    case "group_message": {
-      const message = await prisma.groupMessage.findUnique({
-        where: { id: contentId },
-        select: { channelType: true, channelId: true },
-      });
-      await prisma.groupMessage.deleteMany({ where: { id: contentId } });
-      if (message) {
-        await triggerEvent(chatChannelName(message.channelType, message.channelId), GROUP_MESSAGE_DELETED_EVENT, {
-          messageId: contentId,
-        });
-      }
-      return true;
-    }
     default:
       return false;
   }

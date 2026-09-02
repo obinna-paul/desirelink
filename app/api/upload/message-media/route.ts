@@ -4,10 +4,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isAllowedAudioFile, isAllowedImageFile, isAllowedVideoFile } from "@/lib/security/uploads";
-import { storeUpload } from "@/lib/uploads";
+import { storeUpload, uploadErrorResponse } from "@/lib/uploads";
 
-const MAX_IMAGE_SIZE = 12 * 1024 * 1024;
-const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 30 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 300 * 1024 * 1024;
 const MAX_AUDIO_SIZE = 20 * 1024 * 1024;
 
 export async function POST(req: Request) {
@@ -33,9 +33,9 @@ export async function POST(req: Request) {
   if (!isImage && !isVideo && !isAudio) {
     return NextResponse.json({ error: "Choose a supported photo, video, or audio file" }, { status: 400 });
   }
-  if (isImage && file.size > MAX_IMAGE_SIZE) return NextResponse.json({ error: "Photo must be under 12MB" }, { status: 400 });
-  if (isVideo && file.size > MAX_VIDEO_SIZE) return NextResponse.json({ error: "Video must be under 100MB" }, { status: 400 });
-  if (isAudio && file.size > MAX_AUDIO_SIZE) return NextResponse.json({ error: "Voice note must be under 20MB" }, { status: 400 });
+  if (isImage && file.size > MAX_IMAGE_SIZE) return NextResponse.json({ error: `Photo must be under ${MAX_IMAGE_SIZE / (1024 * 1024)}MB` }, { status: 400 });
+  if (isVideo && file.size > MAX_VIDEO_SIZE) return NextResponse.json({ error: `Video must be under ${MAX_VIDEO_SIZE / (1024 * 1024)}MB` }, { status: 400 });
+  if (isAudio && file.size > MAX_AUDIO_SIZE) return NextResponse.json({ error: `Voice note must be under ${MAX_AUDIO_SIZE / (1024 * 1024)}MB` }, { status: 400 });
 
   try {
     const stored = await storeUpload({
@@ -57,7 +57,6 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
-    console.error("[upload/message-media] failed", error);
-    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 502 });
+    return uploadErrorResponse(error, "[upload/message-media]");
   }
 }

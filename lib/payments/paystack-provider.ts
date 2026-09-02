@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
 import type {
+  Bank,
   PaymentProvider,
   PayoutRecipient,
   PayoutRecipientInput,
@@ -214,6 +215,23 @@ export class PaystackProvider implements PaymentProvider {
     await this.request("POST", "/customer/deactivate_authorization", {
       authorization_code: paymentMethodId,
     });
+  }
+
+  async getBanks(): Promise<Bank[]> {
+    const banks = await this.request<
+      Array<{ name: string; code: string; active: boolean; country: string; currency: string }>
+    >("GET", `/bank?currency=${currency()}&country=nigeria`);
+    return banks
+      .filter((bank) => bank.active)
+      .map((bank) => ({ name: bank.name, code: bank.code }));
+  }
+
+  async resolveAccountName(accountNumber: string, bankCode: string): Promise<string> {
+    const data = await this.request<{ account_number: string; account_name: string }>(
+      "GET",
+      `/bank/resolve?account_number=${encodeURIComponent(accountNumber)}&bank_code=${encodeURIComponent(bankCode)}`,
+    );
+    return data.account_name;
   }
 
   async createPayoutRecipient(

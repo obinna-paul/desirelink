@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,12 +10,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/auth/form-field";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { LoginConsent } from "@/components/auth/login-consent";
+import { getAuthErrorMessage } from "@/lib/auth-errors";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(() =>
+    getAuthErrorMessage(searchParams.get("error"))
+  );
+  const [agreed, setAgreed] = useState(false);
 
   const {
     register,
@@ -75,9 +81,10 @@ export function LoginForm() {
             {serverError}
           </p>
         )}
+        <LoginConsent agreed={agreed} onAgreedChange={setAgreed} />
         <Button
           type="submit"
-          disabled={status !== "idle"}
+          disabled={status !== "idle" || !agreed}
           className="h-[52px] rounded-xl bg-[#050505] text-base text-white shadow-[0_14px_30px_rgba(5,5,5,0.18)] hover:bg-[#1b1b1b] sm:h-12 sm:rounded-lg sm:text-sm"
         >
           {status === "loading" && "Logging in..."}
@@ -89,7 +96,7 @@ export function LoginForm() {
       <GoogleSignInButton variant="lightAuth" />
 
       <p className="text-center text-sm leading-6 text-[#6f626b]">
-        New to Udala?{" "}
+        New to udala?{" "}
         <Link href="/signup" className="inline-flex min-h-11 items-center font-semibold text-[#8f285d] underline-offset-4 hover:underline">
           Create an account
         </Link>

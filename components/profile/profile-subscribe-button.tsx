@@ -5,14 +5,19 @@ import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { PublicTierView } from "@/lib/tiers";
 
 export function ProfileSubscribeButton({
   providerId,
   subscription,
+  size = "default",
+  className,
 }: {
   providerId: string;
   subscription: PublicTierView;
+  size?: "default" | "sm";
+  className?: string;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -42,11 +47,12 @@ export function ProfileSubscribeButton({
   }
 
   return (
-    <div className="min-w-0">
+    <div className={cn("min-w-0", className)}>
       <Button
         type="button"
         variant={subscribed ? "outline" : "default"}
-        className="h-10 min-w-28"
+        size={size}
+        className="h-10 w-full min-w-28"
         disabled={pending || subscribed || subscription.viewerState === "pending" || subscription.viewerState === "full"}
         onClick={subscribe}
       >
