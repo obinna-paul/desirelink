@@ -377,7 +377,7 @@ export function ProfileView({
 
       <nav
         aria-label="Profile sections"
-        className="sticky top-[var(--mobile-header-height,0px)] z-20 mt-3 grid grid-cols-5 border-y border-border bg-background/95 backdrop-blur md:static md:mt-6 md:flex md:border-x-0 md:border-t-0 md:bg-transparent md:backdrop-blur-0"
+        className="sticky top-[var(--mobile-header-height,0px)] z-20 mt-3 grid grid-cols-4 border-y border-border bg-background/95 backdrop-blur md:static md:mt-6 md:flex md:border-x-0 md:border-t-0 md:bg-transparent md:backdrop-blur-0"
       >
         {PROFILE_SECTIONS.map((item) => (
           <ProfileSectionTab
