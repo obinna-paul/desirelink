@@ -91,7 +91,7 @@ export default async function PublicProfilePage({
     !isOwner && session?.user?.id
       ? await prisma.profile.findUnique({
           where: { userId: session.user.id },
-          select: { id: true, heartsBalance: true, profileType: true },
+          select: { id: true, profileType: true },
         })
       : null;
 
@@ -172,7 +172,6 @@ export default async function PublicProfilePage({
         isOwner={isOwner}
         isProvider={isProvider}
         canMessage={!isOwner && Boolean(viewerProfile)}
-        viewerHeartsBalance={viewerProfile?.heartsBalance ?? 0}
         canModerate={!isOwner && Boolean(viewerProfile)}
         reviewSummary={reviewSummary}
         reviews={reviews}

@@ -33,7 +33,6 @@ import { ReviewDialog } from "@/components/reviews/review-dialog";
 import { ReviewsSection } from "@/components/reviews/reviews-section";
 import { BlockButton } from "@/components/safety/block-button";
 import { ReportDialog } from "@/components/safety/report-dialog";
-import { SendHeartsButton } from "@/components/hearts/send-hearts-button";
 import { Button } from "@/components/ui/button";
 import type { CreatorStats } from "@/lib/creator";
 import type { UpcomingEvent } from "@/lib/events";
@@ -121,7 +120,6 @@ export function ProfileView({
   reviews,
   reviewableContexts = [],
   visibleProfileFields,
-  viewerHeartsBalance = 0,
   stats,
   presenceStatus = "offline",
   liveStreamId = null,
@@ -148,7 +146,6 @@ export function ProfileView({
   reviews: ReviewData[];
   reviewableContexts?: ReviewableContext[];
   visibleProfileFields: ProfileFieldName[];
-  viewerHeartsBalance?: number;
   stats: CreatorStats;
   presenceStatus?: PresenceStatus;
   liveStreamId?: string | null;
@@ -167,11 +164,11 @@ export function ProfileView({
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-5xl">
-      <section className="overflow-hidden border-y border-border bg-card shadow-sm sm:rounded-2xl sm:border">
+      <section className="border-y border-border bg-card shadow-sm sm:rounded-2xl sm:border">
         {isOwner ? (
           <BannerUploader bannerUrl={profile.bannerUrl} />
         ) : profile.bannerUrl ? (
-          <div className="relative aspect-[3/1] w-full bg-muted md:aspect-[16/5]">
+          <div className="relative aspect-[3/1] w-full overflow-hidden bg-muted sm:rounded-t-2xl md:aspect-[16/5]">
             <Image
               src={profile.bannerUrl}
               alt={`${profile.displayName}'s cover photo`}
@@ -182,7 +179,7 @@ export function ProfileView({
             />
           </div>
         ) : (
-          <div className="aspect-[3/1] w-full bg-muted md:aspect-[16/5]" />
+          <div className="aspect-[3/1] w-full bg-muted sm:rounded-t-2xl md:aspect-[16/5]" />
         )}
 
         <div className="px-4 pb-5 sm:px-6 md:px-8 md:pb-7">
@@ -302,15 +299,9 @@ export function ProfileView({
                       providerId={profile.id}
                       subscription={subscription}
                       size="sm"
-                      className="flex-1 min-w-0"
+                      className="flex-1"
                     />
                   )}
-                  <SendHeartsButton
-                    providerId={profile.id}
-                    initialBalance={viewerHeartsBalance}
-                    size="sm"
-                    className="sm:flex-1"
-                  />
                   <details className="relative">
                     <summary
                       aria-label="More profile actions"

@@ -86,7 +86,7 @@ export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
   }
 
   return (
-    <div className="relative aspect-[3/1] w-full overflow-hidden bg-secondary md:aspect-[16/5]">
+    <div className="relative aspect-[3/1] w-full overflow-hidden bg-secondary sm:rounded-t-2xl md:aspect-[16/5]">
       {preview ? (
         <Image
           src={preview}

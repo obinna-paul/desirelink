@@ -47,12 +47,12 @@ export function ProfileSubscribeButton({
   }
 
   return (
-    <div className="min-w-0">
+    <div className={cn("min-w-0", className)}>
       <Button
         type="button"
         variant={subscribed ? "outline" : "default"}
         size={size}
-        className={cn("h-10 min-w-28", className)}
+        className="h-10 w-full min-w-28"
         disabled={pending || subscribed || subscription.viewerState === "pending" || subscription.viewerState === "full"}
         onClick={subscribe}
       >
