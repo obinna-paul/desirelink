@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { isSelfieRecordingSupported, SelfieRecorder } from "@/components/verification/selfie-recorder";
 import { uploadDirectToCloudinary } from "@/lib/client-uploads";
 import type { VerificationRequestType } from "@/lib/verification";
 
@@ -31,6 +32,8 @@ const FileSlot = memo(function FileSlot({
   url,
   mediaType,
   uploading,
+  uploadingLabel,
+  pickLabel = "Upload",
   onPick,
   onClear,
 }: {
@@ -38,6 +41,8 @@ const FileSlot = memo(function FileSlot({
   url: string;
   mediaType: "image" | "video";
   uploading: boolean;
+  uploadingLabel?: string;
+  pickLabel?: string;
   onPick: () => void;
   onClear: () => void;
 }) {
@@ -88,7 +93,7 @@ const FileSlot = memo(function FileSlot({
           ) : (
             <Upload className="h-4 w-4" aria-hidden="true" />
           )}
-          {uploading ? "Uploading..." : "Upload"}
+          {uploading ? uploadingLabel ?? "Uploading..." : pickLabel}
         </button>
       </div>
     </div>
@@ -121,8 +126,14 @@ export function VerificationRequestCard({
   const [selfieUrl, setSelfieUrl] = useState("");
   const [uploadingId, setUploadingId] = useState(false);
   const [uploadingSelfie, setUploadingSelfie] = useState(false);
+  const [selfieProgress, setSelfieProgress] = useState(0);
+  const [recorderOpen, setRecorderOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Starts false to match the server-rendered markup, then flips after mount once
+  // `navigator`/`MediaRecorder` are actually available - avoids a hydration mismatch.
+  const [canRecord, setCanRecord] = useState(false);
+  useEffect(() => setCanRecord(isSelfieRecordingSupported()), []);
 
   async function uploadIdFile(file: File) {
     if (!file.type.startsWith("image/")) {
@@ -158,10 +169,16 @@ export function VerificationRequestCard({
     }
 
     setUploadingSelfie(true);
+    setSelfieProgress(0);
     setError(null);
 
     try {
-      const { url } = await uploadDirectToCloudinary(file, "verification-selfie", "/api/upload/verification-selfie");
+      const { url } = await uploadDirectToCloudinary(
+        file,
+        "verification-selfie",
+        "/api/upload/verification-selfie",
+        setSelfieProgress
+      );
       setSelfieUrl(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
@@ -267,10 +284,18 @@ export function VerificationRequestCard({
           url={selfieUrl}
           mediaType="video"
           uploading={uploadingSelfie}
-          onPick={() => selfieInputRef.current?.click()}
+          uploadingLabel={`Uploading... ${Math.round(selfieProgress * 100)}%`}
+          pickLabel={canRecord ? "Record" : "Upload"}
+          onPick={() => (canRecord ? setRecorderOpen(true) : selfieInputRef.current?.click())}
           onClear={() => setSelfieUrl("")}
         />
       </div>
+
+      <SelfieRecorder
+        open={recorderOpen}
+        onClose={() => setRecorderOpen(false)}
+        onRecorded={(file) => uploadSelfieVideo(file)}
+      />
 
       <div className="rounded-xl bg-muted/50 p-3.5">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

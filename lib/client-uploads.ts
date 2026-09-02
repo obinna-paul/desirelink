@@ -45,38 +45,61 @@ async function requestSignature(purpose: string): Promise<SignedUpload | null> {
   return signRes.json();
 }
 
-async function postDirectToCloudinary(file: File, sign: SignedUpload): Promise<CloudinaryUploadResult> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("api_key", sign.apiKey);
-  formData.append("timestamp", String(sign.timestamp));
-  formData.append("signature", sign.signature);
-  formData.append("folder", sign.folder);
-  if (sign.transformation) formData.append("transformation", sign.transformation);
+/** Uses XHR (not fetch) because only XHR exposes upload-progress events - needed so
+ * callers can show a real percentage instead of an indeterminate spinner. */
+function postDirectToCloudinary(
+  file: File,
+  sign: SignedUpload,
+  onProgress?: (fraction: number) => void
+): Promise<CloudinaryUploadResult> {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("api_key", sign.apiKey);
+    formData.append("timestamp", String(sign.timestamp));
+    formData.append("signature", sign.signature);
+    formData.append("folder", sign.folder);
+    if (sign.transformation) formData.append("transformation", sign.transformation);
 
-  const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`, {
-    method: "POST",
-    body: formData,
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`);
+
+    if (onProgress) {
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) onProgress(event.loaded / event.total);
+      };
+    }
+
+    xhr.onload = () => {
+      let body: { secure_url?: string; width?: number; height?: number; duration?: number; error?: { message?: string } } | null = null;
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        body = null;
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300 && body?.secure_url) {
+        resolve({
+          url: body.secure_url,
+          width: typeof body.width === "number" ? body.width : undefined,
+          height: typeof body.height === "number" ? body.height : undefined,
+          durationSeconds: typeof body.duration === "number" ? body.duration : undefined,
+        });
+      } else {
+        reject(new Error(body?.error?.message ?? "Upload failed. Please try again."));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Upload failed. Please try again."));
+    xhr.send(formData);
   });
-  const uploadBody = await uploadRes.json().catch(() => null);
-
-  if (!uploadRes.ok || !uploadBody?.secure_url) {
-    throw new Error(uploadBody?.error?.message ?? "Upload failed. Please try again.");
-  }
-
-  return {
-    url: uploadBody.secure_url as string,
-    width: typeof uploadBody.width === "number" ? uploadBody.width : undefined,
-    height: typeof uploadBody.height === "number" ? uploadBody.height : undefined,
-    durationSeconds: typeof uploadBody.duration === "number" ? uploadBody.duration : undefined,
-  };
 }
 
 /** Simple uploads whose fallback route returns `{ url }` at the top level (verification docs). */
 export async function uploadDirectToCloudinary(
   file: File,
   purpose: string,
-  fallbackUrl: string
+  fallbackUrl: string,
+  onProgress?: (fraction: number) => void
 ): Promise<{ url: string }> {
   const sign = await requestSignature(purpose);
   if (!sign) {
@@ -88,7 +111,7 @@ export async function uploadDirectToCloudinary(
     return { url: body.url as string };
   }
 
-  return postDirectToCloudinary(file, sign);
+  return postDirectToCloudinary(file, sign, onProgress);
 }
 
 /** Richer uploads (post/message media) whose fallback route returns `{ media: {...} }`,
@@ -96,7 +119,8 @@ export async function uploadDirectToCloudinary(
 export async function uploadMediaDirectToCloudinary(
   file: File,
   purpose: string,
-  fallbackUrl: string
+  fallbackUrl: string,
+  onProgress?: (fraction: number) => void
 ): Promise<CloudinaryUploadResult> {
   const sign = await requestSignature(purpose);
   if (!sign) {
@@ -108,5 +132,5 @@ export async function uploadMediaDirectToCloudinary(
     return body.media as CloudinaryUploadResult;
   }
 
-  return postDirectToCloudinary(file, sign);
+  return postDirectToCloudinary(file, sign, onProgress);
 }
