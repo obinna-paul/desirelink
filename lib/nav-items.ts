@@ -5,7 +5,6 @@ import {
   LineChart,
   MessageCircle,
   PlusCircle,
-  Settings,
   User,
   Wallet,
   type LucideIcon,
@@ -30,5 +29,4 @@ export const secondaryNavItems: NavItem[] = [
   { href: "/services", label: "Services", icon: Briefcase },
   { href: "/wallet", label: "Wallet", icon: Wallet },
   { href: "/creator-dashboard", label: "Creator Studio", icon: LineChart, providerOnly: true },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];

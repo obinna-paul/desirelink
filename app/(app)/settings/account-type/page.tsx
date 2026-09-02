@@ -9,7 +9,7 @@ import type { ProviderUpgradeIntent } from "@/components/settings/provider-upgra
 
 const PROVIDER_UPGRADE_INTENTS: readonly ProviderUpgradeIntent[] = ["premium-post", "service"];
 const PROVIDER_INTENT_REDIRECTS: Record<ProviderUpgradeIntent | "default", string> = {
-  default: "/settings",
+  default: "/verification",
   "premium-post": "/create",
   service: "/services/new",
 };

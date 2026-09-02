@@ -12,7 +12,7 @@ const INTENT_COPY: Record<ProviderUpgradeIntent | "default", { title: string; de
     title: "Switch to a creator account",
     description:
       "This changes what you can create on Udala — premium posts, service listings, or both. You can verify your identity afterward.",
-    redirectTo: "/settings",
+    redirectTo: "/verification",
   },
   "premium-post": {
     title: "Switch before publishing premium posts",
@@ -77,7 +77,7 @@ export function SwitchToProviderForm({
       )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" onClick={() => router.push("/settings")} className="h-11">
+        <Button type="button" variant="outline" onClick={() => router.push("/verification")} className="h-11">
           Cancel
         </Button>
         <Button type="button" disabled={status === "submitting"} onClick={handleSwitch} className="h-11">
