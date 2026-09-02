@@ -107,9 +107,15 @@ export async function submitVerificationRequest(
     };
   }
 
-  const request = await prisma.verificationRequest.create({
-    data: { profileId, requestType, govIdUrl, selfieUrl, status: "pending" },
-  });
+  const [request] = await prisma.$transaction([
+    prisma.verificationRequest.create({
+      data: { profileId, requestType, govIdUrl, selfieUrl, status: "pending" },
+    }),
+    prisma.profile.update({
+      where: { id: profileId },
+      data: { verificationPending: true },
+    }),
+  ]);
 
   return { ok: true, requestId: request.id };
 }
@@ -237,6 +243,7 @@ export async function approveVerificationRequest(
       where: { id: request.profileId },
       data: {
         isVerified: true,
+        verificationPending: false,
         [VERIFICATION_FIELD[request.requestType]]: true,
       },
     }),
@@ -275,7 +282,7 @@ export async function denyVerificationRequest(
     }),
     prisma.profile.update({
       where: { id: request.profileId },
-      data: { isSuspended: true, suspendedAt: new Date() },
+      data: { isSuspended: true, suspendedAt: new Date(), verificationPending: false },
     }),
   ]);
 

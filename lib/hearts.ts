@@ -6,6 +6,7 @@ import { processPaymentEvent } from "@/lib/payments/webhook-handler";
 import { getHeartPackage, HEART_UNIT_PRICE_CENTS } from "@/lib/hearts-shared";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { safeConfirmPayment } from "@/lib/payments/safe-call";
+import { hasIdentityOnFile } from "@/lib/verification";
 
 export type GiftContext = "live_stream" | "profile" | "chat";
 
@@ -42,6 +43,9 @@ export async function settleGift(params: {
   }
   if (senderId === receiverId) {
     return { ok: false, status: 400, error: "You can't send yourself a gift." };
+  }
+  if (!(await hasIdentityOnFile(receiverId))) {
+    return { ok: false, status: 400, error: "This creator hasn't activated gifts yet." };
   }
 
   const sender = await prisma.profile.findUnique({

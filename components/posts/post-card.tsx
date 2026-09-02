@@ -16,6 +16,7 @@ import { PostDetailModal } from "@/components/posts/post-detail-modal";
 import { PostMediaCarousel } from "@/components/posts/post-media-carousel";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { ReportDialog } from "@/components/safety/report-dialog";
+import { VerificationBadge } from "@/components/profile/verification-badge";
 import type { PostView } from "@/lib/posts";
 
 function LockedPostBody({ authorUsername }: { authorUsername: string }) {
@@ -137,8 +138,9 @@ export function PostCard({
               </Avatar>
             </PresenceRing>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">
-                {post.author.displayName}
+              <p className="flex min-w-0 items-center gap-1 truncate text-sm font-medium">
+                <span className="truncate">@{post.author.username}</span>
+                <VerificationBadge profile={post.author} />
               </p>
               <p className="text-xs text-muted-foreground">{timeAgo}</p>
             </div>

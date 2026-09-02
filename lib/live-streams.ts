@@ -11,6 +11,7 @@ import { settleGift } from "@/lib/hearts";
 import { refundOpenLiveRequests, type LiveRequestOptionInput } from "@/lib/live-requests";
 import { createNotificationsBulk } from "@/lib/notifications";
 import { ONLINE_WINDOW_MS } from "@/lib/presence";
+import { hasIdentityOnFile } from "@/lib/verification";
 
 function generateRoomName(): string {
   return `live-${randomBytes(12).toString("hex")}`;
@@ -37,6 +38,9 @@ export async function startLiveStream(
   });
   if (!profile || !isProviderProfileType(profile.profileType)) {
     return { ok: false, status: 403, error: "Only providers can host a live stream." };
+  }
+  if (!(await hasIdentityOnFile(providerId))) {
+    return { ok: false, status: 403, error: "Verify your identity before going live." };
   }
 
   const existing = await prisma.liveStream.findFirst({

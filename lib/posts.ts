@@ -34,6 +34,10 @@ const postAuthorSelect = {
   profileType: true,
   lastActiveAt: true,
   showActivityStatus: true,
+  isVerified: true,
+  isVerifiedCreator: true,
+  isVerifiedServiceProvider: true,
+  verificationPending: true,
 } as const;
 
 const commentAuthorSelect = {
@@ -43,6 +47,10 @@ const commentAuthorSelect = {
   avatarUrl: true,
   lastActiveAt: true,
   showActivityStatus: true,
+  isVerified: true,
+  isVerifiedCreator: true,
+  isVerifiedServiceProvider: true,
+  verificationPending: true,
 } as const;
 
 type RawPost = {
@@ -62,6 +70,10 @@ type RawPost = {
     profileType: ProfileType;
     lastActiveAt: Date | null;
     showActivityStatus: boolean;
+    isVerified: boolean;
+    isVerifiedCreator: boolean;
+    isVerifiedServiceProvider: boolean;
+    verificationPending: boolean;
   };
   comments: RawComment[];
   reactions: { id: string }[];
@@ -81,6 +93,10 @@ export type PostCommentView = {
     avatarUrl: string;
     presenceStatus: PresenceStatus;
     activeStreamId: string | null;
+    isVerified: boolean;
+    isVerifiedCreator: boolean;
+    isVerifiedServiceProvider: boolean;
+    verificationPending: boolean;
   };
   replies: PostCommentView[];
 };
@@ -96,6 +112,10 @@ type RawComment = {
     avatarUrl: string;
     lastActiveAt: Date | null;
     showActivityStatus: boolean;
+    isVerified: boolean;
+    isVerifiedCreator: boolean;
+    isVerifiedServiceProvider: boolean;
+    verificationPending: boolean;
   };
   replies?: RawComment[];
 };
@@ -120,6 +140,10 @@ export type PostView = {
     profileType: ProfileType;
     presenceStatus: PresenceStatus;
     activeStreamId: string | null;
+    isVerified: boolean;
+    isVerifiedCreator: boolean;
+    isVerifiedServiceProvider: boolean;
+    verificationPending: boolean;
   };
   counts: { comments: number; reactions: number; shares: number };
   viewerLiked: boolean;
@@ -195,6 +219,10 @@ function toCommentView(comment: RawComment, liveStreamIds: Map<string, string>):
       avatarUrl: comment.author.avatarUrl,
       presenceStatus: getPresenceStatus(comment.author, liveStreamIds.has(comment.author.id)),
       activeStreamId: liveStreamIds.get(comment.author.id) ?? null,
+      isVerified: comment.author.isVerified,
+      isVerifiedCreator: comment.author.isVerifiedCreator,
+      isVerifiedServiceProvider: comment.author.isVerifiedServiceProvider,
+      verificationPending: comment.author.verificationPending,
     },
     replies: (comment.replies ?? []).map((reply) => toCommentView(reply, liveStreamIds)),
   };
@@ -248,6 +276,10 @@ function toPostView(
       profileType: post.author.profileType,
       presenceStatus: getPresenceStatus(post.author, liveStreamIds.has(post.author.id)),
       activeStreamId: liveStreamIds.get(post.author.id) ?? null,
+      isVerified: post.author.isVerified,
+      isVerifiedCreator: post.author.isVerifiedCreator,
+      isVerifiedServiceProvider: post.author.isVerifiedServiceProvider,
+      verificationPending: post.author.verificationPending,
     },
     counts: post._count,
     viewerLiked: post.reactions.length > 0,

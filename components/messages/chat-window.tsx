@@ -24,6 +24,7 @@ import {
 
 import { GiftPicker, type SendGiftOutcome } from "@/components/hearts/gift-picker";
 import { MessageBubble } from "@/components/messages/message-bubble";
+import { VerificationBadge } from "@/components/profile/verification-badge";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { BlockButton } from "@/components/safety/block-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -150,6 +151,11 @@ export function ChatWindow({
 
   const blocked = blockRelationship !== "none";
   const counterpartIsProvider = isProviderProfileType(counterpart.profileType);
+  const counterpartAcceptsGifts =
+    counterpart.isVerified ||
+    counterpart.isVerifiedCreator ||
+    counterpart.isVerifiedServiceProvider ||
+    counterpart.verificationPending;
   initialMessagesRef.current = initialMessages;
   const { data: presence } = useSWR(
     `/api/messages/presence?profileId=${encodeURIComponent(counterpart.id)}`,
@@ -513,19 +519,20 @@ export function ChatWindow({
               <AvatarFallback className="text-xs">{counterpart.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <div className="flex min-w-0 items-center gap-1.5">
-                <p className="truncate text-[15px] font-semibold leading-5">{counterpart.displayName}</p>
+              <div className="flex min-w-0 items-center gap-1">
+                <p className="truncate text-[15px] font-semibold leading-5">@{counterpart.username}</p>
+                <VerificationBadge profile={counterpart} />
                 {presence?.visible && presence.state === "online" && !counterpartTyping && <span className="h-2 w-2 shrink-0 rounded-full bg-[hsl(var(--chat-status))]" aria-label="Online" />}
               </div>
               <p className={cn("truncate text-xs", counterpartTyping || presence?.state === "online" ? "text-[hsl(var(--chat-status))]" : "text-muted-foreground")} aria-live="polite">
-                {activityText ?? `@${counterpart.username}`}
+                {activityText ?? counterpart.displayName}
               </p>
             </div>
           </Link>
         </div>
 
         <div className="flex items-center gap-0.5">
-          {counterpartIsProvider && !blocked && (
+          {counterpartIsProvider && counterpartAcceptsGifts && !blocked && (
             <button type="button" aria-label="Send hearts" aria-expanded={giftPickerOpen} onClick={() => setGiftPickerOpen((open) => !open)} className="flex h-11 w-11 items-center justify-center rounded-full text-[hsl(var(--chat-outgoing))] transition-colors hover:bg-[hsl(var(--chat-incoming))]">
               <Heart className="h-5 w-5" fill="currentColor" aria-hidden="true" />
             </button>
@@ -549,7 +556,7 @@ export function ChatWindow({
         </div>
       </header>
 
-      {giftPickerOpen && counterpartIsProvider && (
+      {giftPickerOpen && counterpartIsProvider && counterpartAcceptsGifts && (
         <div className="z-10 shrink-0 border-b border-[hsl(var(--chat-border))] bg-[hsl(var(--chat-header))] px-4 py-3">
           <GiftPicker initialBalance={viewerHeartsBalance} onSend={sendHearts} />
         </div>

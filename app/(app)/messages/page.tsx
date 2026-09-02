@@ -34,7 +34,17 @@ export default async function MessagesPage({
   const counterpart = searchParams.with
     ? await prisma.profile.findUnique({
         where: { username: searchParams.with },
-        select: { id: true, username: true, displayName: true, avatarUrl: true, profileType: true },
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+          profileType: true,
+          isVerified: true,
+          isVerifiedCreator: true,
+          isVerifiedServiceProvider: true,
+          verificationPending: true,
+        },
       })
     : null;
 

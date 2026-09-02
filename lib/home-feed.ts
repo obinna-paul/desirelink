@@ -18,6 +18,8 @@ export function profileCardSelect() {
     serviceCategories: true,
     isVerified: true,
     isVerifiedCreator: true,
+    isVerifiedServiceProvider: true,
+    verificationPending: true,
     isTrustedMember: true,
     availabilityStatuses: {
       where: { expiresAt: { gt: new Date() } },

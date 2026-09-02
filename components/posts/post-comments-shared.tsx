@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PresenceRing } from "@/components/ui/presence-avatar";
 import { Badge } from "@/components/ui/badge";
 import { ReportDialog } from "@/components/safety/report-dialog";
+import { VerificationBadge } from "@/components/profile/verification-badge";
 import { cn } from "@/lib/utils";
 import type { PostCommentView } from "@/lib/posts";
 
@@ -112,9 +113,10 @@ function CommentThread({
           <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
             <Link
               href={`/profile/${comment.author.username}`}
-              className="text-[13.5px] font-semibold hover:text-primary"
+              className="flex items-center gap-1 text-[13.5px] font-semibold hover:text-primary"
             >
-              {comment.author.displayName}
+              @{comment.author.username}
+              <VerificationBadge profile={comment.author} />
             </Link>
             {isAuthor && (
               <Badge variant="tint" className="label-caps px-1.5 py-0 text-[9px] leading-4">

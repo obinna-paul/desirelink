@@ -40,6 +40,10 @@ export type ConversationParticipant = {
   displayName: string;
   avatarUrl: string;
   profileType: ProfileType;
+  isVerified: boolean;
+  isVerifiedCreator: boolean;
+  isVerifiedServiceProvider: boolean;
+  verificationPending: boolean;
 };
 
 export type ConversationSummary = {

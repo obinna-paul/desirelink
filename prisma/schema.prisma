@@ -204,6 +204,7 @@ model Profile {
   isVerified                Boolean   @default(false)
   isVerifiedCreator         Boolean   @default(false)
   isVerifiedServiceProvider Boolean   @default(false)
+  verificationPending       Boolean   @default(false)
   isTrustedMember           Boolean   @default(false)
   isSuspended               Boolean   @default(false)
   suspendedAt               DateTime?

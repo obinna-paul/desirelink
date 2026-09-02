@@ -13,6 +13,7 @@ import type { PresenceStatus } from "@/lib/presence";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { CommentComposer, CommentsList, usePostComments } from "@/components/posts/post-comments-shared";
+import { VerificationBadge, type VerificationBadgeProfile } from "@/components/profile/verification-badge";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { cn } from "@/lib/utils";
 import type { PostMediaItem } from "@/lib/post-shared";
@@ -50,7 +51,7 @@ export function PostDetailModal({
     avatarUrl: string;
     presenceStatus: PresenceStatus;
     activeStreamId: string | null;
-  };
+  } & VerificationBadgeProfile;
   viewerCanManage: boolean;
   isSubscriberOnly: boolean;
   isPinned: boolean;
@@ -186,7 +187,10 @@ export function PostDetailModal({
                 </Avatar>
               </PresenceRing>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">{author.displayName}</p>
+                <p className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold">
+                  <span className="truncate">@{author.username}</span>
+                  <VerificationBadge profile={author} />
+                </p>
                 <p className="text-xs text-muted-foreground">{timeAgo}</p>
               </div>
             </Link>
@@ -211,8 +215,12 @@ export function PostDetailModal({
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="whitespace-pre-wrap text-[14.5px] leading-6">
-                    <Link href={`/profile/${author.username}`} className="font-semibold hover:text-primary">
-                      {author.displayName}
+                    <Link
+                      href={`/profile/${author.username}`}
+                      className="inline-flex items-center gap-1 font-semibold hover:text-primary"
+                    >
+                      @{author.username}
+                      <VerificationBadge profile={author} />
                     </Link>{" "}
                     {caption}
                   </p>

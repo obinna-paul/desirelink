@@ -189,7 +189,7 @@ export function ProfileView({
             <div className="min-w-0 flex-1 pt-11 sm:pt-14 md:pt-16">
               {profile.displayName && (
                 <p className="truncate text-sm text-muted-foreground">
-                  @{profile.username}
+                  {profile.displayName}
                 </p>
               )}
             </div>
@@ -197,7 +197,7 @@ export function ProfileView({
 
           <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 md:ml-[9.5rem]">
             <h1 className="min-w-0 break-words font-heading text-xl font-semibold text-foreground sm:text-2xl md:text-3xl">
-              {profile.displayName || `@${profile.username}`}
+              @{profile.username}
             </h1>
             <VerificationBadge profile={profile} />
           </div>

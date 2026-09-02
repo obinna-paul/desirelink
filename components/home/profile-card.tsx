@@ -13,6 +13,7 @@ export function ProfileCard({
   matchScore?: number;
 }) {
   const initials = profile.displayName.slice(0, 2).toUpperCase();
+  const isVerifiedProvider = profile.isVerified || profile.isVerifiedCreator;
   const preciseLocation = [profile.city, profile.country].filter(Boolean).join(", ");
   const distanceLabel =
     typeof profile.distanceKm === "number"
@@ -62,12 +63,14 @@ export function ProfileCard({
 
         <div className="absolute inset-x-0 bottom-0 p-3 text-white md:p-4">
           <div className="flex min-w-0 items-center gap-1.5">
-            <p className="truncate text-sm font-semibold md:text-base">{profile.displayName}</p>
-            {(profile.isVerified || profile.isTrustedMember || profile.isVerifiedCreator) && (
-              <BadgeCheck className="h-4 w-4 shrink-0 text-white" aria-label="Verified" />
-            )}
+            <p className="truncate text-sm font-semibold md:text-base">@{profile.username}</p>
+            {isVerifiedProvider ? (
+              <BadgeCheck className="h-4 w-4 shrink-0 fill-primary text-white" aria-label="Verified" />
+            ) : profile.verificationPending ? (
+              <BadgeCheck className="h-4 w-4 shrink-0 text-white/50" aria-label="Verification pending review" />
+            ) : null}
           </div>
-          <p className="truncate text-[11px] text-white/75 md:text-xs">@{profile.username}</p>
+          <p className="truncate text-[11px] text-white/75 md:text-xs">{profile.displayName}</p>
           {locationLabel && (
             <p className="mt-1 flex items-center gap-1 truncate text-[10px] text-white/80 md:text-xs">
               <MapPin className="h-3 w-3 shrink-0" aria-hidden="true" />

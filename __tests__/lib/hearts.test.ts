@@ -2,6 +2,7 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     profile: { findUnique: jest.fn(), update: jest.fn() },
     gift: { create: jest.fn() },
+    verificationRequest: { findFirst: jest.fn() },
     $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   },
 }));
@@ -15,11 +16,15 @@ import { prisma } from "@/lib/prisma";
 const mockPrisma = prisma as unknown as {
   profile: { findUnique: jest.Mock; update: jest.Mock };
   gift: { create: jest.Mock };
+  verificationRequest: { findFirst: jest.Mock };
 };
 
 describe("settleGift", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // The receiver is assumed to have identity on file unless a test says otherwise -
+    // settleGift gates on hasIdentityOnFile before the sender/balance checks these tests exercise.
+    mockPrisma.verificationRequest.findFirst.mockResolvedValue({ id: "req-1" });
   });
 
   it("rejects a non-positive or non-integer gift amount", async () => {
@@ -31,6 +36,16 @@ describe("settleGift", () => {
   it("rejects a gift to yourself", async () => {
     const result = await settleGift({ senderId: "a", receiverId: "a", hearts: 10, context: "profile" });
     expect(result).toEqual({ ok: false, status: 400, error: "You can't send yourself a gift." });
+  });
+
+  it("rejects a gift when the receiver hasn't activated verification", async () => {
+    mockPrisma.profile.findUnique.mockResolvedValue({ isVerified: false, isVerifiedCreator: false, isVerifiedServiceProvider: false });
+    mockPrisma.verificationRequest.findFirst.mockResolvedValue(null);
+
+    const result = await settleGift({ senderId: "a", receiverId: "b", hearts: 10, context: "chat" });
+
+    expect(result).toEqual({ ok: false, status: 400, error: "This creator hasn't activated gifts yet." });
+    expect(mockPrisma.profile.update).not.toHaveBeenCalled();
   });
 
   it("rejects when the sender doesn't have enough hearts", async () => {

@@ -8,6 +8,8 @@ import { getActiveStreamForProvider } from "@/lib/live-streams";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { isLiveKitConfigured } from "@/lib/livekit";
 import { getLiveRequestPresets } from "@/lib/live-requests";
+import { hasIdentityOnFile } from "@/lib/verification";
+import { VerificationRequestCard } from "@/components/verification/verification-request-card";
 
 export default async function GoLivePage() {
   const session = await getServerSession(authOptions);
@@ -26,6 +28,14 @@ export default async function GoLivePage() {
   const existing = await getActiveStreamForProvider(profile.id);
   if (existing) {
     redirect(`/live/${existing.id}`);
+  }
+
+  if (!(await hasIdentityOnFile(profile.id))) {
+    return (
+      <div className="mx-auto max-w-md">
+        <VerificationRequestCard requestType="creator" isVerified={false} latestStatus={null} />
+      </div>
+    );
   }
 
   const requestPresets = await getLiveRequestPresets(profile.id);

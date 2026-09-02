@@ -36,6 +36,10 @@ const counterpartSelect = {
   displayName: true,
   avatarUrl: true,
   profileType: true,
+  isVerified: true,
+  isVerifiedCreator: true,
+  isVerifiedServiceProvider: true,
+  verificationPending: true,
 } as const;
 
 const CONVERSATION_HISTORY_SCAN_LIMIT = 500;

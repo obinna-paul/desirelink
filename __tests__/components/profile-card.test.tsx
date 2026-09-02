@@ -17,6 +17,8 @@ function profile(overrides: Partial<ProfileCardData> = {}): ProfileCardData {
     serviceCategories: [],
     isVerified: true,
     isVerifiedCreator: true,
+    isVerifiedServiceProvider: false,
+    verificationPending: false,
     isTrustedMember: false,
     availabilityStatuses: [{ status: "available_tonight", expiresAt: new Date(Date.now() + 60 * 60 * 1000) }],
     ...overrides,

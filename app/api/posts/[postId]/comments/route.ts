@@ -36,6 +36,10 @@ type CommentAuthor = {
   avatarUrl: string;
   lastActiveAt: Date | null;
   showActivityStatus: boolean;
+  isVerified: boolean;
+  isVerifiedCreator: boolean;
+  isVerifiedServiceProvider: boolean;
+  verificationPending: boolean;
 };
 
 function serializeComment(
@@ -53,6 +57,10 @@ function serializeComment(
       avatarUrl: comment.author.avatarUrl,
       presenceStatus: getPresenceStatus(comment.author, liveStreamIds.has(comment.author.id)),
       activeStreamId: liveStreamIds.get(comment.author.id) ?? null,
+      isVerified: comment.author.isVerified,
+      isVerifiedCreator: comment.author.isVerifiedCreator,
+      isVerifiedServiceProvider: comment.author.isVerifiedServiceProvider,
+      verificationPending: comment.author.verificationPending,
     },
     replies: [],
   };
@@ -83,7 +91,18 @@ function normalizeThread(
   id: string;
   content: string;
   createdAt: string;
-  author: { id: string; username: string; displayName: string; avatarUrl: string; presenceStatus: PresenceStatus; activeStreamId: string | null };
+  author: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string;
+    presenceStatus: PresenceStatus;
+    activeStreamId: string | null;
+    isVerified: boolean;
+    isVerifiedCreator: boolean;
+    isVerifiedServiceProvider: boolean;
+    verificationPending: boolean;
+  };
   replies: ReturnType<typeof normalizeThread>[];
 } {
   return {
@@ -97,6 +116,10 @@ function normalizeThread(
       avatarUrl: node.author.avatarUrl,
       presenceStatus: getPresenceStatus(node.author, liveStreamIds.has(node.author.id)),
       activeStreamId: liveStreamIds.get(node.author.id) ?? null,
+      isVerified: node.author.isVerified,
+      isVerifiedCreator: node.author.isVerifiedCreator,
+      isVerifiedServiceProvider: node.author.isVerifiedServiceProvider,
+      verificationPending: node.author.verificationPending,
     },
     replies: (node.replies ?? []).map((reply) => normalizeThread(reply, liveStreamIds)),
   };
@@ -109,6 +132,10 @@ const AUTHOR_SELECT = {
   avatarUrl: true,
   lastActiveAt: true,
   showActivityStatus: true,
+  isVerified: true,
+  isVerifiedCreator: true,
+  isVerifiedServiceProvider: true,
+  verificationPending: true,
 } as const;
 const PAGE_SIZE = 15;
 
