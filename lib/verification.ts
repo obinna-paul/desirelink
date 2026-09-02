@@ -2,6 +2,8 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
+import { deleteCloudinaryAsset } from "@/lib/cloudinary";
+import { recordAdminAction } from "@/lib/admin/audit";
 
 export const VERIFICATION_REQUEST_TYPES = [
   "creator",
@@ -216,12 +218,40 @@ const VERIFICATION_FIELD: Record<
   service_provider: "isVerifiedServiceProvider",
 };
 
+/**
+ * Purges the ID photo and selfie video from Cloudinary and stamps mediaDeletedAt - the
+ * privacy policy promises deletion "immediately after manual review," so this runs right
+ * after every approve/deny decision. Deliberately swallows failures (logged, not thrown):
+ * a Cloudinary hiccup must never leave a verification decision half-applied, and a failed
+ * delete here just means the next run (or a manual cleanup) can retry against a still-null
+ * mediaDeletedAt.
+ */
+async function deleteVerificationMedia(request: {
+  id: string;
+  govIdUrl: string;
+  selfieUrl: string;
+}): Promise<void> {
+  try {
+    await Promise.all([
+      deleteCloudinaryAsset(request.govIdUrl, "image"),
+      deleteCloudinaryAsset(request.selfieUrl, "video"),
+    ]);
+    await prisma.verificationRequest.update({
+      where: { id: request.id },
+      data: { mediaDeletedAt: new Date() },
+    });
+  } catch (error) {
+    console.error("[verification] failed to delete media for request", request.id, error);
+  }
+}
+
 export async function approveVerificationRequest(
   requestId: string,
   reviewerId: string,
 ): Promise<ReviewVerificationResult> {
   const request = await prisma.verificationRequest.findUnique({
     where: { id: requestId },
+    include: { profile: { select: { userId: true, username: true } } },
   });
   if (!request) {
     return { ok: false, status: 404, error: "Request not found" };
@@ -232,6 +262,9 @@ export async function approveVerificationRequest(
       status: 400,
       error: "Request has already been reviewed",
     };
+  }
+  if (request.profile.userId === reviewerId) {
+    return { ok: false, status: 403, error: "You can't review your own verification request" };
   }
 
   await prisma.$transaction([
@@ -249,6 +282,15 @@ export async function approveVerificationRequest(
     }),
   ]);
 
+  await deleteVerificationMedia(request);
+  await recordAdminAction({
+    actorId: reviewerId,
+    action: "verification.approve",
+    targetType: "profile",
+    targetId: request.profileId,
+    summary: `Approved ${request.requestType} verification for @${request.profile.username}`,
+  });
+
   return { ok: true };
 }
 
@@ -263,6 +305,7 @@ export async function denyVerificationRequest(
 ): Promise<ReviewVerificationResult> {
   const request = await prisma.verificationRequest.findUnique({
     where: { id: requestId },
+    include: { profile: { select: { userId: true, username: true } } },
   });
   if (!request) {
     return { ok: false, status: 404, error: "Request not found" };
@@ -273,6 +316,9 @@ export async function denyVerificationRequest(
       status: 400,
       error: "Request has already been reviewed",
     };
+  }
+  if (request.profile.userId === reviewerId) {
+    return { ok: false, status: 403, error: "You can't review your own verification request" };
   }
 
   await prisma.$transaction([
@@ -285,6 +331,15 @@ export async function denyVerificationRequest(
       data: { isSuspended: true, suspendedAt: new Date(), verificationPending: false },
     }),
   ]);
+
+  await deleteVerificationMedia(request);
+  await recordAdminAction({
+    actorId: reviewerId,
+    action: "verification.deny",
+    targetType: "profile",
+    targetId: request.profileId,
+    summary: `Denied ${request.requestType} verification for @${request.profile.username} (account suspended)`,
+  });
 
   return { ok: true };
 }

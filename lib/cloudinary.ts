@@ -37,3 +37,19 @@ export function createSignedUploadParams(paramsToSign: Record<string, string | n
 
   return { ...fullParams, signature, apiKey: config.api_key, cloudName: config.cloud_name };
 }
+
+/** Pulls the public_id (folder path + filename, no extension) back out of a Cloudinary
+ * secure_url, since we only ever persisted the URL - needed to delete an asset later. */
+export function extractCloudinaryPublicId(url: string): string | null {
+  const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)\.[a-zA-Z0-9]+(?:$|\?)/);
+  return match ? match[1] : null;
+}
+
+/** Permanently deletes an uploaded asset - used to honor the "deleted immediately after
+ * review" promise for verification documents. No-op if the URL isn't a recognizable
+ * Cloudinary asset URL (e.g. the local-disk fallback used when Cloudinary isn't configured). */
+export async function deleteCloudinaryAsset(url: string, resourceType: "image" | "video"): Promise<void> {
+  const publicId = extractCloudinaryPublicId(url);
+  if (!publicId) return;
+  await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+}

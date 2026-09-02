@@ -5,6 +5,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 import { isProviderProfileType } from "@/lib/provider-types";
+import { recordAdminAction } from "@/lib/admin/audit";
 
 /** Minimum wallet balance a provider can withdraw at once, in kobo. */
 export const MINIMUM_WITHDRAWAL_CENTS = 1_500_000;
@@ -219,16 +220,19 @@ export type ApproveWithdrawalResult =
  * doc comment for why it isn't sent at request time). On failure, the
  * provider's wallet balance is refunded so the request can be retried.
  */
-export async function approveWithdrawal(withdrawalId: string): Promise<ApproveWithdrawalResult> {
+export async function approveWithdrawal(withdrawalId: string, actorId: string): Promise<ApproveWithdrawalResult> {
   const withdrawal = await prisma.walletWithdrawal.findUnique({
     where: { id: withdrawalId },
-    include: { provider: { select: { payoutRecipientCode: true, displayName: true } } },
+    include: { provider: { select: { userId: true, payoutRecipientCode: true, displayName: true } } },
   });
   if (!withdrawal) {
     return { ok: false, status: 404, error: "Withdrawal request not found." };
   }
   if (withdrawal.status !== "pending") {
     return { ok: false, status: 400, error: "This request has already been resolved." };
+  }
+  if (withdrawal.provider.userId === actorId) {
+    return { ok: false, status: 403, error: "You can't approve your own withdrawal." };
   }
   if (!withdrawal.provider.payoutRecipientCode) {
     return { ok: false, status: 400, error: "This provider no longer has payout details on file." };
@@ -268,6 +272,15 @@ export async function approveWithdrawal(withdrawalId: string): Promise<ApproveWi
       payoutReference: transfer.reference,
       paidAt: transfer.status === "success" ? new Date() : null,
     },
+  });
+
+  await recordAdminAction({
+    actorId,
+    action: "withdrawal.approve",
+    targetType: "wallet_withdrawal",
+    targetId: withdrawal.id,
+    summary: `Approved ₦${(withdrawal.netAmountCents / 100).toLocaleString()} payout to ${withdrawal.provider.displayName}`,
+    metadata: { netAmountCents: withdrawal.netAmountCents, status: transfer.status },
   });
 
   return { ok: true, status: transfer.status };

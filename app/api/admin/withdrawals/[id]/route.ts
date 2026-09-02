@@ -2,16 +2,17 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
-import { isAdminUser } from "@/lib/admin";
+import { requireCapability } from "@/lib/admin/access";
 import { approveWithdrawal } from "@/lib/wallet";
 
 export async function PATCH(_req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || !(await isAdminUser(session.user.id))) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const gate = await requireCapability(session?.user?.id, "manage_payouts");
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
   }
 
-  const result = await approveWithdrawal(params.id);
+  const result = await approveWithdrawal(params.id, session!.user.id);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }

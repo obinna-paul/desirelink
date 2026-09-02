@@ -1,6 +1,7 @@
 import type { ModerationStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { recordAdminAction, type AdminAuditAction } from "@/lib/admin/audit";
 
 export const MODERATION_KEYWORDS = [
   "scam",
@@ -269,6 +270,20 @@ export async function reviewModerationFlag(
       data: { status: action === "review" ? "reviewed" : "resolved" },
     });
   }
+
+  const AUDIT_ACTION: Record<ModerationAction, AdminAuditAction> = {
+    review: "moderation.review",
+    remove: "moderation.remove",
+    warn: "moderation.warn",
+    suspend: "moderation.suspend",
+  };
+  await recordAdminAction({
+    actorId: reviewerUserId,
+    action: AUDIT_ACTION[action],
+    targetType: flag.contentType,
+    targetId: flag.contentId,
+    summary: `${action} on ${flag.contentType} ${flag.contentId}${ownerId ? ` (owner ${ownerId})` : ""}`,
+  });
 
   return { ok: true };
 }

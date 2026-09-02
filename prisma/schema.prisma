@@ -99,6 +99,13 @@ enum ProfileType {
   CREATOR
 }
 
+enum AdminRole {
+  SUPPORT
+  MODERATOR
+  FINANCE
+  SUPERADMIN
+}
+
 enum PartnerInviteStatus {
   pending
   accepted
@@ -109,19 +116,27 @@ enum PartnerInviteStatus {
 // --- Auth ------------------------------------------------------------------
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
+  id            String     @id @default(cuid())
+  email         String     @unique
   passwordHash  String?
   name          String
   image         String?
   emailVerified DateTime?
-  isAdmin       Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  isAdmin       Boolean    @default(false)
+  /**
+   * Which admin console capabilities this user has - see lib/admin/access.ts. Null on an
+   * isAdmin user is treated as SUPERADMIN (legacy/back-compat default) so flipping isAdmin
+   * alone, as done before roles existed, never silently locks someone out.
+   */
+  adminRole     AdminRole?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
-  profile  Profile?
-  accounts Account[]
-  sessions Session[]
+  profile        Profile?
+  accounts       Account[]
+  sessions       Session[]
+  adminAuditLogs AdminAuditLog[]
+  adminNotes     AdminNote[]
 }
 
 // NextAuth Prisma adapter models (Account/Session/VerificationToken) -----
@@ -261,6 +276,7 @@ model Profile {
   reviewsGiven           Review[]              @relation("ReviewReviewer")
   reviewsReceived        Review[]              @relation("ReviewReviewee")
   verificationRequests   VerificationRequest[]
+  adminNotes             AdminNote[]
 
   providerSubscriptionsAsSub      ProviderSubscription[] @relation("ProviderSubscriptionSubscriber")
   providerSubscriptionsAsProvider ProviderSubscription[] @relation("ProviderSubscriptionProvider")
@@ -758,17 +774,23 @@ model Review {
 // --- Verification (creators & service providers) ---------------------------
 
 model VerificationRequest {
-  id          String                    @id @default(cuid())
-  profileId   String
-  profile     Profile                   @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  requestType VerificationRequestType
-  govIdUrl    String
-  selfieUrl   String
-  status      VerificationRequestStatus @default(pending)
-  reviewerId  String?
-  reviewedAt  DateTime?
-  createdAt   DateTime                  @default(now())
-  updatedAt   DateTime                  @updatedAt
+  id             String                    @id @default(cuid())
+  profileId      String
+  profile        Profile                   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  requestType    VerificationRequestType
+  govIdUrl       String
+  selfieUrl      String
+  status         VerificationRequestStatus @default(pending)
+  reviewerId     String?
+  reviewedAt     DateTime?
+  /**
+   * Set once the ID photo and selfie video are purged from Cloudinary after review - the
+   * privacy policy promises immediate deletion, so this is what makes that provable. See
+   * deleteVerificationMedia in lib/verification.ts.
+   */
+  mediaDeletedAt DateTime?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
 
   @@index([profileId])
   @@index([status])
@@ -928,4 +950,44 @@ model WalletWithdrawal {
 
   @@index([providerId])
   @@index([status])
+}
+
+// --- Admin console -----------------------------------------------------------
+
+/**
+ * Append-only record of every privileged action AND every sensitive read (opening a
+ * verification document, a paywalled post, etc.) taken through the admin console. Never
+ * updated or deleted once written - see lib/admin/audit.ts.
+ */
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id])
+  action     String
+  targetType String
+  targetId   String?
+  summary    String
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+/**
+ * A case note an admin leaves on an account - the shared context a support/moderation
+ * team needs that shouldn't live only in one person's head.
+ */
+model AdminNote {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([profileId])
 }

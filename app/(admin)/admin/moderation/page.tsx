@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
-import { isAdminUser } from "@/lib/admin";
+import { requireCapability } from "@/lib/admin/access";
 import { getModerationQueue } from "@/lib/moderation";
 import { ModerationQueue } from "@/components/admin/moderation-queue";
 
@@ -14,7 +14,8 @@ export default async function AdminModerationPage() {
     redirect("/login");
   }
 
-  if (!(await isAdminUser(session.user.id))) {
+  const gate = await requireCapability(session.user.id, "moderate_content");
+  if (!gate.ok) {
     notFound();
   }
 
