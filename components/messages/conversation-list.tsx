@@ -104,7 +104,7 @@ export function ConversationList({
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <p className={cn("truncate text-sm", unreadCount > 0 ? "font-bold" : "font-semibold")}>@{counterpart.username}</p>
+                      <p className={cn("truncate text-sm", unreadCount > 0 ? "font-bold" : "font-semibold")}>{counterpart.username}</p>
                       <span className={cn("shrink-0 text-[11px]", unreadCount > 0 ? "font-semibold text-[hsl(var(--chat-outgoing))]" : "text-muted-foreground")}>
                         {formatTimestamp(lastMessage.createdAt)}
                       </span>

@@ -31,7 +31,7 @@ describe("ProfileCard", () => {
 
     expect(screen.getByRole("link")).toHaveAttribute("href", "/profile/mara");
     expect(screen.getByText("Mara Stone")).toBeInTheDocument();
-    expect(screen.getByText("@mara")).toBeInTheDocument();
+    expect(screen.getByText("mara")).toBeInTheDocument();
     expect(screen.getByText("Lagos, NG")).toBeInTheDocument();
     expect(screen.getByText("91% match")).toBeInTheDocument();
     expect(container.querySelector('[aria-label="Verified"]')).toBeInTheDocument();

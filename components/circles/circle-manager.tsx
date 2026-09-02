@@ -206,7 +206,7 @@ function CircleEditor({
                     key={member.id}
                     className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background px-3 text-xs"
                   >
-                    @{member.profile.username}
+                    {member.profile.username}
                     <button
                       type="button"
                       onClick={() => removeMember(member.id)}

@@ -33,7 +33,7 @@ export function ReportsList({ reports }: { reports: MyReportData[] }) {
           </div>
           {report.reportedUser && (
             <p className="text-xs text-muted-foreground">
-              Reported user: {report.reportedUser.displayName} (@{report.reportedUser.username})
+              Reported user: {report.reportedUser.displayName} ({report.reportedUser.username})
             </p>
           )}
           {report.details && <p className="text-xs text-muted-foreground">{report.details}</p>}

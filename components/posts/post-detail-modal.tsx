@@ -188,7 +188,7 @@ export function PostDetailModal({
               </PresenceRing>
               <div className="min-w-0">
                 <p className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold">
-                  <span className="truncate">@{author.username}</span>
+                  <span className="truncate">{author.username}</span>
                   <VerificationBadge profile={author} />
                 </p>
                 <p className="text-xs text-muted-foreground">{timeAgo}</p>
@@ -219,7 +219,7 @@ export function PostDetailModal({
                       href={`/profile/${author.username}`}
                       className="inline-flex items-center gap-1 font-semibold hover:text-primary"
                     >
-                      @{author.username}
+                      {author.username}
                       <VerificationBadge profile={author} />
                     </Link>{" "}
                     {caption}

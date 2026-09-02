@@ -37,7 +37,7 @@ export async function generateMetadata({
   });
   if (!profile || profile.isSuspended) return { title: "Profile not found" };
 
-  const title = `${profile.displayName} (@${profile.username})`;
+  const title = `${profile.displayName} (${profile.username})`;
   const description = profile.bio || `${profile.displayName}'s profile on ${SITE_NAME}.`;
   const image = profile.bannerUrl || profile.avatarUrl || undefined;
   const url = absoluteUrl(`/profile/${profile.username}`);

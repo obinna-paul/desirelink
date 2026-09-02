@@ -520,7 +520,7 @@ export function ChatWindow({
             </Avatar>
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-1">
-                <p className="truncate text-[15px] font-semibold leading-5">@{counterpart.username}</p>
+                <p className="truncate text-[15px] font-semibold leading-5">{counterpart.username}</p>
                 <VerificationBadge profile={counterpart} />
                 {presence?.visible && presence.state === "online" && !counterpartTyping && <span className="h-2 w-2 shrink-0 rounded-full bg-[hsl(var(--chat-status))]" aria-label="Online" />}
               </div>

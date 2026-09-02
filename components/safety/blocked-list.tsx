@@ -61,7 +61,7 @@ export function BlockedList({ initialBlocks }: { initialBlocks: BlockedProfileDa
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{blocked.displayName}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    @{blocked.username} &middot; Blocked {new Date(createdAt).toLocaleDateString()}
+                    {blocked.username} &middot; Blocked {new Date(createdAt).toLocaleDateString()}
                   </p>
                 </div>
               </div>

@@ -189,7 +189,7 @@ export function BookingList({ role, bookings }: { role: "provider" | "customer";
                   <Badge variant={STATUS_VARIANT[booking.status]}>{STATUS_LABEL[booking.status]}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {role === "provider" ? "Requested by" : "Provider"} {counterparty.displayName} (@{counterparty.username})
+                  {role === "provider" ? "Requested by" : "Provider"} {counterparty.displayName} ({counterparty.username})
                 </p>
                 <p className="text-xs text-muted-foreground">{formatWhen(booking.requestedAt)}</p>
                 {booking.note && <p className="mt-1 text-xs text-foreground/80">&ldquo;{booking.note}&rdquo;</p>}

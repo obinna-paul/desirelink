@@ -39,7 +39,7 @@ export function AudienceList({ subscribers }: { subscribers: Subscribers }) {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{sub.subscriber.displayName}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    @{sub.subscriber.username} &middot; {sub.tier.name}
+                    {sub.subscriber.username} &middot; {sub.tier.name}
                   </p>
                 </div>
               </div>

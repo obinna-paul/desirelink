@@ -65,7 +65,7 @@ export default function SignupPage() {
   const reviewItems = useMemo(
     () => [
       { label: "Name", value: values.name || "Not set" },
-      { label: "Username", value: values.username ? `@${values.username}` : "Not set" },
+      { label: "Username", value: values.username || "Not set" },
       { label: "Email", value: normalizedEmail || "Not set" },
       { label: "Account type", value: accountTypeLabel },
     ],

@@ -74,7 +74,7 @@ export function CreatorAssistantPanel({ insights }: { insights: CreatorAssistant
                       {index + 1}. {fan.profile.displayName}
                     </Link>
                     <p className="truncate text-xs text-muted-foreground">
-                      {fan.tiers.length > 0 ? fan.tiers.join(", ") : `@${fan.profile.username}`}
+                      {fan.tiers.length > 0 ? fan.tiers.join(", ") : fan.profile.username}
                     </p>
                   </div>
                 </div>

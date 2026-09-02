@@ -115,7 +115,7 @@ function CommentThread({
               href={`/profile/${comment.author.username}`}
               className="flex items-center gap-1 text-[13.5px] font-semibold hover:text-primary"
             >
-              @{comment.author.username}
+              {comment.author.username}
               <VerificationBadge profile={comment.author} />
             </Link>
             {isAuthor && (

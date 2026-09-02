@@ -38,7 +38,7 @@ function RequestRow({
               {request.profile.displayName}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              @{request.profile.username} &middot;{" "}
+              {request.profile.username} &middot;{" "}
               {formatDistanceToNow(new Date(request.createdAt), {
                 addSuffix: true,
               })}

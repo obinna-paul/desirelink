@@ -26,7 +26,7 @@ function ProfileRow({
         </Avatar>
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{profile.displayName}</p>
-          <p className="truncate text-xs text-muted-foreground">@{profile.username}</p>
+          <p className="truncate text-xs text-muted-foreground">{profile.username}</p>
         </div>
       </Link>
       {children}

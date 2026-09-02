@@ -63,7 +63,7 @@ export function ProfileCard({
 
         <div className="absolute inset-x-0 bottom-0 p-3 text-white md:p-4">
           <div className="flex min-w-0 items-center gap-1.5">
-            <p className="truncate text-sm font-semibold md:text-base">@{profile.username}</p>
+            <p className="truncate text-sm font-semibold md:text-base">{profile.username}</p>
             {isVerifiedProvider ? (
               <BadgeCheck className="h-4 w-4 shrink-0 fill-primary text-white" aria-label="Verified" />
             ) : profile.verificationPending ? (

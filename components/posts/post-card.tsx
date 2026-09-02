@@ -139,7 +139,7 @@ export function PostCard({
             </PresenceRing>
             <div className="min-w-0">
               <p className="flex min-w-0 items-center gap-1 truncate text-sm font-medium">
-                <span className="truncate">@{post.author.username}</span>
+                <span className="truncate">{post.author.username}</span>
                 <VerificationBadge profile={post.author} />
               </p>
               <p className="text-xs text-muted-foreground">{timeAgo}</p>

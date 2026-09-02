@@ -35,7 +35,7 @@ function ApplicationRow({
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{application.profile.displayName}</p>
           <p className="truncate text-xs text-muted-foreground">
-            @{application.profile.username} &middot; applied for {application.tier.name}
+            {application.profile.username} &middot; applied for {application.tier.name}
           </p>
         </div>
       </div>

@@ -35,7 +35,7 @@ function WithdrawalRow({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{withdrawal.provider.displayName}</p>
             <p className="truncate text-xs text-muted-foreground">
-              @{withdrawal.provider.username} &middot;{" "}
+              {withdrawal.provider.username} &middot;{" "}
               {formatDistanceToNow(new Date(withdrawal.createdAt), { addSuffix: true })}
             </p>
           </div>
