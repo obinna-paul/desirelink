@@ -10,29 +10,35 @@ import { recordAdminAction } from "@/lib/admin/audit";
 export const MINIMUM_WITHDRAWAL_CENTS = 1_500_000;
 
 /**
- * Flat platform fee taken only at withdrawal time. Every earning — gift
- * hearts, tier subscriptions, and the monthly rewards pool — credits the
- * wallet at its full value; the provider sees and keeps 100% until they
- * choose to cash out, at which point this cut is taken from the withdrawal.
+ * The platform's cut of every creator earning — hearts, gifts, subscription
+ * tiers, and service bookings alike — taken upfront when the wallet is
+ * credited, not at withdrawal. Providers keep the remaining 85% outright:
+ * whatever lands in the wallet is theirs, in full, to withdraw whenever they
+ * like.
  */
-export const WALLET_WITHDRAWAL_FEE_RATE = 0.1;
+export const PLATFORM_FEE_RATE = 0.15;
 
 /**
- * Credits a provider's withdrawable wallet balance by the full amount of an
- * earning — never reduced upfront. Pass `db` when this needs to participate
- * in a caller's transaction (e.g. alongside a payment-event idempotency
- * check) instead of running as its own standalone write.
+ * Credits a provider's withdrawable wallet balance with their share of an
+ * earning: the platform's cut (see PLATFORM_FEE_RATE) is deducted here,
+ * upfront, so the provider only ever sees and keeps the net 85%. Pass `db`
+ * when this needs to participate in a caller's transaction (e.g. alongside
+ * a payment-event idempotency check) instead of running as its own
+ * standalone write. `grossAmountCents` is the full amount paid by the
+ * customer; returns the amount actually credited to the wallet.
  */
 export async function creditProviderWallet(
   providerId: string,
-  amountCents: number,
+  grossAmountCents: number,
   db: PrismaClient | Prisma.TransactionClient = prisma,
-): Promise<void> {
-  if (amountCents <= 0) return;
+): Promise<number> {
+  if (grossAmountCents <= 0) return 0;
+  const netAmountCents = grossAmountCents - Math.round(grossAmountCents * PLATFORM_FEE_RATE);
   await db.profile.update({
     where: { id: providerId },
-    data: { walletBalanceCents: { increment: amountCents } },
+    data: { walletBalanceCents: { increment: netAmountCents } },
   });
+  return netAmountCents;
 }
 
 export type WithdrawWalletResult =
@@ -49,11 +55,13 @@ export type WithdrawWalletResult =
  * Requests a withdrawal of a provider's full wallet balance — the wallet
  * unifies every earning source (gift hearts, tier subscriptions, and the
  * monthly rewards pool; see creditProviderWallet's callers), so there's
- * exactly one withdrawal flow and one fee, applied here rather than
- * per-earning. The balance is debited immediately (so it can't be withdrawn
- * twice), but the actual bank transfer does NOT happen here — an admin reviews the
- * request, manually sends the money from the business's own bank account, and then
- * confirms it via markWithdrawalPaid, typically within 2-3 business days.
+ * exactly one withdrawal flow. The platform's cut was already taken when
+ * each earning was credited (see PLATFORM_FEE_RATE), so no further fee
+ * applies here — the full balance is paid out. The balance is debited
+ * immediately (so it can't be withdrawn twice), but the actual bank
+ * transfer does NOT happen here — an admin reviews the request, manually
+ * sends the money from the business's own bank account, and then confirms
+ * it via markWithdrawalPaid, typically within 2-3 business days.
  */
 export async function withdrawWalletBalance(
   providerId: string,
@@ -89,8 +97,9 @@ export async function withdrawWalletBalance(
   }
 
   const amountCents = profile.walletBalanceCents;
-  const feeCents = Math.round(amountCents * WALLET_WITHDRAWAL_FEE_RATE);
-  const netAmountCents = amountCents - feeCents;
+  // No fee at withdrawal — the platform's cut is already taken when the wallet is credited (see PLATFORM_FEE_RATE).
+  const feeCents = 0;
+  const netAmountCents = amountCents;
 
   await prisma.$transaction([
     prisma.profile.update({

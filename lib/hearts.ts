@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 import { processPaymentEvent } from "@/lib/payments/webhook-handler";
+import { creditProviderWallet } from "@/lib/wallet";
 import { getHeartPackage, HEART_UNIT_PRICE_CENTS } from "@/lib/hearts-shared";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { safeConfirmPayment } from "@/lib/payments/safe-call";
@@ -23,11 +24,11 @@ export type SendHeartsResult =
   | { ok: false; status: number; error: string };
 
 /**
- * Moves hearts from sender to receiver and credits the receiver's wallet at
- * full value — the platform's cut is taken only when the wallet is withdrawn
- * (see WALLET_WITHDRAWAL_FEE_RATE in lib/wallet.ts), not here. Shared by
- * every place a gift can be sent: during a live stream (lib/live-streams.ts),
- * from a provider's profile, or from a chat thread.
+ * Moves hearts from sender to receiver and credits the receiver's wallet
+ * with their share of the gift's value — the platform's cut is taken here,
+ * upfront (see PLATFORM_FEE_RATE in lib/wallet.ts). Shared by every place a
+ * gift can be sent: during a live stream (lib/live-streams.ts), from a
+ * provider's profile, or from a chat thread.
  */
 export async function settleGift(params: {
   senderId: string;
@@ -58,15 +59,16 @@ export async function settleGift(params: {
 
   const valueCents = hearts * HEART_UNIT_PRICE_CENTS;
 
-  const [updatedSender, , gift] = await prisma.$transaction([
-    prisma.profile.update({
+  const [updatedSender, gift] = await prisma.$transaction(async (tx) => {
+    const updatedSender = await tx.profile.update({
       where: { id: senderId },
       data: { heartsBalance: { decrement: hearts } },
       select: { heartsBalance: true },
-    }),
-    prisma.profile.update({ where: { id: receiverId }, data: { walletBalanceCents: { increment: valueCents } } }),
-    prisma.gift.create({ data: { streamId, senderId, receiverId, hearts, valueCents, context } }),
-  ]);
+    });
+    await creditProviderWallet(receiverId, valueCents, tx);
+    const gift = await tx.gift.create({ data: { streamId, senderId, receiverId, hearts, valueCents, context } });
+    return [updatedSender, gift] as const;
+  });
 
   return {
     ok: true,

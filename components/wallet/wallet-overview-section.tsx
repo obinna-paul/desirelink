@@ -1,7 +1,7 @@
 import { Heart } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
-import { getWalletOverview, MINIMUM_WITHDRAWAL_CENTS, WALLET_WITHDRAWAL_FEE_RATE } from "@/lib/wallet";
+import { getWalletOverview, MINIMUM_WITHDRAWAL_CENTS } from "@/lib/wallet";
 import { formatCents } from "@/lib/creator";
 import { BuyHeartsPanel } from "@/components/wallet/buy-hearts-panel";
 import { WithdrawWalletButton } from "@/components/wallet/withdraw-wallet-button";
@@ -30,8 +30,7 @@ export async function WalletOverviewSection({ profileId }: { profileId: string }
             <p className="label-caps text-primary-foreground/70">Wallet balance</p>
             <p className="mt-1.5 text-3xl font-bold tabular-nums">{formatCents(overview.walletBalanceCents)}</p>
             <p className="mt-1 text-[11px] text-primary-foreground/70">
-              A {Math.round(WALLET_WITHDRAWAL_FEE_RATE * 100)}% fee applies. Withdrawals are reviewed and paid out
-              within 2–3 business days.
+              Withdrawals are reviewed and paid out in full within 2–3 business days.
             </p>
           </>
         ) : (
@@ -100,12 +99,7 @@ export async function WalletOverviewSection({ profileId }: { profileId: string }
                 key={withdrawal.id}
                 className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 text-sm"
               >
-                <span>
-                  {formatCents(withdrawal.netAmountCents)} sent{" "}
-                  <span className="text-xs text-muted-foreground">
-                    (from {formatCents(withdrawal.amountCents)}, {formatCents(withdrawal.feeCents)} fee)
-                  </span>
-                </span>
+                <span>{formatCents(withdrawal.netAmountCents)} sent</span>
                 <span className="shrink-0 text-xs capitalize text-muted-foreground">
                   {withdrawal.status} &middot; {formatDistanceToNow(withdrawal.createdAt, { addSuffix: true })}
                 </span>
