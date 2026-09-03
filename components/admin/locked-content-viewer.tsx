@@ -8,7 +8,13 @@ import { Button } from "@/components/ui/button";
 
 /** Kept local rather than imported from lib/admin/content.ts (server-only) - see the same
  * pattern/reasoning in account-record.tsx. */
-const CONTENT_ACCESS_REASONS = ["Investigating a report", "Verification review", "Legal or law-enforcement request", "Other"] as const;
+const CONTENT_ACCESS_REASONS = [
+  "Investigating a report",
+  "Quality control review",
+  "Verification review",
+  "Legal or law-enforcement request",
+  "Other",
+] as const;
 
 type MediaItem = { url: string; type: "image" | "video" };
 

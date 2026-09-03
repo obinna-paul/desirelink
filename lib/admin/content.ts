@@ -24,11 +24,32 @@ export type PostPreview = NonNullable<Awaited<ReturnType<typeof getPostPreview>>
 
 export const CONTENT_ACCESS_REASONS = [
   "Investigating a report",
+  "Quality control review",
   "Verification review",
   "Legal or law-enforcement request",
   "Other",
 ] as const;
 export type ContentAccessReason = (typeof CONTENT_ACCESS_REASONS)[number];
+
+/** Recent paywalled posts platform-wide, newest first - the actual browse surface for
+ * routine quality control (is premium content worth its price), as opposed to opening a
+ * specific post you already know about from a report or an account record. */
+export async function getRecentPremiumPosts(take = 30) {
+  return prisma.post.findMany({
+    where: { isSubscriberOnly: true, isArchived: false },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: {
+      id: true,
+      createdAt: true,
+      viewCount: true,
+      author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+      _count: { select: { reactions: true, comments: true } },
+    },
+  });
+}
+
+export type RecentPremiumPost = Awaited<ReturnType<typeof getRecentPremiumPosts>>[number];
 
 export type ViewLockedPostResult =
   | {
