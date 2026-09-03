@@ -3,8 +3,8 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { GoLiveStaging } from "@/components/live/go-live-staging";
-import { getActiveStreamForProvider } from "@/lib/live-streams";
+import { GoLiveEntry } from "@/components/live/go-live-entry";
+import { getActiveStreamForProvider, getScheduledStreamForProvider } from "@/lib/live-streams";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { isLiveKitConfigured } from "@/lib/livekit";
 import { getLiveRequestPresets } from "@/lib/live-requests";
@@ -39,11 +39,20 @@ export default async function GoLivePage() {
   }
 
   const requestPresets = await getLiveRequestPresets(profile.id);
+  const scheduled = await getScheduledStreamForProvider(profile.id);
 
   return (
     <div>
       {isLiveKitConfigured() ? (
-        <GoLiveStaging defaultTitle={`${profile.displayName}'s live stream`} defaultRequestOptions={requestPresets} />
+        <GoLiveEntry
+          defaultTitle={`${profile.displayName}'s live stream`}
+          defaultRequestOptions={requestPresets}
+          existingScheduled={
+            scheduled
+              ? { id: scheduled.id, title: scheduled.title, scheduledFor: scheduled.scheduledFor!.toISOString() }
+              : null
+          }
+        />
       ) : (
         <p className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
           Live streaming isn&apos;t configured on this deployment yet.
