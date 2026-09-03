@@ -22,10 +22,7 @@ const MAX_ID_FILE_SIZE = 5 * 1024 * 1024;
 // or a high-bitrate codec) routinely lands well past 20MB despite being genuinely
 // short - keep enough headroom that a normal, unedited recording never gets rejected.
 const MAX_SELFIE_FILE_SIZE = 50 * 1024 * 1024;
-const HEADINGS: Record<VerificationRequestType, string> = {
-  service_provider: "Please submit identification to list services.",
-  creator: "Please submit identification to post premium content.",
-};
+const DEFAULT_HEADING = "Please submit identification to verify your account.";
 
 const FileSlot = memo(function FileSlot({
   label,
@@ -105,6 +102,7 @@ export function VerificationRequestCard({
   isVerified,
   latestStatus,
   ineligibleMessage,
+  heading = DEFAULT_HEADING,
   skipRefresh = false,
   onSubmitted,
 }: {
@@ -112,6 +110,10 @@ export function VerificationRequestCard({
   isVerified: boolean;
   latestStatus: "pending" | "approved" | "denied" | null;
   ineligibleMessage?: string;
+  /** What the user was trying to do when they hit this gate, e.g. "Please submit
+   * identification to go live." Defaults to a neutral heading for callers that show this
+   * card as a general status view rather than gating one specific action. */
+  heading?: string;
   /** Skip the router.refresh() after submitting - use this when the parent holds
    * unsaved draft state (e.g. an in-progress post) that a server refetch would wipe.
    * The caller is responsible for tracking the new "identity on file" status itself,
@@ -257,7 +259,7 @@ export function VerificationRequestCard({
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
       <div>
-        <h3 className="text-base font-semibold">{HEADINGS[requestType]}</h3>
+        <h3 className="text-base font-semibold">{heading}</h3>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">
           Submitting lets you continue right away - we review manually
           afterward, and you&rsquo;ll be notified if your identification

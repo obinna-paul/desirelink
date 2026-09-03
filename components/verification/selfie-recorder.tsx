@@ -61,6 +61,12 @@ export function SelfieRecorder({
   function stopStream() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    // The live-preview <video> and the recorded-clip <video> sit in the same JSX position,
+    // so React patches one DOM node rather than remounting - srcObject is an imperative
+    // property, not a prop, so it survives that patch and silently overrides the `src`
+    // attribute (srcObject wins per spec) unless explicitly cleared here, leaving the
+    // preview stuck showing the now-dead camera stream instead of the recorded clip.
+    if (videoRef.current) videoRef.current.srcObject = null;
   }
 
   async function startCamera() {

@@ -643,6 +643,7 @@ export function PostComposer({
             requestType="creator"
             isVerified={false}
             latestStatus={null}
+            heading="Please submit identification to post premium content."
             skipRefresh
             onSubmitted={() => {
               setIdentitySubmittedLocally(true);

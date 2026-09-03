@@ -504,6 +504,7 @@ export function ServiceListingManager({
           requestType="service_provider"
           isVerified={false}
           latestStatus={latestServiceProviderStatus}
+          heading="Please submit identification to list services."
         />
       ) : creating ? (
         <ServiceListingForm

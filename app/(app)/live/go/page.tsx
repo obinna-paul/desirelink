@@ -33,7 +33,12 @@ export default async function GoLivePage() {
   if (!(await hasIdentityOnFile(profile.id))) {
     return (
       <div className="mx-auto max-w-md">
-        <VerificationRequestCard requestType="creator" isVerified={false} latestStatus={null} />
+        <VerificationRequestCard
+          requestType="creator"
+          isVerified={false}
+          latestStatus={null}
+          heading="Please submit identification to go live."
+        />
       </div>
     );
   }
