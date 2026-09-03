@@ -3,7 +3,6 @@ import "server-only";
 import type { Prisma, PrismaClient } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { paymentProvider } from "@/lib/payments";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { recordAdminAction } from "@/lib/admin/audit";
 
@@ -52,10 +51,9 @@ export type WithdrawWalletResult =
  * monthly rewards pool; see creditProviderWallet's callers), so there's
  * exactly one withdrawal flow and one fee, applied here rather than
  * per-earning. The balance is debited immediately (so it can't be withdrawn
- * twice), but the actual bank transfer does NOT happen here — withdrawal
- * requests are reviewed manually and the transfer is only sent once an admin
- * approves the request (see approveWithdrawal in lib/admin.ts), typically
- * within 2-3 business days.
+ * twice), but the actual bank transfer does NOT happen here — an admin reviews the
+ * request, manually sends the money from the business's own bank account, and then
+ * confirms it via markWithdrawalPaid, typically within 2-3 business days.
  */
 export async function withdrawWalletBalance(
   providerId: string,
@@ -199,31 +197,41 @@ export async function getWalletOverview(profileId: string) {
   };
 }
 
-/** Every withdrawal request still awaiting admin review, oldest first. */
+const withdrawalPayoutSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  avatarUrl: true,
+  payoutBankName: true,
+  payoutAccountNumber: true,
+  payoutAccountName: true,
+} as const;
+
+/** Every withdrawal request still awaiting admin review, oldest first - including the
+ * provider's bank details, since payouts are sent manually from the business's own
+ * account (see markWithdrawalPaid) rather than through an automated transfer. */
 export async function getPendingWithdrawals() {
   return prisma.walletWithdrawal.findMany({
     where: { status: "pending" },
     orderBy: { createdAt: "asc" },
     include: {
-      provider: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+      provider: { select: withdrawalPayoutSelect },
     },
   });
 }
 
-export type ApproveWithdrawalResult =
-  | { ok: true; status: "success" | "pending" }
-  | { ok: false; status: number; error: string };
+export type WithdrawalActionResult = { ok: true } | { ok: false; status: number; error: string };
 
 /**
- * An admin's approval of a pending withdrawal request — this is the ONLY
- * place the actual Paystack transfer is sent (see withdrawWalletBalance's
- * doc comment for why it isn't sent at request time). On failure, the
- * provider's wallet balance is refunded so the request can be retried.
+ * Records that an admin has manually sent the money for this withdrawal from the
+ * business's own bank account. Paystack collects payments into that account but isn't
+ * used to send payouts back out - there is no automated transfer here to succeed or fail,
+ * this simply confirms a transfer that already happened outside the app.
  */
-export async function approveWithdrawal(withdrawalId: string, actorId: string): Promise<ApproveWithdrawalResult> {
+export async function markWithdrawalPaid(withdrawalId: string, actorId: string): Promise<WithdrawalActionResult> {
   const withdrawal = await prisma.walletWithdrawal.findUnique({
     where: { id: withdrawalId },
-    include: { provider: { select: { userId: true, payoutRecipientCode: true, displayName: true } } },
+    include: { provider: { select: { userId: true, displayName: true } } },
   });
   if (!withdrawal) {
     return { ok: false, status: 404, error: "Withdrawal request not found." };
@@ -232,56 +240,69 @@ export async function approveWithdrawal(withdrawalId: string, actorId: string): 
     return { ok: false, status: 400, error: "This request has already been resolved." };
   }
   if (withdrawal.provider.userId === actorId) {
-    return { ok: false, status: 403, error: "You can't approve your own withdrawal." };
-  }
-  if (!withdrawal.provider.payoutRecipientCode) {
-    return { ok: false, status: 400, error: "This provider no longer has payout details on file." };
-  }
-
-  let transfer;
-  try {
-    transfer = await paymentProvider.createPayoutTransfer(
-      withdrawal.provider.payoutRecipientCode,
-      withdrawal.netAmountCents,
-      `udala wallet withdrawal for ${withdrawal.provider.displayName}`,
-      { providerId: withdrawal.providerId, withdrawalId: withdrawal.id },
-    );
-  } catch (error) {
-    console.error("[payments] approveWithdrawal failed to start transfer", error);
-    return { ok: false, status: 502, error: "We couldn't reach the payment provider. Try again shortly." };
-  }
-
-  if (transfer.status === "failed") {
-    await prisma.$transaction([
-      prisma.walletWithdrawal.update({
-        where: { id: withdrawal.id },
-        data: { status: "failed", payoutReference: transfer.reference },
-      }),
-      prisma.profile.update({
-        where: { id: withdrawal.providerId },
-        data: { walletBalanceCents: { increment: withdrawal.amountCents } },
-      }),
-    ]);
-    return { ok: false, status: 502, error: "The transfer failed. The provider's wallet balance has been refunded." };
+    return { ok: false, status: 403, error: "You can't mark your own withdrawal as paid." };
   }
 
   await prisma.walletWithdrawal.update({
     where: { id: withdrawal.id },
-    data: {
-      status: transfer.status,
-      payoutReference: transfer.reference,
-      paidAt: transfer.status === "success" ? new Date() : null,
-    },
+    data: { status: "paid", paidAt: new Date() },
   });
 
   await recordAdminAction({
     actorId,
-    action: "withdrawal.approve",
+    action: "withdrawal.mark_paid",
     targetType: "wallet_withdrawal",
     targetId: withdrawal.id,
-    summary: `Approved ₦${(withdrawal.netAmountCents / 100).toLocaleString()} payout to ${withdrawal.provider.displayName}`,
-    metadata: { netAmountCents: withdrawal.netAmountCents, status: transfer.status },
+    summary: `Marked ${withdrawal.provider.displayName}'s withdrawal as paid (sent manually)`,
+    metadata: { netAmountCents: withdrawal.netAmountCents },
   });
 
-  return { ok: true, status: transfer.status };
+  return { ok: true };
+}
+
+/** The manual transfer couldn't be completed (e.g. stale/incorrect bank details) -
+ * refunds the provider's wallet balance so they can fix their payout details and request
+ * again, mirroring the old auto-transfer-failure refund behavior. */
+export async function markWithdrawalFailed(
+  withdrawalId: string,
+  actorId: string,
+  reason: string,
+): Promise<WithdrawalActionResult> {
+  const withdrawal = await prisma.walletWithdrawal.findUnique({
+    where: { id: withdrawalId },
+    include: { provider: { select: { userId: true, displayName: true } } },
+  });
+  if (!withdrawal) {
+    return { ok: false, status: 404, error: "Withdrawal request not found." };
+  }
+  if (withdrawal.status !== "pending") {
+    return { ok: false, status: 400, error: "This request has already been resolved." };
+  }
+  if (withdrawal.provider.userId === actorId) {
+    return { ok: false, status: 403, error: "You can't fail your own withdrawal." };
+  }
+
+  await prisma.$transaction([
+    prisma.walletWithdrawal.update({
+      where: { id: withdrawal.id },
+      data: { status: "failed" },
+    }),
+    prisma.profile.update({
+      where: { id: withdrawal.providerId },
+      data: { walletBalanceCents: { increment: withdrawal.amountCents } },
+    }),
+  ]);
+
+  await recordAdminAction({
+    actorId,
+    action: "withdrawal.mark_failed",
+    targetType: "wallet_withdrawal",
+    targetId: withdrawal.id,
+    summary: reason
+      ? `Marked ${withdrawal.provider.displayName}'s withdrawal as failed: ${reason} (wallet refunded)`
+      : `Marked ${withdrawal.provider.displayName}'s withdrawal as failed (wallet refunded)`,
+    metadata: { amountCents: withdrawal.amountCents, reason },
+  });
+
+  return { ok: true };
 }

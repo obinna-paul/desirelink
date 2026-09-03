@@ -20,6 +20,8 @@ const ACTION_LABELS: Record<AdminAuditAction, string> = {
   "moderation.warn": "Warned user",
   "moderation.suspend": "Suspended user",
   "withdrawal.approve": "Approved payout",
+  "withdrawal.mark_paid": "Marked payout as paid",
+  "withdrawal.mark_failed": "Marked payout as failed",
   "content.view_locked": "Opened locked content",
   "account.suspend": "Suspended account",
   "account.reinstate": "Reinstated account",

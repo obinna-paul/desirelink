@@ -24,6 +24,8 @@ const DECISION_ACTIONS: AdminAuditAction[] = [
   "moderation.warn",
   "moderation.suspend",
   "withdrawal.approve",
+  "withdrawal.mark_paid",
+  "withdrawal.mark_failed",
 ];
 
 export default async function AdminInboxPage() {

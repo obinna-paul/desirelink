@@ -97,6 +97,7 @@ function normalizeRecipient(
     recipientCode: data.recipient_code,
     status: data.active === false ? "pending" : "verified",
     bankName: data.details?.bank_name ?? metadata.bankName ?? "",
+    accountNumber: data.details?.account_number ?? "",
     accountLast4: data.details?.account_number?.slice(-4) ?? "",
     accountName: data.details?.account_name ?? "",
     country: metadata.country ?? "",

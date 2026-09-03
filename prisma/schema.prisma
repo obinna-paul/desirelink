@@ -231,6 +231,13 @@ model Profile {
   payoutRecipientCode  String?
   payoutSetupStatus    String    @default("not_started")
   payoutBankName       String?
+  /**
+   * Full account number, kept alongside payoutAccountLast4 - withdrawals are paid out by
+   * manually transferring from the business's own bank account (Paystack collects
+   * payments but isn't used to send transfers), so an admin needs the real number to
+   * actually make the transfer, not just the last 4 digits used for lightweight display.
+   */
+  payoutAccountNumber  String?
   payoutAccountLast4   String?
   payoutAccountName    String?
   payoutCountry        String    @default("")

@@ -12,7 +12,12 @@ export type AdminAuditAction =
   | "moderation.remove"
   | "moderation.warn"
   | "moderation.suspend"
+  /** @deprecated superseded by mark_paid/mark_failed once withdrawals became a manual
+   * bank transfer instead of an automated Paystack payout - kept so historical rows still
+   * display correctly. */
   | "withdrawal.approve"
+  | "withdrawal.mark_paid"
+  | "withdrawal.mark_failed"
   | "content.view_locked"
   | "account.suspend"
   | "account.reinstate"

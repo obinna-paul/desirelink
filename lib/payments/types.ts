@@ -49,6 +49,10 @@ export type PayoutRecipient = {
   recipientCode: string;
   status: "verified" | "pending" | "failed";
   bankName: string;
+  /** Full account number - transfers out are done manually from the business's own
+   * banking app (Paystack collects payments but isn't used to send payouts), so an admin
+   * needs the real number, not just the last 4 digits kept for lightweight display. */
+  accountNumber: string;
   accountLast4: string;
   accountName: string;
   country: string;

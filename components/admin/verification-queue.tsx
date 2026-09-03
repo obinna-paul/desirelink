@@ -14,10 +14,12 @@ function RequestRow({
   request,
   onRespond,
   pending,
+  error,
 }: {
   request: PendingVerificationRequest;
   onRespond: (action: "approve" | "deny") => void;
   pending: boolean;
+  error: string | null;
 }) {
   const initials = request.profile.displayName.slice(0, 2).toUpperCase();
   const [confirmDeny, setConfirmDeny] = useState(false);
@@ -109,6 +111,7 @@ function RequestRow({
           />
         </div>
       </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </li>
   );
 }
@@ -121,20 +124,26 @@ export function VerificationQueue({
   const router = useRouter();
   const [requests, setRequests] = useState(initialRequests);
   const [respondingId, setRespondingId] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   async function respond(id: string, action: "approve" | "deny") {
     setRespondingId(id);
+    setErrors((prev) => ({ ...prev, [id]: "" }));
     const res = await fetch(`/api/admin/verification/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),
     });
+    const body = await res.json().catch(() => null);
     setRespondingId(null);
 
-    if (res.ok) {
-      setRequests((prev) => prev.filter((request) => request.id !== id));
-      router.refresh();
+    if (!res.ok) {
+      setErrors((prev) => ({ ...prev, [id]: body?.error ?? "Couldn't update this request." }));
+      return;
     }
+
+    setRequests((prev) => prev.filter((request) => request.id !== id));
+    router.refresh();
   }
 
   if (requests.length === 0) {
@@ -152,6 +161,7 @@ export function VerificationQueue({
           key={request.id}
           request={request}
           pending={respondingId === request.id}
+          error={errors[request.id] || null}
           onRespond={(action) => respond(request.id, action)}
         />
       ))}

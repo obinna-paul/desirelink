@@ -251,7 +251,7 @@ export async function approveVerificationRequest(
 ): Promise<ReviewVerificationResult> {
   const request = await prisma.verificationRequest.findUnique({
     where: { id: requestId },
-    include: { profile: { select: { userId: true, username: true } } },
+    include: { profile: { select: { username: true } } },
   });
   if (!request) {
     return { ok: false, status: 404, error: "Request not found" };
@@ -263,9 +263,10 @@ export async function approveVerificationRequest(
       error: "Request has already been reviewed",
     };
   }
-  if (request.profile.userId === reviewerId) {
-    return { ok: false, status: 403, error: "You can't review your own verification request" };
-  }
+  // Self-review is deliberately allowed here, unlike withdrawals or role changes:
+  // approving your own submitted ID/selfie isn't a self-serving payout, and blocking it
+  // would leave a single-operator deployment with no way to ever verify the owner's own
+  // account. The documents were still genuinely submitted and reviewed by a person.
 
   await prisma.$transaction([
     prisma.verificationRequest.update({
@@ -305,7 +306,7 @@ export async function denyVerificationRequest(
 ): Promise<ReviewVerificationResult> {
   const request = await prisma.verificationRequest.findUnique({
     where: { id: requestId },
-    include: { profile: { select: { userId: true, username: true } } },
+    include: { profile: { select: { username: true } } },
   });
   if (!request) {
     return { ok: false, status: 404, error: "Request not found" };
@@ -317,9 +318,7 @@ export async function denyVerificationRequest(
       error: "Request has already been reviewed",
     };
   }
-  if (request.profile.userId === reviewerId) {
-    return { ok: false, status: 403, error: "You can't review your own verification request" };
-  }
+  // Self-review allowed here too - see the matching note in approveVerificationRequest.
 
   await prisma.$transaction([
     prisma.verificationRequest.update({
