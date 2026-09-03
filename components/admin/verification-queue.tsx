@@ -4,10 +4,12 @@ import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
+import { Expand } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MediaLightbox, type LightboxMedia } from "@/components/admin/media-lightbox";
 import type { PendingVerificationRequest } from "@/lib/verification";
 
 function RequestRow({
@@ -23,6 +25,7 @@ function RequestRow({
 }) {
   const initials = request.profile.displayName.slice(0, 2).toUpperCase();
   const [confirmDeny, setConfirmDeny] = useState(false);
+  const [lightboxMedia, setLightboxMedia] = useState<LightboxMedia>(null);
 
   return (
     <li className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-lg md:shadow-none">
@@ -81,16 +84,16 @@ function RequestRow({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
-        <a
-          href={request.govIdUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="flex min-w-0 flex-col gap-1"
-        >
+        <div className="flex min-w-0 flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground">
             Government ID
           </span>
-          <span className="relative aspect-video w-full overflow-hidden rounded-xl border border-border/60 bg-secondary sm:h-20 sm:w-32 sm:rounded-lg">
+          <button
+            type="button"
+            onClick={() => setLightboxMedia({ url: request.govIdUrl, type: "image", alt: `${request.profile.displayName}'s government ID` })}
+            aria-label="View government ID full size"
+            className="group relative aspect-video w-full overflow-hidden rounded-xl border border-border/60 bg-secondary sm:h-20 sm:w-32 sm:rounded-lg"
+          >
             <Image
               src={request.govIdUrl}
               alt={`${request.profile.displayName}'s government ID`}
@@ -98,20 +101,31 @@ function RequestRow({
               sizes="8rem"
               className="object-cover"
             />
-          </span>
-        </a>
+            <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+              <Expand className="h-4 w-4 text-white" aria-hidden="true" />
+            </span>
+          </button>
+        </div>
         <div className="flex min-w-0 flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground">
             Selfie video
           </span>
-          <video
-            src={request.selfieUrl}
-            controls
-            className="aspect-video w-full overflow-hidden rounded-xl border border-border/60 bg-secondary object-cover sm:h-20 sm:w-32 sm:rounded-lg"
-          />
+          <button
+            type="button"
+            onClick={() => setLightboxMedia({ url: request.selfieUrl, type: "video" })}
+            aria-label="View selfie video full size"
+            className="group relative aspect-video w-full overflow-hidden rounded-xl border border-border/60 bg-secondary sm:h-20 sm:w-32 sm:rounded-lg"
+          >
+            <video src={request.selfieUrl} className="h-full w-full object-cover" muted playsInline />
+            <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+              <Expand className="h-4 w-4 text-white" aria-hidden="true" />
+            </span>
+          </button>
         </div>
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
+
+      <MediaLightbox media={lightboxMedia} onClose={() => setLightboxMedia(null)} />
     </li>
   );
 }

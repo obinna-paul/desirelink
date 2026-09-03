@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Lock, ShieldAlert } from "lucide-react";
+import { Expand, Lock, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { MediaLightbox, type LightboxMedia } from "@/components/admin/media-lightbox";
 
 /** Kept local rather than imported from lib/admin/content.ts (server-only) - see the same
  * pattern/reasoning in account-record.tsx. */
@@ -30,6 +31,7 @@ export function LockedContentViewer({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [content, setContent] = useState<{ content: string; media: MediaItem[] } | null>(null);
+  const [lightboxMedia, setLightboxMedia] = useState<LightboxMedia>(null);
 
   async function openContent() {
     if (!reason) {
@@ -64,19 +66,30 @@ export function LockedContentViewer({
 
         {content.media.length > 0 && (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {content.media.map((item, index) =>
-              item.type === "video" ? (
-                <video key={index} src={item.url} controls className="aspect-square w-full rounded-lg bg-black object-cover" />
-              ) : (
-                <div key={index} className="relative aspect-square w-full overflow-hidden rounded-lg bg-secondary">
+            {content.media.map((item, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => setLightboxMedia(item)}
+                aria-label={`View full size ${item.type}`}
+                className="group relative aspect-square w-full overflow-hidden rounded-lg bg-secondary"
+              >
+                {item.type === "video" ? (
+                  <video src={item.url} className="h-full w-full object-cover" muted playsInline />
+                ) : (
                   <Image src={item.url} alt="" fill sizes="200px" className="object-cover" />
-                </div>
-              )
-            )}
+                )}
+                <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+                  <Expand className="h-5 w-5 text-white" aria-hidden="true" />
+                </span>
+              </button>
+            ))}
           </div>
         )}
 
         {content.content && <p className="whitespace-pre-wrap text-sm">{content.content}</p>}
+
+        <MediaLightbox media={lightboxMedia} onClose={() => setLightboxMedia(null)} />
       </div>
     );
   }
