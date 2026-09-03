@@ -1,16 +1,21 @@
-jest.mock("@/lib/prisma", () => ({
-  prisma: {
+jest.mock("@/lib/prisma", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prisma: any = {
     profile: { findUnique: jest.fn(), update: jest.fn() },
     gift: { create: jest.fn() },
     verificationRequest: { findFirst: jest.fn() },
-    $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
-  },
-}));
+  };
+  prisma.$transaction = jest.fn((arg: unknown) =>
+    typeof arg === "function" ? (arg as (tx: unknown) => Promise<unknown>)(prisma) : Promise.all(arg as Promise<unknown>[])
+  );
+  return { prisma };
+});
 jest.mock("@/lib/payments", () => ({ paymentProvider: {} }));
 jest.mock("@/lib/payments/webhook-handler", () => ({ processPaymentEvent: jest.fn() }));
 
 import { settleGift, sendHeartsToProvider } from "@/lib/hearts";
 import { HEART_UNIT_PRICE_CENTS } from "@/lib/hearts-shared";
+import { PLATFORM_FEE_RATE } from "@/lib/wallet";
 import { prisma } from "@/lib/prisma";
 
 const mockPrisma = prisma as unknown as {
@@ -56,7 +61,7 @@ describe("settleGift", () => {
     if (!result.ok) expect(result.status).toBe(402);
   });
 
-  it("credits the receiver's wallet at the gift's full value — no platform cut taken here", async () => {
+  it("credits the receiver's wallet with their 85% share of the gift's value — the platform's cut is taken upfront", async () => {
     mockPrisma.profile.findUnique.mockResolvedValue({
       heartsBalance: 100,
       username: "sender",
@@ -68,6 +73,7 @@ describe("settleGift", () => {
 
     const result = await settleGift({ senderId: "a", receiverId: "b", hearts: 10, context: "profile" });
     const expectedValueCents = 10 * HEART_UNIT_PRICE_CENTS;
+    const expectedNetCents = expectedValueCents - Math.round(expectedValueCents * PLATFORM_FEE_RATE);
 
     expect(result).toEqual({
       ok: true,
@@ -78,7 +84,7 @@ describe("settleGift", () => {
     });
     expect(mockPrisma.profile.update).toHaveBeenNthCalledWith(2, {
       where: { id: "b" },
-      data: { walletBalanceCents: { increment: expectedValueCents } },
+      data: { walletBalanceCents: { increment: expectedNetCents } },
     });
     expect(mockPrisma.gift.create).toHaveBeenCalledWith({
       data: {
@@ -103,6 +109,6 @@ describe("sendHeartsToProvider", () => {
 
     const result = await sendHeartsToProvider("a", "b", 10, "profile");
 
-    expect(result).toEqual({ ok: false, status: 400, error: "Hearts can only be sent to providers." });
+    expect(result).toEqual({ ok: false, status: 400, error: "Hearts can only be sent to creators." });
   });
 });

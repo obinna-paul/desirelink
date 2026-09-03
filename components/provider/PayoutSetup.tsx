@@ -33,10 +33,6 @@ async function fetcher(url: string) {
   return body;
 }
 
-function formatCents(cents: number, currency = "NGN") {
-  return new Intl.NumberFormat("en-NG", { style: "currency", currency }).format(cents / 100);
-}
-
 export function PayoutSetup({ providerId }: { providerId: string }) {
   const endpoint = `/api/providers/${providerId}/payout-setup`;
   const { data, mutate, isLoading } = useSWR<PayoutSetupResponse>(endpoint, fetcher);
@@ -113,7 +109,6 @@ export function PayoutSetup({ providerId }: { providerId: string }) {
   }
 
   const payout = data?.payout;
-  const meetsThreshold = payout ? payout.balanceCents >= payout.minimumPayoutCents : false;
   const canSubmit = Boolean(resolvedName && selectedBank) && !resolving && !submitting;
 
   return (
@@ -122,30 +117,12 @@ export function PayoutSetup({ providerId }: { providerId: string }) {
         <div>
           <h2 className="text-sm font-semibold text-foreground">Payout setup</h2>
           <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-            Withdrawal requests are reviewed and paid out within 2–3 business days. A 10% fee applies at withdrawal.
+            Withdrawal requests are reviewed and paid out in full within 2–3 business days.
           </p>
         </div>
         <Badge variant={payout?.status === "verified" ? "neon" : "outline"} className="shrink-0 capitalize">
           {isLoading ? "checking" : (payout?.status ?? "not started").replace(/_/g, " ")}
         </Badge>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-border/60 bg-secondary/35 p-3">
-          <p className="text-xs text-muted-foreground">Wallet balance</p>
-          <p className="mt-1 text-lg font-semibold tabular-nums">{formatCents(payout?.balanceCents ?? 0)}</p>
-        </div>
-        <div className="rounded-xl border border-border/60 bg-secondary/35 p-3">
-          <p className="text-xs text-muted-foreground">Minimum withdrawal</p>
-          <p className="mt-1 text-lg font-semibold tabular-nums">{formatCents(payout?.minimumPayoutCents ?? 1_500_000)}</p>
-        </div>
-        <div className="rounded-xl border border-border/60 bg-secondary/35 p-3">
-          <p className="text-xs text-muted-foreground">Status</p>
-          <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
-            {meetsThreshold && <CheckCircle2 className="h-4 w-4 text-trust" aria-hidden="true" />}
-            {meetsThreshold ? "Ready to withdraw" : "Below minimum"}
-          </p>
-        </div>
       </div>
 
       {payout?.accountLast4 ? (

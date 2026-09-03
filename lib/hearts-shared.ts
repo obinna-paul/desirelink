@@ -3,7 +3,7 @@
  * client (buy-hearts UI, gift picker) — no server-only imports here.
  */
 
-/** 1 heart = 100,000 kobo (₦1,000) of real money, credited to the receiving provider's wallet in full (the platform's cut is only taken at withdrawal — see WALLET_WITHDRAWAL_FEE_RATE in lib/wallet.ts). */
+/** 1 heart = 100,000 kobo (₦1,000) of real money. The receiving provider's wallet is credited with their 85% share upfront (see PLATFORM_FEE_RATE in lib/wallet.ts). */
 export const HEART_UNIT_PRICE_CENTS = 100_000;
 
 export type HeartPackage = { id: string; hearts: number; priceCents: number };

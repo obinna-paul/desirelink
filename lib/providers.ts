@@ -51,7 +51,7 @@ export async function subscribeToProvider(
 
   const provider = await getProviderProfile(providerId);
   if (!provider) {
-    return { ok: false, status: 404, error: "Provider not found" };
+    return { ok: false, status: 404, error: "Creator not found" };
   }
 
   const tier = await prisma.creatorTier.findUnique({ where: { id: tierId } });

@@ -27,7 +27,7 @@ export function WithdrawWalletButton({ disabled, className }: { disabled: boolea
     }
 
     setSuccess(
-      `Withdrawal requested: ${formatCents(body.netAmountCents)} (${formatCents(body.feeCents)} fee). Reviewed and paid out within 2–3 business days.`
+      `Withdrawal requested: ${formatCents(body.netAmountCents)}. Reviewed and paid out within 2–3 business days.`
     );
     router.refresh();
   }

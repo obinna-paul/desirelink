@@ -15,7 +15,7 @@ export function VerificationBadge({ profile }: { profile: VerificationBadgeProfi
     profile.isVerifiedServiceProvider;
 
   if (isVerifiedProvider) {
-    const badges = ["Verified provider", profile.isTrustedMember && "Trusted member"].filter(Boolean) as string[];
+    const badges = ["Verified creator", profile.isTrustedMember && "Trusted member"].filter(Boolean) as string[];
 
     return (
       <span className="relative inline-block align-middle">

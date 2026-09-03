@@ -1,7 +1,7 @@
 import { Heart } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
-import { getWalletOverview, MINIMUM_WITHDRAWAL_CENTS, WALLET_WITHDRAWAL_FEE_RATE } from "@/lib/wallet";
+import { getWalletOverview, MINIMUM_WITHDRAWAL_CENTS } from "@/lib/wallet";
 import { formatCents } from "@/lib/creator";
 import { BuyHeartsPanel } from "@/components/wallet/buy-hearts-panel";
 import { WithdrawWalletButton } from "@/components/wallet/withdraw-wallet-button";
@@ -30,17 +30,18 @@ export async function WalletOverviewSection({ profileId }: { profileId: string }
             <p className="label-caps text-primary-foreground/70">Wallet balance</p>
             <p className="mt-1.5 text-3xl font-bold tabular-nums">{formatCents(overview.walletBalanceCents)}</p>
             <p className="mt-1 text-[11px] text-primary-foreground/70">
-              A {Math.round(WALLET_WITHDRAWAL_FEE_RATE * 100)}% fee applies. Withdrawals are reviewed and paid out
-              within 2–3 business days.
+              Withdrawals are reviewed and paid out in full within 2–3 business days.
             </p>
           </>
         ) : (
           <p className="label-caps text-primary-foreground/70">Wallet</p>
         )}
-        <div className="mt-3 flex items-center gap-2 rounded-full bg-primary-foreground/10 px-3 py-1.5 text-sm font-semibold w-fit">
-          <Heart className="h-4 w-4" aria-hidden="true" fill="currentColor" />
-          {overview.heartsBalance.toLocaleString()} Hearts available to send
-        </div>
+        {!overview.isProvider && (
+          <div className="mt-3 flex items-center gap-2 rounded-full bg-primary-foreground/10 px-3 py-1.5 text-sm font-semibold w-fit">
+            <Heart className="h-4 w-4" aria-hidden="true" fill="currentColor" />
+            {overview.heartsBalance.toLocaleString()} Hearts available to send
+          </div>
+        )}
         {overview.isProvider && (
           <div className="mt-4">
             <WithdrawWalletButton
@@ -51,10 +52,12 @@ export async function WalletOverviewSection({ profileId }: { profileId: string }
         )}
       </div>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="label-caps text-[11px] text-muted-foreground">Buy hearts</h2>
-        <BuyHeartsPanel />
-      </section>
+      {!overview.isProvider && (
+        <section className="flex flex-col gap-3">
+          <h2 className="label-caps text-[11px] text-muted-foreground">Buy hearts</h2>
+          <BuyHeartsPanel />
+        </section>
+      )}
 
       {overview.isProvider && (
         <section className="flex flex-col gap-3">
@@ -100,12 +103,7 @@ export async function WalletOverviewSection({ profileId }: { profileId: string }
                 key={withdrawal.id}
                 className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 text-sm"
               >
-                <span>
-                  {formatCents(withdrawal.netAmountCents)} sent{" "}
-                  <span className="text-xs text-muted-foreground">
-                    (from {formatCents(withdrawal.amountCents)}, {formatCents(withdrawal.feeCents)} fee)
-                  </span>
-                </span>
+                <span>{formatCents(withdrawal.netAmountCents)} sent</span>
                 <span className="shrink-0 text-xs capitalize text-muted-foreground">
                   {withdrawal.status} &middot; {formatDistanceToNow(withdrawal.createdAt, { addSuffix: true })}
                 </span>
@@ -115,32 +113,34 @@ export async function WalletOverviewSection({ profileId }: { profileId: string }
         </section>
       )}
 
-      <section className="flex flex-col gap-3">
-        <h2 className="label-caps text-[11px] text-muted-foreground">Gifts sent</h2>
-        {overview.giftsSent.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            You haven&apos;t sent any gifts yet. Visit a provider&apos;s profile, chat with them, or join their live
-            stream to send one.
-          </div>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {overview.giftsSent.map((gift) => (
-              <li
-                key={gift.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 text-sm"
-              >
-                <span>
-                  You sent {gift.hearts.toLocaleString()} hearts to{" "}
-                  <span className="font-medium">{gift.receiver.displayName}</span>
-                </span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatDistanceToNow(gift.createdAt, { addSuffix: true })}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {!overview.isProvider && (
+        <section className="flex flex-col gap-3">
+          <h2 className="label-caps text-[11px] text-muted-foreground">Gifts sent</h2>
+          {overview.giftsSent.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              You haven&apos;t sent any gifts yet. Visit a provider&apos;s profile, chat with them, or join their live
+              stream to send one.
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {overview.giftsSent.map((gift) => (
+                <li
+                  key={gift.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 text-sm"
+                >
+                  <span>
+                    You sent {gift.hearts.toLocaleString()} hearts to{" "}
+                    <span className="font-medium">{gift.receiver.displayName}</span>
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {formatDistanceToNow(gift.createdAt, { addSuffix: true })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
     </div>
   );
 }
