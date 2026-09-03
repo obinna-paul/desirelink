@@ -6,6 +6,7 @@ import { Radio } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PostList } from "@/components/posts/post-list";
+import { FindCreatorsPrompt } from "@/components/home/find-creators-prompt";
 import { cn } from "@/lib/utils";
 import type { PostView } from "@/lib/posts";
 import type { LiveRingEntry } from "@/lib/live-streams";
@@ -18,10 +19,19 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-export function FeedTabs({ posts, liveEntries }: { posts: PostView[]; liveEntries: LiveRingEntry[] }) {
+export function FeedTabs({
+  posts,
+  premiumPosts,
+  hasSubscriptions,
+  liveEntries,
+}: {
+  posts: PostView[];
+  premiumPosts: PostView[];
+  hasSubscriptions: boolean;
+  liveEntries: LiveRingEntry[];
+}) {
   const [tab, setTab] = useState<TabKey>("forYou");
   const forYou = posts.filter((post) => !post.isSubscriberOnly);
-  const premium = posts.filter((post) => post.isSubscriberOnly);
   const live = liveEntries.filter((entry) => entry.isLive);
 
   return (
@@ -46,12 +56,15 @@ export function FeedTabs({ posts, liveEntries }: { posts: PostView[]; liveEntrie
         <PostList posts={forYou} emptyMessage="No free posts yet. Check back soon." />
       )}
 
-      {tab === "premium" && (
-        <PostList
-          posts={premium}
-          emptyMessage="No premium posts yet. Subscribe to creators to see their exclusive content here."
-        />
-      )}
+      {tab === "premium" &&
+        (hasSubscriptions ? (
+          <div className="flex flex-col gap-3">
+            {premiumPosts.length > 0 && <PostList posts={premiumPosts} emptyMessage="" />}
+            <FindCreatorsPrompt variant="end-of-list" />
+          </div>
+        ) : (
+          <FindCreatorsPrompt variant="empty" />
+        ))}
 
       {tab === "live" &&
         (live.length === 0 ? (
