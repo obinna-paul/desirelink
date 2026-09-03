@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
+  CheckCircle2,
   Image as ImageIcon,
   Loader2,
   Pencil,
@@ -344,6 +345,20 @@ export function ServiceListingManager({
   const [listings, setListings] = useState(initialListings);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(startCreating && canProceed);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showConfirmation(message: string) {
+    setConfirmation(message);
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    dismissTimer.current = setTimeout(() => setConfirmation(null), 5000);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    };
+  }, []);
 
   async function handleCreate(input: ServiceListingInput) {
     const res = await fetch("/api/service-listings", {
@@ -360,6 +375,7 @@ export function ServiceListingManager({
     const { listing } = await res.json();
     setListings((prev) => [...prev, listing]);
     setCreating(false);
+    showConfirmation(`"${listing.title}" is live.`);
     router.refresh();
     return null;
   }
@@ -384,6 +400,7 @@ export function ServiceListingManager({
       ),
     );
     setEditingId(null);
+    showConfirmation(`"${input.title}" saved.`);
     router.refresh();
     return null;
   }
@@ -405,6 +422,16 @@ export function ServiceListingManager({
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground md:text-sm">
         Service listings
       </h2>
+
+      {confirmation && (
+        <div
+          role="status"
+          className="flex items-center gap-2 rounded-2xl border border-trust/40 bg-trust/10 px-4 py-3 text-sm text-foreground"
+        >
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-trust" aria-hidden="true" />
+          {confirmation}
+        </div>
+      )}
 
       {listings.length === 0 && !creating && (
         <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
