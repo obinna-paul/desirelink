@@ -259,6 +259,12 @@ model Profile {
    */
   lastActiveAt       DateTime?
 
+  /**
+   * Set the first time this profile is shown the creator-welcome popup (on switching to
+   * Creator, or on first entry after signing up directly as one) - null means unseen.
+   */
+  creatorWelcomeShownAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
