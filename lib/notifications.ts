@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
-export type NotificationKind = "message" | "like" | "comment" | "reply" | "rsvp" | "subscription" | "review" | "booking" | "live";
+export type NotificationKind = "message" | "like" | "comment" | "reply" | "rsvp" | "subscription" | "review" | "booking" | "live" | "verification";
 
 function isMissingNotificationSchema(error: unknown) {
   return (

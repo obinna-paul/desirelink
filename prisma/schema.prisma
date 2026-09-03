@@ -797,6 +797,11 @@ model VerificationRequest {
   reviewerId     String?
   reviewedAt     DateTime?
   /**
+   * Required whenever status is denied - shown back to the user in their denial
+   * notification, so they know what to fix before resubmitting.
+   */
+  denyReason     String?
+  /**
    * Set once the ID photo and selfie video are purged from Cloudinary after review - the
    * privacy policy promises immediate deletion, so this is what makes that provable. See
    * deleteVerificationMedia in lib/verification.ts.
