@@ -1,12 +1,12 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import dynamic from "next/dynamic";
 import { getServerSession } from "next-auth";
-import { ArrowLeft, DollarSign, Users } from "lucide-react";
+import { DollarSign, Users } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
+import { BackLink } from "@/components/layout/back-link";
 import { DashboardTabs } from "@/components/creator/dashboard-tabs";
 import { StatCard } from "@/components/creator/stat-card";
 import { AudienceList } from "@/components/creator/audience-list";
@@ -78,12 +78,7 @@ export default async function CreatorDashboardPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <Link
-        href="/profile/edit"
-        className="inline-flex min-h-11 w-fit items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Profile settings
-      </Link>
+      <BackLink />
 
       <DashboardTabs activeTab={tab} tabs={CREATOR_DASHBOARD_TABS} />
 

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { getMyVerificationRequests } from "@/lib/verification";
+import { BackLink } from "@/components/layout/back-link";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
 
 export default async function VerificationPage() {
@@ -43,12 +44,7 @@ export default async function VerificationPage() {
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <Link
-        href="/profile/edit"
-        className="inline-flex min-h-11 w-fit items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Profile settings
-      </Link>
+      <BackLink />
 
       <div>
         <h1 className="font-heading text-2xl font-semibold text-foreground">Verification</h1>
