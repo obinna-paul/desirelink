@@ -88,7 +88,7 @@ export async function sendHeartsToProvider(
 ): Promise<SendHeartsResult> {
   const receiver = await prisma.profile.findUnique({ where: { id: receiverId }, select: { profileType: true } });
   if (!receiver || !isProviderProfileType(receiver.profileType)) {
-    return { ok: false, status: 400, error: "Hearts can only be sent to providers." };
+    return { ok: false, status: 400, error: "Hearts can only be sent to creators." };
   }
 
   return settleGift({ senderId, receiverId, hearts, context });

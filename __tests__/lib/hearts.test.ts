@@ -109,6 +109,6 @@ describe("sendHeartsToProvider", () => {
 
     const result = await sendHeartsToProvider("a", "b", 10, "profile");
 
-    expect(result).toEqual({ ok: false, status: 400, error: "Hearts can only be sent to providers." });
+    expect(result).toEqual({ ok: false, status: 400, error: "Hearts can only be sent to creators." });
   });
 });

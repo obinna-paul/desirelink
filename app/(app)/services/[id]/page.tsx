@@ -153,7 +153,7 @@ export default async function ServiceListingDetailPage({ params }: { params: { i
             <div className="min-w-0">
               <p className="flex items-center gap-1 text-xs text-muted-foreground">
                 Offered by
-                {isVerified && <CheckCircle2 className="h-3.5 w-3.5 text-primary" aria-label="Verified provider" />}
+                {isVerified && <CheckCircle2 className="h-3.5 w-3.5 text-primary" aria-label="Verified creator" />}
               </p>
               <p className="truncate text-sm font-medium">{provider.displayName}</p>
             </div>

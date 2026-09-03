@@ -66,7 +66,7 @@ function ServiceListingCard({
             >
               <span className="truncate">{provider.displayName}</span>
               {isVerified && (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" aria-label="Verified provider" />
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" aria-label="Verified creator" />
               )}
             </Link>
             <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">

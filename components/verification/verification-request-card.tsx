@@ -221,8 +221,8 @@ export function VerificationRequestCard({
           aria-hidden="true"
         />
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span>You&rsquo;re a verified provider.</span>
-          <Badge variant="neon">Verified provider</Badge>
+          <span>You&rsquo;re a verified creator.</span>
+          <Badge variant="neon">Verified creator</Badge>
         </div>
       </div>
     );

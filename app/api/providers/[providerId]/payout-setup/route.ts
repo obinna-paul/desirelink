@@ -33,7 +33,7 @@ async function getAuthorizedProvider(providerId: string) {
     return { error: NextResponse.json({ error: "You can only manage your own payouts" }, { status: 403 }) };
   }
   if (!isProviderProfileType(profile.profileType)) {
-    return { error: NextResponse.json({ error: "Payouts are only available to providers" }, { status: 403 }) };
+    return { error: NextResponse.json({ error: "Payouts are only available to creators" }, { status: 403 }) };
   }
 
   return { profile };
