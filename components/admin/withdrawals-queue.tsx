@@ -81,9 +81,6 @@ function WithdrawalRow({
         <div className="flex shrink-0 items-center gap-3">
           <div className="text-right">
             <p className="text-sm font-semibold tabular-nums">{formatCents(withdrawal.netAmountCents)}</p>
-            <p className="text-xs text-muted-foreground">
-              from {formatCents(withdrawal.amountCents)}, {formatCents(withdrawal.feeCents)} fee
-            </p>
           </div>
           {!revealed && (
             <Button type="button" size="sm" onClick={() => setRevealed(true)}>

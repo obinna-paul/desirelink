@@ -37,7 +37,7 @@ export async function startLiveStream(
     select: { id: true, displayName: true, profileType: true },
   });
   if (!profile || !isProviderProfileType(profile.profileType)) {
-    return { ok: false, status: 403, error: "Only providers can host a live stream." };
+    return { ok: false, status: 403, error: "Only creators can host a live stream." };
   }
   if (!(await hasIdentityOnFile(providerId))) {
     return { ok: false, status: 403, error: "Verify your identity before going live." };

@@ -249,9 +249,9 @@ model Profile {
    */
   heartsBalance      Int       @default(0)
   /**
-   * Withdrawable cash balance from all provider earnings — gift hearts, tier subscriptions, and the
-   * monthly rewards pool all credit this at their full value; a fee is only taken at withdrawal (see
-   * WALLET_WITHDRAWAL_FEE_RATE in lib/wallet.ts).
+   * Withdrawable cash balance from all provider earnings — gift hearts, tier subscriptions, service
+   * bookings, and the monthly rewards pool. Each credit already reflects the provider's 85% share;
+   * the platform's cut is taken upfront (see PLATFORM_FEE_RATE in lib/wallet.ts), not at withdrawal.
    */
   walletBalanceCents Int       @default(0)
   /**
@@ -912,7 +912,7 @@ model Gift {
   receiver   Profile     @relation("GiftReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
   hearts     Int
   /**
-   * Cash value of the hearts at the platform's fixed conversion rate. Credited to the receiver's wallet in full — the platform takes its cut as a fee when the wallet is withdrawn, not here.
+   * Cash value of the hearts at the platform's fixed conversion rate. The receiver's wallet is credited with 85% of this — the platform's cut (see PLATFORM_FEE_RATE in lib/wallet.ts) is taken here, upfront.
    */
   valueCents Int
   /**
@@ -945,15 +945,16 @@ model WalletWithdrawal {
   providerId      String
   provider        Profile   @relation(fields: [providerId], references: [id], onDelete: Cascade)
   /**
-   * Gross amount debited from the wallet, before the withdrawal fee.
+   * Amount debited from the wallet. The platform's cut was already taken when this balance was
+   * credited (see PLATFORM_FEE_RATE in lib/wallet.ts), so no further fee applies here.
    */
   amountCents     Int
   /**
-   * Platform fee taken at withdrawal time (see WALLET_WITHDRAWAL_FEE_RATE in lib/wallet.ts).
+   * Always 0 — kept for the withdrawal-history schema shape. No fee is taken at withdrawal time.
    */
   feeCents        Int       @default(0)
   /**
-   * amountCents - feeCents — what actually gets transferred to the provider's bank.
+   * Equal to amountCents — the full balance is what gets transferred to the provider's bank.
    */
   netAmountCents  Int       @default(0)
   status          String    @default("pending") // pending | processing | paid | failed

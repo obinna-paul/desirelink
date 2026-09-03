@@ -122,7 +122,7 @@ export function PayoutSetup({ providerId }: { providerId: string }) {
         <div>
           <h2 className="text-sm font-semibold text-foreground">Payout setup</h2>
           <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-            Withdrawal requests are reviewed and paid out within 2–3 business days. A 10% fee applies at withdrawal.
+            Withdrawal requests are reviewed and paid out in full within 2–3 business days.
           </p>
         </div>
         <Badge variant={payout?.status === "verified" ? "neon" : "outline"} className="shrink-0 capitalize">

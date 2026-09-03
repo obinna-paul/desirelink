@@ -210,7 +210,7 @@ export function ServiceFiltersPanel({ initialFilters }: { initialFilters: Servic
             </Select>
           </FilterSection>
 
-          <FilterSection title="Verified providers only">
+          <FilterSection title="Verified creators only">
             <label className="flex min-h-11 cursor-pointer items-center gap-2">
               <Switch checked={verifiedOnly} onCheckedChange={setVerifiedOnly} />
               <span className="text-sm text-muted-foreground">{verifiedOnly ? "On" : "Off"}</span>

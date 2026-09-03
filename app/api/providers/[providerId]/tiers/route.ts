@@ -9,7 +9,7 @@ import { getPublicTiers } from "@/lib/tiers";
 export async function GET(_req: Request, { params }: { params: { providerId: string } }) {
   const provider = await getProviderProfile(params.providerId);
   if (!provider) {
-    return NextResponse.json({ error: "Provider not found" }, { status: 404 });
+    return NextResponse.json({ error: "Creator not found" }, { status: 404 });
   }
 
   const session = await getServerSession(authOptions);

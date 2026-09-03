@@ -6,6 +6,7 @@ import { HEART_UNIT_PRICE_CENTS } from "@/lib/hearts-shared";
 import { getUserChannelName } from "@/lib/message-channels";
 import { prisma } from "@/lib/prisma";
 import { triggerEvent } from "@/lib/pusher-server";
+import { creditProviderWallet } from "@/lib/wallet";
 import {
   LIVE_REQUEST_CREATED_EVENT,
   LIVE_REQUEST_COMPLETED_EVENT,
@@ -225,7 +226,7 @@ export async function updateLiveRequest(requestId: string, providerId: string, a
       await tx.profile.update({ where: { id: current.requesterId }, data: { heartsBalance: { increment: current.hearts } } });
     }
     if (action === "complete") {
-      await tx.profile.update({ where: { id: providerId }, data: { walletBalanceCents: { increment: current.valueCents } } });
+      await creditProviderWallet(providerId, current.valueCents, tx);
       await tx.liveStream.update({
         where: { id: current.streamId },
         data: { totalHeartsReceived: { increment: current.hearts }, completedRequests: { increment: 1 } },

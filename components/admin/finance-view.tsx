@@ -117,7 +117,7 @@ function EscrowRow({ booking, onResolved }: { booking: EscrowBooking; onResolved
       {error && <p className="text-xs text-destructive">{error}</p>}
       <div className="flex justify-end gap-2">
         <Button type="button" size="sm" variant="outline" disabled={Boolean(busy)} onClick={release}>
-          {busy === "release" ? "Releasing..." : "Release to provider"}
+          {busy === "release" ? "Releasing..." : "Release to creator"}
         </Button>
         <Button type="button" size="sm" variant="outline" className="text-destructive hover:text-destructive" disabled={Boolean(busy)} onClick={refund}>
           {busy === "refund" ? "Refunding..." : confirmRefund ? "Confirm refund" : "Refund customer"}
