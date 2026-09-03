@@ -163,17 +163,19 @@ export async function getWalletOverview(profileId: string) {
             },
           })
         : Promise.resolve([]),
-      prisma.gift.findMany({
-        where: { senderId: profileId },
-        orderBy: { createdAt: "desc" },
-        take: 10,
-        select: {
-          id: true,
-          hearts: true,
-          createdAt: true,
-          receiver: { select: { displayName: true, avatarUrl: true } },
-        },
-      }),
+      isProvider
+        ? Promise.resolve([])
+        : prisma.gift.findMany({
+            where: { senderId: profileId },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+            select: {
+              id: true,
+              hearts: true,
+              createdAt: true,
+              receiver: { select: { displayName: true, avatarUrl: true } },
+            },
+          }),
       isProvider
         ? prisma.walletWithdrawal.findMany({
             where: { providerId: profileId },
