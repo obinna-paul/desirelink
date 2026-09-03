@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import { Ban, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Ban, CheckCircle2, Lock, ShieldCheck } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -75,6 +76,15 @@ export type AccountRecordData = {
     createdAt: string;
     actor: { name: string; email: string };
   }[];
+  posts: {
+    id: string;
+    isSubscriberOnly: boolean;
+    viewCount: number;
+    reactionCount: number;
+    commentCount: number;
+    createdAt: string;
+  }[];
+  serviceListings: { id: string; title: string; priceCents: number; createdAt: string }[];
 };
 
 const TABS = ["Overview", "Content", "Money", "Reports", "Notes", "Admin history"] as const;
@@ -262,15 +272,77 @@ export function AccountRecord({
       )}
 
       {tab === "Content" && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <StatCard label="Posts" value={stats.postCount} />
             <StatCard label="Premium posts" value={stats.premiumPostCount} />
             <StatCard label="Service listings" value={stats.serviceListingCount} />
           </div>
-          <p className="text-xs text-muted-foreground">
-            Opening an individual post or listing (including premium content) isn&apos;t wired up yet - that&apos;s the locked-content viewer in the next phase of the admin console plan.
-          </p>
+
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recent posts</h3>
+            {detail.posts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No posts yet.</p>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {detail.posts.map((post) =>
+                  post.isSubscriberOnly ? (
+                    <li key={post.id}>
+                      {canModerate ? (
+                        <Link
+                          href={`/admin/content/posts/${post.id}`}
+                          className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2 text-sm transition-colors hover:border-primary/40"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                            Premium post
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {post.viewCount} views &middot; {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                          </span>
+                        </Link>
+                      ) : (
+                        <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border/60 px-3 py-2 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1.5">
+                            <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> Premium post
+                          </span>
+                          <span className="text-xs">{post.viewCount} views</span>
+                        </div>
+                      )}
+                    </li>
+                  ) : (
+                    <li key={post.id}>
+                      <a
+                        href={`/posts/${post.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2 text-sm transition-colors hover:border-primary/40"
+                      >
+                        <span>Public post</span>
+                        <span className="text-xs text-muted-foreground">
+                          {post.viewCount} views &middot; {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                        </span>
+                      </a>
+                    </li>
+                  )
+                )}
+              </ul>
+            )}
+          </div>
+
+          {detail.serviceListings.length > 0 && (
+            <div>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Service listings</h3>
+              <ul className="flex flex-col gap-1.5">
+                {detail.serviceListings.map((listing) => (
+                  <li key={listing.id} className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm">
+                    <span className="truncate">{listing.title}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{formatCents(listing.priceCents)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

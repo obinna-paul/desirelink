@@ -82,6 +82,8 @@ export async function getAccountDetail(username: string) {
     paidWithdrawals,
     notes,
     adminHistory,
+    posts,
+    serviceListings,
   ] = await Promise.all([
     prisma.post.count({ where: { authorId: profile.id, isArchived: false } }),
     prisma.post.count({ where: { authorId: profile.id, isArchived: false, isSubscriberOnly: true } }),
@@ -110,6 +112,20 @@ export async function getAccountDetail(username: string) {
       take: 30,
       include: { actor: { select: { name: true, email: true } } },
     }),
+    // Deliberately no `content` field - the Content tab list must never leak a premium
+    // post's caption/media outside the reason-gated viewer (see lib/admin/content.ts).
+    prisma.post.findMany({
+      where: { authorId: profile.id, isArchived: false },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: { id: true, isSubscriberOnly: true, viewCount: true, createdAt: true, _count: { select: { reactions: true, comments: true } } },
+    }),
+    prisma.serviceListing.findMany({
+      where: { providerId: profile.id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: { id: true, title: true, priceCents: true, createdAt: true },
+    }),
   ]);
 
   return {
@@ -128,6 +144,8 @@ export async function getAccountDetail(username: string) {
     pendingWithdrawals,
     notes,
     adminHistory,
+    posts,
+    serviceListings,
   };
 }
 

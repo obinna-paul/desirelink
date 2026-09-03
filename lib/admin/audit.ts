@@ -16,7 +16,10 @@ export type AdminAuditAction =
   | "content.view_locked"
   | "account.suspend"
   | "account.reinstate"
-  | "account.note";
+  | "account.note"
+  | "finance.release_escrow"
+  | "finance.refund_escrow"
+  | "admin.role_change";
 
 /**
  * Writes one append-only audit row. Called for both privileged WRITES (approving a

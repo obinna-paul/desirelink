@@ -64,6 +64,20 @@ export default async function AdminAccountDetailPage({
       createdAt: entry.createdAt.toISOString(),
       actor: { name: entry.actor.name, email: entry.actor.email },
     })),
+    posts: detail.posts.map((post) => ({
+      id: post.id,
+      isSubscriberOnly: post.isSubscriberOnly,
+      viewCount: post.viewCount,
+      reactionCount: post._count.reactions,
+      commentCount: post._count.comments,
+      createdAt: post.createdAt.toISOString(),
+    })),
+    serviceListings: detail.serviceListings.map((listing) => ({
+      id: listing.id,
+      title: listing.title,
+      priceCents: listing.priceCents,
+      createdAt: listing.createdAt.toISOString(),
+    })),
   };
 
   return (
