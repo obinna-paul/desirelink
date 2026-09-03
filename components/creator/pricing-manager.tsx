@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { formatCents } from "@/lib/creator";
-import { MIN_TIER_PRICE_CENTS, MAX_TIER_PRICE_CENTS, TIER_TYPE_VALUES } from "@/lib/validations/creator-tier";
+import { DEFAULT_TIER_PRICE_CENTS, TIER_TYPE_VALUES } from "@/lib/validations/creator-tier";
 import type { CreatorTierInput } from "@/lib/validations/creator-tier";
 
 /** Local mirror of CreatorTierWithCount's shape - avoids importing lib/creator.ts (which
@@ -36,13 +36,10 @@ type FormState = {
   requiresApproval: boolean;
 };
 
-const minPriceNaira = MIN_TIER_PRICE_CENTS / 100;
-const maxPriceNaira = MAX_TIER_PRICE_CENTS / 100;
-
 const EMPTY_FORM: FormState = {
   name: "",
   description: "",
-  priceNaira: minPriceNaira.toString(),
+  priceNaira: (DEFAULT_TIER_PRICE_CENTS / 100).toString(),
   tierType: "basic",
   isLimited: false,
   maxSubscribers: "",
@@ -85,8 +82,8 @@ function TierForm({
       setError("Give this tier a name.");
       return;
     }
-    if (Number.isNaN(priceNaira) || priceNaira < minPriceNaira || priceNaira > maxPriceNaira) {
-      setError(`Price must be between ₦${minPriceNaira.toFixed(2)} and ₦${maxPriceNaira.toFixed(2)} per month.`);
+    if (Number.isNaN(priceNaira) || priceNaira <= 0) {
+      setError("Enter a price greater than ₦0.");
       return;
     }
     const maxSubscribers = form.isLimited ? Number(form.maxSubscribers) : null;
@@ -157,13 +154,12 @@ function TierForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="tier-price" className="text-xs font-medium text-muted-foreground">
-          Price per month (₦{minPriceNaira.toFixed(0)}–₦{maxPriceNaira.toFixed(0)})
+          Price per month
         </label>
         <Input
           id="tier-price"
           type="number"
-          min={minPriceNaira}
-          max={maxPriceNaira}
+          min={0.01}
           step="0.01"
           value={form.priceNaira}
           onChange={(event) => setForm((prev) => ({ ...prev, priceNaira: event.target.value }))}
