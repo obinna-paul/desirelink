@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   AlertTriangle,
   Check,
@@ -93,11 +94,16 @@ export function PostComposer({
   creatorDisplayName,
   canPostPremiumContent = false,
   hasIdentityOnFile = false,
+  hasPricingTier = false,
   onCreated,
 }: {
   creatorDisplayName: string;
   canPostPremiumContent?: boolean;
   hasIdentityOnFile?: boolean;
+  /** Whether this creator has at least one CreatorTier set up - without one, marking a
+   * post Premium locks it for everyone with no way to ever unlock it (pricing lives on
+   * the tier, not the post). */
+  hasPricingTier?: boolean;
   onCreated: (post: PostView) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -115,6 +121,7 @@ export function PostComposer({
   const [showProviderUpgradePrompt, setShowProviderUpgradePrompt] =
     useState(false);
   const [showIdentityPrompt, setShowIdentityPrompt] = useState(false);
+  const [showPricingPrompt, setShowPricingPrompt] = useState(false);
   const [identitySubmittedLocally, setIdentitySubmittedLocally] =
     useState(false);
   const [pendingFindings, setPendingFindings] = useState<PiiFinding[]>([]);
@@ -584,10 +591,18 @@ export function PostComposer({
                 if (option.value === "premium" && !canGoPremium) {
                   setShowIdentityPrompt(true);
                   setShowProviderUpgradePrompt(false);
+                  setShowPricingPrompt(false);
+                  return;
+                }
+                if (option.value === "premium" && !hasPricingTier) {
+                  setShowPricingPrompt(true);
+                  setShowProviderUpgradePrompt(false);
+                  setShowIdentityPrompt(false);
                   return;
                 }
                 setShowProviderUpgradePrompt(false);
                 setShowIdentityPrompt(false);
+                setShowPricingPrompt(false);
                 setPostAccess(option.value);
               }}
               className="flex min-h-11 items-center gap-2 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -634,6 +649,17 @@ export function PostComposer({
               setPostAccess("premium");
             }}
           />
+        </div>
+      )}
+      {showPricingPrompt && !hasPricingTier && (
+        <div className="mt-4 flex items-start gap-2 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <div className="text-sm">
+            <p>You don&rsquo;t have a subscription tier yet, so a Premium post would stay locked for everyone with no way to unlock it.</p>
+            <Link href="/creator-dashboard?tab=pricing" className="mt-2 inline-block font-medium text-foreground hover:underline">
+              Set up your pricing first
+            </Link>
+          </div>
         </div>
       )}
     </fieldset>

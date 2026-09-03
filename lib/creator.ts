@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export const CREATOR_DASHBOARD_TABS = [
   { value: "wallet", label: "Wallet" },
+  { value: "pricing", label: "Pricing" },
   { value: "assistant", label: "Assistant" },
   { value: "audience", label: "Audience" },
   { value: "verification", label: "Verification" },

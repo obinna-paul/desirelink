@@ -12,6 +12,7 @@ import { StatCard } from "@/components/creator/stat-card";
 import { AudienceList } from "@/components/creator/audience-list";
 import { ApplicationsList } from "@/components/creator/applications-list";
 import { CreatorAssistantPanel } from "@/components/creator/assistant-panel";
+import { PricingManager } from "@/components/creator/pricing-manager";
 import { WalletOverviewSection } from "@/components/wallet/wallet-overview-section";
 import { ChartSkeleton } from "@/components/ui/skeleton";
 import {
@@ -21,6 +22,7 @@ import {
   getCreatorApplications,
   getCreatorAssistantInsights,
   getCreatorStats,
+  getCreatorTiers,
   getEarningsByMonth,
   getSubscriberGrowth,
   getSubscribers,
@@ -86,6 +88,7 @@ export default async function CreatorDashboardPage({
       <DashboardTabs activeTab={tab} tabs={CREATOR_DASHBOARD_TABS} />
 
       {tab === "wallet" && <WalletTab profileId={profile.id} />}
+      {tab === "pricing" && <PricingTab profileId={profile.id} />}
       {tab === "assistant" && <AssistantTab profileId={profile.id} />}
       {tab === "audience" && <AudienceTab profileId={profile.id} />}
       {tab === "verification" && (
@@ -119,6 +122,11 @@ async function WalletTab({ profileId }: { profileId: string }) {
       <WalletOverviewSection profileId={profileId} />
     </div>
   );
+}
+
+async function PricingTab({ profileId }: { profileId: string }) {
+  const tiers = await getCreatorTiers(profileId);
+  return <PricingManager initialTiers={tiers} />;
 }
 
 async function AssistantTab({ profileId }: { profileId: string }) {

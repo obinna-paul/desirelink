@@ -25,6 +25,9 @@ export default async function CreatePage() {
   if (!profile) redirect("/login");
 
   const canPostPremiumContent = isProviderProfileType(profile.profileType);
+  const tierCount = canPostPremiumContent
+    ? await prisma.creatorTier.count({ where: { creatorId: profile.id } })
+    : 0;
 
   return (
     <div className="mx-auto w-full max-w-5xl pb-4 md:py-4">
@@ -34,6 +37,7 @@ export default async function CreatePage() {
         hasIdentityOnFile={
           canPostPremiumContent ? await hasIdentityOnFile(profile.id) : false
         }
+        hasPricingTier={tierCount > 0}
       />
     </div>
   );
