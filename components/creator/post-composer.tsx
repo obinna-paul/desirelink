@@ -655,8 +655,11 @@ export function PostComposer({
         <div className="mt-4 flex items-start gap-2 rounded-2xl border border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
           <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <div className="text-sm">
-            <p>You don&rsquo;t have a subscription tier yet, so a Premium post would stay locked for everyone with no way to unlock it.</p>
-            <Link href="/creator-dashboard?tab=pricing" className="mt-2 inline-block font-medium text-foreground hover:underline">
+            <p>Oops! Looks like you haven&rsquo;t set up a subscription tier yet.</p>
+            <Link
+              href="/creator-dashboard?tab=pricing"
+              className="mt-3 inline-flex min-h-11 items-center rounded-full border-2 border-trust px-4 text-sm font-semibold text-trust transition-colors hover:bg-trust/10"
+            >
               Set up your pricing first
             </Link>
           </div>
