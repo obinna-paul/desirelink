@@ -8,21 +8,18 @@ export const TIER_TYPE_LABELS: Record<(typeof TIER_TYPE_VALUES)[number], string>
   inner_circle: "Inner Circle",
 };
 
-/** Providers (Creators, Pairs, Service Providers) can charge ₦7,500-₦15,000/month for any tier. Amounts are in kobo. */
-export const MIN_TIER_PRICE_CENTS = 750_000;
-export const MAX_TIER_PRICE_CENTS = 1_500_000;
+/** Amounts are in kobo. No fixed price range - creators set whatever they want. */
 export const DEFAULT_TIER_PRICE_CENTS = 1_050_000;
-
-const minPriceNaira = MIN_TIER_PRICE_CENTS / 100;
-const maxPriceNaira = MAX_TIER_PRICE_CENTS / 100;
+/** Purely a ceiling to keep priceCents (a Postgres 32-bit Int) from overflowing - not a pricing rule. */
+const MAX_SAFE_PRICE_NAIRA = 10_000_000;
 
 export const creatorTierSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(50),
   description: z.string().max(500),
   priceNaira: z
     .number()
-    .min(minPriceNaira, `Tier price must be at least ₦${minPriceNaira.toFixed(2)}`)
-    .max(maxPriceNaira, `Tier price can't exceed ₦${maxPriceNaira.toFixed(2)}`),
+    .positive("Tier price must be greater than ₦0")
+    .max(MAX_SAFE_PRICE_NAIRA, "Tier price is too large"),
   tierType: z.enum(TIER_TYPE_VALUES),
   maxSubscribers: z.number().int().min(1).max(100000).nullable(),
   isLimited: z.boolean(),

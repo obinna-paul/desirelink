@@ -390,28 +390,45 @@ export async function getCreatorProfilePosts(
   return posts.map((post) => toPostView(post, hasSubscriberAccess, viewerProfileId, liveStreamIds));
 }
 
-export async function getFeedPosts(
+export type PremiumFeedResult = {
+  posts: PostView[];
+  /** Whether the viewer has any active subscription at all - drives the Premium tab's
+   * empty-state vs. end-of-list "find more creators" prompt (see FeedTabs). */
+  hasSubscriptions: boolean;
+};
+
+/**
+ * Premium posts from creators the viewer is actively subscribed to - nothing else. Every
+ * post returned is one the viewer already has access to, so it's built fully unlocked
+ * (toPostView is always called with hasSubscriberAccess: true here); a locked
+ * "Subscribe to Unlock" card is impossible in this result set by construction.
+ */
+export async function getPremiumFeedPosts(
   viewerProfileId: string | null,
-): Promise<PostView[]> {
-  const subscriptions = viewerProfileId
-    ? await prisma.subscription.findMany({
-        where: {
-          subscriberId: viewerProfileId,
-          status: "active",
-          endsAt: { gt: new Date() },
-        },
-        select: { creatorId: true },
-      })
-    : [];
+): Promise<PremiumFeedResult> {
+  if (!viewerProfileId) {
+    return { posts: [], hasSubscriptions: false };
+  }
 
-  const subscribedCreatorIds = new Set(
-    subscriptions.map((sub) => sub.creatorId),
-  );
+  const subscriptions = await prisma.subscription.findMany({
+    where: {
+      subscriberId: viewerProfileId,
+      status: "active",
+      endsAt: { gt: new Date() },
+    },
+    select: { creatorId: true },
+  });
 
-  const where =
-    subscribedCreatorIds.size > 0
-      ? { authorId: { in: Array.from(subscribedCreatorIds) } }
-      : { author: { profileType: "CREATOR" as const, isIncognito: false } };
+  const subscribedCreatorIds = Array.from(new Set(subscriptions.map((sub) => sub.creatorId)));
+  if (subscribedCreatorIds.length === 0) {
+    return { posts: [], hasSubscriptions: false };
+  }
+
+  const where = {
+    authorId: { in: subscribedCreatorIds },
+    isSubscriberOnly: true,
+    author: { isIncognito: false, isSuspended: false },
+  };
 
   let posts: RawPost[];
   try {
@@ -435,14 +452,10 @@ export async function getFeedPosts(
   }
 
   const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
-  return posts.map((post) =>
-    toPostView(
-      post,
-      post.author.id === viewerProfileId || subscribedCreatorIds.has(post.author.id),
-      viewerProfileId,
-      liveStreamIds,
-    ),
-  );
+  return {
+    posts: posts.map((post) => toPostView(post, true, viewerProfileId, liveStreamIds)),
+    hasSubscriptions: true,
+  };
 }
 
 export async function getPublicFeedPosts(

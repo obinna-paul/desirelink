@@ -4,19 +4,19 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
-  Briefcase,
   Check,
   Coins,
+  Crown,
   ImagePlus,
   Lock,
+  Rocket,
   Share2,
   ShieldCheck,
-  Sparkles,
   UserCircle2,
-  Video,
   X,
 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 
 const CHECKLIST = [
@@ -81,69 +81,55 @@ export function CreatorWelcomeModal({ profileHref }: { profileHref: string }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="creator-welcome-title"
-      className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-300"
+      className="theme-clay fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={() => setOpen(false)}
     >
       <div
         ref={dialogRef}
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#1e1226] via-[#170d1f] to-[#0e0812] text-white shadow-[0_30px_90px_rgba(0,0,0,0.55)] animate-in zoom-in-95 slide-in-from-bottom-2 duration-300 focus:outline-none"
+        className="relative w-full max-w-md rounded-3xl border border-border bg-card text-foreground shadow-lift animate-in zoom-in-95 duration-200 focus:outline-none"
       >
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(192,132,252,0.4),transparent_70%)] blur-2xl"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.22),transparent_70%)] blur-2xl"
-        />
-
         <button
           type="button"
           onClick={() => setOpen(false)}
           aria-label="Close"
-          className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
+          className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          <X className="h-5 w-5" aria-hidden="true" />
+          <X className="h-4 w-4" aria-hidden="true" />
         </button>
 
-        <div className="relative z-[1] flex flex-col gap-6 p-7 sm:p-8">
+        <div className="flex flex-col gap-6 p-7 sm:p-8">
           <div>
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300/90">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+              <Crown className="h-3.5 w-3.5" aria-hidden="true" />
               Creator unlocked
             </p>
             <h2
               id="creator-welcome-title"
-              className="mt-3 text-balance font-heading text-2xl font-semibold leading-tight text-white sm:text-[1.75rem]"
+              className="mt-3 text-balance font-heading text-2xl font-semibold leading-tight text-foreground sm:text-[1.75rem]"
             >
               Welcome to the greener side of Udala
             </h2>
-            <p className="mt-2 text-sm leading-6 text-white/65">
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
               You&rsquo;re all set to start earning. Here&rsquo;s how to get going:
             </p>
           </div>
 
-          <ul className="flex flex-col gap-3">
+          <ul className="flex flex-col gap-3.5">
             {CHECKLIST.map(({ icon: Icon, label }) => (
-              <li key={label} className="flex items-start gap-3 text-sm text-white/85">
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10">
-                  <Icon className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
+              <li key={label} className="flex items-center gap-3 text-sm text-foreground">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-tint">
+                  <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
                 </span>
-                <span className="pt-1 leading-5">{label}</span>
+                {label}
               </li>
             ))}
           </ul>
 
-          <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-3.5 text-sm leading-6 text-white/70">
-            <span className="flex shrink-0 items-center -space-x-1.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 ring-2 ring-[#170d1f]">
-                <Video className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
-              </span>
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 ring-2 ring-[#170d1f]">
-                <Briefcase className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
-              </span>
+          <div className="flex items-center gap-3 rounded-2xl border border-accent-tint-border bg-accent-tint/50 p-3.5 text-sm leading-6 text-foreground/80">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-tint">
+              <Rocket className="h-4 w-4 text-primary" aria-hidden="true" />
             </span>
             <p>
               You can also go live to earn from live streams, or list a paid service to get
@@ -152,21 +138,15 @@ export function CreatorWelcomeModal({ profileHref }: { profileHref: string }) {
           </div>
 
           <div className="flex flex-col gap-3 pt-1">
-            <Link
-              href="/profile/edit"
-              onClick={() => setOpen(false)}
-              className="inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-amber-300 to-amber-400 px-4 text-sm font-semibold text-[#1c1024] shadow-[0_12px_30px_rgba(251,191,36,0.3)] transition-transform hover:brightness-105 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-200"
-            >
-              Complete my profile
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
+            <Button asChild size="lg" onClick={() => setOpen(false)}>
+              <Link href="/profile/edit" className="gap-1.5">
+                Complete my profile
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
 
             <div className="flex flex-col items-center gap-1.5">
-              <button
-                type="button"
-                onClick={handleShare}
-                className="inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-full border border-white/20 bg-white/5 px-4 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
-              >
+              <Button type="button" variant="outline" size="lg" className="w-full gap-1.5" onClick={handleShare}>
                 {copied ? (
                   <>
                     <Check className="h-4 w-4" aria-hidden="true" /> Link copied
@@ -176,8 +156,8 @@ export function CreatorWelcomeModal({ profileHref }: { profileHref: string }) {
                     <Share2 className="h-4 w-4" aria-hidden="true" /> Share profile link
                   </>
                 )}
-              </button>
-              <p className="text-[11px] text-white/45">bring your fans to udala</p>
+              </Button>
+              <p className="text-xs text-muted-foreground">bring your fans to udala</p>
             </div>
           </div>
         </div>

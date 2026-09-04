@@ -797,6 +797,11 @@ model VerificationRequest {
   reviewerId     String?
   reviewedAt     DateTime?
   /**
+   * Required whenever status is denied - shown back to the user in their denial
+   * notification, so they know what to fix before resubmitting.
+   */
+  denyReason     String?
+  /**
    * Set once the ID photo and selfie video are purged from Cloudinary after review - the
    * privacy policy promises immediate deletion, so this is what makes that provable. See
    * deleteVerificationMedia in lib/verification.ts.
@@ -817,7 +822,7 @@ model LiveStream {
   providerId          String
   provider            Profile   @relation("LiveStreamProvider", fields: [providerId], references: [id], onDelete: Cascade)
   title               String
-  status              String    @default("live") // live | ended
+  status              String    @default("live") // scheduled | live | ended
   roomName            String    @unique
   startedAt           DateTime  @default(now())
   endedAt             DateTime?
@@ -826,6 +831,14 @@ model LiveStream {
   peakViewers         Int       @default(0)
   completedRequests   Int       @default(0)
   createdAt           DateTime  @default(now())
+
+  /** When a "scheduled" stream is meant to start - null once it's live or ended. */
+  scheduledFor DateTime?
+  /**
+   * Set once the "starting soon" notification has fired for this scheduled stream, so the
+   * cron pass (lib/live-streams.ts notifyStartingSoonLiveStreams) never sends it twice.
+   */
+  startingSoonNotifiedAt DateTime?
 
   gifts          Gift[]
   requestOptions LiveRequestOption[]

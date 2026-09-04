@@ -19,10 +19,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "action must be 'approve' or 'deny'" }, { status: 400 });
   }
 
+  if (action === "deny" && typeof body?.reason !== "string") {
+    return NextResponse.json({ error: "A reason is required to deny verification" }, { status: 400 });
+  }
+
   const result =
     action === "approve"
       ? await approveVerificationRequest(params.id, session!.user.id)
-      : await denyVerificationRequest(params.id, session!.user.id);
+      : await denyVerificationRequest(params.id, session!.user.id, body.reason);
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });

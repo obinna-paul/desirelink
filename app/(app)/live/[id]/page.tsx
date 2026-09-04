@@ -1,12 +1,18 @@
-import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { joinLiveStream } from "@/lib/live-streams";
+import { getLiveStreamPageState } from "@/lib/live-streams";
 import { getPublicTiers } from "@/lib/tiers";
 import { LiveRoom } from "@/components/live/live-room";
+import { LiveScheduleCountdown } from "@/components/live/live-schedule-countdown";
+import { LiveLockedNotice } from "@/components/live/live-locked-notice";
 
+/**
+ * Public by design (see middleware.ts's live/(?!go) carve-out) so a scheduled or live link
+ * shared outside the app - Twitter, Instagram, wherever - actually renders for whoever
+ * clicks it, logged in or not.
+ */
 export default async function LiveStreamPage({
   params,
   searchParams,
@@ -15,39 +21,66 @@ export default async function LiveStreamPage({
   searchParams: { cam?: string; mic?: string };
 }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    redirect("/login");
+  const profile = session?.user?.id
+    ? await prisma.profile.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true, displayName: true, heartsBalance: true },
+      })
+    : null;
+
+  const result = await getLiveStreamPageState(
+    params.id,
+    profile ? { id: profile.id, displayName: profile.displayName } : null,
+  );
+
+  if (result.state === "not_found") {
+    return (
+      <div className="mx-auto max-w-md py-16 text-center text-sm text-muted-foreground">
+        This live stream doesn&rsquo;t exist.
+      </div>
+    );
   }
 
-  const profile = await prisma.profile.findUnique({
-    where: { userId: session.user.id },
-    select: { id: true, displayName: true, heartsBalance: true },
-  });
-  if (!profile) {
-    redirect("/login");
+  if (result.state === "ended") {
+    return (
+      <div className="mx-auto max-w-md py-16 text-center text-sm text-muted-foreground">
+        This live has ended.
+      </div>
+    );
   }
 
-  const result = await joinLiveStream(params.id, profile.id, profile.displayName);
-  if (!result.ok) {
-    redirect("/");
+  if (result.state === "scheduled") {
+    return (
+      <LiveScheduleCountdown
+        streamId={result.streamId}
+        title={result.title}
+        scheduledFor={result.scheduledFor}
+        provider={result.provider}
+        isLoggedIn={Boolean(profile)}
+      />
+    );
   }
 
-  const tiers = result.isHost ? [] : await getPublicTiers(result.stream.provider.id, profile.id);
+  if (result.state === "live_locked") {
+    return <LiveLockedNotice streamId={result.streamId} title={result.title} provider={result.provider} />;
+  }
+
+  const tiers = result.isHost || !profile ? [] : await getPublicTiers(result.provider.id, profile.id);
 
   return (
     <LiveRoom
-      streamId={result.stream.id}
+      streamId={result.streamId}
       token={result.token}
       livekitUrl={result.livekitUrl}
       isHost={result.isHost}
-      title={result.stream.title}
-      startedAt={result.stream.startedAt}
-      initialHeartsTotal={result.stream.totalHeartsReceived}
-      provider={result.stream.provider}
-      viewerHeartsBalance={profile.heartsBalance}
-      viewerProfileId={profile.id}
-      heartGoal={result.stream.heartGoal}
-      requestOptions={result.stream.requestOptions}
+      title={result.title}
+      startedAt={result.startedAt}
+      initialHeartsTotal={result.totalHeartsReceived}
+      provider={result.provider}
+      viewerHeartsBalance={profile?.heartsBalance ?? 0}
+      viewerProfileId={profile?.id ?? ""}
+      heartGoal={result.heartGoal}
+      requestOptions={result.requestOptions}
       initialCameraEnabled={searchParams.cam !== "0"}
       initialMicEnabled={searchParams.mic !== "0"}
       tiers={tiers}

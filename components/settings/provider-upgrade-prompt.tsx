@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,7 @@ export function ProviderUpgradePrompt({
       <div className="grid gap-5 p-5 sm:p-6 md:grid-cols-[1fr_auto] md:items-center">
         <div className="flex min-w-0 gap-3">
           <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
-            <Sparkles className="h-5 w-5" aria-hidden="true" />
+            <Lock className="h-5 w-5" aria-hidden="true" />
           </span>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">

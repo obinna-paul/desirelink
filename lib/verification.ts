@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { deleteCloudinaryAsset } from "@/lib/cloudinary";
 import { recordAdminAction } from "@/lib/admin/audit";
+import { createNotification } from "@/lib/notifications";
 
 export const VERIFICATION_REQUEST_TYPES = [
   "creator",
@@ -118,6 +119,14 @@ export async function submitVerificationRequest(
       data: { verificationPending: true },
     }),
   ]);
+
+  await createNotification({
+    recipientId: profileId,
+    type: "verification",
+    title: "Verification submitted",
+    body: "We've received your ID and selfie. We'll let you know as soon as it's reviewed.",
+    href: "/verification",
+  });
 
   return { ok: true, requestId: request.id };
 }
@@ -292,18 +301,33 @@ export async function approveVerificationRequest(
     summary: `Approved ${request.requestType} verification for @${request.profile.username}`,
   });
 
+  await createNotification({
+    recipientId: request.profileId,
+    type: "verification",
+    title: "You're verified!",
+    body: "Your identity verification was approved.",
+    href: "/verification",
+  });
+
   return { ok: true };
 }
 
 /**
  * Denying a request means the submitted ID/selfie was judged incorrect or
  * fraudulent, so the account is suspended in the same action rather than left
- * to resubmit freely.
+ * to resubmit freely. A reason is required so the user can see it in their
+ * denial notification.
  */
 export async function denyVerificationRequest(
   requestId: string,
   reviewerId: string,
+  reason: string,
 ): Promise<ReviewVerificationResult> {
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) {
+    return { ok: false, status: 400, error: "A reason is required to deny verification" };
+  }
+
   const request = await prisma.verificationRequest.findUnique({
     where: { id: requestId },
     include: { profile: { select: { username: true } } },
@@ -323,7 +347,7 @@ export async function denyVerificationRequest(
   await prisma.$transaction([
     prisma.verificationRequest.update({
       where: { id: requestId },
-      data: { status: "denied", reviewerId, reviewedAt: new Date() },
+      data: { status: "denied", reviewerId, reviewedAt: new Date(), denyReason: trimmedReason },
     }),
     prisma.profile.update({
       where: { id: request.profileId },
@@ -337,7 +361,15 @@ export async function denyVerificationRequest(
     action: "verification.deny",
     targetType: "profile",
     targetId: request.profileId,
-    summary: `Denied ${request.requestType} verification for @${request.profile.username} (account suspended)`,
+    summary: `Denied ${request.requestType} verification for @${request.profile.username} (account suspended): ${trimmedReason}`,
+  });
+
+  await createNotification({
+    recipientId: request.profileId,
+    type: "verification",
+    title: "Verification denied",
+    body: `Your identity verification wasn't approved: ${trimmedReason}. Your account has been suspended.`,
+    href: "/verification",
   });
 
   return { ok: true };

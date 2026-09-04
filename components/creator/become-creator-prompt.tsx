@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { Coins } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -7,7 +7,7 @@ export function BecomeCreatorPrompt() {
   return (
     <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
       <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-        <Sparkles className="h-6 w-6 text-primary-foreground" aria-hidden="true" />
+        <Coins className="h-6 w-6 text-primary-foreground" aria-hidden="true" />
       </span>
       <div>
         <h2 className="text-lg font-semibold">Set up earning tools</h2>

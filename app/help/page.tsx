@@ -1,9 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
+  Coins,
   CreditCard,
   ShieldCheck,
-  Sparkles,
   UserCog,
 } from "lucide-react";
 
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 const CATEGORIES = [
   { id: "account-privacy", title: "Account & Privacy", icon: UserCog },
   { id: "payments-subscriptions", title: "Payments & Subscriptions", icon: CreditCard },
-  { id: "creators", title: "Creators", icon: Sparkles },
+  { id: "creators", title: "Creators", icon: Coins },
   { id: "safety-reporting", title: "Safety & Reporting", icon: ShieldCheck },
 ] as const;
 
@@ -124,7 +124,7 @@ export default function HelpCenterPage() {
           </FaqItem>
         </CategorySection>
 
-        <CategorySection id="creators" title="Creators" icon={Sparkles}>
+        <CategorySection id="creators" title="Creators" icon={Coins}>
           <FaqItem question="How do Creator Tiers work?">
             <p>
               Turn on Creator mode from <Link href="/profile/edit">Profile → Edit</Link>, then build

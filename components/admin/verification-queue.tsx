@@ -19,12 +19,13 @@ function RequestRow({
   error,
 }: {
   request: PendingVerificationRequest;
-  onRespond: (action: "approve" | "deny") => void;
+  onRespond: (action: "approve" | "deny", reason?: string) => void;
   pending: boolean;
   error: string | null;
 }) {
   const initials = request.profile.displayName.slice(0, 2).toUpperCase();
-  const [confirmDeny, setConfirmDeny] = useState(false);
+  const [denying, setDenying] = useState(false);
+  const [denyReason, setDenyReason] = useState("");
   const [lightboxMedia, setLightboxMedia] = useState<LightboxMedia>(null);
 
   return (
@@ -61,15 +62,9 @@ function RequestRow({
             variant="outline"
             className="w-full text-destructive sm:w-auto"
             disabled={pending}
-            onClick={() => {
-              if (!confirmDeny) {
-                setConfirmDeny(true);
-                return;
-              }
-              onRespond("deny");
-            }}
+            onClick={() => setDenying(true)}
           >
-            {confirmDeny ? "Confirm deny & suspend" : "Deny & suspend"}
+            Deny &amp; suspend
           </Button>
           <Button
             type="button"
@@ -82,6 +77,47 @@ function RequestRow({
           </Button>
         </div>
       </div>
+
+      {denying && (
+        <div className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+          <label htmlFor={`deny-reason-${request.id}`} className="text-xs font-medium text-muted-foreground">
+            Reason for denial (shown to the user)
+          </label>
+          <textarea
+            id={`deny-reason-${request.id}`}
+            value={denyReason}
+            onChange={(event) => setDenyReason(event.target.value)}
+            placeholder="e.g. The government ID photo is blurry and the name doesn't match your profile."
+            maxLength={500}
+            rows={2}
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-primary/60"
+          />
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={pending}
+              onClick={() => {
+                setDenying(false);
+                setDenyReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="text-destructive"
+              disabled={pending || !denyReason.trim()}
+              onClick={() => onRespond("deny", denyReason.trim())}
+            >
+              Confirm deny &amp; suspend
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
         <div className="flex min-w-0 flex-col gap-1">
@@ -140,13 +176,13 @@ export function VerificationQueue({
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  async function respond(id: string, action: "approve" | "deny") {
+  async function respond(id: string, action: "approve" | "deny", reason?: string) {
     setRespondingId(id);
     setErrors((prev) => ({ ...prev, [id]: "" }));
     const res = await fetch(`/api/admin/verification/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify(action === "deny" ? { action, reason } : { action }),
     });
     const body = await res.json().catch(() => null);
     setRespondingId(null);
@@ -176,7 +212,7 @@ export function VerificationQueue({
           request={request}
           pending={respondingId === request.id}
           error={errors[request.id] || null}
-          onRespond={(action) => respond(request.id, action)}
+          onRespond={(action, reason) => respond(request.id, action, reason)}
         />
       ))}
     </ul>

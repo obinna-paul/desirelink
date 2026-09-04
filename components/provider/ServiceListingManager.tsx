@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
-  CheckCircle2,
   Image as ImageIcon,
   Loader2,
   Pencil,
@@ -17,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
+import { PublishToast } from "@/components/ui/publish-toast";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
 import { formatCents } from "@/lib/creator";
 import { SERVICE_CATEGORY_OPTIONS } from "@/lib/account-types";
@@ -423,15 +423,7 @@ export function ServiceListingManager({
         Service listings
       </h2>
 
-      {confirmation && (
-        <div
-          role="status"
-          className="flex items-center gap-2 rounded-2xl border border-trust/40 bg-trust/10 px-4 py-3 text-sm text-foreground"
-        >
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-trust" aria-hidden="true" />
-          {confirmation}
-        </div>
-      )}
+      {confirmation && <PublishToast message={confirmation} />}
 
       {listings.length === 0 && !creating && (
         <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:p-10 md:shadow-none">
@@ -504,6 +496,7 @@ export function ServiceListingManager({
           requestType="service_provider"
           isVerified={false}
           latestStatus={latestServiceProviderStatus}
+          heading="Please submit identification to list services."
         />
       ) : creating ? (
         <ServiceListingForm
