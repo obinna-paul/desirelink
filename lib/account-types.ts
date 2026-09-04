@@ -11,7 +11,7 @@ export const ACCOUNT_TYPE_OPTIONS: { value: ProfileType; label: string; descript
     value: "CREATOR",
     label: "Creator",
     description:
-      "List paid services, go live, and post exclusive photos and videos. Earn from hearts in DMs, build a rating on your profile, and track it all from your dashboard.",
+      "List paid services, go live, and post exclusive photos and videos. Earn from fan subscriptions, paid requests in live streams, and hearts in DMs. Build a rating on your profile and track it all from your dashboard.",
   },
 ];
 
