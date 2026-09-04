@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-export const TIER_TYPE_VALUES = ["basic", "premium", "vip"] as const;
+export const TIER_TYPE_VALUES = ["beginner", "premium", "inner_circle"] as const;
+
+export const TIER_TYPE_LABELS: Record<(typeof TIER_TYPE_VALUES)[number], string> = {
+  beginner: "Beginner",
+  premium: "Premium",
+  inner_circle: "Inner Circle",
+};
 
 /** Providers (Creators, Pairs, Service Providers) can charge ₦7,500-₦15,000/month for any tier. Amounts are in kobo. */
 export const MIN_TIER_PRICE_CENTS = 750_000;
