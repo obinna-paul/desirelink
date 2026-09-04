@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { PostComposer } from "@/components/creator/post-composer";
+import { PostComposer, type ComposerTier } from "@/components/creator/post-composer";
 import { PublishToast } from "@/components/ui/publish-toast";
 import type { PostView } from "@/lib/posts";
 
@@ -13,12 +13,12 @@ export function FeedComposer({
   displayName,
   canPostPremiumContent = false,
   hasIdentityOnFile = false,
-  hasPricingTier = false,
+  tiers = [],
 }: {
   displayName: string;
   canPostPremiumContent?: boolean;
   hasIdentityOnFile?: boolean;
-  hasPricingTier?: boolean;
+  tiers?: ComposerTier[];
 }) {
   const router = useRouter();
   const [justPublished, setJustPublished] = useState<PostView | null>(null);
@@ -50,7 +50,7 @@ export function FeedComposer({
         creatorDisplayName={displayName}
         canPostPremiumContent={canPostPremiumContent}
         hasIdentityOnFile={hasIdentityOnFile}
-        hasPricingTier={hasPricingTier}
+        tiers={tiers}
         onCreated={handleCreated}
       />
     </div>

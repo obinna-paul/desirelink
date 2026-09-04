@@ -22,7 +22,7 @@ import { InviteButton } from "@/components/profile/invite-button";
 import { ProfileAvatarEditor } from "@/components/profile/profile-avatar-editor";
 import { ProfileSectionTab } from "@/components/profile/profile-section-tab";
 import { ProfileSetupActions } from "@/components/profile/profile-setup-actions";
-import { ProfileSubscribeButton } from "@/components/profile/profile-subscribe-button";
+import { SubscribePlansDialog } from "@/components/profile/subscribe-plans-dialog";
 import { ShareProfileButton } from "@/components/profile/share-profile-button";
 import { SwipeableSection } from "@/components/profile/swipeable-section";
 import { VerificationBadge } from "@/components/profile/verification-badge";
@@ -103,7 +103,7 @@ function ProfileStat({
 export function ProfileView({
   profile,
   posts,
-  subscription,
+  tiers,
   serviceListings,
   isOwner,
   isProvider,
@@ -128,7 +128,7 @@ export function ProfileView({
     } | null;
   };
   posts: PostView[];
-  subscription: PublicTierView | null;
+  tiers: PublicTierView[];
   serviceListings: ServiceListingView[];
   isOwner: boolean;
   isProvider: boolean;
@@ -288,10 +288,10 @@ export function ProfileView({
                       </Link>
                     </Button>
                   )}
-                  {subscription && (
-                    <ProfileSubscribeButton
+                  {tiers.length > 0 && (
+                    <SubscribePlansDialog
                       providerId={profile.id}
-                      subscription={subscription}
+                      tiers={tiers}
                       size="sm"
                       className="flex-1"
                     />

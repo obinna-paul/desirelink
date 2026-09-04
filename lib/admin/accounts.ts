@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { recordAdminAction } from "@/lib/admin/audit";
+import { getActiveSubscriberCount } from "@/lib/creator";
 
 const searchResultSelect = {
   id: true,
@@ -87,7 +88,7 @@ export async function getAccountDetail(username: string) {
   ] = await Promise.all([
     prisma.post.count({ where: { authorId: profile.id, isArchived: false } }),
     prisma.post.count({ where: { authorId: profile.id, isArchived: false, isSubscriberOnly: true } }),
-    prisma.subscription.count({ where: { creatorId: profile.id, status: "active" } }),
+    getActiveSubscriberCount(profile.id),
     prisma.serviceListing.count({ where: { providerId: profile.id } }),
     prisma.report.count({ where: { reportedUserId: profile.id, status: "pending" } }),
     prisma.report.count({ where: { reporterId: profile.id } }),

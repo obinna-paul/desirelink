@@ -191,3 +191,26 @@ export async function unsubscribeFromProvider(
 
   return { ok: true };
 }
+
+/** Cancels one specific subscription by its own id (rather than by provider+tier), for
+ * the "My subscriptions" settings page where a fan picks a row to cancel directly. Same
+ * soft-cancel as unsubscribeFromProvider: access is kept until the current period ends. */
+export async function cancelProviderSubscriptionById(
+  subscriptionId: string,
+  subscriberId: string,
+): Promise<ProviderUnsubscribeResult> {
+  const subscription = await prisma.providerSubscription.findUnique({ where: { id: subscriptionId } });
+  if (!subscription || subscription.subscriberId !== subscriberId) {
+    return { ok: false, status: 404, error: "Subscription not found" };
+  }
+  if (subscription.status !== "active") {
+    return { ok: true };
+  }
+
+  await prisma.providerSubscription.update({
+    where: { id: subscriptionId },
+    data: { cancelAtPeriodEnd: true },
+  });
+
+  return { ok: true };
+}

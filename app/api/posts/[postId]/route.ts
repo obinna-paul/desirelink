@@ -34,7 +34,7 @@ async function getCurrentProfile(userId: string) {
 async function getOwnedPost(postId: string, profileId: string) {
   const post = await prisma.post.findUnique({
     where: { id: postId },
-    select: { id: true, authorId: true, content: true },
+    select: { id: true, authorId: true, content: true, isSubscriberOnly: true, tierId: true },
   });
 
   if (!post)
@@ -134,12 +134,47 @@ export async function PATCH(
     return NextResponse.json({ ok: true, pinned: false });
   }
 
+  const updateData: Prisma.PostUpdateInput = { content: parsed.data.content };
+  if (parsed.data.isSubscriberOnly !== undefined) {
+    updateData.isSubscriberOnly = parsed.data.isSubscriberOnly;
+    const wasSubscriberOnly = owned.post.isSubscriberOnly;
+
+    if (!parsed.data.isSubscriberOnly) {
+      updateData.tier = { disconnect: true };
+    } else if (parsed.data.tierId) {
+      const tier = await prisma.creatorTier.findUnique({
+        where: { id: parsed.data.tierId },
+        select: { creatorId: true },
+      });
+      if (!tier || tier.creatorId !== profile.id) {
+        return NextResponse.json({ error: "Tier not found." }, { status: 404 });
+      }
+      updateData.tier = { connect: { id: parsed.data.tierId } };
+    } else if (!wasSubscriberOnly) {
+      // Turning a free post Premium without an explicit tier choice (the older
+      // switch-only edit UI) - fall back to the cheapest tier, same rule the
+      // per-tier-gating migration used to backfill posts made before tiers existed.
+      // A post that was ALREADY Premium and stays Premium with no tierId sent keeps
+      // its existing tier untouched - editing the caption must never quietly downgrade
+      // which tier a post requires.
+      const cheapestTier = await prisma.creatorTier.findFirst({
+        where: { creatorId: profile.id },
+        orderBy: { priceCents: "asc" },
+        select: { id: true },
+      });
+      if (!cheapestTier) {
+        return NextResponse.json(
+          { error: "Set up a subscription tier before making a post Premium." },
+          { status: 400 },
+        );
+      }
+      updateData.tier = { connect: { id: cheapestTier.id } };
+    }
+  }
+
   await prisma.post.update({
     where: { id: params.postId },
-    data: {
-      content: parsed.data.content,
-      isSubscriberOnly: parsed.data.isSubscriberOnly,
-    },
+    data: updateData,
   });
 
   try {

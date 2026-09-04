@@ -17,18 +17,31 @@ import { PostMediaCarousel } from "@/components/posts/post-media-carousel";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { VerificationBadge } from "@/components/profile/verification-badge";
+import { formatCents } from "@/lib/creator";
 import type { PostView } from "@/lib/posts";
 
-function LockedPostBody({ authorUsername }: { authorUsername: string }) {
+function LockedPostBody({
+  authorUsername,
+  requiredTier,
+}: {
+  authorUsername: string;
+  requiredTier: PostView["requiredTier"];
+}) {
   return (
     <div className="relative flex aspect-[4/5] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl bg-foreground px-6 text-center text-background md:rounded-lg">
       <span className="flex h-11 w-11 items-center justify-center rounded-full bg-background/10">
         <Lock className="h-5 w-5" aria-hidden="true" />
       </span>
       <p className="font-heading text-lg italic font-medium">Subscriber exclusive</p>
-      <p className="max-w-xs text-sm text-background/70">Subscribe to this creator to see this post.</p>
+      <p className="max-w-xs text-sm text-background/70">
+        {requiredTier
+          ? `Subscribe to ${requiredTier.name} (${formatCents(requiredTier.priceCents)}/mo) to see this post.`
+          : "Subscribe to this creator to see this post."}
+      </p>
       <Button asChild size="sm" className="mt-1">
-        <Link href={`/profile/${authorUsername}`}>Subscribe to Unlock</Link>
+        <Link href={`/profile/${authorUsername}`}>
+          {requiredTier ? `Subscribe to ${requiredTier.name}` : "Subscribe to Unlock"}
+        </Link>
       </Button>
     </div>
   );
@@ -174,7 +187,7 @@ export function PostCard({
 
       {post.locked ? (
         <div className="px-3 md:px-4">
-          <LockedPostBody authorUsername={post.author.username} />
+          <LockedPostBody authorUsername={post.author.username} requiredTier={post.requiredTier} />
         </div>
       ) : (
         <>

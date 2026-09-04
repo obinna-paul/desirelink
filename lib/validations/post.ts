@@ -36,6 +36,7 @@ export const createPostSchema = z
       )
       .optional(),
     isSubscriberOnly: z.boolean(),
+    tierId: z.string().min(1).optional(),
     postType: z.enum(["standard", "live"]).default("standard"),
   })
   .refine(
@@ -63,6 +64,7 @@ export const updatePostSchema = z.discriminatedUnion("action", [
       .min(1, "Post can't be empty")
       .max(2000, "Posts must be 2000 characters or fewer"),
     isSubscriberOnly: z.boolean().optional(),
+    tierId: z.string().min(1).nullable().optional(),
   }),
   z.object({
     action: z.literal("pin"),

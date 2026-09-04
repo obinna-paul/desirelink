@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/creator";
-import type { MySubscription } from "@/lib/legacy-checkout";
+import type { MySubscriptionRow } from "@/lib/subscription-access";
 
 const STATUS_VARIANT = {
   active: "neon",
@@ -21,11 +21,12 @@ function SubscriptionRow({
   onCancel,
   cancelling,
 }: {
-  subscription: MySubscription;
+  subscription: MySubscriptionRow;
   onCancel?: () => void;
   cancelling?: boolean;
 }) {
   const initials = subscription.creator.displayName.slice(0, 2).toUpperCase();
+  const isPendingCancel = subscription.status === "active" && subscription.cancelAtPeriodEnd;
 
   return (
     <li className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:rounded-lg md:shadow-none">
@@ -44,15 +45,15 @@ function SubscriptionRow({
 
       <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center">
         <div className="text-left sm:text-right">
-          <Badge variant={STATUS_VARIANT[subscription.status]} className="capitalize">
-            {subscription.status}
+          <Badge variant={isPendingCancel ? "secondary" : STATUS_VARIANT[subscription.status]} className="capitalize">
+            {isPendingCancel ? "Cancelled" : subscription.status}
           </Badge>
           <p className="mt-1 text-xs text-muted-foreground">
-            {subscription.status === "active" ? "Renews " : "Ended "}
+            {subscription.status === "active" ? (isPendingCancel ? "Access ends " : "Ends ") : "Ended "}
             {new Date(subscription.endsAt).toLocaleDateString()}
           </p>
         </div>
-        {onCancel && (
+        {onCancel && !isPendingCancel && (
           <Button
             type="button"
             size="sm"
@@ -69,7 +70,7 @@ function SubscriptionRow({
   );
 }
 
-export function SubscriptionsList({ initialSubscriptions }: { initialSubscriptions: MySubscription[] }) {
+export function SubscriptionsList({ initialSubscriptions }: { initialSubscriptions: MySubscriptionRow[] }) {
   const router = useRouter();
   const [subscriptions, setSubscriptions] = useState(initialSubscriptions);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -89,7 +90,7 @@ export function SubscriptionsList({ initialSubscriptions }: { initialSubscriptio
     }
 
     setSubscriptions((prev) =>
-      prev.map((sub) => (sub.id === id ? { ...sub, status: "cancelled" } : sub))
+      prev.map((sub) => (sub.id === id ? { ...sub, cancelAtPeriodEnd: true } : sub))
     );
     router.refresh();
   }

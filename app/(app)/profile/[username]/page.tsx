@@ -163,7 +163,7 @@ export default async function PublicProfilePage({
       <ProfileView
         profile={profile}
         posts={posts}
-        subscription={subscriptions[0] ?? null}
+        tiers={subscriptions}
         serviceListings={serviceListings}
         isOwner={isOwner}
         isProvider={isProvider}

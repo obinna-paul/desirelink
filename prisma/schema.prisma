@@ -351,6 +351,7 @@ model CreatorTier {
   providerSubscriptions ProviderSubscription[]
   accessApplications    AccessApplication[]
   transactions          Transaction[]
+  posts                 Post[]
 
   @@index([creatorId])
 }
@@ -390,6 +391,12 @@ model ProviderSubscription {
   paymentRetryCount     Int         @default(0)
   startsAt              DateTime
   endsAt                DateTime
+  /**
+   * Set once the daily expiry sweep sends the "ends in 3 days" heads-up, so it's never sent
+   * twice for the same subscription. Cleared on renewal (a fresh subscribe after expiry
+   * creates a new row, so this only ever needs to move forward).
+   */
+  expiryWarningSentAt   DateTime?
   createdAt             DateTime    @default(now())
 
   transactions Transaction[]
@@ -397,6 +404,7 @@ model ProviderSubscription {
   @@index([subscriberId])
   @@index([providerId])
   @@index([status])
+  @@index([status, endsAt])
 }
 
 model ServiceListing {
@@ -525,6 +533,15 @@ model Post {
   mediaUrls        Json
   postType         PostType       @default(standard)
   isSubscriberOnly Boolean        @default(false)
+  /**
+   * Which tier unlocks this post, when isSubscriberOnly is true - null means "any active
+   * subscription to this creator unlocks it" (the fallback for posts made before per-tier
+   * gating existed, and for a post whose assigned tier was later deleted). Access is
+   * cumulative: a subscriber to a tier priced at or above this one's can see it (see
+   * lib/subscription-access.ts).
+   */
+  tierId           String?
+  tier             CreatorTier?   @relation(fields: [tierId], references: [id], onDelete: SetNull)
   isArchived       Boolean        @default(false)
   viewCount        Int            @default(0)
   pinnedAt         DateTime?
@@ -537,6 +554,7 @@ model Post {
   @@index([authorId])
   @@index([isArchived])
   @@index([postType])
+  @@index([tierId])
 }
 
 model PostComment {

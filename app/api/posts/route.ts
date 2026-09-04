@@ -76,7 +76,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { content, isSubscriberOnly, postType } = parsed.data;
+  const { content, isSubscriberOnly, tierId, postType } = parsed.data;
   const canPostPremiumContent = isProviderProfileType(profile.profileType);
   if (isSubscriberOnly && !canPostPremiumContent) {
     return NextResponse.json(
@@ -101,6 +101,21 @@ export async function POST(req: Request) {
       { status: 403 },
     );
   }
+  if (isSubscriberOnly && canPostPremiumContent) {
+    if (!tierId) {
+      return NextResponse.json(
+        { error: "Choose which tier unlocks this post." },
+        { status: 400 },
+      );
+    }
+    const tier = await prisma.creatorTier.findUnique({
+      where: { id: tierId },
+      select: { creatorId: true },
+    });
+    if (!tier || tier.creatorId !== profile.id) {
+      return NextResponse.json({ error: "Tier not found." }, { status: 404 });
+    }
+  }
   const mediaItems =
     parsed.data.mediaItems ??
     (parsed.data.mediaUrls ?? []).map((url) => ({
@@ -124,6 +139,7 @@ export async function POST(req: Request) {
         mediaUrls: mediaItems,
         postType,
         isSubscriberOnly: canPostPremiumContent ? isSubscriberOnly : false,
+        tierId: canPostPremiumContent && isSubscriberOnly ? tierId : null,
       },
     });
   } catch (error) {

@@ -10,6 +10,7 @@ import { liveStreamChannelName, LIVE_GIFT_SENT_EVENT, LIVE_STREAM_ENDED_EVENT } 
 import { settleGift } from "@/lib/hearts";
 import { refundOpenLiveRequests, type LiveRequestOptionInput } from "@/lib/live-requests";
 import { createNotification, createNotificationsBulk } from "@/lib/notifications";
+import { getActiveSubscriberIds } from "@/lib/subscription-access";
 import { ONLINE_WINDOW_MS } from "@/lib/presence";
 import { hasIdentityOnFile } from "@/lib/verification";
 
@@ -100,13 +101,10 @@ export async function startLiveStream(
   // freshly promoted from scheduled - reconnecting to an already-live session (e.g. a page
   // refresh) hits the plain `existing` branch above and must stay silent.
   if ((isBrandNew || isStartingScheduled) && notifySubscribers) {
-    const subscribers = await prisma.subscription.findMany({
-      where: { creatorId: providerId, status: "active" },
-      select: { subscriberId: true },
-    });
-    if (subscribers.length > 0) {
+    const subscriberIds = await getActiveSubscriberIds(providerId);
+    if (subscriberIds.length > 0) {
       await createNotificationsBulk(
-        subscribers.map(({ subscriberId }) => ({
+        subscriberIds.map((subscriberId) => ({
           recipientId: subscriberId,
           actorId: providerId,
           type: "live" as const,
@@ -182,13 +180,10 @@ export async function scheduleLiveStream(
     select: { id: true, roomName: true, title: true, scheduledFor: true },
   });
 
-  const subscribers = await prisma.subscription.findMany({
-    where: { creatorId: providerId, status: "active" },
-    select: { subscriberId: true },
-  });
-  if (subscribers.length > 0) {
+  const subscriberIds = await getActiveSubscriberIds(providerId);
+  if (subscriberIds.length > 0) {
     await createNotificationsBulk(
-      subscribers.map(({ subscriberId }) => ({
+      subscriberIds.map((subscriberId) => ({
         recipientId: subscriberId,
         actorId: providerId,
         type: "live" as const,
@@ -256,13 +251,10 @@ export async function processScheduledLiveStreams(): Promise<{ notified: number;
   });
 
   for (const stream of startingSoon) {
-    const subscribers = await prisma.subscription.findMany({
-      where: { creatorId: stream.providerId, status: "active" },
-      select: { subscriberId: true },
-    });
-    if (subscribers.length > 0) {
+    const subscriberIds = await getActiveSubscriberIds(stream.providerId);
+    if (subscriberIds.length > 0) {
       await createNotificationsBulk(
-        subscribers.map(({ subscriberId }) => ({
+        subscriberIds.map((subscriberId) => ({
           recipientId: subscriberId,
           actorId: stream.providerId,
           type: "live" as const,
