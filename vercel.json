@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/subscription-renewals",
+      "path": "/api/cron/subscription-expiry",
       "schedule": "0 6 * * *"
     },
     {

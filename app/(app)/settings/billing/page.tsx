@@ -51,7 +51,7 @@ export default async function BillingSettingsPage({
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {sub.status}
-                    {sub.cancelAtPeriodEnd && " (cancels at period end)"} &middot; renews {sub.endsAt.toLocaleDateString()}
+                    {sub.cancelAtPeriodEnd && " (cancelled)"} &middot; access ends {sub.endsAt.toLocaleDateString()}
                   </p>
                 </div>
                 {sub.status === "active" && !sub.cancelAtPeriodEnd && (

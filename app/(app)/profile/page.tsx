@@ -60,7 +60,7 @@ export default async function ProfilePage({
       <ProfileView
         profile={profile}
         posts={posts}
-        subscription={subscriptions[0] ?? null}
+        tiers={subscriptions}
         serviceListings={serviceListings}
         isOwner
         isProvider={isProvider}

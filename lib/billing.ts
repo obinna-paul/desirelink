@@ -4,17 +4,14 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
-import { creditProviderWallet } from "@/lib/wallet";
+import { createNotification } from "@/lib/notifications";
 
 /**
- * Dunning policy for failed recurring payments, applied by
- * runSubscriptionRenewals below (this app owns retry scheduling directly,
- * rather than delegating to provider-side subscription objects — see
- * lib/payments/types.ts for why).
+ * Subscriptions run for exactly one calendar month and are never auto-renewed or
+ * re-charged — see runSubscriptionExpiry below. A fan who wants another month
+ * subscribes again (a fresh checkout, a fresh ProviderSubscription row).
  */
-export const MAX_PAYMENT_RETRY_ATTEMPTS = 3;
-export const PAYMENT_RETRY_WINDOW_DAYS = 7;
-export const PAST_DUE_CANCEL_AFTER_DAYS = 30;
+export const SUBSCRIPTION_EXPIRY_WARNING_DAYS = 3;
 
 export type PaymentMethodView = {
   id: string;
@@ -123,7 +120,7 @@ async function getActiveProviderSubscriptionsForBilling(
 ): Promise<BillingProviderSubscription[]> {
   try {
     return await prisma.providerSubscription.findMany({
-      where: { subscriberId: profileId, status: { in: ["active", "past_due"] } },
+      where: { subscriberId: profileId, status: "active" },
       include: providerSubscriptionInclude,
       orderBy: { startsAt: "desc" },
     });
@@ -170,112 +167,102 @@ export async function getBillingOverview(profileId: string): Promise<BillingOver
   };
 }
 
-async function notifyPaymentFailed(userId: string): Promise<void> {
-  console.warn(`[billing] Recurring payment failed for profile ${userId} — email notification not yet wired up.`);
+const expiringSubscriptionInclude = {
+  subscriber: { select: { id: true, displayName: true } },
+  provider: { select: { id: true, username: true, displayName: true } },
+  tier: { select: { name: true } },
+} satisfies Prisma.ProviderSubscriptionInclude;
+
+type ExpiringSubscription = Prisma.ProviderSubscriptionGetPayload<{
+  include: typeof expiringSubscriptionInclude;
+}>;
+
+async function notifySubscriptionEndingSoon(sub: ExpiringSubscription): Promise<void> {
+  await createNotification({
+    recipientId: sub.subscriberId,
+    actorId: sub.providerId,
+    type: "subscription",
+    title: `Your ${sub.tier.name} subscription ends in ${SUBSCRIPTION_EXPIRY_WARNING_DAYS} days`,
+    body: `Resubscribe to keep your access to ${sub.provider.displayName}'s Premium content.`,
+    href: `/profile/${sub.provider.username}`,
+  });
 }
 
-async function chargeDefaultCard(
-  customerId: string,
-  subscriberId: string,
-  amountCents: number,
-  metadata: Record<string, string>
-): Promise<{ success: boolean; reference: string | null }> {
-  const card = await prisma.paymentMethod.findFirst({ where: { userId: subscriberId, isDefault: true } });
-  if (!card) return { success: false, reference: null };
-
-  const { reference, success } = await paymentProvider.chargeSavedPaymentMethod(
-    customerId,
-    card.externalId,
-    amountCents,
-    metadata
-  );
-  return { success, reference };
-}
-
-/** Renews or retries a single provider-tier subscription. Returns what happened, for the cron's summary counts. */
-async function processProviderSubscription(
-  sub: { id: string; subscriberId: string; providerId: string; tierId: string; status: string; endsAt: Date; cancelAtPeriodEnd: boolean; pastDueSince: Date | null; paymentRetryCount: number },
-  now: Date
-): Promise<"renewed" | "retried" | "cancelled" | "skipped"> {
-  if (sub.status === "active" && sub.cancelAtPeriodEnd && sub.endsAt <= now) {
-    await prisma.providerSubscription.update({ where: { id: sub.id }, data: { status: "cancelled" } });
-    return "cancelled";
-  }
-
-  if (sub.status === "past_due") {
-    const daysPastDue = (now.getTime() - (sub.pastDueSince ?? now).getTime()) / (1000 * 60 * 60 * 24);
-    if (daysPastDue >= PAST_DUE_CANCEL_AFTER_DAYS) {
-      await prisma.providerSubscription.update({ where: { id: sub.id }, data: { status: "cancelled" } });
-      return "cancelled";
-    }
-    if (daysPastDue >= PAYMENT_RETRY_WINDOW_DAYS || sub.paymentRetryCount >= MAX_PAYMENT_RETRY_ATTEMPTS) {
-      return "skipped"; // retries exhausted; wait out the grace period
-    }
-  } else if (!(sub.status === "active" && sub.endsAt <= now)) {
-    return "skipped"; // not due yet
-  }
-
-  const [subscriber, tier] = await Promise.all([
-    prisma.profile.findUnique({ where: { id: sub.subscriberId }, select: { paymentCustomerId: true } }),
-    prisma.creatorTier.findUnique({ where: { id: sub.tierId }, select: { priceCents: true } }),
+async function notifySubscriptionEnded(sub: ExpiringSubscription): Promise<void> {
+  await Promise.all([
+    createNotification({
+      recipientId: sub.subscriberId,
+      actorId: sub.providerId,
+      type: "subscription",
+      title: `Your ${sub.tier.name} subscription to ${sub.provider.displayName} has ended`,
+      body: "Resubscribe any time to get access again.",
+      href: `/profile/${sub.provider.username}`,
+    }),
+    createNotification({
+      recipientId: sub.providerId,
+      actorId: sub.subscriberId,
+      type: "subscription",
+      title: `${sub.subscriber.displayName}'s ${sub.tier.name} subscription ended`,
+      body: "Their access to your Premium content has ended.",
+      href: "/creator-dashboard?tab=audience",
+    }),
   ]);
-  if (!subscriber?.paymentCustomerId || !tier) {
-    await prisma.providerSubscription.update({
-      where: { id: sub.id },
-      data: { status: "past_due", pastDueSince: sub.pastDueSince ?? now, paymentRetryCount: sub.paymentRetryCount + 1 },
-    });
-    return "retried";
-  }
-
-  const { success, reference } = await chargeDefaultCard(subscriber.paymentCustomerId, sub.subscriberId, tier.priceCents, {
-    kind: "provider_tier",
-    providerId: sub.providerId,
-    tierId: sub.tierId,
-  });
-
-  if (success) {
-    const endsAt = new Date(now);
-    endsAt.setMonth(endsAt.getMonth() + 1);
-    await prisma.providerSubscription.update({
-      where: { id: sub.id },
-      data: { status: "active", endsAt, paymentSubscriptionId: reference, pastDueSince: null, paymentRetryCount: 0 },
-    });
-    await prisma.transaction.create({
-      data: { userId: sub.subscriberId, tierId: sub.tierId, providerSubscriptionId: sub.id, amountCents: tier.priceCents, status: "succeeded", provider: "card" },
-    });
-    await creditProviderWallet(sub.providerId, tier.priceCents);
-    return "renewed";
-  }
-
-  await prisma.providerSubscription.update({
-    where: { id: sub.id },
-    data: { status: "past_due", pastDueSince: sub.pastDueSince ?? now, paymentRetryCount: sub.paymentRetryCount + 1 },
-  });
-  await prisma.transaction.create({
-    data: { userId: sub.subscriberId, tierId: sub.tierId, providerSubscriptionId: sub.id, amountCents: tier.priceCents, status: "failed", provider: "card" },
-  });
-  await notifyPaymentFailed(sub.subscriberId);
-  return "retried";
 }
 
 /**
- * Meant to run daily. Renews any subscription due today, retries any
- * past-due one still inside its 7-day/3-attempt retry window, and cancels
- * anything that's been past-due for 30 days. See app/api/cron/subscription-renewals.
+ * Processes one subscription for the daily expiry sweep. Access itself is already gated
+ * purely by endsAt (see getCreatorAccess in lib/subscription-access.ts) - this only
+ * updates status for record-keeping and sends the two notifications the product asks
+ * for: a heads-up a few days out, and a "this just ended" notice to both sides the
+ * moment it lapses. Never charges a card or extends endsAt - subscriptions are exactly
+ * one month, full stop; a fan who wants another month subscribes again.
  */
-export async function runSubscriptionRenewals(): Promise<{
-  renewed: number;
-  retried: number;
-  cancelled: number;
+async function processSubscriptionExpiry(
+  sub: ExpiringSubscription,
+  now: Date,
+  warnAt: Date,
+): Promise<"expired" | "warned" | "skipped"> {
+  if (sub.endsAt <= now) {
+    await prisma.providerSubscription.update({
+      where: { id: sub.id },
+      data: { status: sub.cancelAtPeriodEnd ? "cancelled" : "expired" },
+    });
+    await notifySubscriptionEnded(sub);
+    return "expired";
+  }
+
+  if (!sub.expiryWarningSentAt && sub.endsAt <= warnAt) {
+    await prisma.providerSubscription.update({
+      where: { id: sub.id },
+      data: { expiryWarningSentAt: now },
+    });
+    await notifySubscriptionEndingSoon(sub);
+    return "warned";
+  }
+
+  return "skipped";
+}
+
+/**
+ * Meant to run daily (see app/api/cron/subscription-expiry). Ends any active
+ * subscription whose month is up, and warns anyone within
+ * SUBSCRIPTION_EXPIRY_WARNING_DAYS of that who hasn't already been warned.
+ */
+export async function runSubscriptionExpiry(): Promise<{
+  expired: number;
+  warned: number;
 }> {
   const now = new Date();
-  const counts = { renewed: 0, retried: 0, cancelled: 0 };
+  const warnAt = new Date(now);
+  warnAt.setDate(warnAt.getDate() + SUBSCRIPTION_EXPIRY_WARNING_DAYS);
+  const counts = { expired: 0, warned: 0 };
 
-  const providerSubs = await prisma.providerSubscription.findMany({
-    where: { status: { in: ["active", "past_due"] } },
+  const dueSubs = await prisma.providerSubscription.findMany({
+    where: { status: "active", endsAt: { lte: warnAt } },
+    include: expiringSubscriptionInclude,
   });
-  for (const sub of providerSubs) {
-    const outcome = await processProviderSubscription(sub, now);
+  for (const sub of dueSubs) {
+    const outcome = await processSubscriptionExpiry(sub, now, warnAt);
     if (outcome !== "skipped") counts[outcome]++;
   }
 

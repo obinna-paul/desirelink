@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type SubscriptionStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
@@ -38,6 +38,83 @@ export async function getCreatorProfileByUserId(userId: string) {
   return profile;
 }
 
+const subscriberProfileSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  avatarUrl: true,
+} as const;
+
+type CreatorSubscriptionRow = {
+  id: string;
+  subscriberId: string;
+  status: string;
+  startsAt: Date;
+  endsAt: Date;
+  createdAt: Date;
+  tier: { id: string; name: string };
+  subscriber: { id: string; username: string; displayName: string; avatarUrl: string };
+};
+
+/**
+ * Every subscription a creator has, merged from both the legacy Subscription table and
+ * ProviderSubscription - the table subscribeToProvider actually writes to (see
+ * lib/providers.ts). Reading only one of these tables silently undercounts real
+ * subscribers, so every creator-dashboard stat, the Audience list, and the
+ * growth/earnings charts all go through this one query instead.
+ */
+async function getCreatorSubscriptionRows(
+  creatorId: string,
+  options: { statuses?: string[] } = {},
+): Promise<CreatorSubscriptionRow[]> {
+  const rowSelect = {
+    id: true,
+    subscriberId: true,
+    status: true,
+    startsAt: true,
+    endsAt: true,
+    createdAt: true,
+    tier: { select: { id: true, name: true } },
+    subscriber: { select: subscriberProfileSelect },
+  } as const;
+
+  const [legacy, providerSubs] = await Promise.all([
+    prisma.subscription.findMany({
+      where: {
+        creatorId,
+        ...(options.statuses
+          ? { status: { in: options.statuses as SubscriptionStatus[] } }
+          : {}),
+      },
+      select: rowSelect,
+    }),
+    prisma.providerSubscription.findMany({
+      where: {
+        providerId: creatorId,
+        ...(options.statuses ? { status: { in: options.statuses } } : {}),
+      },
+      select: rowSelect,
+    }),
+  ]);
+
+  return [...legacy, ...providerSubs];
+}
+
+/** Every transaction that paid this creator through a subscription tier, however it was
+ * charged: the legacy Subscription flow (subscriptionId), a direct saved-card tier charge
+ * (tierId - see subscribeToProvider), or a checkout-confirmed one (providerSubscriptionId
+ * - see the webhook handler). A given row only ever has one of these set. */
+function creatorTierRevenueWhere(creatorId: string): Prisma.TransactionWhereInput {
+  return {
+    status: "succeeded",
+    OR: [
+      { subscription: { creatorId } },
+      { tier: { creatorId } },
+      { providerSubscription: { providerId: creatorId } },
+    ],
+  };
+}
+
 export type CreatorStats = {
   subscriberCount: number;
   totalRevenueCents: number;
@@ -46,9 +123,9 @@ export type CreatorStats = {
 
 export async function getCreatorStats(profileId: string): Promise<CreatorStats> {
   const [subscriberCount, revenueAgg, profile] = await Promise.all([
-    prisma.subscription.count({ where: { creatorId: profileId, status: "active" } }),
+    getActiveSubscriberCount(profileId),
     prisma.transaction.aggregate({
-      where: { subscription: { creatorId: profileId } },
+      where: creatorTierRevenueWhere(profileId),
       _sum: { amountCents: true },
     }),
     prisma.profile.findUnique({ where: { id: profileId }, select: { profileViews: true } }),
@@ -61,20 +138,41 @@ export async function getCreatorStats(profileId: string): Promise<CreatorStats> 
   };
 }
 
-export async function getSubscribers(profileId: string) {
-  return prisma.subscription.findMany({
-    where: { creatorId: profileId },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-    select: {
-      id: true,
-      status: true,
-      startsAt: true,
-      endsAt: true,
-      tier: { select: { id: true, name: true } },
-      subscriber: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
-    },
+/** Distinct fans with a currently-unexpired subscription to this creator, across both
+ * ProviderSubscription and the legacy Subscription table - a fan holding two tiers at
+ * once (e.g. mid-upgrade) still counts once. Used by the creator dashboard and the admin
+ * account 360 view. */
+export async function getActiveSubscriberCount(creatorId: string): Promise<number> {
+  const now = new Date();
+  const rows = await getCreatorSubscriptionRows(creatorId, { statuses: ["active"] });
+  return new Set(rows.filter((row) => row.endsAt > now).map((row) => row.subscriberId)).size;
+}
+
+export type SubscriberRow = {
+  id: string;
+  status: "active" | "cancelled" | "expired";
+  startsAt: Date;
+  endsAt: Date;
+  tier: { id: string; name: string };
+  subscriber: { id: string; username: string; displayName: string; avatarUrl: string };
+};
+
+export async function getSubscribers(profileId: string): Promise<SubscriberRow[]> {
+  const rows = await getCreatorSubscriptionRows(profileId, {
+    statuses: ["active", "cancelled", "expired"],
   });
+
+  return rows
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 50)
+    .map((row) => ({
+      id: row.id,
+      status: row.status as SubscriberRow["status"],
+      startsAt: row.startsAt,
+      endsAt: row.endsAt,
+      tier: row.tier,
+      subscriber: row.subscriber,
+    }));
 }
 
 export async function getCreatorTiers(profileId: string) {
@@ -136,10 +234,7 @@ function monthBuckets(monthsBack: number) {
 export async function getSubscriberGrowth(profileId: string) {
   const buckets = monthBuckets(GROWTH_MONTHS_BACK);
 
-  const subscriptions = await prisma.subscription.findMany({
-    where: { creatorId: profileId },
-    select: { createdAt: true },
-  });
+  const subscriptions = await getCreatorSubscriptionRows(profileId);
 
   let cumulative = subscriptions.filter((sub) => sub.createdAt < buckets[0].start).length;
 
@@ -155,7 +250,7 @@ export async function getEarningsByMonth(profileId: string) {
   const buckets = monthBuckets(GROWTH_MONTHS_BACK);
 
   const transactions = await prisma.transaction.findMany({
-    where: { subscription: { creatorId: profileId }, createdAt: { gte: buckets[0].start } },
+    where: { ...creatorTierRevenueWhere(profileId), createdAt: { gte: buckets[0].start } },
     select: { createdAt: true, amountCents: true },
   });
 
@@ -265,31 +360,19 @@ export async function getCreatorAssistantInsights(profileId: string) {
   const dormantCutoff = new Date(Date.now() - DORMANT_DAYS * 24 * 60 * 60 * 1000);
   const recentActivityCutoff = new Date(Date.now() - RECENT_ACTIVITY_DAYS * 24 * 60 * 60 * 1000);
 
-  const [spendByFan, activeSubscriptions, recentTransactions, recentMessages] = await Promise.all([
+  const now = new Date();
+  const [spendByFan, allActiveSubscriptionRows, recentTransactions, recentMessages] = await Promise.all([
     prisma.transaction.groupBy({
       by: ["userId"],
-      where: {
-        status: "succeeded",
-        OR: [{ subscription: { creatorId: profileId } }, { tier: { creatorId: profileId } }],
-      },
+      where: creatorTierRevenueWhere(profileId),
       _sum: { amountCents: true },
       _count: { _all: true },
     }),
-    prisma.subscription.findMany({
-      where: { creatorId: profileId, status: "active" },
-      select: {
-        subscriberId: true,
-        startsAt: true,
-        tier: { select: { name: true } },
-        subscriber: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
-      },
-      orderBy: { startsAt: "desc" },
-    }),
+    getCreatorSubscriptionRows(profileId, { statuses: ["active"] }),
     prisma.transaction.findMany({
       where: {
-        status: "succeeded",
+        ...creatorTierRevenueWhere(profileId),
         createdAt: { gte: recentActivityCutoff },
-        OR: [{ subscription: { creatorId: profileId } }, { tier: { creatorId: profileId } }],
       },
       select: { userId: true, createdAt: true },
       orderBy: { createdAt: "desc" },
@@ -305,6 +388,8 @@ export async function getCreatorAssistantInsights(profileId: string) {
       take: 200,
     }),
   ]);
+
+  const activeSubscriptions = allActiveSubscriptionRows.filter((row) => row.endsAt > now);
 
   const subscriberProfiles = new Map<string, AssistantProfile>();
   const subscriberStarts = new Map<string, Date>();

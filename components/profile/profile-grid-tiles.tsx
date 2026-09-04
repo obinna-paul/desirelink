@@ -67,16 +67,15 @@ export function PostGridTile({
   onOpen: (post: PostView) => void;
 }) {
   if (post.locked) {
+    const tierLabel = post.requiredTier ? `Subscribe to ${post.requiredTier.name}` : "Subscribe to view";
     return (
       <TileShell
         onClick={() => onOpen(post)}
-        ariaLabel="Locked post. Subscribe to view."
+        ariaLabel={`Locked post. ${tierLabel} to view.`}
       >
         <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-accent-tint px-3 text-center">
           <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
-          <span className="label-caps text-[10px] text-primary">
-            Subscribe to view
-          </span>
+          <span className="label-caps text-[10px] text-primary">{tierLabel}</span>
         </div>
       </TileShell>
     );

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
 import { VideoFrameDialog } from "@/components/creator/video-frame-dialog";
@@ -38,6 +39,7 @@ import { convertHeicFileToJpeg, isHeicFile } from "@/lib/heic-convert";
 import { readFileAsArrayBuffer, sniffMediaKind } from "@/lib/media-sniff";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { uploadMediaDirectToCloudinary } from "@/lib/client-uploads";
+import { formatCents } from "@/lib/creator";
 import { cn } from "@/lib/utils";
 
 const MAX_IMAGE_FILE_SIZE = 30 * 1024 * 1024;
@@ -81,6 +83,8 @@ type PendingCrop = { file: File; metadataDetected: boolean };
 type PostMode = "single" | "carousel";
 type PostAccess = "free" | "premium";
 
+export type ComposerTier = { id: string; name: string; priceCents: number };
+
 const DEFAULT_DISPLAY_RATIO: PostDisplayAspectRatio = "square";
 
 function selectedRatioValue(value: PostDisplayAspectRatio) {
@@ -94,18 +98,19 @@ export function PostComposer({
   creatorDisplayName,
   canPostPremiumContent = false,
   hasIdentityOnFile = false,
-  hasPricingTier = false,
+  tiers = [],
   onCreated,
 }: {
   creatorDisplayName: string;
   canPostPremiumContent?: boolean;
   hasIdentityOnFile?: boolean;
-  /** Whether this creator has at least one CreatorTier set up - without one, marking a
-   * post Premium locks it for everyone with no way to ever unlock it (pricing lives on
-   * the tier, not the post). */
-  hasPricingTier?: boolean;
+  /** This creator's subscription tiers, cheapest first - without at least one, marking a
+   * post Premium locks it for everyone with no tier to ever unlock it. When there's more
+   * than one, the creator must pick which tier unlocks this specific post. */
+  tiers?: ComposerTier[];
   onCreated: (post: PostView) => void;
 }) {
+  const hasPricingTier = tiers.length > 0;
   const inputRef = useRef<HTMLInputElement>(null);
   const piiDialogRef = useRef<HTMLDivElement>(null);
   const [content, setContent] = useState("");
@@ -115,6 +120,9 @@ export function PostComposer({
   const [mediaItems, setMediaItems] = useState<UploadedMedia[]>([]);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [postAccess, setPostAccess] = useState<PostAccess>("free");
+  const [selectedTierId, setSelectedTierId] = useState<string | null>(
+    tiers.length === 1 ? tiers[0].id : null,
+  );
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -395,6 +403,7 @@ export function PostComposer({
         content: content.trim(),
         mediaItems: mediaPayload,
         isSubscriberOnly,
+        tierId: isSubscriberOnly ? selectedTierId : undefined,
         postType: "standard",
       }),
     });
@@ -414,6 +423,7 @@ export function PostComposer({
     setActiveMediaIndex(0);
     setPostMode("single");
     setPostAccess("free");
+    setSelectedTierId(tiers.length === 1 ? tiers[0].id : null);
     setPiiAcknowledged(false);
     setPendingFindings([]);
   }
@@ -423,6 +433,11 @@ export function PostComposer({
 
     if (!content.trim() && mediaPayload.length === 0) {
       setError("Share something or add media before publishing.");
+      return;
+    }
+
+    if (isSubscriberOnly && !selectedTierId) {
+      setError("Choose which tier unlocks this post.");
       return;
     }
 
@@ -666,6 +681,28 @@ export function PostComposer({
           </div>
         </div>
       )}
+      {postAccess === "premium" && hasPricingTier && (
+        <div className="mt-4 flex flex-col gap-1.5">
+          <label htmlFor="post-tier" className="text-xs font-medium text-muted-foreground">
+            Which tier unlocks this post?
+          </label>
+          <Select
+            id="post-tier"
+            value={selectedTierId ?? ""}
+            onChange={(event) => setSelectedTierId(event.target.value || null)}
+          >
+            <option value="">Choose a tier</option>
+            {tiers.map((tier) => (
+              <option key={tier.id} value={tier.id}>
+                {tier.name} · {formatCents(tier.priceCents)}/mo
+              </option>
+            ))}
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Subscribers to this tier or higher will see this post.
+          </p>
+        </div>
+      )}
     </fieldset>
   );
 
@@ -694,7 +731,7 @@ export function PostComposer({
       <div className="sticky bottom-3 z-10 -mx-1 border-t border-border/70 bg-card/95 px-1 pt-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:pt-0">
         <Button
           type="submit"
-          disabled={submitting || uploading}
+          disabled={submitting || uploading || (isSubscriberOnly && !selectedTierId)}
           className="h-12 w-full rounded-[8px] bg-foreground text-background shadow-none hover:bg-foreground/90 hover:shadow-none"
         >
           {submitting ? (

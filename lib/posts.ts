@@ -3,6 +3,12 @@ import { Prisma, type ProfileType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { PostMediaItem } from "@/lib/post-shared";
 import { getLiveStreamIdsByProvider, getPresenceStatus, type PresenceStatus } from "@/lib/presence";
+import {
+  getCreatorAccess,
+  resolvePostAccess,
+  type CreatorAccessInfo,
+  type RequiredTier,
+} from "@/lib/subscription-access";
 
 const FEED_LIMIT = 30;
 const PROFILE_POSTS_LIMIT = 50;
@@ -59,6 +65,7 @@ type RawPost = {
   mediaUrls: unknown;
   postType: "standard" | "live";
   isSubscriberOnly: boolean;
+  tier: { id: string; name: string; priceCents: number } | null;
   viewCount: number;
   pinnedAt: Date | null;
   createdAt: Date;
@@ -129,6 +136,9 @@ export type PostView = {
   isSubscriberOnly: boolean;
   locked: boolean;
   lockReason: PostLockReason | null;
+  /** The tier that unlocks this post, when locked - null for a free post, an unlocked
+   * post, or a premium post with no tier assigned (any active subscription unlocks it). */
+  requiredTier: RequiredTier | null;
   viewCount: number;
   isPinned: boolean;
   createdAt: string;
@@ -247,12 +257,16 @@ function collectPostAuthorIds(posts: RawPost[]): string[] {
 
 function toPostView(
   post: RawPost,
-  hasSubscriberAccess: boolean,
+  access: Map<string, CreatorAccessInfo>,
   viewerProfileId: string | null = null,
   liveStreamIds: Map<string, string> = new Map(),
 ): PostView {
-  const lockReason: PostLockReason | null =
-    post.isSubscriberOnly && !hasSubscriberAccess ? "subscriber_only" : null;
+  const { unlocked, requiredTier } = resolvePostAccess(
+    { authorId: post.author.id, isSubscriberOnly: post.isSubscriberOnly, tier: post.tier },
+    access,
+    viewerProfileId,
+  );
+  const lockReason: PostLockReason | null = post.isSubscriberOnly && !unlocked ? "subscriber_only" : null;
   const locked = lockReason !== null;
   const mediaItems = toMediaItems(post.mediaUrls);
 
@@ -263,6 +277,7 @@ function toPostView(
     createdAt: post.createdAt.toISOString(),
     locked,
     lockReason,
+    requiredTier: locked ? requiredTier : null,
     viewCount: post.viewCount,
     isPinned: post.pinnedAt !== null,
     content: locked ? null : post.content,
@@ -296,6 +311,7 @@ function postSelect(viewerProfileId: string | null) {
     mediaUrls: true,
     postType: true,
     isSubscriberOnly: true,
+    tier: { select: { id: true, name: true, priceCents: true } },
     viewCount: true,
     pinnedAt: true,
     createdAt: true,
@@ -333,20 +349,16 @@ function postSelect(viewerProfileId: string | null) {
   };
 }
 
+/** Whether the viewer has any active subscription at all to this creator - checks both
+ * ProviderSubscription and the legacy Subscription table (see getCreatorAccess). Used to
+ * gate liking/commenting/sharing a locked post, which - unlike viewing it - only cares
+ * about "are you a paying subscriber", not which specific tier the post requires. */
 export async function isActiveSubscriber(
   subscriberId: string,
   creatorId: string,
 ): Promise<boolean> {
-  const subscription = await prisma.subscription.findFirst({
-    where: {
-      subscriberId,
-      creatorId,
-      status: "active",
-      endsAt: { gt: new Date() },
-    },
-    select: { id: true },
-  });
-  return Boolean(subscription);
+  const access = await getCreatorAccess(subscriberId, [creatorId]);
+  return access.get(creatorId)?.hasAnySub ?? false;
 }
 
 export async function getCreatorProfilePosts(
@@ -354,11 +366,9 @@ export async function getCreatorProfilePosts(
   viewerProfileId: string | null,
 ): Promise<PostView[]> {
   const isOwner = viewerProfileId === creatorProfileId;
-  const hasSubscriberAccess =
-    isOwner ||
-    (viewerProfileId
-      ? await isActiveSubscriber(viewerProfileId, creatorProfileId)
-      : false);
+  const access = isOwner
+    ? new Map<string, CreatorAccessInfo>()
+    : await getCreatorAccess(viewerProfileId, [creatorProfileId]);
 
   const profilePostsOrderBy = [
     { pinnedAt: { sort: "desc" as const, nulls: "last" as const } },
@@ -387,7 +397,7 @@ export async function getCreatorProfilePosts(
   }
 
   const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
-  return posts.map((post) => toPostView(post, hasSubscriberAccess, viewerProfileId, liveStreamIds));
+  return posts.map((post) => toPostView(post, access, viewerProfileId, liveStreamIds));
 }
 
 export type PremiumFeedResult = {
@@ -398,10 +408,11 @@ export type PremiumFeedResult = {
 };
 
 /**
- * Premium posts from creators the viewer is actively subscribed to - nothing else. Every
- * post returned is one the viewer already has access to, so it's built fully unlocked
- * (toPostView is always called with hasSubscriberAccess: true here); a locked
- * "Subscribe to Unlock" card is impossible in this result set by construction.
+ * Premium posts from creators the viewer is actively subscribed to, restricted further to
+ * posts at or below the tier the viewer actually paid for (tiers are cumulative - see
+ * resolvePostAccess). Anything above that tier is filtered out of the result entirely
+ * rather than returned as a locked card - the Premium tab never shows a "Subscribe to
+ * Unlock" teaser for content from a creator the viewer already subscribes to at a lower tier.
  */
 export async function getPremiumFeedPosts(
   viewerProfileId: string | null,
@@ -410,24 +421,52 @@ export async function getPremiumFeedPosts(
     return { posts: [], hasSubscriptions: false };
   }
 
-  const subscriptions = await prisma.subscription.findMany({
-    where: {
-      subscriberId: viewerProfileId,
-      status: "active",
-      endsAt: { gt: new Date() },
-    },
-    select: { creatorId: true },
-  });
+  const now = new Date();
+  const [providerSubs, legacySubs] = await Promise.all([
+    prisma.providerSubscription.findMany({
+      where: { subscriberId: viewerProfileId, status: "active", endsAt: { gt: now } },
+      select: { providerId: true },
+    }),
+    prisma.subscription.findMany({
+      where: { subscriberId: viewerProfileId, status: "active", endsAt: { gt: now } },
+      select: { creatorId: true },
+    }),
+  ]);
 
-  const subscribedCreatorIds = Array.from(new Set(subscriptions.map((sub) => sub.creatorId)));
+  const subscribedCreatorIds = Array.from(
+    new Set([...providerSubs.map((sub) => sub.providerId), ...legacySubs.map((sub) => sub.creatorId)]),
+  );
   if (subscribedCreatorIds.length === 0) {
     return { posts: [], hasSubscriptions: false };
   }
 
+  const access = await getCreatorAccess(viewerProfileId, subscribedCreatorIds);
+
+  // Filters to accessible posts in the query itself (per creator: either an untiered
+  // post, since any active subscription unlocks those, or one priced at or below the
+  // viewer's paid tier) rather than over-fetching and filtering in JS - otherwise
+  // `take: FEED_LIMIT` could return fewer than FEED_LIMIT posts even when more
+  // accessible ones exist further back, since some of the "top FEED_LIMIT newest" could
+  // belong to a tier above what the viewer holds.
+  const perCreatorAccess: Prisma.PostWhereInput[] = subscribedCreatorIds.flatMap((creatorId) => {
+    const info = access.get(creatorId);
+    if (!info) return [];
+    const tierClauses: Prisma.PostWhereInput[] = [];
+    if (info.hasAnySub) tierClauses.push({ tierId: null });
+    if (info.maxTierPriceCents !== null) {
+      tierClauses.push({ tier: { priceCents: { lte: info.maxTierPriceCents } } });
+    }
+    return tierClauses.length > 0 ? [{ authorId: creatorId, OR: tierClauses }] : [];
+  });
+
+  if (perCreatorAccess.length === 0) {
+    return { posts: [], hasSubscriptions: true };
+  }
+
   const where = {
-    authorId: { in: subscribedCreatorIds },
     isSubscriberOnly: true,
     author: { isIncognito: false, isSuspended: false },
+    OR: perCreatorAccess,
   };
 
   let posts: RawPost[];
@@ -453,9 +492,21 @@ export async function getPremiumFeedPosts(
 
   const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
   return {
-    posts: posts.map((post) => toPostView(post, true, viewerProfileId, liveStreamIds)),
+    posts: posts.map((post) => toPostView(post, access, viewerProfileId, liveStreamIds)),
     hasSubscriptions: true,
   };
+}
+
+/** Every subscriber-only post's authors, so getPublicFeedPosts can resolve real tier
+ * access instead of blanket-locking them - moot today (FeedTabs' "For You" filters
+ * isSubscriberOnly posts out entirely, see components/home/feed-tabs.tsx), but keeps
+ * this function's PostView output correct for any future caller that doesn't. */
+async function accessForSubscriberOnlyAuthors(
+  posts: RawPost[],
+  viewerProfileId: string | null,
+): Promise<Map<string, CreatorAccessInfo>> {
+  const authorIds = posts.filter((post) => post.isSubscriberOnly).map((post) => post.author.id);
+  return getCreatorAccess(viewerProfileId, authorIds);
 }
 
 export async function getPublicFeedPosts(
@@ -475,10 +526,9 @@ export async function getPublicFeedPosts(
       select: postSelect(viewerProfileId),
     });
 
+    const access = await accessForSubscriberOnlyAuthors(posts, viewerProfileId);
     const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
-    return posts.map((post) =>
-      toPostView(post, post.author.id === viewerProfileId || !post.isSubscriberOnly, viewerProfileId, liveStreamIds),
-    );
+    return posts.map((post) => toPostView(post, access, viewerProfileId, liveStreamIds));
   } catch (error) {
     if (isMissingPostArchiveError(error)) {
       console.warn(
@@ -496,10 +546,9 @@ export async function getPublicFeedPosts(
         select: postSelect(viewerProfileId),
       });
 
+      const access = await accessForSubscriberOnlyAuthors(posts, viewerProfileId);
       const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
-      return posts.map((post) =>
-        toPostView(post, post.author.id === viewerProfileId || !post.isSubscriberOnly, viewerProfileId, liveStreamIds),
-      );
+      return posts.map((post) => toPostView(post, access, viewerProfileId, liveStreamIds));
     }
     if (isMissingSchemaError(error)) {
       console.warn(
@@ -534,12 +583,10 @@ export async function getPostByIdForViewer(
   if (!post) return null;
 
   const isOwner = viewerProfileId === post.author.id;
-  const hasSubscriberAccess =
-    isOwner ||
-    (viewerProfileId
-      ? await isActiveSubscriber(viewerProfileId, post.author.id)
-      : false);
+  const access = isOwner
+    ? new Map<string, CreatorAccessInfo>()
+    : await getCreatorAccess(viewerProfileId, [post.author.id]);
 
   const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds([post]));
-  return toPostView(post, hasSubscriberAccess, viewerProfileId, liveStreamIds);
+  return toPostView(post, access, viewerProfileId, liveStreamIds);
 }
