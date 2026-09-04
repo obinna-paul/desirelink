@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-export const TIER_TYPE_VALUES = ["basic", "premium", "vip"] as const;
+export const TIER_TYPE_VALUES = ["beginner", "premium", "inner_circle"] as const;
+
+export const TIER_TYPE_LABELS: Record<(typeof TIER_TYPE_VALUES)[number], string> = {
+  beginner: "Beginner",
+  premium: "Premium",
+  inner_circle: "Inner Circle",
+};
 
 /** Amounts are in kobo. No fixed price range - creators set whatever they want. */
 export const DEFAULT_TIER_PRICE_CENTS = 1_050_000;

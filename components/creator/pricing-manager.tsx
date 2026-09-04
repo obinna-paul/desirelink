@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { formatCents } from "@/lib/creator";
-import { DEFAULT_TIER_PRICE_CENTS, TIER_TYPE_VALUES } from "@/lib/validations/creator-tier";
+import { DEFAULT_TIER_PRICE_CENTS, TIER_TYPE_VALUES, TIER_TYPE_LABELS } from "@/lib/validations/creator-tier";
 import type { CreatorTierInput } from "@/lib/validations/creator-tier";
 
 /** Local mirror of CreatorTierWithCount's shape - avoids importing lib/creator.ts (which
@@ -40,7 +40,7 @@ const EMPTY_FORM: FormState = {
   name: "",
   description: "",
   priceNaira: (DEFAULT_TIER_PRICE_CENTS / 100).toString(),
-  tierType: "basic",
+  tierType: "beginner",
   isLimited: false,
   maxSubscribers: "",
   requiresApproval: false,
@@ -131,7 +131,7 @@ function TierForm({
           <Select id="tier-type" value={form.tierType} onChange={(event) => setForm((prev) => ({ ...prev, tierType: event.target.value }))}>
             {TIER_TYPE_VALUES.map((type) => (
               <option key={type} value={type}>
-                {type[0].toUpperCase() + type.slice(1)}
+                {TIER_TYPE_LABELS[type]}
               </option>
             ))}
           </Select>
@@ -315,8 +315,8 @@ export function PricingManager({ initialTiers }: { initialTiers: TierView[] }) {
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold">{tier.name}</p>
                   <span className="text-sm text-neon-cyan">{formatCents(tier.priceCents)}/mo</span>
-                  <span className="rounded-full border border-border/60 px-2 py-0.5 text-xs capitalize text-muted-foreground">
-                    {tier.tierType}
+                  <span className="rounded-full border border-border/60 px-2 py-0.5 text-xs text-muted-foreground">
+                    {TIER_TYPE_LABELS[tier.tierType as keyof typeof TIER_TYPE_LABELS] ?? tier.tierType}
                   </span>
                 </div>
                 {tier.description && <p className="mt-0.5 truncate text-xs text-muted-foreground">{tier.description}</p>}

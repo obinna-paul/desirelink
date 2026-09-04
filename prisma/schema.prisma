@@ -339,7 +339,7 @@ model CreatorTier {
   creator          Profile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   name             String
   priceCents       Int
-  tierType         String   @default("basic")
+  tierType         String   @default("beginner")
   description      String
   maxSubscribers   Int?
   isLimited        Boolean  @default(false)
