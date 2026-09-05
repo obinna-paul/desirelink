@@ -164,7 +164,14 @@ function uploadToBunnyViaTus(
         LibraryId: auth.libraryId,
       },
       metadata: { filetype: file.type, title: file.name },
-      onError: (error) => reject(error instanceof Error ? error : new Error(String(error))),
+      // tus-js-client's own error carries a raw HTTP request/response dump ("originated
+      // from request (method: PATCH, url: ..., response code: n/a...)") - useful for
+      // debugging, meaningless and alarming as user-facing text. Log it, surface a plain
+      // retry message instead.
+      onError: (error) => {
+        console.error("[uploads] Bunny TUS upload failed", error);
+        reject(new Error("Your video couldn't upload - check your connection and try again."));
+      },
       onProgress: (bytesUploaded, bytesTotal) => {
         if (bytesTotal > 0) onProgress?.(bytesUploaded / bytesTotal);
       },
