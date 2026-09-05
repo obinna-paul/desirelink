@@ -15,6 +15,7 @@ import { PostCaption } from "@/components/posts/post-caption";
 import { PostDetailModal } from "@/components/posts/post-detail-modal";
 import { PostMediaCarousel } from "@/components/posts/post-media-carousel";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
+import { PostSubscribeChip } from "@/components/posts/post-subscribe-chip";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { VerificationBadge } from "@/components/profile/verification-badge";
 import { formatCents } from "@/lib/creator";
@@ -184,6 +185,12 @@ export function PostCard({
           )}
         </div>
       </div>
+
+      {post.subscribePrompt && (
+        <div className="px-3 md:px-4">
+          <PostSubscribeChip prompt={post.subscribePrompt} />
+        </div>
+      )}
 
       {post.locked ? (
         <div className="px-3 md:px-4">

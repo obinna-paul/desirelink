@@ -29,7 +29,13 @@ export function isAllowedImageFile(file: File): boolean {
 }
 
 export function isAllowedVideoFile(file: File): boolean {
-  return ALLOWED_VIDEO_TYPES.has(file.type);
+  return isAllowedVideoContentType(file.type);
+}
+
+/** Same allowlist as isAllowedVideoFile, but for server routes that only ever see a
+ * content-type string (e.g. a presigned-upload request) and never an actual File. */
+export function isAllowedVideoContentType(contentType: string): boolean {
+  return ALLOWED_VIDEO_TYPES.has(contentType);
 }
 
 export function isAllowedPostMediaFile(file: File): boolean {

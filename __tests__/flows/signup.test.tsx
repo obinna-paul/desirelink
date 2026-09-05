@@ -21,7 +21,7 @@ describe("signup flow", () => {
     mockSignIn.mockResolvedValue({ ok: true });
   });
 
-  it("creates an account, signs in, and routes to profile setup", async () => {
+  it("creates an account, signs in, and routes to email verification", async () => {
     const submittedBodies: unknown[] = [];
     server.use(
       rest.post("http://localhost/api/signup", async (req, res, ctx) => {
@@ -56,7 +56,7 @@ describe("signup flow", () => {
       email: "ada@example.com",
       profileType: "EXPLORER",
     });
-    expect(navigation.__mockRouter.push).toHaveBeenCalledWith("/profile/edit");
+    expect(navigation.__mockRouter.push).toHaveBeenCalledWith("/verify-email");
     expect(navigation.__mockRouter.refresh).toHaveBeenCalled();
   });
 });

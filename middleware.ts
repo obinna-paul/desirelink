@@ -39,6 +39,21 @@ export const config = {
     // Without this exclusion every cron hit 307-redirects to /login instead of
     // running - confirmed live for the pre-existing daily crons too, not just
     // the one added here, so this was a standing bug, not new behavior.
-    "/((?!login|signup|landing|blog|help|offline|api/auth|api/signup|api/cron|_next/static|_next/image|icons/.*|profile/(?!edit(?:/|$))[^/]+|posts/[^/]+|services/(?!new(?:/|$)|bookings(?:/|$))[^/]+|live/(?!go(?:/|$))[^/]+|.*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|json|js|css|woff2?|txt|xml)$).+)",
+    //
+    // Also excluded: forgot-password and reset-password — a logged-out user who
+    // can't sign in is exactly who needs these to load. verify-email is
+    // deliberately NOT excluded: it's only ever reached right after signup,
+    // which already creates a session, and its API route enforces that
+    // independently regardless of this matcher.
+    //
+    // Also excluded: api/support — the help contact form (under the already-
+    // excluded /help prefix) accepts a message from a logged-out visitor too
+    // (e.g. someone who can't log in at all), so its submit route can't be
+    // auth-gated either.
+    //
+    // Also excluded: api/unsubscribe and unsubscribed — a one-click unsubscribe
+    // link clicked straight from an email client never carries a session
+    // cookie, and must work exactly the same whether it does or not.
+    "/((?!login|signup|landing|blog|help|offline|forgot-password|reset-password|unsubscribed|api/auth|api/signup|api/support|api/unsubscribe|api/cron|_next/static|_next/image|icons/.*|profile/(?!edit(?:/|$))[^/]+|posts/[^/]+|services/(?!new(?:/|$)|bookings(?:/|$))[^/]+|live/(?!go(?:/|$))[^/]+|.*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|json|js|css|woff2?|txt|xml)$).+)",
   ],
 };

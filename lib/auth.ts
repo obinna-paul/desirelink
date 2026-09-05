@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { getClientIpFromHeaders } from "@/lib/security/request";
 import { generateUniqueUsername } from "@/lib/username";
+import { recordDeviceAndMaybeAlert } from "@/lib/email/device";
 
 async function ensureProfileForAuthUser(user: {
   id?: string | null;
@@ -34,6 +35,9 @@ async function ensureProfileForAuthUser(user: {
       email,
       name: displayName,
       image: user.image ?? undefined,
+      // Google already verifies the email itself, so there's nothing for our own OTP
+      // flow to add here - only the credentials signup path needs it.
+      emailVerified: new Date(),
       profile: {
         create: {
           username,
@@ -80,6 +84,8 @@ const providers: NextAuthOptions["providers"] = [
 
       const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
       if (!isValid) return null;
+
+      recordDeviceAndMaybeAlert(user.id, user.email, req.headers);
 
       return { id: user.id, email: user.email, name: user.name, image: user.image };
     },

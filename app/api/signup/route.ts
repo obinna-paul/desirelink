@@ -7,6 +7,8 @@ import { signupSchema } from "@/lib/validations/auth";
 import { isUsernameAvailable } from "@/lib/username";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { getClientIp, readJson } from "@/lib/security/request";
+import { sendSignupOtpEmail } from "@/lib/email/notifications";
+import { isTurnstileConfigured, verifyTurnstileToken } from "@/lib/turnstile";
 
 export async function POST(req: Request) {
   const body = await readJson(req);
@@ -19,9 +21,14 @@ export async function POST(req: Request) {
     );
   }
 
-  const { name, username, email, password, profileType } = parsed.data;
+  const { name, username, email, password, profileType, turnstileToken } = parsed.data;
   const normalizedEmail = email.toLowerCase();
   const ip = getClientIp(req);
+
+  if (isTurnstileConfigured() && !(await verifyTurnstileToken(turnstileToken, ip))) {
+    return NextResponse.json({ error: "Verification failed. Please try again." }, { status: 400 });
+  }
+
   const ipLimit = checkRateLimit(`signup:ip:${ip}`, { limit: 10, windowMs: 60 * 60 * 1000 });
   const emailLimit = checkRateLimit(`signup:email:${normalizedEmail}`, {
     limit: 5,
@@ -90,6 +97,8 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+
+  await sendSignupOtpEmail(normalizedEmail);
 
   return NextResponse.json({ success: true }, { status: 201 });
 }

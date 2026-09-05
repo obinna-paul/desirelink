@@ -56,8 +56,9 @@ export default function HelpCenterPage() {
         <div className="flex flex-col gap-2">
           <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">Help Center</h1>
           <p className="text-muted-foreground">
-            Answers to the questions we hear most, grouped by topic. Can&apos;t find what you need?
-            Reach out from the <Link href="/safety" className="text-neon-pink underline underline-offset-2">Safety Center</Link>.
+            Answers to the questions we hear most, grouped by topic. Can&apos;t find what you need?{" "}
+            <Link href="/help/contact" className="text-neon-pink underline underline-offset-2">Contact us</Link>, or
+            reach out from the <Link href="/safety" className="text-neon-pink underline underline-offset-2">Safety Center</Link>.
           </p>
         </div>
 
@@ -189,6 +190,19 @@ export default function HelpCenterPage() {
             </p>
           </FaqItem>
         </CategorySection>
+
+        <section className="flex flex-col items-start gap-2 rounded-2xl border border-border/60 bg-card p-6">
+          <h2 className="font-heading text-xl font-semibold">Still need help?</h2>
+          <p className="text-muted-foreground">
+            Send our team a message and we&apos;ll reply within 24 hours — usually much sooner.
+          </p>
+          <Link
+            href="/help/contact"
+            className="mt-1 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Contact us
+          </Link>
+        </section>
       </main>
 
       <PublicFooter />

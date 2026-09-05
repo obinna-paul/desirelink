@@ -66,18 +66,47 @@ export function ImageCropDialog({
     let settled = false;
     const url = URL.createObjectURL(file);
     setImageUrl(url);
-    const img = new window.Image();
-    img.onload = () => {
-      if (cancelled) return;
-      settled = true;
-      setNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
-    };
-    img.onerror = () => {
-      if (cancelled) return;
-      settled = true;
-      onError?.();
-    };
-    img.src = url;
+
+    function decodeWithImgElement() {
+      const img = new window.Image();
+      img.onload = () => {
+        if (cancelled) return;
+        settled = true;
+        setNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
+      };
+      img.onerror = () => {
+        if (cancelled) return;
+        settled = true;
+        onError?.();
+      };
+      img.src = url;
+    }
+
+    // createImageBitmap decodes a noticeably broader range of formats and color profiles
+    // (CMYK JPEGs, some HEIC/AVIF variants, unusual ICC profiles) more reliably than a
+    // plain <img> element across browsers, and reports real dimensions without needing
+    // layout at all. Try it first, purely to confirm decodability and read the size - the
+    // pan/zoom preview below still renders through the <img> element either way. Fall back
+    // to the <img>-based attempt (not straight to onError) if it's unavailable or itself
+    // fails, since a handful of files decode one way but not the other.
+    if (typeof createImageBitmap === "function") {
+      createImageBitmap(file)
+        .then((bitmap) => {
+          if (cancelled) {
+            bitmap.close();
+            return;
+          }
+          settled = true;
+          setNaturalSize({ width: bitmap.width, height: bitmap.height });
+          bitmap.close();
+        })
+        .catch(() => {
+          if (!cancelled) decodeWithImgElement();
+        });
+    } else {
+      decodeWithImgElement();
+    }
+
     // Neither `load` nor `error` fires reliably for every unsupported/malformed image in every
     // browser — without this, a file that hits neither event leaves the dialog stuck forever
     // with a disabled confirm button and no feedback at all.

@@ -38,7 +38,7 @@ import {
 import { convertHeicFileToJpeg, isHeicFile } from "@/lib/heic-convert";
 import { readFileAsArrayBuffer, sniffMediaKind } from "@/lib/media-sniff";
 import { useFocusTrap } from "@/lib/use-focus-trap";
-import { uploadMediaDirectToCloudinary } from "@/lib/client-uploads";
+import { uploadMediaDirectToCloudinary, uploadVideoDirect } from "@/lib/client-uploads";
 import { formatCents } from "@/lib/creator";
 import { cn } from "@/lib/utils";
 
@@ -124,6 +124,10 @@ export function PostComposer({
     tiers.length === 1 ? tiers[0].id : null,
   );
   const [uploading, setUploading] = useState(false);
+  /** Distinguishes "sending the file" from "Bunny Stream is transcoding it" so a video
+   * upload doesn't just sit on a generic spinner during the (usually few-second) wait for
+   * a playable rendition - text-only, doesn't affect the `uploading` disabled-state logic. */
+  const [uploadingLabel, setUploadingLabel] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showProviderUpgradePrompt, setShowProviderUpgradePrompt] =
@@ -208,11 +212,11 @@ export function PostComposer({
     const isVideo = file.type.startsWith("video/");
 
     try {
-      const media = await uploadMediaDirectToCloudinary(
-        file,
-        isVideo ? "post-video" : "post-image",
-        "/api/upload/post-media",
-      );
+      const media = isVideo
+        ? await uploadVideoDirect(file, "/api/upload/post-media", undefined, (phase) =>
+            setUploadingLabel(phase === "processing" ? "Processing video..." : "Uploading video..."),
+          )
+        : await uploadMediaDirectToCloudinary(file, "post-image", "/api/upload/post-media");
 
       setMediaItems((prev) => [
         ...prev,
@@ -226,6 +230,8 @@ export function PostComposer({
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+    } finally {
+      setUploadingLabel(null);
     }
   }
 
@@ -354,11 +360,19 @@ export function PostComposer({
     setCropQueue((prev) => prev.slice(1));
   }
 
-  function handleCropError() {
+  async function handleCropError() {
+    const pending = cropQueue[0];
     setCropQueue((prev) => prev.slice(1));
-    setError(
-      "A photo couldn't be opened. Try a different one, or convert it to JPEG or PNG first.",
-    );
+    if (!pending) return;
+
+    // The browser's own canvas decode couldn't pan/zoom-crop this photo (an uncommon
+    // color profile, an oversized image past this device's decode limit, or similar) -
+    // that's a client-side preview limitation, not a reason to reject the upload.
+    // Cloudinary decodes a much broader range of formats server-side than a browser can,
+    // so upload the original file uncropped rather than forcing a different one.
+    setUploading(true);
+    await uploadFile(pending.file, pending.metadataDetected);
+    setUploading(false);
   }
 
   async function handleVideoFrameConfirm({
@@ -381,11 +395,19 @@ export function PostComposer({
     setVideoQueue((prev) => prev.slice(1));
   }
 
-  function handleVideoFrameError() {
+  async function handleVideoFrameError() {
+    const file = videoQueue[0];
     setVideoQueue((prev) => prev.slice(1));
-    setError(
-      "A video couldn't be opened. Try a different one, or export it as MP4 first.",
-    );
+    if (!file) return;
+
+    // The browser's own <video> element couldn't decode this file well enough to preview
+    // it for cropping (an unsupported codec/container on this device, or a slow load) -
+    // that's a client-side preview limitation, not a reason to reject an otherwise valid
+    // upload. Upload the original file as-is with no custom crop rather than forcing the
+    // person to find a different file or re-export it.
+    setUploading(true);
+    await uploadFile(file, false);
+    setUploading(false);
   }
 
   function removeMedia(url: string) {
@@ -783,7 +805,7 @@ export function PostComposer({
                 )}
               </span>
               <span className="mt-4 text-base font-semibold text-foreground">
-                {uploading ? "Preparing your media..." : "Open gallery"}
+                {uploading ? (uploadingLabel ?? "Preparing your media...") : "Open gallery"}
               </span>
               <span className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">
                 {postMode === "carousel"
