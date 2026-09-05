@@ -4,7 +4,10 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
-export type NotificationKind = "message" | "like" | "comment" | "reply" | "rsvp" | "subscription" | "review" | "booking" | "live" | "verification";
+// "message" was retired as a creatable kind - existing rows still carry it, but
+// getNotifications excludes them and no code should produce new ones (messages surface
+// as the Messages nav badge instead - see getUnreadConversationCount in lib/messages.ts).
+export type NotificationKind = "like" | "comment" | "reply" | "rsvp" | "subscription" | "review" | "booking" | "live" | "verification";
 
 function isMissingNotificationSchema(error: unknown) {
   return (
@@ -64,17 +67,21 @@ export async function createNotificationsBulk(
 }
 
 export async function getNotifications(recipientId: string) {
+  // "message" notifications are surfaced as the unread-conversation badge on the Messages
+  // nav icon instead (see getUnreadConversationCount in lib/messages.ts) - excluded here
+  // (rather than never created) so older rows from before that change don't show up either.
+  const where = { recipientId, type: { not: "message" as const } };
   try {
     const [items, unreadCount] = await Promise.all([
       prisma.notification.findMany({
-        where: { recipientId },
+        where,
         orderBy: { createdAt: "desc" },
         take: 30,
         include: {
           actor: { select: { username: true, displayName: true, avatarUrl: true } },
         },
       }),
-      prisma.notification.count({ where: { recipientId, readAt: null } }),
+      prisma.notification.count({ where: { ...where, readAt: null } }),
     ]);
     return { items, unreadCount };
   } catch (error) {

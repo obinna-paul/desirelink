@@ -123,7 +123,7 @@ export function NotificationBell() {
               <div className="px-6 py-10 text-center">
                 <Bell className="mx-auto h-6 w-6 text-muted-foreground/50" aria-hidden="true" />
                 <p className="mt-3 text-sm font-semibold">Nothing new yet</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">Messages and activity will appear here.</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">Likes, comments, and other activity will appear here.</p>
               </div>
             )}
           </div>
