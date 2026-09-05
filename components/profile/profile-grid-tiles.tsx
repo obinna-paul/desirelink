@@ -84,9 +84,8 @@ export function PostGridTile({
             }
           />
         )}
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-accent-tint/45 px-3 text-center">
+        <div className="absolute inset-0 flex items-center justify-center bg-accent-tint/45 px-3 text-center">
           <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
-          <span className="label-caps text-[10px] text-primary">{tierLabel}</span>
         </div>
       </TileShell>
     );
