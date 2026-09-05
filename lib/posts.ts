@@ -5,6 +5,7 @@ import type { PostMediaItem } from "@/lib/post-shared";
 import { getLiveStreamIdsByProvider, getPresenceStatus, type PresenceStatus } from "@/lib/presence";
 import {
   getCreatorAccess,
+  getUnlockedPostIds,
   resolvePostAccess,
   type CreatorAccessInfo,
   type RequiredTier,
@@ -316,11 +317,13 @@ function toPostView(
   access: Map<string, CreatorAccessInfo>,
   viewerProfileId: string | null = null,
   liveStreamIds: Map<string, string> = new Map(),
+  unlockedPostIds: Set<string> = new Set(),
 ): PostView {
   const { unlocked, requiredTier } = resolvePostAccess(
-    { authorId: post.author.id, isSubscriberOnly: post.isSubscriberOnly, tier: post.tier },
+    { id: post.id, authorId: post.author.id, isSubscriberOnly: post.isSubscriberOnly, tier: post.tier },
     access,
     viewerProfileId,
+    unlockedPostIds,
   );
   const lockReason: PostLockReason | null = post.isSubscriberOnly && !unlocked ? "subscriber_only" : null;
   const locked = lockReason !== null;
@@ -454,8 +457,24 @@ export async function getCreatorProfilePosts(
     });
   }
 
-  const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
-  return posts.map((post) => toPostView(post, access, viewerProfileId, liveStreamIds));
+  const postIds = posts.map((post) => post.id);
+  const [liveStreamIds, unlockedPostIds, tiersByCreator] = await Promise.all([
+    getLiveStreamIdsByProvider(collectPostAuthorIds(posts)),
+    isOwner ? new Set<string>() : getUnlockedPostIds(viewerProfileId, postIds),
+    isOwner ? new Map<string, PublicTierView[]>() : getPublicTiersForCreators([creatorProfileId], viewerProfileId),
+  ]);
+  const availableTiers = (tiersByCreator.get(creatorProfileId) ?? []).filter(
+    (tier) => tier.viewerState === "available",
+  );
+
+  return posts.map((post) => {
+    const view = toPostView(post, access, viewerProfileId, liveStreamIds, unlockedPostIds);
+    if (!view.locked || availableTiers.length === 0) return view;
+    return {
+      ...view,
+      subscribePrompt: { providerId: creatorProfileId, providerUsername: post.author.username, tiers: availableTiers },
+    };
+  });
 }
 
 export type PremiumFeedResult = {
@@ -709,6 +728,24 @@ export async function getPostByIdForViewer(
     ? new Map<string, CreatorAccessInfo>()
     : await getCreatorAccess(viewerProfileId, [post.author.id]);
 
-  const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds([post]));
-  return toPostView(post, access, viewerProfileId, liveStreamIds);
+  const [liveStreamIds, unlockedPostIds, tiersByCreator] = await Promise.all([
+    getLiveStreamIdsByProvider(collectPostAuthorIds([post])),
+    isOwner ? new Set<string>() : getUnlockedPostIds(viewerProfileId, [post.id]),
+    isOwner
+      ? new Map<string, PublicTierView[]>()
+      : getPublicTiersForCreators([post.author.id], viewerProfileId),
+  ]);
+
+  const view = toPostView(post, access, viewerProfileId, liveStreamIds, unlockedPostIds);
+  if (!view.locked) return view;
+
+  const availableTiers = (tiersByCreator.get(post.author.id) ?? []).filter(
+    (tier) => tier.viewerState === "available",
+  );
+  if (availableTiers.length === 0) return view;
+
+  return {
+    ...view,
+    subscribePrompt: { providerId: post.author.id, providerUsername: post.author.username, tiers: availableTiers },
+  };
 }

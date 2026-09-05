@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCreatorProfileByUserId } from "@/lib/creator";
-import { creatorTierSchema } from "@/lib/validations/creator-tier";
+import { creatorTierSchema, findTierRankConflict } from "@/lib/validations/creator-tier";
 import { readJson } from "@/lib/security/request";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
@@ -33,13 +33,23 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 
   const { name, description, priceNaira, tierType, maxSubscribers, isLimited } = parsed.data;
+  const priceCents = Math.round(priceNaira * 100);
+
+  const otherTiers = await prisma.creatorTier.findMany({
+    where: { creatorId: profile.id, id: { not: params.id } },
+    select: { name: true, tierType: true, priceCents: true },
+  });
+  const rankConflict = findTierRankConflict({ tierType, priceCents }, otherTiers);
+  if (rankConflict) {
+    return NextResponse.json({ error: rankConflict }, { status: 400 });
+  }
 
   const tier = await prisma.creatorTier.update({
     where: { id: params.id },
     data: {
       name,
       description,
-      priceCents: Math.round(priceNaira * 100),
+      priceCents,
       tierType,
       maxSubscribers,
       isLimited,

@@ -2,11 +2,13 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     providerSubscription: { findMany: jest.fn() },
     subscription: { findMany: jest.fn() },
+    postUnlock: { findMany: jest.fn() },
   },
 }));
 
 import {
   getCreatorAccess,
+  getUnlockedPostIds,
   resolvePostAccess,
   type CreatorAccessInfo,
 } from "@/lib/subscription-access";
@@ -15,6 +17,7 @@ import { prisma } from "@/lib/prisma";
 const mockPrisma = prisma as unknown as {
   providerSubscription: { findMany: jest.Mock };
   subscription: { findMany: jest.Mock };
+  postUnlock: { findMany: jest.Mock };
 };
 
 describe("getCreatorAccess", () => {
@@ -65,10 +68,34 @@ describe("getCreatorAccess", () => {
   });
 });
 
+describe("getUnlockedPostIds", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("returns an empty set when there's no viewer, without querying", async () => {
+    const unlocked = await getUnlockedPostIds(null, ["post-1"]);
+    expect(unlocked.size).toBe(0);
+    expect(mockPrisma.postUnlock.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty set when there are no posts to check", async () => {
+    const unlocked = await getUnlockedPostIds("viewer-1", []);
+    expect(unlocked.size).toBe(0);
+    expect(mockPrisma.postUnlock.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns the set of post ids this viewer has an unlock row for", async () => {
+    mockPrisma.postUnlock.findMany.mockResolvedValue([{ postId: "post-1" }]);
+    const unlocked = await getUnlockedPostIds("viewer-1", ["post-1", "post-2"]);
+    expect(unlocked).toEqual(new Set(["post-1"]));
+  });
+});
+
 describe("resolvePostAccess", () => {
   it("never locks a free post", () => {
     const result = resolvePostAccess(
-      { authorId: "creator-1", isSubscriberOnly: false, tier: null },
+      { id: "post-1", authorId: "creator-1", isSubscriberOnly: false, tier: null },
       new Map(),
       "viewer-1",
     );
@@ -78,6 +105,7 @@ describe("resolvePostAccess", () => {
   it("always unlocks the post's own author, regardless of subscription state", () => {
     const result = resolvePostAccess(
       {
+        id: "post-1",
         authorId: "creator-1",
         isSubscriberOnly: true,
         tier: { id: "tier-1", name: "Inner Circle", priceCents: 1_500_000 },
@@ -91,6 +119,7 @@ describe("resolvePostAccess", () => {
   it("locks a premium post from a creator the viewer has no subscription to", () => {
     const result = resolvePostAccess(
       {
+        id: "post-1",
         authorId: "creator-1",
         isSubscriberOnly: true,
         tier: { id: "tier-1", name: "Beginner", priceCents: 750_000 },
@@ -110,6 +139,7 @@ describe("resolvePostAccess", () => {
     ]);
     const result = resolvePostAccess(
       {
+        id: "post-1",
         authorId: "creator-1",
         isSubscriberOnly: true,
         tier: { id: "tier-premium", name: "Premium", priceCents: 1_050_000 },
@@ -120,12 +150,13 @@ describe("resolvePostAccess", () => {
     expect(result.unlocked).toBe(true);
   });
 
-  it("a higher tier unlocks a cheaper post from the same creator", () => {
+  it("a higher tier unlocks a cheaper post from the same creator (Real Fans unlocks Beginner)", () => {
     const access = new Map<string, CreatorAccessInfo>([
-      ["creator-1", { maxTierPriceCents: 1_500_000, hasAnySub: true }], // Inner Circle
+      ["creator-1", { maxTierPriceCents: 1_050_000, hasAnySub: true }], // Real Fans (premium)
     ]);
     const result = resolvePostAccess(
       {
+        id: "post-1",
         authorId: "creator-1",
         isSubscriberOnly: true,
         tier: { id: "tier-beginner", name: "Beginner", priceCents: 750_000 },
@@ -136,12 +167,41 @@ describe("resolvePostAccess", () => {
     expect(result.unlocked).toBe(true);
   });
 
+  it("the top tier unlocks every cheaper post from the same creator (Inner Circle unlocks everything)", () => {
+    const access = new Map<string, CreatorAccessInfo>([
+      ["creator-1", { maxTierPriceCents: 1_500_000, hasAnySub: true }], // Inner Circle
+    ]);
+    const beginnerResult = resolvePostAccess(
+      {
+        id: "post-beginner",
+        authorId: "creator-1",
+        isSubscriberOnly: true,
+        tier: { id: "tier-beginner", name: "Beginner", priceCents: 750_000 },
+      },
+      access,
+      "viewer-1",
+    );
+    const premiumResult = resolvePostAccess(
+      {
+        id: "post-premium",
+        authorId: "creator-1",
+        isSubscriberOnly: true,
+        tier: { id: "tier-premium", name: "Real Fans", priceCents: 1_050_000 },
+      },
+      access,
+      "viewer-1",
+    );
+    expect(beginnerResult.unlocked).toBe(true);
+    expect(premiumResult.unlocked).toBe(true);
+  });
+
   it("a lower tier does NOT unlock a more expensive post from the same creator", () => {
     const access = new Map<string, CreatorAccessInfo>([
       ["creator-1", { maxTierPriceCents: 750_000, hasAnySub: true }], // Beginner
     ]);
     const result = resolvePostAccess(
       {
+        id: "post-1",
         authorId: "creator-1",
         isSubscriberOnly: true,
         tier: { id: "tier-inner-circle", name: "Inner Circle", priceCents: 1_500_000 },
@@ -162,13 +222,46 @@ describe("resolvePostAccess", () => {
     const unsubscribed = new Map<string, CreatorAccessInfo>();
 
     expect(
-      resolvePostAccess({ authorId: "creator-1", isSubscriberOnly: true, tier: null }, subscribed, "viewer-1")
-        .unlocked,
+      resolvePostAccess(
+        { id: "post-1", authorId: "creator-1", isSubscriberOnly: true, tier: null },
+        subscribed,
+        "viewer-1",
+      ).unlocked,
     ).toBe(true);
     expect(
-      resolvePostAccess({ authorId: "creator-1", isSubscriberOnly: true, tier: null }, unsubscribed, "viewer-1")
-        .unlocked,
+      resolvePostAccess(
+        { id: "post-1", authorId: "creator-1", isSubscriberOnly: true, tier: null },
+        unsubscribed,
+        "viewer-1",
+      ).unlocked,
     ).toBe(false);
+  });
+
+  it("a post-specific unlock grants access regardless of tier or subscription state", () => {
+    const result = resolvePostAccess(
+      {
+        id: "post-conversion",
+        authorId: "creator-1",
+        isSubscriberOnly: true,
+        tier: { id: "tier-inner-circle", name: "Inner Circle", priceCents: 1_500_000 },
+      },
+      new Map(),
+      "viewer-1",
+      new Set(["post-conversion"]),
+    );
+    expect(result.unlocked).toBe(true);
+  });
+
+  it("an unlock for one post never leaks access to another locked post from the same creator", () => {
+    const unlockedPostIds = new Set(["post-conversion"]);
+    const otherPost = {
+      id: "post-other",
+      authorId: "creator-1",
+      isSubscriberOnly: true,
+      tier: { id: "tier-inner-circle", name: "Inner Circle", priceCents: 1_500_000 },
+    };
+    const result = resolvePostAccess(otherPost, new Map(), "viewer-1", unlockedPostIds);
+    expect(result.unlocked).toBe(false);
   });
 });
 

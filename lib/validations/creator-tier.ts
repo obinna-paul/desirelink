@@ -26,3 +26,32 @@ export const creatorTierSchema = z.object({
 });
 
 export type CreatorTierInput = z.infer<typeof creatorTierSchema>;
+
+/**
+ * Access is cumulative by price (see lib/subscription-access.ts's resolvePostAccess) - a
+ * higher tier only actually unlocks a lower one if it's also priced higher. Rejects a
+ * create/update that would invert that ordering against the creator's other tiers (e.g. an
+ * "inner_circle" tier priced below an existing "beginner" tier), so "Inner Circle unlocks
+ * everything" can never silently break just because of how a creator priced their tiers.
+ */
+export function findTierRankConflict(
+  candidate: { tierType: (typeof TIER_TYPE_VALUES)[number]; priceCents: number },
+  otherTiers: { name: string; tierType: string; priceCents: number }[],
+): string | null {
+  const candidateRank = TIER_TYPE_VALUES.indexOf(candidate.tierType);
+
+  for (const other of otherTiers) {
+    const otherRank = TIER_TYPE_VALUES.indexOf(other.tierType as (typeof TIER_TYPE_VALUES)[number]);
+    if (otherRank === -1 || otherRank === candidateRank) continue;
+
+    const otherLabel = TIER_TYPE_LABELS[other.tierType as keyof typeof TIER_TYPE_LABELS] ?? other.tierType;
+    if (otherRank < candidateRank && other.priceCents > candidate.priceCents) {
+      return `A ${TIER_TYPE_LABELS[candidate.tierType]} tier must be priced at or above "${other.name}" (${otherLabel}), so higher tiers keep unlocking lower ones.`;
+    }
+    if (otherRank > candidateRank && other.priceCents < candidate.priceCents) {
+      return `A ${TIER_TYPE_LABELS[candidate.tierType]} tier must be priced at or below "${other.name}" (${otherLabel}), so higher tiers keep unlocking lower ones.`;
+    }
+  }
+
+  return null;
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Eye, Lock } from "lucide-react";
@@ -16,34 +17,71 @@ import { PostDetailModal } from "@/components/posts/post-detail-modal";
 import { PostMediaCarousel } from "@/components/posts/post-media-carousel";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { PostSubscribeChip } from "@/components/posts/post-subscribe-chip";
+import { SubscribePlansDialog } from "@/components/profile/subscribe-plans-dialog";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { VerificationBadge } from "@/components/profile/verification-badge";
-import { formatCents } from "@/lib/creator";
 import type { PostView } from "@/lib/posts";
 
 function LockedPostBody({
+  postId,
   authorUsername,
-  requiredTier,
+  blurredPreview,
+  subscribePrompt,
 }: {
+  postId: string;
   authorUsername: string;
-  requiredTier: PostView["requiredTier"];
+  blurredPreview: PostView["blurredPreview"];
+  subscribePrompt: PostView["subscribePrompt"];
 }) {
   return (
-    <div className="relative flex aspect-[4/5] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl bg-foreground px-6 text-center text-background md:rounded-lg">
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-background/10">
-        <Lock className="h-5 w-5" aria-hidden="true" />
-      </span>
-      <p className="font-heading text-lg italic font-medium">Subscriber exclusive</p>
-      <p className="max-w-xs text-sm text-background/70">
-        {requiredTier
-          ? `Subscribe to ${requiredTier.name} (${formatCents(requiredTier.priceCents)}/mo) to see this post.`
-          : "Subscribe to this creator to see this post."}
-      </p>
-      <Button asChild size="sm" className="mt-1">
-        <Link href={`/profile/${authorUsername}`}>
-          {requiredTier ? `Subscribe to ${requiredTier.name}` : "Subscribe to Unlock"}
-        </Link>
-      </Button>
+    <div className="relative flex min-h-[26rem] flex-col items-center justify-center gap-2 overflow-hidden bg-foreground px-6 text-center text-background">
+      {blurredPreview && (
+        <Image
+          src={blurredPreview.url}
+          alt=""
+          fill
+          sizes="100vw"
+          className={blurredPreview.cssBlur ? "object-cover blur-xl scale-110" : "object-cover"}
+        />
+      )}
+      <div className="absolute inset-0 bg-foreground/70" />
+
+      <div className="relative z-10 flex flex-col items-center gap-2">
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-background/10">
+          <Lock className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <p className="font-heading text-lg italic font-medium">Subscriber exclusive</p>
+        <p className="max-w-xs text-sm text-background/70">
+          Subscribe to see this premium post and many more
+        </p>
+
+        <div className="mt-2 flex flex-col items-center gap-2">
+          {subscribePrompt && subscribePrompt.tiers.length > 0 ? (
+            <SubscribePlansDialog
+              providerId={subscribePrompt.providerId}
+              tiers={subscribePrompt.tiers}
+              conversionPostId={postId}
+              renderTrigger={({ onClick }) => (
+                <Button type="button" size="sm" onClick={onClick}>
+                  Subscribe now
+                </Button>
+              )}
+            />
+          ) : (
+            <Button asChild size="sm">
+              <Link href={`/profile/${authorUsername}`}>Subscribe now</Link>
+            </Button>
+          )}
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="border-background/40 bg-transparent text-background hover:bg-background/10"
+          >
+            <Link href={`/profile/${authorUsername}?section=posts`}>See my free content</Link>
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -186,16 +224,22 @@ export function PostCard({
         </div>
       </div>
 
-      {post.subscribePrompt && (
+      {/* subscribePrompt is also populated on a locked post (to drive LockedPostBody's own
+          Subscribe now button below) - the lead-magnet chip is only for a free post. */}
+      {post.subscribePrompt && !post.locked && (
         <div className="px-3 md:px-4">
           <PostSubscribeChip prompt={post.subscribePrompt} />
         </div>
       )}
 
       {post.locked ? (
-        <div className="px-3 md:px-4">
-          <LockedPostBody authorUsername={post.author.username} requiredTier={post.requiredTier} />
-        </div>
+        // Full-bleed, matching the media carousel's own edge-to-edge treatment below.
+        <LockedPostBody
+          postId={post.id}
+          authorUsername={post.author.username}
+          blurredPreview={post.blurredPreview}
+          subscribePrompt={post.subscribePrompt}
+        />
       ) : (
         <>
           {/* Media is intentionally NOT wrapped in the card's own horizontal padding - it goes edge-to-edge on mobile, Instagram-style. */}
