@@ -145,18 +145,39 @@ type BunnyUploadAuth = {
   authorizationExpire: number;
 };
 
+/** How many times a dropped connection gets to reconnect and resume before giving up for
+ * good - each one only fires once the browser actually reports being back online, so this
+ * bounds a pathological flap (on/offline/on/offline...) rather than how long any single
+ * wait can take. */
+const MAX_RECONNECT_RESUMES = 3;
+
 /** Uploads the raw file to Bunny Stream over TUS (resumable, chunked upload) using the
  * one-time signature our server issued - Bunny's basic upload endpoint requires the secret
- * API key itself, so a plain XHR PUT (like R2's) isn't an option here. */
+ * API key itself, so a plain XHR PUT (like R2's) isn't an option here.
+ *
+ * Resilience is layered: tus-js-client's own `retryDelays` retries a flaky-but-still-
+ * connected request automatically (a weak signal, one dropped packet) within seconds - but
+ * by design it won't spend that budget while the browser reports fully offline, so it fails
+ * fast (`onError`) the moment a real connection drop happens rather than sitting through it.
+ * The `online` listener below is what actually rides that out: it waits for the browser to
+ * report reconnection, then resumes the SAME upload instance from its last acknowledged
+ * byte (tus tracks this internally; nothing gets re-sent), so a subway tunnel or elevator
+ * ride self-heals without the person ever reselecting the file. */
 function uploadToBunnyViaTus(
   file: File,
   auth: BunnyUploadAuth,
-  onProgress?: (fraction: number) => void
+  onProgress?: (fraction: number) => void,
+  onPhaseChange?: (phase: VideoUploadPhase) => void
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    let reconnectResumes = 0;
+
     const upload = new tus.Upload(file, {
       endpoint: auth.tusEndpoint,
-      retryDelays: [0, 1000, 3000, 5000],
+      // A modest bump over tus-js-client's own default ([0, 1000, 3000, 5000], ~9s total) -
+      // covers more of the "still connected but flaky" case automatically without leaving
+      // anyone waiting minutes for something that isn't a real outage.
+      retryDelays: [0, 1000, 2000, 4000, 8000, 8000],
       headers: {
         AuthorizationSignature: auth.authorizationSignature,
         AuthorizationExpire: String(auth.authorizationExpire),
@@ -164,12 +185,28 @@ function uploadToBunnyViaTus(
         LibraryId: auth.libraryId,
       },
       metadata: { filetype: file.type, title: file.name },
-      // tus-js-client's own error carries a raw HTTP request/response dump ("originated
-      // from request (method: PATCH, url: ..., response code: n/a...)") - useful for
-      // debugging, meaningless and alarming as user-facing text. Log it, surface a plain
-      // retry message instead.
       onError: (error) => {
         console.error("[uploads] Bunny TUS upload failed", error);
+
+        if (navigator.onLine === false && reconnectResumes < MAX_RECONNECT_RESUMES) {
+          reconnectResumes += 1;
+          onPhaseChange?.("reconnecting");
+          window.addEventListener(
+            "online",
+            () => {
+              onPhaseChange?.("uploading");
+              upload.start();
+            },
+            { once: true }
+          );
+          return;
+        }
+
+        // tus-js-client's own error carries a raw HTTP request/response dump ("originated
+        // from request (method: PATCH, url: ..., response code: n/a...)") - useful for
+        // debugging, meaningless and alarming as user-facing text. Surface a plain retry
+        // message instead - reached only once reconnect resumes are exhausted, or the
+        // failure wasn't about connectivity at all.
         reject(new Error("Your video couldn't upload - check your connection and try again."));
       },
       onProgress: (bytesUploaded, bytesTotal) => {
@@ -220,7 +257,7 @@ async function pollBunnyVideoStatus(
   throw new Error("Your video is still processing. Please try publishing again in a minute.");
 }
 
-export type VideoUploadPhase = "uploading" | "processing";
+export type VideoUploadPhase = "uploading" | "processing" | "reconnecting";
 
 /**
  * Uploads a feed-post video to Bunny Stream when it's configured, falling back to the
@@ -253,7 +290,7 @@ export async function uploadVideoDirect(
   const auth = (await signRes.json()) as BunnyUploadAuth;
 
   onPhaseChange?.("uploading");
-  await uploadToBunnyViaTus(file, auth, onProgress);
+  await uploadToBunnyViaTus(file, auth, onProgress, onPhaseChange);
 
   onPhaseChange?.("processing");
   const status = await pollBunnyVideoStatus(auth.videoId, onProgress);

@@ -226,8 +226,16 @@ export function PostComposer({
             "/api/upload/post-media",
             (fraction) => setUploadingProgress(Math.round(fraction * 100)),
             (phase) => {
-              setUploadingLabel(phase === "processing" ? "Processing video..." : "Uploading video...");
-              setUploadingProgress(0);
+              if (phase === "processing") {
+                setUploadingLabel("Processing video...");
+                setUploadingProgress(0);
+              } else if (phase === "reconnecting") {
+                // Progress is left as-is (not reset) - the upload resumes from the same
+                // byte once back online, so the percentage shouldn't jump backward either.
+                setUploadingLabel("Connection dropped - waiting to reconnect...");
+              } else {
+                setUploadingLabel("Uploading video...");
+              }
             },
           )
         : await uploadMediaDirectToCloudinary(file, "post-image", "/api/upload/post-media", (fraction) =>
