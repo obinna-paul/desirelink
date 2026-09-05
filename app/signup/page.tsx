@@ -11,7 +11,7 @@ import { signIn } from "next-auth/react";
 import { AuthLogo } from "@/components/auth/auth-logo";
 import { AccountTypeStep } from "@/components/auth/account-type-step";
 import { FormField } from "@/components/auth/form-field";
-import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { OAuthSignInButtons } from "@/components/auth/oauth-sign-in-buttons";
 import { isTurnstileEnabled, TurnstileWidget } from "@/components/auth/turnstile-widget";
 import { Button } from "@/components/ui/button";
 import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
@@ -368,7 +368,7 @@ export default function SignupPage() {
             </form>
 
             <div className="mt-7">
-              <GoogleSignInButton variant="lightAuth" />
+              <OAuthSignInButtons variant="lightAuth" />
             </div>
 
             <p className="mt-7 text-xs leading-5 text-[#786a73]">

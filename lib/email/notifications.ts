@@ -51,6 +51,17 @@ export async function sendPasswordResetOtpEmail(email: string): Promise<void> {
   });
 }
 
+export async function sendAddEmailOtp(email: string): Promise<void> {
+  const code = await issueOtp(email, "add_email");
+  await sendEmail({
+    to: email,
+    subject: otpEmailSubject("add_email", code),
+    react: OtpEmail({ variant: "add_email", code, ttlMinutes: OTP_TTL_MINUTES }),
+    category: "auth",
+    template: "otp-add-email",
+  });
+}
+
 export async function sendPasswordChangedEmail(email: string): Promise<void> {
   await sendEmail({
     to: email,

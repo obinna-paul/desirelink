@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/auth/form-field";
-import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { OAuthSignInButtons } from "@/components/auth/oauth-sign-in-buttons";
 import { LoginConsent } from "@/components/auth/login-consent";
 import { getAuthErrorMessage } from "@/lib/auth-errors";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
@@ -93,7 +93,7 @@ export function LoginForm() {
         </Button>
       </form>
 
-      <GoogleSignInButton variant="lightAuth" />
+      <OAuthSignInButtons variant="lightAuth" />
 
       <p className="text-center text-sm leading-6 text-[#6f626b]">
         New to udala?{" "}
