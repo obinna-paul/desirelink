@@ -148,6 +148,9 @@ export type PostView = {
   /** The tier that unlocks this post, when locked - null for a free post, an unlocked
    * post, or a premium post with no tier assigned (any active subscription unlocks it). */
   requiredTier: RequiredTier | null;
+  /** A heavily blurred still image safe to show someone who hasn't unlocked this post -
+   * see toLockedPreview. Null for an unlocked post, or a locked post with no media. */
+  blurredPreview: LockedPostPreview | null;
   /** A subscribe pitch attached to this specific post - see PostSubscribePrompt. Only
    * ever set by getPublicFeedPosts, on the first free post per creator in the feed. */
   subscribePrompt: PostSubscribePrompt | null;
@@ -229,6 +232,47 @@ export function toMediaItems(value: unknown): PostMediaItem[] {
   });
 }
 
+export type LockedPostPreview = { url: string; cssBlur: boolean };
+
+/**
+ * A safe-to-show, heavily blurred still image for a locked post's first media item - the
+ * whole point of a locked post is that mediaItems is sent empty (see toPostView below), so
+ * this must never be the real asset. Cloudinary media gets a genuine blur baked in by
+ * Cloudinary's own e_blur transform, server-side - the client never receives the
+ * unblurred bytes at all, unlike a CSS filter someone could just strip in devtools.
+ * Bunny Stream doesn't offer that kind of URL transform, so its fixed thumbnail path is
+ * used with cssBlur instead - a much smaller leak than the source video would be (one
+ * static preview frame, not the clip itself).
+ */
+function toLockedPreview(media: PostMediaItem | undefined): LockedPostPreview | null {
+  if (!media) return null;
+
+  if (media.url.includes(".m3u8")) {
+    return { url: media.url.replace(/\/playlist\.m3u8(?:\?.*)?$/, "/thumbnail.jpg"), cssBlur: true };
+  }
+
+  try {
+    const parsed = new URL(media.url);
+    if (parsed.hostname !== "res.cloudinary.com") return null;
+
+    const uploadMarker = media.type === "video" ? "/video/upload/" : "/image/upload/";
+    const markerIndex = parsed.pathname.indexOf(uploadMarker);
+    if (markerIndex === -1) return null;
+
+    const before = parsed.pathname.slice(0, markerIndex + uploadMarker.length);
+    const after = parsed.pathname.slice(markerIndex + uploadMarker.length);
+    const transform = media.type === "video" ? "so_0,e_blur:2000,q_auto,w_400" : "e_blur:2000,q_auto,w_400";
+    // A video's still frame is requested via the same path, a start-offset flag, and a
+    // .jpg extension in place of the video's own.
+    const path = media.type === "video" ? after.replace(/\.[a-z0-9]+$/i, ".jpg") : after;
+
+    parsed.pathname = `${before}${transform}/${path}`;
+    return { url: parsed.toString(), cssBlur: false };
+  } catch {
+    return null;
+  }
+}
+
 function toCommentView(comment: RawComment, liveStreamIds: Map<string, string>): PostCommentView {
   return {
     id: comment.id,
@@ -290,6 +334,7 @@ function toPostView(
     locked,
     lockReason,
     requiredTier: locked ? requiredTier : null,
+    blurredPreview: locked ? toLockedPreview(mediaItems[0]) : null,
     subscribePrompt: null,
     viewCount: post.viewCount,
     isPinned: post.pinnedAt !== null,

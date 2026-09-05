@@ -73,7 +73,18 @@ export function PostGridTile({
         onClick={() => onOpen(post)}
         ariaLabel={`Locked post. ${tierLabel} to view.`}
       >
-        <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-accent-tint px-3 text-center">
+        {post.blurredPreview && (
+          <Image
+            src={post.blurredPreview.url}
+            alt=""
+            fill
+            sizes={TILE_SIZES}
+            className={
+              post.blurredPreview.cssBlur ? "object-cover blur-xl scale-110" : "object-cover"
+            }
+          />
+        )}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-accent-tint/45 px-3 text-center">
           <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
           <span className="label-caps text-[10px] text-primary">{tierLabel}</span>
         </div>
