@@ -379,11 +379,19 @@ export function PostComposer({
     setVideoQueue((prev) => prev.slice(1));
   }
 
-  function handleVideoFrameError() {
+  async function handleVideoFrameError() {
+    const file = videoQueue[0];
     setVideoQueue((prev) => prev.slice(1));
-    setError(
-      "A video couldn't be opened. Try a different one, or export it as MP4 first.",
-    );
+    if (!file) return;
+
+    // The browser's own <video> element couldn't decode this file well enough to preview
+    // it for cropping (an unsupported codec/container on this device, or a slow load) -
+    // that's a client-side preview limitation, not a reason to reject an otherwise valid
+    // upload. Upload the original file as-is with no custom crop rather than forcing the
+    // person to find a different file or re-export it.
+    setUploading(true);
+    await uploadFile(file, false);
+    setUploading(false);
   }
 
   function removeMedia(url: string) {
