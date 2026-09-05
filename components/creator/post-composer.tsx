@@ -38,7 +38,7 @@ import {
 import { convertHeicFileToJpeg, isHeicFile } from "@/lib/heic-convert";
 import { readFileAsArrayBuffer, sniffMediaKind } from "@/lib/media-sniff";
 import { useFocusTrap } from "@/lib/use-focus-trap";
-import { uploadMediaDirectToCloudinary } from "@/lib/client-uploads";
+import { uploadMediaDirectToCloudinary, uploadVideoDirect } from "@/lib/client-uploads";
 import { formatCents } from "@/lib/creator";
 import { cn } from "@/lib/utils";
 
@@ -208,11 +208,9 @@ export function PostComposer({
     const isVideo = file.type.startsWith("video/");
 
     try {
-      const media = await uploadMediaDirectToCloudinary(
-        file,
-        isVideo ? "post-video" : "post-image",
-        "/api/upload/post-media",
-      );
+      const media = isVideo
+        ? await uploadVideoDirect(file, "/api/upload/post-media")
+        : await uploadMediaDirectToCloudinary(file, "post-image", "/api/upload/post-media");
 
       setMediaItems((prev) => [
         ...prev,

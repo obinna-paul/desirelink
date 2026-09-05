@@ -134,3 +134,97 @@ export async function uploadMediaDirectToCloudinary(
 
   return postDirectToCloudinary(file, sign, onProgress);
 }
+
+/** Reads a video's natural dimensions and duration without ever attaching it to the DOM -
+ * only needed for the R2 path below, since R2 (unlike Cloudinary) never inspects the file
+ * and returns none of this metadata back. Resolves zeros rather than rejecting if it can't
+ * be read within the timeout, the same fallback shape post-composer.tsx's own
+ * readVideoDurationSeconds uses. */
+function readVideoMetadata(file: File): Promise<{ width: number; height: number; durationSeconds: number }> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    let settled = false;
+    const finish = (value: { width: number; height: number; durationSeconds: number }) => {
+      if (settled) return;
+      settled = true;
+      video.removeAttribute("src");
+      video.load();
+      URL.revokeObjectURL(url);
+      resolve(value);
+    };
+    const timeout = window.setTimeout(() => finish({ width: 0, height: 0, durationSeconds: 0 }), 8000);
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
+    video.onloadedmetadata = () => {
+      window.clearTimeout(timeout);
+      finish({ width: video.videoWidth, height: video.videoHeight, durationSeconds: video.duration || 0 });
+    };
+    video.onerror = () => {
+      window.clearTimeout(timeout);
+      finish({ width: 0, height: 0, durationSeconds: 0 });
+    };
+    video.src = url;
+  });
+}
+
+/** Uses XHR (not fetch) for the same upload-progress reason as postDirectToCloudinary. */
+function putDirectToR2(file: File, uploadUrl: string, onProgress?: (fraction: number) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", uploadUrl);
+    xhr.setRequestHeader("Content-Type", file.type);
+
+    if (onProgress) {
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) onProgress(event.loaded / event.total);
+      };
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error("Upload failed. Please try again."));
+    };
+    xhr.onerror = () => reject(new Error("Upload failed. Please try again."));
+    xhr.send(file);
+  });
+}
+
+/**
+ * Uploads a feed-post video straight to Cloudflare R2 via a presigned PUT URL when R2 is
+ * configured, falling back to the existing Cloudinary/local-disk path (same fallbackUrl
+ * contract as uploadMediaDirectToCloudinary) when it isn't - mirrors requestSignature's
+ * own 503-means-not-configured handling. Images never call this; only feed-post video
+ * moved to R2 (see lib/r2.ts's doc comment for why).
+ */
+export async function uploadVideoDirect(
+  file: File,
+  fallbackUrl: string,
+  onProgress?: (fraction: number) => void
+): Promise<CloudinaryUploadResult> {
+  const signRes = await fetch("/api/upload/r2-sign", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ purpose: "post-video", contentType: file.type }),
+  });
+
+  if (signRes.status === 503) {
+    return uploadMediaDirectToCloudinary(file, "post-video", fallbackUrl, onProgress);
+  }
+  if (!signRes.ok) {
+    const body = await signRes.json().catch(() => null);
+    throw new Error(body?.error ?? "Upload failed. Please try again.");
+  }
+
+  const { uploadUrl, publicUrl } = (await signRes.json()) as { uploadUrl: string; publicUrl: string };
+  const metadata = await readVideoMetadata(file);
+  await putDirectToR2(file, uploadUrl, onProgress);
+
+  return {
+    url: publicUrl,
+    width: metadata.width || undefined,
+    height: metadata.height || undefined,
+    durationSeconds: metadata.durationSeconds || undefined,
+  };
+}
