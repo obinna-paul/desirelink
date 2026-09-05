@@ -13,6 +13,16 @@ const withPWA = nextPWA({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async rewrites() {
+    return [
+      {
+        // Mobile networks sometimes block the direct Bunny hostname. Middleware
+        // authenticates this path and strips Udala's cookie before forwarding.
+        source: "/media-upload/bunny/:path*",
+        destination: "https://video.bunnycdn.com/:path*",
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

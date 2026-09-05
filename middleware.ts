@@ -2,7 +2,14 @@ import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
 export default withAuth(
-  function middleware() {
+  function middleware(request) {
+    if (request.nextUrl.pathname.startsWith("/media-upload/bunny/")) {
+      // The request has already passed withAuth. Remove Udala's session cookie before
+      // the external rewrite forwards this TUS chunk to Bunny Stream.
+      const headers = new Headers(request.headers);
+      headers.delete("cookie");
+      return NextResponse.next({ request: { headers } });
+    }
     return NextResponse.next();
   },
   {

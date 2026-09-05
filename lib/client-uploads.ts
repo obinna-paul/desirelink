@@ -13,6 +13,10 @@
 
 import * as tus from "tus-js-client";
 
+const FIRST_PARTY_UPLOAD_MAX_BYTES = 3.5 * 1024 * 1024;
+const BUNNY_TUS_ORIGIN = "https://video.bunnycdn.com";
+const BUNNY_TUS_PROXY_PREFIX = "/media-upload/bunny";
+
 /** Longest a single reconnect wait sits before retrying anyway - the `online` event is the
  * fast path, this is the backstop so a browser that misreports offline (or never fires the
  * matching online transition) can't hang an upload indefinitely. */
@@ -60,8 +64,42 @@ async function requestSignature(purpose: string): Promise<SignedUpload | null> {
  * format). Retrying one of these can only fail the same way, so withUploadRetries stops. */
 class TerminalUploadError extends Error {}
 
+class ProviderReachabilityError extends Error {}
+
 function browserIsOffline() {
   return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+function isLikelyMobileBrowser() {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+  return (
+    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+    window.matchMedia?.("(pointer: coarse)").matches === true
+  );
+}
+
+function shouldUseFirstPartyImageUpload(file: File) {
+  return isLikelyMobileBrowser() && file.size <= FIRST_PARTY_UPLOAD_MAX_BYTES;
+}
+
+async function uploadThroughApplication(
+  file: File,
+  fallbackUrl: string,
+  onProgress?: (fraction: number) => void,
+) {
+  onProgress?.(0.06);
+  const body = await withUploadRetries(async () => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(fallbackUrl, { method: "POST", body: formData });
+    const parsed = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new TerminalUploadError(parsed?.error ?? "Upload failed. Please try again.");
+    }
+    return parsed;
+  });
+  onProgress?.(1);
+  return body;
 }
 
 /** Attempts an upload up to `RETRY_DELAYS.length + 1` times, backing off between tries and
@@ -167,14 +205,14 @@ function postDirectToCloudinary(
     // No response at all: a dropped request, worth retrying.
     xhr.onerror = () =>
       reject(
-        new Error(
+        new ProviderReachabilityError(
           browserIsOffline()
             ? "Upload paused because this device is offline. Reconnect and try again."
             : "Cloudinary could not be reached. The upload will retry automatically.",
         ),
       );
     xhr.ontimeout = () =>
-      reject(new Error("The image upload timed out. Try again without leaving this screen."));
+      reject(new ProviderReachabilityError("The image upload timed out. Try again without leaving this screen."));
     xhr.send(formData);
   });
 }
@@ -187,19 +225,20 @@ export async function uploadDirectToCloudinary(
   onProgress?: (fraction: number) => void
 ): Promise<{ url: string }> {
   const sign = await requestSignature(purpose);
-  if (!sign) {
-    const body = await withUploadRetries(async () => {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(fallbackUrl, { method: "POST", body: formData });
-      const parsed = await res.json().catch(() => null);
-      if (!res.ok) throw new TerminalUploadError(parsed?.error ?? "Upload failed. Please try again.");
-      return parsed;
-    });
+  if (!sign || shouldUseFirstPartyImageUpload(file)) {
+    const body = await uploadThroughApplication(file, fallbackUrl, onProgress);
     return { url: body.url as string };
   }
 
-  return withUploadRetries(() => postDirectToCloudinary(file, sign, onProgress));
+  try {
+    return await withUploadRetries(() => postDirectToCloudinary(file, sign, onProgress));
+  } catch (error) {
+    if (error instanceof ProviderReachabilityError && file.size <= FIRST_PARTY_UPLOAD_MAX_BYTES) {
+      const body = await uploadThroughApplication(file, fallbackUrl, onProgress);
+      return { url: body.url as string };
+    }
+    throw error;
+  }
 }
 
 /** Richer uploads (post/message media) whose fallback route returns `{ media: {...} }`,
@@ -211,19 +250,20 @@ export async function uploadMediaDirectToCloudinary(
   onProgress?: (fraction: number) => void
 ): Promise<CloudinaryUploadResult> {
   const sign = await requestSignature(purpose);
-  if (!sign) {
-    const body = await withUploadRetries(async () => {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(fallbackUrl, { method: "POST", body: formData });
-      const parsed = await res.json().catch(() => null);
-      if (!res.ok) throw new TerminalUploadError(parsed?.error ?? "Upload failed. Please try again.");
-      return parsed;
-    });
+  if (!sign || shouldUseFirstPartyImageUpload(file)) {
+    const body = await uploadThroughApplication(file, fallbackUrl, onProgress);
     return body.media as CloudinaryUploadResult;
   }
 
-  return withUploadRetries(() => postDirectToCloudinary(file, sign, onProgress));
+  try {
+    return await withUploadRetries(() => postDirectToCloudinary(file, sign, onProgress));
+  } catch (error) {
+    if (error instanceof ProviderReachabilityError && file.size <= FIRST_PARTY_UPLOAD_MAX_BYTES) {
+      const body = await uploadThroughApplication(file, fallbackUrl, onProgress);
+      return body.media as CloudinaryUploadResult;
+    }
+    throw error;
+  }
 }
 
 type BunnyUploadAuth = {
@@ -249,6 +289,101 @@ const MAX_RECONNECT_RESUMES = 3;
  * server-acknowledged offset real, so a retry picks up where it stopped.
  */
 const BUNNY_CHUNK_SIZE = 5 * 1024 * 1024;
+
+function proxyBunnyUrl(url: string) {
+  if (typeof window === "undefined") return url;
+
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.origin === BUNNY_TUS_ORIGIN) {
+      return `${BUNNY_TUS_PROXY_PREFIX}${parsed.pathname}${parsed.search}`;
+    }
+    if (parsed.origin === window.location.origin && parsed.pathname.startsWith("/tusupload")) {
+      return `${BUNNY_TUS_PROXY_PREFIX}${parsed.pathname}${parsed.search}`;
+    }
+  } catch {
+    return url;
+  }
+
+  return url;
+}
+
+function proxyBunnyLocation(location: string) {
+  if (/^https?:\/\//i.test(location)) return proxyBunnyUrl(location);
+  if (location.startsWith("/tusupload")) return `${BUNNY_TUS_PROXY_PREFIX}${location}`;
+  if (location.startsWith("/")) return `${BUNNY_TUS_PROXY_PREFIX}${location}`;
+  return `${BUNNY_TUS_PROXY_PREFIX}/tusupload/${location.replace(/^\/+/, "")}`;
+}
+
+class BunnyProxyResponse implements tus.HttpResponse {
+  constructor(private readonly response: tus.HttpResponse) {}
+
+  getStatus() {
+    return this.response.getStatus();
+  }
+
+  getHeader(header: string) {
+    const value = this.response.getHeader(header);
+    if (!value || header.toLowerCase() !== "location") return value;
+    return proxyBunnyLocation(value);
+  }
+
+  getBody() {
+    return this.response.getBody();
+  }
+
+  getUnderlyingObject() {
+    return this.response.getUnderlyingObject();
+  }
+}
+
+class BunnyProxyRequest implements tus.HttpRequest {
+  constructor(private readonly request: tus.HttpRequest) {}
+
+  getMethod() {
+    return this.request.getMethod();
+  }
+
+  getURL() {
+    return this.request.getURL();
+  }
+
+  setHeader(header: string, value: string) {
+    this.request.setHeader(header, value);
+  }
+
+  getHeader(header: string) {
+    return this.request.getHeader(header);
+  }
+
+  setProgressHandler(handler: (bytesSent: number) => void) {
+    this.request.setProgressHandler(handler);
+  }
+
+  async send(body: unknown) {
+    return new BunnyProxyResponse(await this.request.send(body));
+  }
+
+  abort() {
+    return this.request.abort();
+  }
+
+  getUnderlyingObject() {
+    return this.request.getUnderlyingObject();
+  }
+}
+
+class BunnyProxyHttpStack implements tus.HttpStack {
+  private readonly stack = new tus.DefaultHttpStack({});
+
+  createRequest(method: string, url: string) {
+    return new BunnyProxyRequest(this.stack.createRequest(method, proxyBunnyUrl(url)));
+  }
+
+  getName() {
+    return "UdalaBunnyProxyHttpStack";
+  }
+}
 
 type TusResponseLike = {
   getStatus?: () => number;
@@ -336,9 +471,11 @@ function uploadToBunnyViaTus(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     let reconnectResumes = 0;
+    const useFirstPartyTransport = isLikelyMobileBrowser();
 
     const upload = new tus.Upload(file, {
-      endpoint: auth.tusEndpoint,
+      endpoint: useFirstPartyTransport ? proxyBunnyUrl(auth.tusEndpoint) : auth.tusEndpoint,
+      httpStack: useFirstPartyTransport ? new BunnyProxyHttpStack() : undefined,
       chunkSize: BUNNY_CHUNK_SIZE,
       removeFingerprintOnSuccess: true,
       // A modest bump over tus-js-client's own default ([0, 1000, 3000, 5000], ~9s total) -
