@@ -1,5 +1,7 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { recordAdminAction } from "@/lib/admin/audit";
 import { getActiveSubscriberCount } from "@/lib/creator";
@@ -19,26 +21,44 @@ const searchResultSelect = {
   user: { select: { email: true } },
 } as const;
 
-export type AccountSearchResult = Awaited<ReturnType<typeof searchAccounts>>[number];
+export type AccountListItem = Prisma.ProfileGetPayload<{ select: typeof searchResultSelect }>;
 
-/** Finds accounts by username, display name, or email - the support workhorse. Empty
- * query returns nothing rather than the whole user table. */
-export async function searchAccounts(query: string, take = 20) {
+const ACCOUNTS_PAGE_SIZE = 30;
+
+/**
+ * Lists accounts for the admin console's Accounts page - filtered by username, display
+ * name, or email when a query is given, otherwise every account, newest first. An empty
+ * query browsing everything (rather than showing nothing until you search) is what makes
+ * bulk-cleaning a batch of test signups practical - you can't search for accounts whose
+ * names you don't already know.
+ */
+export async function listAccounts(
+  query: string,
+  page = 1
+): Promise<{ accounts: AccountListItem[]; totalCount: number; pageSize: number }> {
   const q = query.trim();
-  if (!q) return [];
+  const where: Prisma.ProfileWhereInput = q
+    ? {
+        OR: [
+          { username: { contains: q, mode: "insensitive" } },
+          { displayName: { contains: q, mode: "insensitive" } },
+          { user: { email: { contains: q, mode: "insensitive" } } },
+        ],
+      }
+    : {};
 
-  return prisma.profile.findMany({
-    where: {
-      OR: [
-        { username: { contains: q, mode: "insensitive" } },
-        { displayName: { contains: q, mode: "insensitive" } },
-        { user: { email: { contains: q, mode: "insensitive" } } },
-      ],
-    },
-    take,
-    orderBy: { createdAt: "desc" },
-    select: searchResultSelect,
-  });
+  const [accounts, totalCount] = await Promise.all([
+    prisma.profile.findMany({
+      where,
+      take: ACCOUNTS_PAGE_SIZE,
+      skip: (Math.max(1, page) - 1) * ACCOUNTS_PAGE_SIZE,
+      orderBy: { createdAt: "desc" },
+      select: searchResultSelect,
+    }),
+    prisma.profile.count({ where }),
+  ]);
+
+  return { accounts, totalCount, pageSize: ACCOUNTS_PAGE_SIZE };
 }
 
 /** The full 360-degree record behind an account: profile, content footprint, money,

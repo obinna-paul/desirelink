@@ -1,23 +1,17 @@
 import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import Link from "next/link";
 
 import { authOptions } from "@/lib/auth";
-import { requireCapability } from "@/lib/admin/access";
-import { searchAccounts } from "@/lib/admin/accounts";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { getAdminContext, requireCapability } from "@/lib/admin/access";
+import { listAccounts } from "@/lib/admin/accounts";
+import { AccountsList } from "@/components/admin/accounts-list";
 
 export const dynamic = "force-dynamic";
-
-function initials(name: string) {
-  return name.slice(0, 2).toUpperCase();
-}
 
 export default async function AdminAccountsPage({
   searchParams,
 }: {
-  searchParams?: { q?: string };
+  searchParams?: { q?: string; page?: string };
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -28,15 +22,28 @@ export default async function AdminAccountsPage({
   if (!gate.ok) {
     notFound();
   }
+  const context = await getAdminContext(session.user.id);
 
   const query = searchParams?.q?.trim() ?? "";
-  const results = query ? await searchAccounts(query, 30) : [];
+  const page = Math.max(1, Number(searchParams?.page) || 1);
+  const { accounts, totalCount, pageSize } = await listAccounts(query, page);
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  function pageHref(nextPage: number) {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    params.set("page", String(nextPage));
+    return `/admin/accounts?${params.toString()}`;
+  }
 
   return (
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-lg font-semibold text-foreground">Accounts</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Search by username, display name, or email.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {totalCount} account{totalCount === 1 ? "" : "s"} total. Search by username, display name, or email, or
+          browse everything below.
+        </p>
       </div>
 
       <form method="get" className="flex gap-2">
@@ -56,43 +63,34 @@ export default async function AdminAccountsPage({
         </button>
       </form>
 
-      {query && results.length === 0 && (
+      {accounts.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground">
-          No accounts match &ldquo;{query}&rdquo;.
+          {query ? <>No accounts match &ldquo;{query}&rdquo;.</> : "No accounts yet."}
         </div>
+      ) : (
+        <AccountsList accounts={accounts} canDelete={context.capabilities.has("delete_accounts")} />
       )}
 
-      {results.length > 0 && (
-        <ul className="flex flex-col gap-2">
-          {results.map((account) => (
-            <li key={account.id}>
-              <Link
-                href={`/admin/accounts/${account.username}`}
-                className="flex items-center gap-3 rounded-xl border border-border/60 bg-card p-3 shadow-sm transition-colors hover:border-primary/40"
-              >
-                <Avatar className="h-10 w-10 border border-border">
-                  <AvatarImage src={account.avatarUrl} alt={account.displayName} />
-                  <AvatarFallback className="text-xs">{initials(account.displayName)}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="truncate text-sm font-medium">{account.username}</p>
-                    {account.isSuspended && (
-                      <Badge variant="outline" className="border-destructive/40 text-destructive">
-                        Suspended
-                      </Badge>
-                    )}
-                    {(account.isVerified || account.isVerifiedCreator) && <Badge variant="neon">Verified</Badge>}
-                  </div>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {account.displayName} &middot; {account.user.email}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs capitalize text-muted-foreground">{account.profileType.toLowerCase()}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          {page > 1 ? (
+            <a href={pageHref(page - 1)} className="font-semibold text-primary hover:underline">
+              &larr; Previous
+            </a>
+          ) : (
+            <span />
+          )}
+          <span>
+            Page {page} of {totalPages}
+          </span>
+          {page < totalPages ? (
+            <a href={pageHref(page + 1)} className="font-semibold text-primary hover:underline">
+              Next &rarr;
+            </a>
+          ) : (
+            <span />
+          )}
+        </div>
       )}
     </div>
   );
