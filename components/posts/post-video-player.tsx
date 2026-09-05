@@ -23,6 +23,36 @@ export function PostVideoPlayer({
   const [showPauseIcon, setShowPauseIcon] = useState(false);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const hasFramedCrop = Boolean(crop && naturalWidth && naturalHeight);
+  const isHls = src.endsWith(".m3u8");
+
+  // Bunny Stream serves adaptive-bitrate HLS (.m3u8); Cloudinary/R2 posts still use a plain
+  // mp4 url and skip all of this. Safari has native HLS support in <video> - every other
+  // browser needs hls.js to demux the manifest, so it's loaded lazily and only for HLS
+  // sources rather than bundled for every post.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !isHls) return;
+
+    if (el.canPlayType("application/vnd.apple.mpegurl")) {
+      el.src = src;
+      return;
+    }
+
+    let hls: import("hls.js").default | null = null;
+    let cancelled = false;
+
+    import("hls.js").then(({ default: Hls }) => {
+      if (cancelled || !Hls.isSupported()) return;
+      hls = new Hls();
+      hls.loadSource(src);
+      hls.attachMedia(el);
+    });
+
+    return () => {
+      cancelled = true;
+      hls?.destroy();
+    };
+  }, [src, isHls]);
 
   useEffect(() => {
     if (!hasFramedCrop) return;
@@ -97,7 +127,7 @@ export function PostVideoPlayer({
     <div ref={frameRef} className="relative h-full w-full overflow-hidden">
       <video
         ref={videoRef}
-        src={src}
+        src={isHls ? undefined : src}
         muted={muted}
         loop
         playsInline

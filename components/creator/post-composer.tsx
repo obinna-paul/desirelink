@@ -124,6 +124,10 @@ export function PostComposer({
     tiers.length === 1 ? tiers[0].id : null,
   );
   const [uploading, setUploading] = useState(false);
+  /** Distinguishes "sending the file" from "Bunny Stream is transcoding it" so a video
+   * upload doesn't just sit on a generic spinner during the (usually few-second) wait for
+   * a playable rendition - text-only, doesn't affect the `uploading` disabled-state logic. */
+  const [uploadingLabel, setUploadingLabel] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showProviderUpgradePrompt, setShowProviderUpgradePrompt] =
@@ -209,7 +213,9 @@ export function PostComposer({
 
     try {
       const media = isVideo
-        ? await uploadVideoDirect(file, "/api/upload/post-media")
+        ? await uploadVideoDirect(file, "/api/upload/post-media", undefined, (phase) =>
+            setUploadingLabel(phase === "processing" ? "Processing video..." : "Uploading video..."),
+          )
         : await uploadMediaDirectToCloudinary(file, "post-image", "/api/upload/post-media");
 
       setMediaItems((prev) => [
@@ -224,6 +230,8 @@ export function PostComposer({
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+    } finally {
+      setUploadingLabel(null);
     }
   }
 
@@ -797,7 +805,7 @@ export function PostComposer({
                 )}
               </span>
               <span className="mt-4 text-base font-semibold text-foreground">
-                {uploading ? "Preparing your media..." : "Open gallery"}
+                {uploading ? (uploadingLabel ?? "Preparing your media...") : "Open gallery"}
               </span>
               <span className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">
                 {postMode === "carousel"

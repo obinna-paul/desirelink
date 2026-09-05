@@ -11,6 +11,8 @@
  * development working without requiring Cloudinary credentials.
  */
 
+import * as tus from "tus-js-client";
+
 type SignedUpload = {
   apiKey: string;
   cloudName: string;
@@ -135,78 +137,96 @@ export async function uploadMediaDirectToCloudinary(
   return postDirectToCloudinary(file, sign, onProgress);
 }
 
-/** Reads a video's natural dimensions and duration without ever attaching it to the DOM -
- * only needed for the R2 path below, since R2 (unlike Cloudinary) never inspects the file
- * and returns none of this metadata back. Resolves zeros rather than rejecting if it can't
- * be read within the timeout, the same fallback shape post-composer.tsx's own
- * readVideoDurationSeconds uses. */
-function readVideoMetadata(file: File): Promise<{ width: number; height: number; durationSeconds: number }> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const video = document.createElement("video");
-    let settled = false;
-    const finish = (value: { width: number; height: number; durationSeconds: number }) => {
-      if (settled) return;
-      settled = true;
-      video.removeAttribute("src");
-      video.load();
-      URL.revokeObjectURL(url);
-      resolve(value);
-    };
-    const timeout = window.setTimeout(() => finish({ width: 0, height: 0, durationSeconds: 0 }), 8000);
-    video.preload = "metadata";
-    video.muted = true;
-    video.playsInline = true;
-    video.onloadedmetadata = () => {
-      window.clearTimeout(timeout);
-      finish({ width: video.videoWidth, height: video.videoHeight, durationSeconds: video.duration || 0 });
-    };
-    video.onerror = () => {
-      window.clearTimeout(timeout);
-      finish({ width: 0, height: 0, durationSeconds: 0 });
-    };
-    video.src = url;
-  });
-}
+type BunnyUploadAuth = {
+  tusEndpoint: string;
+  libraryId: string;
+  videoId: string;
+  authorizationSignature: string;
+  authorizationExpire: number;
+};
 
-/** Uses XHR (not fetch) for the same upload-progress reason as postDirectToCloudinary. */
-function putDirectToR2(file: File, uploadUrl: string, onProgress?: (fraction: number) => void): Promise<void> {
+/** Uploads the raw file to Bunny Stream over TUS (resumable, chunked upload) using the
+ * one-time signature our server issued - Bunny's basic upload endpoint requires the secret
+ * API key itself, so a plain XHR PUT (like R2's) isn't an option here. */
+function uploadToBunnyViaTus(
+  file: File,
+  auth: BunnyUploadAuth,
+  onProgress?: (fraction: number) => void
+): Promise<void> {
   return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", uploadUrl);
-    xhr.setRequestHeader("Content-Type", file.type);
-
-    if (onProgress) {
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) onProgress(event.loaded / event.total);
-      };
-    }
-
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error("Upload failed. Please try again."));
-    };
-    xhr.onerror = () => reject(new Error("Upload failed. Please try again."));
-    xhr.send(file);
+    const upload = new tus.Upload(file, {
+      endpoint: auth.tusEndpoint,
+      retryDelays: [0, 1000, 3000, 5000],
+      headers: {
+        AuthorizationSignature: auth.authorizationSignature,
+        AuthorizationExpire: String(auth.authorizationExpire),
+        VideoId: auth.videoId,
+        LibraryId: auth.libraryId,
+      },
+      metadata: { filetype: file.type, title: file.name },
+      onError: (error) => reject(error instanceof Error ? error : new Error(String(error))),
+      onProgress: (bytesUploaded, bytesTotal) => {
+        if (bytesTotal > 0) onProgress?.(bytesUploaded / bytesTotal);
+      },
+      onSuccess: () => resolve(),
+    });
+    upload.start();
   });
 }
+
+type BunnyReadyStatus = {
+  url: string;
+  thumbnailUrl: string;
+  width: number | null;
+  height: number | null;
+  durationSeconds: number | null;
+};
+
+/** Polls our status route until Bunny finishes transcoding, since playback needs the
+ * rendition manifest that only exists once processing completes - there's no upload-only
+ * outcome to fall back to here. Bounded generously (this app caps videos at 3 minutes /
+ * 300MB, well within what Bunny's free H.264 encoding tier finishes quickly). */
+async function pollBunnyVideoStatus(videoId: string): Promise<BunnyReadyStatus> {
+  const deadline = Date.now() + 8 * 60 * 1000;
+  while (Date.now() < deadline) {
+    const res = await fetch(`/api/upload/bunny-status/${videoId}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ready) {
+        return {
+          url: data.url,
+          thumbnailUrl: data.thumbnailUrl,
+          width: data.width,
+          height: data.height,
+          durationSeconds: data.durationSeconds,
+        };
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+  throw new Error("Your video is still processing. Please try publishing again in a minute.");
+}
+
+export type VideoUploadPhase = "uploading" | "processing";
 
 /**
- * Uploads a feed-post video straight to Cloudflare R2 via a presigned PUT URL when R2 is
- * configured, falling back to the existing Cloudinary/local-disk path (same fallbackUrl
- * contract as uploadMediaDirectToCloudinary) when it isn't - mirrors requestSignature's
- * own 503-means-not-configured handling. Images never call this; only feed-post video
- * moved to R2 (see lib/r2.ts's doc comment for why).
+ * Uploads a feed-post video to Bunny Stream when it's configured, falling back to the
+ * existing Cloudinary/local-disk path (same fallbackUrl contract as
+ * uploadMediaDirectToCloudinary) when it isn't - mirrors requestSignature's own
+ * 503-means-not-configured handling. Images never call this; only feed-post video goes
+ * through Bunny (see lib/bunny-stream.ts's doc comment for why). `onPhaseChange` lets the
+ * composer distinguish "uploading the file" from "waiting on transcoding" in its UI.
  */
 export async function uploadVideoDirect(
   file: File,
   fallbackUrl: string,
-  onProgress?: (fraction: number) => void
+  onProgress?: (fraction: number) => void,
+  onPhaseChange?: (phase: VideoUploadPhase) => void
 ): Promise<CloudinaryUploadResult> {
-  const signRes = await fetch("/api/upload/r2-sign", {
+  const signRes = await fetch("/api/upload/bunny-sign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ purpose: "post-video", contentType: file.type }),
+    body: JSON.stringify({ purpose: "post-video" }),
   });
 
   if (signRes.status === 503) {
@@ -217,14 +237,18 @@ export async function uploadVideoDirect(
     throw new Error(body?.error ?? "Upload failed. Please try again.");
   }
 
-  const { uploadUrl, publicUrl } = (await signRes.json()) as { uploadUrl: string; publicUrl: string };
-  const metadata = await readVideoMetadata(file);
-  await putDirectToR2(file, uploadUrl, onProgress);
+  const auth = (await signRes.json()) as BunnyUploadAuth;
+
+  onPhaseChange?.("uploading");
+  await uploadToBunnyViaTus(file, auth, onProgress);
+
+  onPhaseChange?.("processing");
+  const status = await pollBunnyVideoStatus(auth.videoId);
 
   return {
-    url: publicUrl,
-    width: metadata.width || undefined,
-    height: metadata.height || undefined,
-    durationSeconds: metadata.durationSeconds || undefined,
+    url: status.url,
+    width: status.width ?? undefined,
+    height: status.height ?? undefined,
+    durationSeconds: status.durationSeconds ?? undefined,
   };
 }
