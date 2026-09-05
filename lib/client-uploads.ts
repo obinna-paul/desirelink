@@ -13,6 +13,11 @@
 
 import * as tus from "tus-js-client";
 
+/** Longest a single reconnect wait sits before retrying anyway - the `online` event is the
+ * fast path, this is the backstop so a browser that misreports offline (or never fires the
+ * matching online transition) can't hang an upload indefinitely. */
+const RECONNECT_WAIT_TIMEOUT_MS = 15_000;
+
 type SignedUpload = {
   apiKey: string;
   cloudName: string;
@@ -31,20 +36,71 @@ type CloudinaryUploadResult = {
 };
 
 async function requestSignature(purpose: string): Promise<SignedUpload | null> {
-  const signRes = await fetch("/api/upload/sign", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ purpose }),
+  return withUploadRetries(async () => {
+    const signRes = await fetch("/api/upload/sign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ purpose }),
+    });
+
+    // 503 is the documented "Cloudinary isn't configured here" contract, not a failure.
+    if (signRes.status === 503) return null;
+
+    if (!signRes.ok) {
+      const body = await signRes.json().catch(() => null);
+      throw new TerminalUploadError(body?.error ?? "Upload failed. Please try again.");
+    }
+
+    return signRes.json();
   });
+}
 
-  if (signRes.status === 503) return null;
+/** A refusal the server actually answered with (bad signature, oversized file, unsupported
+ * format). Retrying one of these can only fail the same way, so withUploadRetries stops. */
+class TerminalUploadError extends Error {}
 
-  if (!signRes.ok) {
-    const body = await signRes.json().catch(() => null);
-    throw new Error(body?.error ?? "Upload failed. Please try again.");
+/** Attempts an upload up to `RETRY_DELAYS.length + 1` times, backing off between tries and
+ * waiting out a reported offline stretch first (retrying into a dead connection just burns
+ * an attempt). A single dropped request on mobile data is the most common upload failure
+ * there is, and it used to end the whole upload here on the first try. */
+async function withUploadRetries<T>(attempt: () => Promise<T>): Promise<T> {
+  const RETRY_DELAYS = [1000, 3000, 6000];
+  let lastError: unknown;
+
+  for (let index = 0; index <= RETRY_DELAYS.length; index += 1) {
+    try {
+      return await attempt();
+    } catch (error) {
+      lastError = error;
+      if (error instanceof TerminalUploadError) break;
+      const delay = RETRY_DELAYS[index];
+      if (delay === undefined) break;
+      await waitForConnection();
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
   }
 
-  return signRes.json();
+  throw lastError instanceof Error ? lastError : new Error("Upload failed. Please try again.");
+}
+
+/** Resolves as soon as the browser reports a connection again, or after a bounded wait -
+ * some mobile browsers report offline without ever firing the matching `online` event, so
+ * this can never be the thing that hangs an upload. */
+function waitForConnection(): Promise<void> {
+  if (navigator.onLine !== false) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("online", done);
+      clearTimeout(timeoutId);
+      resolve();
+    };
+    const timeoutId = setTimeout(done, RECONNECT_WAIT_TIMEOUT_MS);
+    window.addEventListener("online", done, { once: true });
+  });
 }
 
 /** Uses XHR (not fetch) because only XHR exposes upload-progress events - needed so
@@ -87,11 +143,16 @@ function postDirectToCloudinary(
           height: typeof body.height === "number" ? body.height : undefined,
           durationSeconds: typeof body.duration === "number" ? body.duration : undefined,
         });
-      } else {
-        reject(new Error(body?.error?.message ?? "Upload failed. Please try again."));
+        return;
       }
+
+      // Cloudinary answered and refused (bad signature, oversized file, unsupported
+      // format) - retrying that only burns time, so it's marked terminal.
+      reject(new TerminalUploadError(body?.error?.message ?? "Upload failed. Please try again."));
     };
+    // No response at all: a dropped request, worth retrying.
     xhr.onerror = () => reject(new Error("Upload failed. Please try again."));
+    xhr.ontimeout = () => reject(new Error("Upload failed. Please try again."));
     xhr.send(formData);
   });
 }
@@ -105,15 +166,18 @@ export async function uploadDirectToCloudinary(
 ): Promise<{ url: string }> {
   const sign = await requestSignature(purpose);
   if (!sign) {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch(fallbackUrl, { method: "POST", body: formData });
-    const body = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(body?.error ?? "Upload failed. Please try again.");
+    const body = await withUploadRetries(async () => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(fallbackUrl, { method: "POST", body: formData });
+      const parsed = await res.json().catch(() => null);
+      if (!res.ok) throw new TerminalUploadError(parsed?.error ?? "Upload failed. Please try again.");
+      return parsed;
+    });
     return { url: body.url as string };
   }
 
-  return postDirectToCloudinary(file, sign, onProgress);
+  return withUploadRetries(() => postDirectToCloudinary(file, sign, onProgress));
 }
 
 /** Richer uploads (post/message media) whose fallback route returns `{ media: {...} }`,
@@ -126,15 +190,18 @@ export async function uploadMediaDirectToCloudinary(
 ): Promise<CloudinaryUploadResult> {
   const sign = await requestSignature(purpose);
   if (!sign) {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch(fallbackUrl, { method: "POST", body: formData });
-    const body = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(body?.error ?? "Upload failed. Please try again.");
+    const body = await withUploadRetries(async () => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(fallbackUrl, { method: "POST", body: formData });
+      const parsed = await res.json().catch(() => null);
+      if (!res.ok) throw new TerminalUploadError(parsed?.error ?? "Upload failed. Please try again.");
+      return parsed;
+    });
     return body.media as CloudinaryUploadResult;
   }
 
-  return postDirectToCloudinary(file, sign, onProgress);
+  return withUploadRetries(() => postDirectToCloudinary(file, sign, onProgress));
 }
 
 type BunnyUploadAuth = {
@@ -149,10 +216,17 @@ type BunnyUploadAuth = {
  * good - bounds a pathological flap (on/offline/on/offline...). */
 const MAX_RECONNECT_RESUMES = 3;
 
-/** Longest a single reconnect wait sits before retrying anyway - the `online` event is the
- * fast path, this is the backstop so a browser that misreports offline (or never fires the
- * matching online transition) can't hang the upload indefinitely. */
-const RECONNECT_WAIT_TIMEOUT_MS = 15_000;
+/**
+ * Bunny's TUS endpoint documents a 5MB minimum chunk, and tus-js-client defaults to
+ * `Infinity` - i.e. the ENTIRE file in a single PATCH. That default is what made video
+ * uploads fail here: a phone video (allowed up to 300MB) went up as one enormous request,
+ * so any blip on mobile data killed the whole thing, and because the server never
+ * acknowledged an intermediate offset there was nothing to resume from - every retry
+ * restarted at byte 0, which is exactly what "failed to upload chunk at offset 0" meant.
+ * Chunking makes each request small enough to survive a weak signal, and makes the
+ * server-acknowledged offset real, so a retry picks up where it stopped.
+ */
+const BUNNY_CHUNK_SIZE = 5 * 1024 * 1024;
 
 /** Uploads the raw file to Bunny Stream over TUS (resumable, chunked upload) using the
  * one-time signature our server issued - Bunny's basic upload endpoint requires the secret
@@ -177,9 +251,12 @@ function uploadToBunnyViaTus(
 
     const upload = new tus.Upload(file, {
       endpoint: auth.tusEndpoint,
+      chunkSize: BUNNY_CHUNK_SIZE,
+      removeFingerprintOnSuccess: true,
       // A modest bump over tus-js-client's own default ([0, 1000, 3000, 5000], ~9s total) -
       // covers more of the "still connected but flaky" case automatically without leaving
-      // anyone waiting minutes for something that isn't a real outage.
+      // anyone waiting minutes for something that isn't a real outage. With chunking above,
+      // each of these retries only re-sends the failed 5MB chunk, not the whole file.
       retryDelays: [0, 1000, 2000, 4000, 8000, 8000],
       headers: {
         AuthorizationSignature: auth.authorizationSignature,
@@ -191,26 +268,15 @@ function uploadToBunnyViaTus(
       onError: (error) => {
         console.error("[uploads] Bunny TUS upload failed", error);
 
-        if (navigator.onLine === false && reconnectResumes < MAX_RECONNECT_RESUMES) {
+        if (reconnectResumes < MAX_RECONNECT_RESUMES) {
           reconnectResumes += 1;
           onPhaseChange?.("reconnecting");
-
-          // Some mobile browsers/WebViews report navigator.onLine === false without
-          // reliably firing a matching `online` event later (or it was already false
-          // before the upload even started) - without a bound, that leaves the upload
-          // waiting forever on an event that may never come. Retry regardless once this
-          // fires, from whichever of the two happens first.
-          let settled = false;
-          const resume = () => {
-            if (settled) return;
-            settled = true;
-            window.removeEventListener("online", resume);
-            clearTimeout(timeoutId);
+          // Resumes from the last chunk the server acknowledged (see BUNNY_CHUNK_SIZE) -
+          // only the interrupted chunk is re-sent, never the whole file.
+          void waitForConnection().then(() => {
             onPhaseChange?.("uploading");
             upload.start();
-          };
-          const timeoutId = setTimeout(resume, RECONNECT_WAIT_TIMEOUT_MS);
-          window.addEventListener("online", resume, { once: true });
+          });
           return;
         }
 
@@ -250,20 +316,27 @@ async function pollBunnyVideoStatus(
 ): Promise<BunnyReadyStatus> {
   const deadline = Date.now() + 8 * 60 * 1000;
   while (Date.now() < deadline) {
-    const res = await fetch(`/api/upload/bunny-status/${videoId}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.ready) {
-        return {
-          url: data.url,
-          thumbnailUrl: data.thumbnailUrl,
-          width: data.width,
-          height: data.height,
-          durationSeconds: data.durationSeconds,
-        };
+    // The file is already safely on Bunny by this point - a dropped poll must never be
+    // what loses it, so a failed request just waits and asks again rather than throwing.
+    try {
+      const res = await fetch(`/api/upload/bunny-status/${videoId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ready) {
+          return {
+            url: data.url,
+            thumbnailUrl: data.thumbnailUrl,
+            width: data.width,
+            height: data.height,
+            durationSeconds: data.durationSeconds,
+          };
+        }
+        if (typeof data.encodeProgress === "number") onProgress?.(data.encodeProgress / 100);
       }
-      if (typeof data.encodeProgress === "number") onProgress?.(data.encodeProgress / 100);
+    } catch (error) {
+      console.error("[uploads] Bunny status poll failed, retrying", error);
     }
+    await waitForConnection();
     await new Promise((resolve) => setTimeout(resolve, 3000));
   }
   throw new Error("Your video is still processing. Please try publishing again in a minute.");
@@ -285,21 +358,25 @@ export async function uploadVideoDirect(
   onProgress?: (fraction: number) => void,
   onPhaseChange?: (phase: VideoUploadPhase) => void
 ): Promise<CloudinaryUploadResult> {
-  const signRes = await fetch("/api/upload/bunny-sign", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ purpose: "post-video" }),
+  const auth = await withUploadRetries(async () => {
+    const signRes = await fetch("/api/upload/bunny-sign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ purpose: "post-video" }),
+    });
+
+    // 503 is the documented "Bunny isn't configured here" contract, not a failure.
+    if (signRes.status === 503) return null;
+    if (!signRes.ok) {
+      const body = await signRes.json().catch(() => null);
+      throw new TerminalUploadError(body?.error ?? "Upload failed. Please try again.");
+    }
+    return (await signRes.json()) as BunnyUploadAuth;
   });
 
-  if (signRes.status === 503) {
+  if (!auth) {
     return uploadMediaDirectToCloudinary(file, "post-video", fallbackUrl, onProgress);
   }
-  if (!signRes.ok) {
-    const body = await signRes.json().catch(() => null);
-    throw new Error(body?.error ?? "Upload failed. Please try again.");
-  }
-
-  const auth = (await signRes.json()) as BunnyUploadAuth;
 
   onPhaseChange?.("uploading");
   await uploadToBunnyViaTus(file, auth, onProgress, onPhaseChange);
