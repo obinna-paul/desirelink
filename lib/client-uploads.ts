@@ -146,10 +146,13 @@ type BunnyUploadAuth = {
 };
 
 /** How many times a dropped connection gets to reconnect and resume before giving up for
- * good - each one only fires once the browser actually reports being back online, so this
- * bounds a pathological flap (on/offline/on/offline...) rather than how long any single
- * wait can take. */
+ * good - bounds a pathological flap (on/offline/on/offline...). */
 const MAX_RECONNECT_RESUMES = 3;
+
+/** Longest a single reconnect wait sits before retrying anyway - the `online` event is the
+ * fast path, this is the backstop so a browser that misreports offline (or never fires the
+ * matching online transition) can't hang the upload indefinitely. */
+const RECONNECT_WAIT_TIMEOUT_MS = 15_000;
 
 /** Uploads the raw file to Bunny Stream over TUS (resumable, chunked upload) using the
  * one-time signature our server issued - Bunny's basic upload endpoint requires the secret
@@ -191,14 +194,23 @@ function uploadToBunnyViaTus(
         if (navigator.onLine === false && reconnectResumes < MAX_RECONNECT_RESUMES) {
           reconnectResumes += 1;
           onPhaseChange?.("reconnecting");
-          window.addEventListener(
-            "online",
-            () => {
-              onPhaseChange?.("uploading");
-              upload.start();
-            },
-            { once: true }
-          );
+
+          // Some mobile browsers/WebViews report navigator.onLine === false without
+          // reliably firing a matching `online` event later (or it was already false
+          // before the upload even started) - without a bound, that leaves the upload
+          // waiting forever on an event that may never come. Retry regardless once this
+          // fires, from whichever of the two happens first.
+          let settled = false;
+          const resume = () => {
+            if (settled) return;
+            settled = true;
+            window.removeEventListener("online", resume);
+            clearTimeout(timeoutId);
+            onPhaseChange?.("uploading");
+            upload.start();
+          };
+          const timeoutId = setTimeout(resume, RECONNECT_WAIT_TIMEOUT_MS);
+          window.addEventListener("online", resume, { once: true });
           return;
         }
 
