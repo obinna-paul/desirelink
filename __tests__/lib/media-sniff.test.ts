@@ -1,4 +1,9 @@
-import { sniffMediaKind } from "@/lib/media-sniff";
+import {
+  inferMediaTypeFromFileName,
+  sniffMediaKind,
+  sniffMediaType,
+  withNormalizedMediaType,
+} from "@/lib/media-sniff";
 
 function fileFromBytes(bytes: number[], name = "file.bin") {
   return new File([new Uint8Array(bytes)], name, { type: "" });
@@ -47,10 +52,34 @@ describe("sniffMediaKind", () => {
     "ftyp".split("").forEach((c, i) => (bytes[4 + i] = c.charCodeAt(0)));
     "isom".split("").forEach((c, i) => (bytes[8 + i] = c.charCodeAt(0)));
     expect(await sniffMediaKind(fileFromBytes(bytes))).toBe("video");
+    expect(await sniffMediaType(fileFromBytes(bytes, "camera-video"))).toBe("video/mp4");
+  });
+
+  it("detects MOV via its QuickTime brand", async () => {
+    const bytes = Array(16).fill(0);
+    "ftyp".split("").forEach((c, i) => (bytes[4 + i] = c.charCodeAt(0)));
+    "qt  ".split("").forEach((c, i) => (bytes[8 + i] = c.charCodeAt(0)));
+    expect(await sniffMediaType(fileFromBytes(bytes, "iphone-video.mov"))).toBe("video/quicktime");
+  });
+
+  it("normalizes a picker's blank MIME without changing the file identity", () => {
+    const original = fileFromBytes([0, 1, 2, 3], "camera.mp4");
+    const normalized = withNormalizedMediaType(original, "video/mp4");
+
+    expect(normalized.name).toBe(original.name);
+    expect(normalized.size).toBe(original.size);
+    expect(normalized.lastModified).toBe(original.lastModified);
+    expect(normalized.type).toBe("video/mp4");
   });
 
   it("detects WebM via EBML header", async () => {
     expect(await sniffMediaKind(fileFromBytes([0x1a, 0x45, 0xdf, 0xa3]))).toBe("video");
+  });
+
+  it("recognizes mobile gallery filenames when a cloud placeholder has no readable MIME", () => {
+    expect(inferMediaTypeFromFileName("holiday.MOV")).toBe("video/quicktime");
+    expect(inferMediaTypeFromFileName("portrait.HEIC")).toBe("image/heic");
+    expect(inferMediaTypeFromFileName("unknown.bin")).toBeNull();
   });
 
   it("returns null for unrecognized bytes", async () => {

@@ -25,6 +25,7 @@ type SignedUpload = {
   timestamp: number;
   signature: string;
   transformation?: string;
+  format?: string;
   resourceType: "image" | "video";
 };
 
@@ -58,6 +59,10 @@ async function requestSignature(purpose: string): Promise<SignedUpload | null> {
 /** A refusal the server actually answered with (bad signature, oversized file, unsupported
  * format). Retrying one of these can only fail the same way, so withUploadRetries stops. */
 class TerminalUploadError extends Error {}
+
+function browserIsOffline() {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
 
 /** Attempts an upload up to `RETRY_DELAYS.length + 1` times, backing off between tries and
  * waiting out a reported offline stretch first (retrying into a dead connection just burns
@@ -118,9 +123,11 @@ function postDirectToCloudinary(
     formData.append("signature", sign.signature);
     formData.append("folder", sign.folder);
     if (sign.transformation) formData.append("transformation", sign.transformation);
+    if (sign.format) formData.append("format", sign.format);
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`);
+    xhr.timeout = 15 * 60 * 1000;
 
     if (onProgress) {
       xhr.upload.onprogress = (event) => {
@@ -148,11 +155,26 @@ function postDirectToCloudinary(
 
       // Cloudinary answered and refused (bad signature, oversized file, unsupported
       // format) - retrying that only burns time, so it's marked terminal.
-      reject(new TerminalUploadError(body?.error?.message ?? "Upload failed. Please try again."));
+      const providerMessage = body?.error?.message?.trim();
+      reject(
+        new TerminalUploadError(
+          providerMessage
+            ? `This media could not be processed: ${providerMessage}`
+            : "This media could not be uploaded. Please choose another file.",
+        ),
+      );
     };
     // No response at all: a dropped request, worth retrying.
-    xhr.onerror = () => reject(new Error("Upload failed. Please try again."));
-    xhr.ontimeout = () => reject(new Error("Upload failed. Please try again."));
+    xhr.onerror = () =>
+      reject(
+        new Error(
+          browserIsOffline()
+            ? "Upload paused because this device is offline. Reconnect and try again."
+            : "Cloudinary could not be reached. The upload will retry automatically.",
+        ),
+      );
+    xhr.ontimeout = () =>
+      reject(new Error("The image upload timed out. Try again without leaving this screen."));
     xhr.send(formData);
   });
 }
@@ -228,6 +250,72 @@ const MAX_RECONNECT_RESUMES = 3;
  */
 const BUNNY_CHUNK_SIZE = 5 * 1024 * 1024;
 
+type TusResponseLike = {
+  getStatus?: () => number;
+  getBody?: () => string;
+};
+
+function describeTusFailure(error: unknown): {
+  retryable: boolean;
+  message: string;
+} {
+  const response = (error as { originalResponse?: TusResponseLike } | null)?.originalResponse;
+  let status: number | undefined;
+  let body = "";
+
+  try {
+    status = response?.getStatus?.();
+    body = response?.getBody?.() ?? "";
+  } catch {
+    // Some adapters expose a response object without readable methods.
+  }
+
+  if (!status || status === 0) {
+    return {
+      retryable: true,
+      message: browserIsOffline()
+        ? "The upload is waiting for your connection to return."
+        : "The video service could not be reached. The upload will resume automatically.",
+    };
+  }
+
+  if (status === 408 || status === 409 || status === 423 || status === 425 || status === 429 || status >= 500) {
+    return {
+      retryable: true,
+      message:
+        status === 429
+          ? "The video service is busy. The upload will resume automatically."
+          : "The video service was interrupted. The upload will resume automatically.",
+    };
+  }
+
+  if (status === 401 || status === 403) {
+    return {
+      retryable: false,
+      message: "Video upload authorization was rejected. Please refresh the page and try again.",
+    };
+  }
+
+  if (status === 413) {
+    return {
+      retryable: false,
+      message: "This video is larger than the connected video library allows.",
+    };
+  }
+
+  if (status === 400 || status === 415 || /unsupported|invalid (?:file|video|format)/i.test(body)) {
+    return {
+      retryable: false,
+      message: "This video could not be decoded. Try a different export; MP4 works best.",
+    };
+  }
+
+  return {
+    retryable: false,
+    message: `The video service rejected this upload${status ? ` (${status})` : ""}. Please try another file.`,
+  };
+}
+
 /** Uploads the raw file to Bunny Stream over TUS (resumable, chunked upload) using the
  * one-time signature our server issued - Bunny's basic upload endpoint requires the secret
  * API key itself, so a plain XHR PUT (like R2's) isn't an option here.
@@ -267,10 +355,11 @@ function uploadToBunnyViaTus(
       metadata: { filetype: file.type, title: file.name },
       onError: (error) => {
         console.error("[uploads] Bunny TUS upload failed", error);
+        const failure = describeTusFailure(error);
 
-        if (reconnectResumes < MAX_RECONNECT_RESUMES) {
+        if (failure.retryable && reconnectResumes < MAX_RECONNECT_RESUMES) {
           reconnectResumes += 1;
-          onPhaseChange?.("reconnecting");
+          onPhaseChange?.(browserIsOffline() ? "reconnecting" : "retrying");
           // Resumes from the last chunk the server acknowledged (see BUNNY_CHUNK_SIZE) -
           // only the interrupted chunk is re-sent, never the whole file.
           void waitForConnection().then(() => {
@@ -285,7 +374,7 @@ function uploadToBunnyViaTus(
         // debugging, meaningless and alarming as user-facing text. Surface a plain retry
         // message instead - reached only once reconnect resumes are exhausted, or the
         // failure wasn't about connectivity at all.
-        reject(new Error("Your video couldn't upload - check your connection and try again."));
+        reject(new Error(failure.message));
       },
       onProgress: (bytesUploaded, bytesTotal) => {
         if (bytesTotal > 0) onProgress?.(bytesUploaded / bytesTotal);
@@ -314,14 +403,21 @@ async function pollBunnyVideoStatus(
   videoId: string,
   onProgress?: (fraction: number) => void
 ): Promise<BunnyReadyStatus> {
-  const deadline = Date.now() + 8 * 60 * 1000;
+  const deadline = Date.now() + 20 * 60 * 1000;
   while (Date.now() < deadline) {
     // The file is already safely on Bunny by this point - a dropped poll must never be
     // what loses it, so a failed request just waits and asks again rather than throwing.
     try {
-      const res = await fetch(`/api/upload/bunny-status/${videoId}`);
+      const res = await fetch(`/api/upload/bunny-status/${videoId}`, {
+        cache: "no-store",
+      });
       if (res.ok) {
         const data = await res.json();
+        if (data.state === "failed") {
+          throw new TerminalUploadError(
+            data.error ?? "Bunny could not process this video. Try another export or file.",
+          );
+        }
         if (data.ready) {
           return {
             url: data.url,
@@ -334,6 +430,7 @@ async function pollBunnyVideoStatus(
         if (typeof data.encodeProgress === "number") onProgress?.(data.encodeProgress / 100);
       }
     } catch (error) {
+      if (error instanceof TerminalUploadError) throw error;
       console.error("[uploads] Bunny status poll failed, retrying", error);
     }
     await waitForConnection();
@@ -342,7 +439,12 @@ async function pollBunnyVideoStatus(
   throw new Error("Your video is still processing. Please try publishing again in a minute.");
 }
 
-export type VideoUploadPhase = "uploading" | "processing" | "reconnecting";
+export type VideoUploadPhase =
+  | "preparing"
+  | "uploading"
+  | "processing"
+  | "reconnecting"
+  | "retrying";
 
 /**
  * Uploads a feed-post video to Bunny Stream when it's configured, falling back to the
@@ -358,11 +460,18 @@ export async function uploadVideoDirect(
   onProgress?: (fraction: number) => void,
   onPhaseChange?: (phase: VideoUploadPhase) => void
 ): Promise<CloudinaryUploadResult> {
+  onPhaseChange?.("preparing");
+  onProgress?.(0.02);
   const auth = await withUploadRetries(async () => {
     const signRes = await fetch("/api/upload/bunny-sign", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ purpose: "post-video" }),
+      body: JSON.stringify({
+        purpose: "post-video",
+        fileName: file.name,
+        fileSize: file.size,
+        contentType: file.type,
+      }),
     });
 
     // 503 is the documented "Bunny isn't configured here" contract, not a failure.
@@ -375,14 +484,28 @@ export async function uploadVideoDirect(
   });
 
   if (!auth) {
-    return uploadMediaDirectToCloudinary(file, "post-video", fallbackUrl, onProgress);
+    onPhaseChange?.("uploading");
+    return uploadMediaDirectToCloudinary(
+      file,
+      "post-video",
+      fallbackUrl,
+      (fraction) => onProgress?.(0.04 + fraction * 0.96),
+    );
   }
 
   onPhaseChange?.("uploading");
-  await uploadToBunnyViaTus(file, auth, onProgress, onPhaseChange);
+  await uploadToBunnyViaTus(
+    file,
+    auth,
+    (fraction) => onProgress?.(0.04 + fraction * 0.76),
+    onPhaseChange,
+  );
 
   onPhaseChange?.("processing");
-  const status = await pollBunnyVideoStatus(auth.videoId, onProgress);
+  onProgress?.(0.8);
+  const status = await pollBunnyVideoStatus(auth.videoId, (fraction) =>
+    onProgress?.(0.8 + fraction * 0.2),
+  );
 
   return {
     url: status.url,

@@ -10,12 +10,23 @@ import { isCloudinaryConfigured } from "@/lib/uploads";
 // arbitrary Cloudinary path. One purpose per (folder, resourceType) pair since Cloudinary's
 // upload endpoint is resource-type-specific (/image/upload vs /video/upload) and that has to
 // match what was actually signed.
-type PurposeConfig = { folder: string; resourceType: "image" | "video"; transformation?: string };
+type PurposeConfig = {
+  folder: string;
+  resourceType: "image" | "video";
+  transformation?: string;
+  format?: string;
+};
 
 const PURPOSES: Record<string, PurposeConfig> = {
   "verification-selfie": { folder: "udala/verification/selfies", resourceType: "video" },
   "verification-id": { folder: "udala/verification/ids", resourceType: "image" },
   "post-image": { folder: "udala/posts", resourceType: "image", transformation: "c_limit,w_1600,h_1600" },
+  "post-image-normalize": {
+    folder: "udala/posts",
+    resourceType: "image",
+    transformation: "c_limit,w_1600,h_1600",
+    format: "jpg",
+  },
   "post-video": { folder: "udala/posts", resourceType: "video" },
   "message-image": { folder: "udala/messages", resourceType: "image", transformation: "c_limit,w_1800,h_1800" },
   // Cloudinary has no separate audio endpoint - audio uploads go through resource_type "video".
@@ -48,6 +59,7 @@ export async function POST(req: Request) {
   const signed = createSignedUploadParams({
     folder: config.folder,
     ...(config.transformation ? { transformation: config.transformation } : {}),
+    ...(config.format ? { format: config.format } : {}),
   });
   return NextResponse.json({ ...signed, resourceType: config.resourceType });
 }

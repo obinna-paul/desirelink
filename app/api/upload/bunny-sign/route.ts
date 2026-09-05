@@ -5,6 +5,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createBunnyVideo, isBunnyStreamConfigured, signBunnyUpload } from "@/lib/bunny-stream";
 
+const MAX_VIDEO_SIZE = 2 * 1024 * 1024 * 1024;
+
 /** Creates a Bunny Stream video object and returns a signed one-time TUS upload
  * authorization for it - never the API key itself. Mirrors the auth/suspension checks
  * on the (now unused-for-video) R2 sign route. */
@@ -32,8 +34,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid upload purpose" }, { status: 400 });
   }
 
+  if (!Number.isFinite(body?.fileSize) || body.fileSize <= 0 || body.fileSize > MAX_VIDEO_SIZE) {
+    return NextResponse.json({ error: "Videos can be up to 2GB." }, { status: 413 });
+  }
+
+  if (typeof body?.contentType !== "string" || !body.contentType.startsWith("video/")) {
+    return NextResponse.json(
+      { error: "Choose a recognized video file." },
+      { status: 415 },
+    );
+  }
+
   try {
-    const videoId = await createBunnyVideo(`post-${session.user.id}-${Date.now()}`);
+    const safeFileName =
+      typeof body.fileName === "string"
+        ? body.fileName.replace(/[^a-zA-Z0-9._ -]/g, "").slice(0, 80)
+        : "video";
+    const videoId = await createBunnyVideo(`post-${session.user.id}-${Date.now()}-${safeFileName}`);
     const auth = signBunnyUpload(videoId);
     return NextResponse.json(auth, { status: 200 });
   } catch (error) {

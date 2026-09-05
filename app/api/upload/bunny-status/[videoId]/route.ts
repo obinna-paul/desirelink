@@ -12,20 +12,39 @@ export async function GET(req: Request, { params }: { params: { videoId: string 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const status = await getBunnyVideoStatus(params.videoId);
-  if (!status.ready) {
-    return NextResponse.json({ ready: false, encodeProgress: status.encodeProgress }, { status: 200 });
-  }
+  try {
+    const status = await getBunnyVideoStatus(params.videoId);
+    if (status.state === "failed") {
+      return NextResponse.json(
+        { ready: false, state: "failed", encodeProgress: status.encodeProgress, error: status.error },
+        { status: 200 },
+      );
+    }
 
-  return NextResponse.json(
-    {
-      ready: true,
-      url: getBunnyPlaybackUrl(params.videoId),
-      thumbnailUrl: getBunnyThumbnailUrl(params.videoId),
-      width: status.width,
-      height: status.height,
-      durationSeconds: status.durationSeconds,
-    },
-    { status: 200 }
-  );
+    if (!status.ready) {
+      return NextResponse.json(
+        { ready: false, state: "processing", encodeProgress: status.encodeProgress },
+        { status: 200 },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        ready: true,
+        state: "ready",
+        url: getBunnyPlaybackUrl(params.videoId),
+        thumbnailUrl: getBunnyThumbnailUrl(params.videoId),
+        width: status.width,
+        height: status.height,
+        durationSeconds: status.durationSeconds,
+      },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("[upload/bunny-status] status lookup failed", error);
+    return NextResponse.json(
+      { error: "Video processing status is temporarily unavailable." },
+      { status: 502 },
+    );
+  }
 }

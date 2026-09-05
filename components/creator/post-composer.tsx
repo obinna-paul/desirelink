@@ -38,16 +38,29 @@ import {
   type PiiFinding,
 } from "@/lib/pii";
 import { convertHeicFileToJpeg, isHeicFile } from "@/lib/heic-convert";
-import { readFileAsArrayBuffer, sniffMediaKind } from "@/lib/media-sniff";
+import {
+  readFileAsArrayBuffer,
+  inferMediaTypeFromFileName,
+  sniffMediaType,
+  withNormalizedMediaType,
+} from "@/lib/media-sniff";
 import { useFocusTrap } from "@/lib/use-focus-trap";
-import { uploadMediaDirectToCloudinary, uploadVideoDirect } from "@/lib/client-uploads";
+import {
+  uploadMediaDirectToCloudinary,
+  uploadVideoDirect,
+  type VideoUploadPhase,
+} from "@/lib/client-uploads";
 import { formatCents } from "@/lib/creator";
 import { cn } from "@/lib/utils";
 
 const MAX_IMAGE_FILE_SIZE = 30 * 1024 * 1024;
-const MAX_VIDEO_FILE_SIZE = 300 * 1024 * 1024;
-/** Generous enough for a real clip, short enough that nobody attaches a feature-length video to a post. */
-const MAX_VIDEO_DURATION_SECONDS = 3 * 60;
+const MAX_VIDEO_FILE_SIZE = 2 * 1024 * 1024 * 1024;
+const MAX_VIDEO_DURATION_SECONDS = 15 * 60;
+
+function formatFileSize(bytes: number) {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  return `${Math.max(0.1, bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 /** Reads a video's duration without ever attaching it to the DOM — resolves 0 (never rejects) if the browser can't read metadata within the timeout, so an unreadable file falls through to the frame dialog's own error handling instead of blocking selection here. */
 function readVideoDurationSeconds(file: File): Promise<number> {
@@ -81,7 +94,17 @@ type UploadedMedia = PostMediaItem & {
   metadataDetected: boolean;
 };
 
-type PendingCrop = { file: File; metadataDetected: boolean };
+type PendingMediaReview = {
+  file: File;
+  kind: "image" | "video";
+  metadataDetected: boolean;
+  imagePurpose?: "post-image" | "post-image-normalize";
+};
+type FailedMediaUpload = {
+  pending: PendingMediaReview;
+  adjustedFile?: File;
+  crop?: VideoCrop;
+};
 type PostMode = "single" | "carousel";
 type PostAccess = "free" | "premium";
 
@@ -130,6 +153,8 @@ export function PostComposer({
    * upload doesn't just sit on a generic spinner during the (usually few-second) wait for
    * a playable rendition - text-only, doesn't affect the `uploading` disabled-state logic. */
   const [uploadingLabel, setUploadingLabel] = useState<string | null>(null);
+  const [uploadingFileName, setUploadingFileName] = useState<string | null>(null);
+  const [uploadingPhase, setUploadingPhase] = useState<VideoUploadPhase | "image" | null>(null);
   /** 0-100 when the current upload/processing step reports real progress (Cloudinary's
    * XHR upload events, Bunny's TUS upload, or Bunny's own transcode encodeProgress); null
    * while nothing's known yet (e.g. before the first progress event, or the local-disk
@@ -147,8 +172,8 @@ export function PostComposer({
   const [pendingFindings, setPendingFindings] = useState<PiiFinding[]>([]);
   const [showPiiWarning, setShowPiiWarning] = useState(false);
   const [piiAcknowledged, setPiiAcknowledged] = useState(false);
-  const [cropQueue, setCropQueue] = useState<PendingCrop[]>([]);
-  const [videoQueue, setVideoQueue] = useState<File[]>([]);
+  const [reviewQueue, setReviewQueue] = useState<PendingMediaReview[]>([]);
+  const [failedUpload, setFailedUpload] = useState<FailedMediaUpload | null>(null);
 
   useFocusTrap(showPiiWarning, piiDialogRef);
 
@@ -195,6 +220,7 @@ export function PostComposer({
   );
   const mediaLimit = postMode === "single" ? 1 : MAX_POST_MEDIA_ITEMS;
   const canAddMedia = mediaItems.length < mediaLimit;
+  const activeReview = reviewQueue[0];
 
   function setDisplayAspectRatio(value: PostDisplayAspectRatio) {
     setDisplayAspectRatioState(value);
@@ -213,34 +239,51 @@ export function PostComposer({
   }
 
   async function uploadFile(
-    file: File,
-    metadataDetected: boolean,
+    pending: PendingMediaReview,
+    adjustedFile?: File,
     crop?: VideoCrop,
-  ) {
-    const isVideo = file.type.startsWith("video/");
+  ): Promise<boolean> {
+    const file = adjustedFile ?? pending.file;
+    const isVideo = pending.kind === "video";
+    setUploading(true);
+    setUploadingFileName(file.name);
+    setUploadingPhase(isVideo ? "preparing" : "image");
+    setUploadingLabel(isVideo ? "Preparing video..." : "Uploading photo...");
     setUploadingProgress(null);
+    setError(null);
 
     try {
       const media = isVideo
         ? await uploadVideoDirect(
             file,
             "/api/upload/post-media",
-            (fraction) => setUploadingProgress(Math.round(fraction * 100)),
+            (fraction) =>
+              setUploadingProgress((current) =>
+                Math.max(current ?? 0, Math.round(fraction * 100)),
+              ),
             (phase) => {
+              setUploadingPhase(phase);
               if (phase === "processing") {
                 setUploadingLabel("Processing video...");
-                setUploadingProgress(0);
               } else if (phase === "reconnecting") {
-                // Progress is left as-is (not reset) - the upload resumes from the same
-                // byte once back online, so the percentage shouldn't jump backward either.
-                setUploadingLabel("Connection dropped - waiting to reconnect...");
+                setUploadingLabel("Upload paused. Reconnecting...");
+              } else if (phase === "retrying") {
+                setUploadingLabel("Video service interrupted. Resuming...");
+              } else if (phase === "preparing") {
+                setUploadingLabel("Preparing video...");
               } else {
                 setUploadingLabel("Uploading video...");
               }
             },
           )
-        : await uploadMediaDirectToCloudinary(file, "post-image", "/api/upload/post-media", (fraction) =>
-            setUploadingProgress(Math.round(fraction * 100)),
+        : await uploadMediaDirectToCloudinary(
+            file,
+            adjustedFile ? "post-image" : pending.imagePurpose ?? "post-image",
+            "/api/upload/post-media",
+            (fraction) =>
+              setUploadingProgress((current) =>
+                Math.max(current ?? 0, Math.round(fraction * 100)),
+              ),
           );
 
       setMediaItems((prev) => [
@@ -249,14 +292,20 @@ export function PostComposer({
           ...media,
           type: isVideo ? "video" : "image",
           displayAspectRatio,
-          metadataDetected,
+          metadataDetected: pending.metadataDetected,
           crop,
         },
       ]);
+      setUploadingProgress(100);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+      return false;
     } finally {
+      setUploading(false);
       setUploadingLabel(null);
+      setUploadingFileName(null);
+      setUploadingPhase(null);
       setUploadingProgress(null);
     }
   }
@@ -269,8 +318,7 @@ export function PostComposer({
       postMode === "single" &&
       (files.length > 1 ||
         mediaItems.length >= 1 ||
-        cropQueue.length >= 1 ||
-        videoQueue.length >= 1)
+        reviewQueue.length >= 1)
     ) {
       setError(
         "Single posts can use one photo or video. Switch to carousel for multiple media.",
@@ -280,7 +328,7 @@ export function PostComposer({
     }
 
     if (
-      mediaItems.length + cropQueue.length + videoQueue.length + files.length >
+      mediaItems.length + reviewQueue.length + files.length >
       MAX_POST_MEDIA_ITEMS
     ) {
       setError(`Up to ${MAX_POST_MEDIA_ITEMS} media items per carousel.`);
@@ -290,21 +338,19 @@ export function PostComposer({
 
     setError(null);
 
-    const videosToReview: File[] = [];
-    const imagesToReview: PendingCrop[] = [];
+    const mediaToReview: PendingMediaReview[] = [];
     let lastError: string | null = null;
 
     for (const file of files) {
       try {
         let workingFile = file;
 
+        let imagePurpose: PendingMediaReview["imagePurpose"] = "post-image";
         if (isHeicFile(workingFile)) {
           try {
             workingFile = await convertHeicFileToJpeg(workingFile);
           } catch {
-            lastError =
-              "One photo couldn't be converted from HEIC. Try exporting it as JPEG or PNG first.";
-            continue;
+            imagePurpose = "post-image-normalize";
           }
         }
 
@@ -315,9 +361,14 @@ export function PostComposer({
         // File with an empty or generic `type` - fall back to sniffing the real header bytes
         // rather than rejecting a perfectly valid photo or video outright.
         if (!isImage && !isVideo) {
-          const sniffed = await sniffMediaKind(workingFile).catch(() => null);
-          isImage = sniffed === "image";
-          isVideo = sniffed === "video";
+          const detectedType =
+            (await sniffMediaType(workingFile).catch(() => null)) ??
+            inferMediaTypeFromFileName(workingFile.name);
+          if (detectedType) {
+            workingFile = withNormalizedMediaType(workingFile, detectedType);
+            isImage = detectedType.startsWith("image/");
+            isVideo = detectedType.startsWith("video/");
+          }
         }
 
         if (!isImage && !isVideo) {
@@ -329,7 +380,7 @@ export function PostComposer({
           continue;
         }
         if (isVideo && workingFile.size > MAX_VIDEO_FILE_SIZE) {
-          lastError = `Each video must be under ${MAX_VIDEO_FILE_SIZE / (1024 * 1024)}MB.`;
+          lastError = "Each video can be up to 2GB.";
           continue;
         }
 
@@ -339,7 +390,11 @@ export function PostComposer({
             lastError = `Videos must be ${Math.round(MAX_VIDEO_DURATION_SECONDS / 60)} minutes or shorter.`;
             continue;
           }
-          videosToReview.push(workingFile);
+          mediaToReview.push({
+            file: workingFile,
+            kind: "video",
+            metadataDetected: false,
+          });
           continue;
         }
 
@@ -349,12 +404,17 @@ export function PostComposer({
         let metadataDetected = false;
         try {
           metadataDetected = hasImageMetadataSignature(
-            await readFileAsArrayBuffer(workingFile),
+            await readFileAsArrayBuffer(workingFile.slice(0, 512 * 1024)),
           );
         } catch {
           metadataDetected = false;
         }
-        imagesToReview.push({ file: workingFile, metadataDetected });
+        mediaToReview.push({
+          file: workingFile,
+          kind: "image",
+          metadataDetected,
+          imagePurpose,
+        });
       } catch {
         lastError = "One file couldn't be processed. Try a different photo or video.";
       }
@@ -364,41 +424,37 @@ export function PostComposer({
 
     // Every photo and video goes through the frame/adjust screen, cropped to the post's
     // chosen dimension - this is what keeps the feed WYSIWYG with what was previewed here.
-    if (imagesToReview.length > 0) {
-      setCropQueue((prev) => [...prev, ...imagesToReview]);
-    }
-    if (videosToReview.length > 0) {
-      setVideoQueue((prev) => [...prev, ...videosToReview]);
+    if (mediaToReview.length > 0) {
+      setReviewQueue((prev) => [...prev, ...mediaToReview]);
     }
 
     event.target.value = "";
   }
 
   async function handleCropConfirm({ file }: { file: File }) {
-    const metadataDetected = cropQueue[0]?.metadataDetected ?? false;
-    setCropQueue((prev) => prev.slice(1));
-    setUploading(true);
-    await uploadFile(file, metadataDetected);
-    setUploading(false);
+    const pending = reviewQueue[0];
+    if (!pending || pending.kind !== "image") return;
+    const succeeded = await uploadFile(pending, file);
+    if (succeeded) setReviewQueue((prev) => prev.slice(1));
+    else setFailedUpload({ pending, adjustedFile: file });
   }
 
   function handleCropCancel() {
-    setCropQueue((prev) => prev.slice(1));
+    setReviewQueue((prev) => prev.slice(1));
   }
 
   async function handleCropError() {
-    const pending = cropQueue[0];
-    setCropQueue((prev) => prev.slice(1));
-    if (!pending) return;
+    const pending = reviewQueue[0];
+    if (!pending || pending.kind !== "image") return;
 
     // The browser's own canvas decode couldn't pan/zoom-crop this photo (an uncommon
     // color profile, an oversized image past this device's decode limit, or similar) -
     // that's a client-side preview limitation, not a reason to reject the upload.
     // Cloudinary decodes a much broader range of formats server-side than a browser can,
     // so upload the original file uncropped rather than forcing a different one.
-    setUploading(true);
-    await uploadFile(pending.file, pending.metadataDetected);
-    setUploading(false);
+    const succeeded = await uploadFile(pending);
+    if (succeeded) setReviewQueue((prev) => prev.slice(1));
+    else setFailedUpload({ pending });
   }
 
   async function handleVideoFrameConfirm({
@@ -409,31 +465,47 @@ export function PostComposer({
     height: number;
     durationSeconds: number;
   }) {
-    const file = videoQueue[0];
-    setVideoQueue((prev) => prev.slice(1));
-    if (!file) return;
-    setUploading(true);
-    await uploadFile(file, false, crop);
-    setUploading(false);
+    const pending = reviewQueue[0];
+    if (!pending || pending.kind !== "video") return;
+    const succeeded = await uploadFile(pending, undefined, crop);
+    if (succeeded) setReviewQueue((prev) => prev.slice(1));
+    else setFailedUpload({ pending, crop });
   }
 
   function handleVideoFrameCancel() {
-    setVideoQueue((prev) => prev.slice(1));
+    setReviewQueue((prev) => prev.slice(1));
   }
 
   async function handleVideoFrameError() {
-    const file = videoQueue[0];
-    setVideoQueue((prev) => prev.slice(1));
-    if (!file) return;
+    const pending = reviewQueue[0];
+    if (!pending || pending.kind !== "video") return;
 
     // The browser's own <video> element couldn't decode this file well enough to preview
     // it for cropping (an unsupported codec/container on this device, or a slow load) -
     // that's a client-side preview limitation, not a reason to reject an otherwise valid
     // upload. Upload the original file as-is with no custom crop rather than forcing the
     // person to find a different file or re-export it.
-    setUploading(true);
-    await uploadFile(file, false);
-    setUploading(false);
+    const succeeded = await uploadFile(pending);
+    if (succeeded) setReviewQueue((prev) => prev.slice(1));
+    else setFailedUpload({ pending });
+  }
+
+  async function retryFailedUpload() {
+    if (!failedUpload) return;
+    const succeeded = await uploadFile(
+      failedUpload.pending,
+      failedUpload.adjustedFile,
+      failedUpload.crop,
+    );
+    if (!succeeded) return;
+    setFailedUpload(null);
+    setReviewQueue((prev) => prev.slice(1));
+  }
+
+  function removeFailedUpload() {
+    setFailedUpload(null);
+    setError(null);
+    setReviewQueue((prev) => prev.slice(1));
   }
 
   function removeMedia(url: string) {
@@ -479,6 +551,11 @@ export function PostComposer({
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
+    if (reviewQueue.length > 0 || uploading) {
+      setError("Finish adding the selected media before publishing.");
+      return;
+    }
+
     if (!content.trim() && mediaPayload.length === 0) {
       setError("Share something or add media before publishing.");
       return;
@@ -521,9 +598,10 @@ export function PostComposer({
           key={option.value}
           type="button"
           aria-pressed={postMode === option.value}
+          disabled={uploading || reviewQueue.length > 0}
           onClick={() => setMode(option.value)}
           className={cn(
-            "relative min-h-12 flex-1 px-4 text-sm font-semibold transition-colors after:absolute after:inset-x-5 after:bottom-0 after:h-0.5 after:origin-center after:scale-x-0 after:bg-foreground after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none motion-reduce:after:transition-none",
+            "relative min-h-12 flex-1 px-4 text-sm font-semibold transition-colors after:absolute after:inset-x-5 after:bottom-0 after:h-0.5 after:origin-center after:scale-x-0 after:bg-foreground after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none motion-reduce:after:transition-none",
             postMode === option.value
               ? "text-foreground after:scale-x-100"
               : "text-muted-foreground hover:text-foreground",
@@ -549,9 +627,10 @@ export function PostComposer({
               key={option.value}
               type="button"
               aria-pressed={selected}
+              disabled={uploading || reviewQueue.length > 0}
               onClick={() => setDisplayAspectRatio(option.value)}
               className={cn(
-                "group flex min-h-[72px] min-w-[56px] flex-col items-center justify-end gap-2 py-1 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4",
+                "group flex min-h-[72px] min-w-[56px] flex-col items-center justify-end gap-2 py-1 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 disabled:cursor-not-allowed disabled:opacity-45",
                 selected
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground",
@@ -770,7 +849,7 @@ export function PostComposer({
         </div>
       )}
 
-      {error && (
+      {error && !failedUpload && (
         <p role="alert" className="text-sm leading-5 text-destructive">
           {error}
         </p>
@@ -779,7 +858,12 @@ export function PostComposer({
       <div className="sticky bottom-3 z-10 -mx-1 border-t border-border/70 bg-card/95 px-1 pt-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:pt-0">
         <Button
           type="submit"
-          disabled={submitting || uploading || (isSubscriberOnly && !selectedTierId)}
+          disabled={
+            submitting ||
+            uploading ||
+            reviewQueue.length > 0 ||
+            (isSubscriberOnly && !selectedTierId)
+          }
           className="h-12 w-full rounded-[8px] bg-foreground text-background shadow-none hover:bg-foreground/90 hover:shadow-none"
         >
           {submitting ? (
@@ -795,10 +879,49 @@ export function PostComposer({
     </>
   );
 
+  const failedUploadPanel = failedUpload ? (
+    <div className="w-full border border-destructive/25 bg-destructive/[0.04] p-4 sm:p-5">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-foreground">This upload needs attention</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {failedUpload.pending.file.name} · {formatFileSize(failedUpload.pending.file.size)}
+          </p>
+          {error && (
+            <p role="alert" className="mt-2 text-sm leading-5 text-destructive">
+              {error}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <Button
+          type="button"
+          onClick={() => void retryFailedUpload()}
+          className="h-11 flex-1 rounded-[8px] bg-foreground text-background hover:bg-foreground/90"
+        >
+          Try upload again
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={removeFailedUpload}
+          className="h-11 flex-1 rounded-[8px]"
+        >
+          Remove this file
+        </Button>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <>
       <form
         onSubmit={handleSubmit}
+        aria-busy={uploading}
         className="overflow-hidden border-y border-border/80 bg-card md:rounded-[8px] md:border md:shadow-card"
       >
         {modeControls}
@@ -808,6 +931,7 @@ export function PostComposer({
           type="file"
           accept="image/*,video/*"
           multiple={postMode === "carousel"}
+          disabled={uploading}
           className="hidden"
           onChange={handleFiles}
         />
@@ -819,12 +943,18 @@ export function PostComposer({
                 <UploadProgress
                   progress={uploadingProgress}
                   label={uploadingLabel ?? "Preparing your media..."}
+                  fileName={uploadingFileName ?? undefined}
+                  phase={uploadingPhase}
                   hint={
                     uploadingLabel === "Processing video..."
                       ? "Getting it ready to play smoothly on every device."
                       : "Keep this screen open - it picks up where it left off if your connection dips."
                   }
                 />
+              </div>
+            ) : failedUploadPanel ? (
+              <div className="flex min-h-[240px] items-center justify-center sm:min-h-[280px]">
+                {failedUploadPanel}
               </div>
             ) : (
               <button
@@ -957,6 +1087,23 @@ export function PostComposer({
             </section>
 
             <section className="flex flex-col gap-6 p-4 sm:p-6 md:p-7">
+              {uploading && (
+                <div className="border-b border-border/70 pb-6">
+                  <UploadProgress
+                    progress={uploadingProgress}
+                    label={uploadingLabel ?? "Preparing your media..."}
+                    fileName={uploadingFileName ?? undefined}
+                    phase={uploadingPhase}
+                    hint={
+                      uploadingLabel === "Processing video..."
+                        ? "The upload is complete. Bunny is preparing smooth playback quality."
+                        : "You can keep this screen open while the upload resumes through brief connection changes."
+                    }
+                  />
+                </div>
+              )}
+              {!uploading && failedUploadPanel}
+
               {frameControls}
 
               {writingField}
@@ -1038,10 +1185,10 @@ export function PostComposer({
         </div>
       )}
 
-      {cropQueue.length > 0 ? (
+      {!uploading && !failedUpload && activeReview?.kind === "image" ? (
         <ImageCropDialog
-          key={cropQueue[0].file.name + cropQueue[0].file.lastModified}
-          file={cropQueue[0].file}
+          key={`${activeReview.file.name}-${activeReview.file.lastModified}-${activeReview.file.size}`}
+          file={activeReview.file}
           title="Adjust photo"
           initialPresetId={displayAspectRatio}
           onCancel={handleCropCancel}
@@ -1049,10 +1196,12 @@ export function PostComposer({
           onError={handleCropError}
         />
       ) : (
-        videoQueue.length > 0 && (
+        !uploading &&
+        !failedUpload &&
+        activeReview?.kind === "video" && (
           <VideoFrameDialog
-            key={videoQueue[0].name + videoQueue[0].lastModified}
-            file={videoQueue[0]}
+            key={`${activeReview.file.name}-${activeReview.file.lastModified}-${activeReview.file.size}`}
+            file={activeReview.file}
             ratio={selectedRatio}
             onCancel={handleVideoFrameCancel}
             onConfirm={handleVideoFrameConfirm}
