@@ -128,10 +128,18 @@ export function Callout({ children }: { children: ReactNode }) {
 /**
  * The shared shell for every Udala email - logo header, a white card for the message
  * itself, and a minimal footer. Kept deliberately plain (no unsubscribe link, no
- * marketing footer) because every Phase 1 email is transactional; that changes once
- * Phase 5's digest/re-engagement emails need an opt-out.
+ * marketing footer) for every transactional email - pass unsubscribeUrl only for the
+ * Phase 5 digest/re-engagement emails, the one category that isn't transactional.
  */
-export function EmailLayout({ preview, children }: { preview: string; children: ReactNode }) {
+export function EmailLayout({
+  preview,
+  unsubscribeUrl,
+  children,
+}: {
+  preview: string;
+  unsubscribeUrl?: string;
+  children: ReactNode;
+}) {
   return (
     <Html>
       <Head>
@@ -196,6 +204,14 @@ export function EmailLayout({ preview, children }: { preview: string; children: 
                 help@udala.pro
               </Link>
               .
+              {unsubscribeUrl && (
+                <>
+                  <br />
+                  <Link href={unsubscribeUrl} style={{ color: colors.inkSoft, textDecoration: "underline" }}>
+                    Unsubscribe from these emails
+                  </Link>
+                </>
+              )}
             </Text>
           </Section>
         </Container>

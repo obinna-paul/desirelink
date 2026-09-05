@@ -50,6 +50,10 @@ export const config = {
     // excluded /help prefix) accepts a message from a logged-out visitor too
     // (e.g. someone who can't log in at all), so its submit route can't be
     // auth-gated either.
-    "/((?!login|signup|landing|blog|help|offline|forgot-password|reset-password|api/auth|api/signup|api/support|api/cron|_next/static|_next/image|icons/.*|profile/(?!edit(?:/|$))[^/]+|posts/[^/]+|services/(?!new(?:/|$)|bookings(?:/|$))[^/]+|live/(?!go(?:/|$))[^/]+|.*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|json|js|css|woff2?|txt|xml)$).+)",
+    //
+    // Also excluded: api/unsubscribe and unsubscribed — a one-click unsubscribe
+    // link clicked straight from an email client never carries a session
+    // cookie, and must work exactly the same whether it does or not.
+    "/((?!login|signup|landing|blog|help|offline|forgot-password|reset-password|unsubscribed|api/auth|api/signup|api/support|api/unsubscribe|api/cron|_next/static|_next/image|icons/.*|profile/(?!edit(?:/|$))[^/]+|posts/[^/]+|services/(?!new(?:/|$)|bookings(?:/|$))[^/]+|live/(?!go(?:/|$))[^/]+|.*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|json|js|css|woff2?|txt|xml)$).+)",
   ],
 };

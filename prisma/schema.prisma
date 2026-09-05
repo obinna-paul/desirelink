@@ -271,6 +271,25 @@ model Profile {
   /** Dedupes the "your profile is still missing something" nudge - see app/api/cron/profile-nudge. */
   profileNudgeSentAt DateTime?
 
+  /**
+   * One flag covers every Phase 5 lifecycle email (weekly digest, win-back, monthly
+   * earnings summary) - the only category of email that isn't transactional, so the only
+   * one with an unsubscribe link (see lib/email/unsubscribe.ts). Defaults on; flipped off
+   * by the one-click unsubscribe link, never by anything else.
+   */
+  marketingEmailsEnabled Boolean @default(true)
+  /** Dedupes the weekly digest - see app/api/cron/weekly-digest. */
+  digestSentAt DateTime?
+  /**
+   * Dedupes the win-back email to once per inactive stretch: sent again only once
+   * lastActiveAt has moved past this timestamp (i.e. they came back, then went quiet
+   * again) - see app/api/cron/win-back.
+   */
+  winBackSentAt DateTime?
+  /** "YYYY-MM" of the last month a monthly earnings summary was sent - see
+   * app/api/cron/monthly-earnings-summary. */
+  earningsSummarySentForMonth String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
