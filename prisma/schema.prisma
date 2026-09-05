@@ -1099,3 +1099,23 @@ model KnownDevice {
 
   @@unique([userId, fingerprint])
 }
+
+/**
+ * A message submitted through the help contact form - profileId is a plain string (not a
+ * relation) since a logged-out visitor can also submit one, keyed only by the email they
+ * typed. See lib/support.ts.
+ */
+model SupportTicket {
+  id          String    @id @default(cuid())
+  profileId   String?
+  email       String
+  subject     String
+  message     String
+  status      String    @default("open") // "open" | "resolved"
+  resolvedAt  DateTime?
+  resolvedById String?
+  createdAt   DateTime  @default(now())
+
+  @@index([status])
+  @@index([email])
+}

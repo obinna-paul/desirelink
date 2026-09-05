@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { queueModerationFlag } from "@/lib/moderation";
 import { recalculateReputation } from "@/lib/reputation";
+import { sendReportReceivedEmail } from "@/lib/email/safety-notifications";
 
 export {
   REPORT_TARGET_TYPES,
@@ -84,6 +85,7 @@ export async function submitReport(
     reason: `User report: ${trimmedReason}`,
     details: trimmedDetails || "No additional details provided.",
   });
+  await sendReportReceivedEmail(reporterId);
 
   return { ok: true, reportId: report.id };
 }

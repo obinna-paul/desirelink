@@ -14,10 +14,11 @@ export type AdminCapability =
   | "view_verification_media"
   | "manage_payouts"
   | "manage_roles"
-  | "view_audit_log";
+  | "view_audit_log"
+  | "manage_support_tickets";
 
 const CAPABILITIES: Record<AdminRole, AdminCapability[]> = {
-  SUPPORT: ["view_accounts", "write_notes"],
+  SUPPORT: ["view_accounts", "write_notes", "manage_support_tickets"],
   MODERATOR: ["view_accounts", "write_notes", "moderate_content", "view_locked_content", "view_verification_media"],
   FINANCE: ["view_accounts", "write_notes", "manage_payouts"],
   SUPERADMIN: [
@@ -29,6 +30,7 @@ const CAPABILITIES: Record<AdminRole, AdminCapability[]> = {
     "manage_payouts",
     "manage_roles",
     "view_audit_log",
+    "manage_support_tickets",
   ],
 };
 

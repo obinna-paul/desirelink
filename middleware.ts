@@ -45,6 +45,11 @@ export const config = {
     // deliberately NOT excluded: it's only ever reached right after signup,
     // which already creates a session, and its API route enforces that
     // independently regardless of this matcher.
-    "/((?!login|signup|landing|blog|help|offline|forgot-password|reset-password|api/auth|api/signup|api/cron|_next/static|_next/image|icons/.*|profile/(?!edit(?:/|$))[^/]+|posts/[^/]+|services/(?!new(?:/|$)|bookings(?:/|$))[^/]+|live/(?!go(?:/|$))[^/]+|.*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|json|js|css|woff2?|txt|xml)$).+)",
+    //
+    // Also excluded: api/support — the help contact form (under the already-
+    // excluded /help prefix) accepts a message from a logged-out visitor too
+    // (e.g. someone who can't log in at all), so its submit route can't be
+    // auth-gated either.
+    "/((?!login|signup|landing|blog|help|offline|forgot-password|reset-password|api/auth|api/signup|api/support|api/cron|_next/static|_next/image|icons/.*|profile/(?!edit(?:/|$))[^/]+|posts/[^/]+|services/(?!new(?:/|$)|bookings(?:/|$))[^/]+|live/(?!go(?:/|$))[^/]+|.*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|json|js|css|woff2?|txt|xml)$).+)",
   ],
 };

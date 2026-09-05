@@ -24,7 +24,8 @@ export type AdminAuditAction =
   | "account.note"
   | "finance.release_escrow"
   | "finance.refund_escrow"
-  | "admin.role_change";
+  | "admin.role_change"
+  | "support.resolve";
 
 /**
  * Writes one append-only audit row. Called for both privileged WRITES (approving a

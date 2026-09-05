@@ -2,6 +2,12 @@ import type { ModerationStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { recordAdminAction, type AdminAuditAction } from "@/lib/admin/audit";
+import { sendAccountSuspendedEmail } from "@/lib/email/notifications";
+import {
+  sendAccountWarningEmail,
+  sendContentRemovedEmail,
+  sendReportActionedEmail,
+} from "@/lib/email/safety-notifications";
 
 export const MODERATION_KEYWORDS = [
   "scam",
@@ -237,6 +243,7 @@ export async function reviewModerationFlag(
     if (!removed) {
       return { ok: false, status: 400, error: "This content type can't be removed here" };
     }
+    if (ownerId) await sendContentRemovedEmail(ownerId, flag.contentType);
   }
 
   if (action === "warn" && ownerId) {
@@ -244,6 +251,7 @@ export async function reviewModerationFlag(
       where: { id: ownerId },
       data: { warningCount: { increment: 1 }, communityStanding: { decrement: 5 } },
     });
+    await sendAccountWarningEmail(ownerId);
   }
 
   if (action === "suspend" && ownerId) {
@@ -251,6 +259,7 @@ export async function reviewModerationFlag(
       where: { id: ownerId },
       data: { isSuspended: true, suspendedAt: new Date(), communityStanding: { decrement: 20 } },
     });
+    await sendAccountSuspendedEmail(ownerId);
   }
 
   await prisma.moderationQueue.update({
@@ -269,6 +278,9 @@ export async function reviewModerationFlag(
       where: { targetType: flag.contentType as never, targetId: flag.contentId, status: "pending" },
       data: { status: action === "review" ? "reviewed" : "resolved" },
     });
+    // Only when a real action was taken - "we took action" would be misleading to send
+    // for a report that was reviewed and dismissed.
+    if (action !== "review") await sendReportActionedEmail(flag.reporterId);
   }
 
   const AUDIT_ACTION: Record<ModerationAction, AdminAuditAction> = {
