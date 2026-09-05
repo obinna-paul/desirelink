@@ -204,18 +204,26 @@ export function ProfileView({
             <VerificationBadge profile={profile} />
           </div>
 
-          <div className="mt-4 grid max-w-xs grid-cols-3 divide-x divide-border sm:max-w-sm md:ml-[9.5rem] md:mt-4">
+          <div
+            className={`mt-4 grid max-w-xs divide-x divide-border sm:max-w-sm md:ml-[9.5rem] md:mt-4 ${
+              isProvider ? "grid-cols-3" : "grid-cols-1"
+            }`}
+          >
             <ProfileStat value={posts.length} label="Posts" />
-            <ProfileStat value={stats.subscriberCount} label="Subscribers" />
-            <ProfileStat
-              value={
-                reviewSummary.totalCount
-                  ? reviewSummary.averageRating.toFixed(1)
-                  : "—"
-              }
-              label="Rating"
-              href={sectionHref(profileHref, "reviews")}
-            />
+            {isProvider && (
+              <>
+                <ProfileStat value={stats.subscriberCount} label="Subscribers" />
+                <ProfileStat
+                  value={
+                    reviewSummary.totalCount
+                      ? reviewSummary.averageRating.toFixed(1)
+                      : "—"
+                  }
+                  label="Rating"
+                  href={sectionHref(profileHref, "reviews")}
+                />
+              </>
+            )}
           </div>
 
           <div className="mt-4 max-w-2xl md:ml-[9.5rem]">
