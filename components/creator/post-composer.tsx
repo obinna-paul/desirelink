@@ -16,6 +16,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { ProgressRing } from "@/components/ui/progress-ring";
+import { UploadProgress } from "@/components/ui/upload-progress";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
@@ -813,32 +814,35 @@ export function PostComposer({
 
         {mediaItems.length === 0 ? (
           <div className="p-4 sm:p-6 md:p-8">
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              disabled={uploading}
-              className="flex min-h-[240px] w-full flex-col items-center justify-center border border-dashed border-border bg-muted/20 px-6 py-10 text-center transition-colors hover:border-muted-foreground/60 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[280px]"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background">
-                {uploading ? (
-                  uploadingProgress === null ? (
-                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <ProgressRing progress={uploadingProgress} size={40} strokeWidth={3} />
-                  )
-                ) : (
+            {uploading ? (
+              <div className="flex min-h-[240px] w-full flex-col items-center justify-center border border-dashed border-border bg-muted/20 px-6 py-10 sm:min-h-[280px]">
+                <UploadProgress
+                  progress={uploadingProgress}
+                  label={uploadingLabel ?? "Preparing your media..."}
+                  hint={
+                    uploadingLabel === "Processing video..."
+                      ? "Getting it ready to play smoothly on every device."
+                      : "Keep this screen open - it picks up where it left off if your connection dips."
+                  }
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="flex min-h-[240px] w-full flex-col items-center justify-center border border-dashed border-border bg-muted/20 px-6 py-10 text-center transition-colors hover:border-muted-foreground/60 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-[280px]"
+              >
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background">
                   <ImagePlus className="h-5 w-5" aria-hidden="true" />
-                )}
-              </span>
-              <span className="mt-4 text-base font-semibold text-foreground">
-                {uploading ? (uploadingLabel ?? "Preparing your media...") : "Open gallery"}
-              </span>
-              <span className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">
-                {postMode === "carousel"
-                  ? `Choose up to ${MAX_POST_MEDIA_ITEMS} photos or videos for one carousel.`
-                  : "Choose one photo or video from this device."}
-              </span>
-            </button>
+                </span>
+                <span className="mt-4 text-base font-semibold text-foreground">Open gallery</span>
+                <span className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">
+                  {postMode === "carousel"
+                    ? `Choose up to ${MAX_POST_MEDIA_ITEMS} photos or videos for one carousel.`
+                    : "Choose one photo or video from this device."}
+                </span>
+              </button>
+            )}
 
             <div className="mx-auto mt-7 grid max-w-3xl gap-7 md:grid-cols-[0.8fr_1.2fr] md:gap-10">
               {frameControls}

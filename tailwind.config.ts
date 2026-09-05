@@ -90,9 +90,16 @@ const config: Config = {
           "15%": { opacity: "1" },
           "100%": { transform: "translateY(-140px) scale(1.15)", opacity: "0" },
         },
+        // Sweeps a short bar across an empty track - the honest way to show "working on it"
+        // when there's no real percentage yet (see components/ui/upload-progress.tsx).
+        "progress-sweep": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(400%)" },
+        },
       },
       animation: {
         "float-heart": "float-heart 1.6s ease-out forwards",
+        "progress-sweep": "progress-sweep 1.4s ease-in-out infinite",
       },
     },
   },
