@@ -4,7 +4,6 @@ import type { Profile } from "@prisma/client";
 import {
   BriefcaseBusiness,
   CalendarDays,
-  Ellipsis,
   LayoutGrid,
   LifeBuoy,
   LockKeyhole,
@@ -21,6 +20,7 @@ import {
 } from "@/components/profile/creator-content-grid";
 import { InviteButton } from "@/components/profile/invite-button";
 import { ProfileAvatarEditor } from "@/components/profile/profile-avatar-editor";
+import { ProfileMoreMenu } from "@/components/profile/profile-more-menu";
 import { ProfileSectionTab } from "@/components/profile/profile-section-tab";
 import { ProfileSetupActions } from "@/components/profile/profile-setup-actions";
 import { SubscribePlansDialog } from "@/components/profile/subscribe-plans-dialog";
@@ -280,27 +280,21 @@ export function ProfileView({
                     size="sm"
                     className="sm:flex-1"
                   />
-                  <details className="relative">
-                    <summary
-                      aria-label="More profile actions"
-                      className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted [&::-webkit-details-marker]:hidden"
-                    >
-                      <Ellipsis className="h-5 w-5" aria-hidden="true" />
-                    </summary>
-                    <div className="absolute right-0 top-12 z-30 flex min-w-48 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-lift">
-                      <Button asChild variant="ghost" size="sm" className="min-h-11 w-full justify-start gap-1.5 rounded-lg px-3 text-sm font-medium">
-                        <Link href="/help/contact">
-                          <LifeBuoy className="h-4 w-4" aria-hidden="true" /> Help & Support
-                        </Link>
-                      </Button>
-                      <SignOutButton menu />
-                    </div>
-                  </details>
+                  <ProfileMoreMenu>
+                    <Button asChild variant="ghost" size="sm" className="min-h-11 w-full justify-start gap-1.5 rounded-lg px-3 text-sm font-medium">
+                      <Link href="/help/contact">
+                        <LifeBuoy className="h-4 w-4" aria-hidden="true" /> Help & Support
+                      </Link>
+                    </Button>
+                    <SignOutButton menu />
+                  </ProfileMoreMenu>
                 </>
               ) : isProvider ? (
                 <>
+                  {/* Subscribe is the one thing worth a solid, colored button here - Message
+                      stays outline so the two never compete for the same attention. */}
                   {canMessage && (
-                    <Button asChild size="sm" className="flex-1">
+                    <Button asChild variant="outline" size="sm" className="flex-1">
                       <Link href={`/messages?with=${profile.username}`}>
                         Message
                       </Link>
@@ -314,39 +308,35 @@ export function ProfileView({
                       className="flex-1"
                     />
                   )}
-                  <details className="relative">
-                    <summary
-                      aria-label="More profile actions"
-                      className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted [&::-webkit-details-marker]:hidden"
-                    >
-                      <Ellipsis className="h-5 w-5" aria-hidden="true" />
-                    </summary>
-                    <div className="absolute right-0 top-12 z-30 flex min-w-48 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-lift">
-                      <ShareProfileButton
-                        profileHref={profileHref}
-                        displayName={profile.displayName}
-                      />
-                      {canModerate && (
-                        <>
-                          <ReportDialog
-                            targetType="profile"
-                            targetId={profile.id}
-                          />
-                          <BlockButton
-                            profileId={profile.id}
-                            initiallyBlocked={false}
-                          />
-                        </>
-                      )}
-                    </div>
-                  </details>
+                  <ProfileMoreMenu>
+                    <ShareProfileButton
+                      profileHref={profileHref}
+                      displayName={profile.displayName}
+                      menu
+                    />
+                    {canModerate && (
+                      <>
+                        <ReportDialog
+                          targetType="profile"
+                          targetId={profile.id}
+                          menu
+                        />
+                        <BlockButton
+                          profileId={profile.id}
+                          initiallyBlocked={false}
+                          menu
+                        />
+                      </>
+                    )}
+                  </ProfileMoreMenu>
                 </>
               ) : (
                 <>
                   {canMessage && (
                     <Button
                       asChild
-                      className="h-10 min-w-32 flex-1 sm:flex-none"
+                      size="sm"
+                      className="min-w-32 flex-1 sm:flex-none"
                     >
                       <Link href={`/messages?with=${profile.username}`}>
                         Message
@@ -359,32 +349,27 @@ export function ProfileView({
                       recipientDisplayName={profile.displayName}
                     />
                   )}
-                  <details className="relative">
-                    <summary
-                      aria-label="More profile actions"
-                      className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted [&::-webkit-details-marker]:hidden"
-                    >
-                      <Ellipsis className="h-5 w-5" aria-hidden="true" />
-                    </summary>
-                    <div className="absolute right-0 top-12 z-30 flex min-w-48 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-lift">
-                      <ShareProfileButton
-                        profileHref={profileHref}
-                        displayName={profile.displayName}
-                      />
-                      {canModerate && (
-                        <>
-                          <ReportDialog
-                            targetType="profile"
-                            targetId={profile.id}
-                          />
-                          <BlockButton
-                            profileId={profile.id}
-                            initiallyBlocked={false}
-                          />
-                        </>
-                      )}
-                    </div>
-                  </details>
+                  <ProfileMoreMenu>
+                    <ShareProfileButton
+                      profileHref={profileHref}
+                      displayName={profile.displayName}
+                      menu
+                    />
+                    {canModerate && (
+                      <>
+                        <ReportDialog
+                          targetType="profile"
+                          targetId={profile.id}
+                          menu
+                        />
+                        <BlockButton
+                          profileId={profile.id}
+                          initiallyBlocked={false}
+                          menu
+                        />
+                      </>
+                    )}
+                  </ProfileMoreMenu>
                 </>
               )}
             </div>

@@ -34,7 +34,7 @@ function LockedPostBody({
   subscribePrompt: PostView["subscribePrompt"];
 }) {
   return (
-    <div className="relative flex min-h-[26rem] flex-col items-center justify-center gap-2 overflow-hidden bg-foreground px-6 text-center text-background">
+    <div className="relative isolate flex min-h-[26rem] flex-col items-center justify-center gap-2 overflow-hidden bg-foreground px-6 text-center text-background">
       {blurredPreview && (
         <Image
           src={blurredPreview.url}

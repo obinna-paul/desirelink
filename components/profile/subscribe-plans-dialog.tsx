@@ -96,7 +96,7 @@ export function SubscribePlansDialog({
           type="button"
           variant={currentTier ? "outline" : "default"}
           size={size}
-          className="h-10 w-full min-w-28"
+          className="w-full min-w-28"
           onClick={() => setOpen(true)}
         >
           {currentTier && <Check className="h-4 w-4" aria-hidden="true" />}
