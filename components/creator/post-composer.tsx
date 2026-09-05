@@ -352,11 +352,19 @@ export function PostComposer({
     setCropQueue((prev) => prev.slice(1));
   }
 
-  function handleCropError() {
+  async function handleCropError() {
+    const pending = cropQueue[0];
     setCropQueue((prev) => prev.slice(1));
-    setError(
-      "A photo couldn't be opened. Try a different one, or convert it to JPEG or PNG first.",
-    );
+    if (!pending) return;
+
+    // The browser's own canvas decode couldn't pan/zoom-crop this photo (an uncommon
+    // color profile, an oversized image past this device's decode limit, or similar) -
+    // that's a client-side preview limitation, not a reason to reject the upload.
+    // Cloudinary decodes a much broader range of formats server-side than a browser can,
+    // so upload the original file uncropped rather than forcing a different one.
+    setUploading(true);
+    await uploadFile(pending.file, pending.metadataDetected);
+    setUploading(false);
   }
 
   async function handleVideoFrameConfirm({
