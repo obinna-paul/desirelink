@@ -1,9 +1,12 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { recordAdminAction } from "@/lib/admin/audit";
 import { getActiveSubscriberCount } from "@/lib/creator";
 import { sendAccountReinstatedEmail, sendAccountSuspendedEmail } from "@/lib/email/notifications";
+import { deleteVerificationMedia } from "@/lib/verification";
 
 const searchResultSelect = {
   id: true,
@@ -18,26 +21,44 @@ const searchResultSelect = {
   user: { select: { email: true } },
 } as const;
 
-export type AccountSearchResult = Awaited<ReturnType<typeof searchAccounts>>[number];
+export type AccountListItem = Prisma.ProfileGetPayload<{ select: typeof searchResultSelect }>;
 
-/** Finds accounts by username, display name, or email - the support workhorse. Empty
- * query returns nothing rather than the whole user table. */
-export async function searchAccounts(query: string, take = 20) {
+const ACCOUNTS_PAGE_SIZE = 30;
+
+/**
+ * Lists accounts for the admin console's Accounts page - filtered by username, display
+ * name, or email when a query is given, otherwise every account, newest first. An empty
+ * query browsing everything (rather than showing nothing until you search) is what makes
+ * bulk-cleaning a batch of test signups practical - you can't search for accounts whose
+ * names you don't already know.
+ */
+export async function listAccounts(
+  query: string,
+  page = 1
+): Promise<{ accounts: AccountListItem[]; totalCount: number; pageSize: number }> {
   const q = query.trim();
-  if (!q) return [];
+  const where: Prisma.ProfileWhereInput = q
+    ? {
+        OR: [
+          { username: { contains: q, mode: "insensitive" } },
+          { displayName: { contains: q, mode: "insensitive" } },
+          { user: { email: { contains: q, mode: "insensitive" } } },
+        ],
+      }
+    : {};
 
-  return prisma.profile.findMany({
-    where: {
-      OR: [
-        { username: { contains: q, mode: "insensitive" } },
-        { displayName: { contains: q, mode: "insensitive" } },
-        { user: { email: { contains: q, mode: "insensitive" } } },
-      ],
-    },
-    take,
-    orderBy: { createdAt: "desc" },
-    select: searchResultSelect,
-  });
+  const [accounts, totalCount] = await Promise.all([
+    prisma.profile.findMany({
+      where,
+      take: ACCOUNTS_PAGE_SIZE,
+      skip: (Math.max(1, page) - 1) * ACCOUNTS_PAGE_SIZE,
+      orderBy: { createdAt: "desc" },
+      select: searchResultSelect,
+    }),
+    prisma.profile.count({ where }),
+  ]);
+
+  return { accounts, totalCount, pageSize: ACCOUNTS_PAGE_SIZE };
 }
 
 /** The full 360-degree record behind an account: profile, content footprint, money,
@@ -229,4 +250,81 @@ export async function addAccountNote(
   });
 
   return { ok: true, noteId: note.id };
+}
+
+/**
+ * Permanently deletes a user and everything that cascades from their Profile (posts,
+ * messages, subscriptions, wallet/transaction history, live streams, etc. - see the
+ * Profile model's onDelete: Cascade relations in prisma/schema.prisma). Irreversible;
+ * gated behind the delete_accounts capability (SUPERADMIN only), unlike suspend.
+ *
+ * Two things don't cascade automatically and are handled explicitly first:
+ * - AdminAuditLog.actorId and AdminNote.authorId reference User with no cascade (by
+ *   design - the audit trail must survive even a deleted account), so a user who has
+ *   ever taken an admin action can't be deleted at all; this is checked and refused
+ *   with a clear error rather than surfacing as a raw foreign-key crash.
+ * - Report.reportedUserId has no cascade either, but should survive deletion (the
+ *   complaint stays on file even once the account it was about is gone) - cleared to
+ *   null explicitly before the delete.
+ *
+ * Any un-purged verification media (government ID / selfie) is deleted from Cloudinary
+ * first - the privacy policy's "deleted immediately after review" promise shouldn't stop
+ * applying just because the account itself is about to disappear.
+ */
+export async function deleteAccountCompletely(profileId: string, actorId: string): Promise<AccountActionResult> {
+  const profile = await prisma.profile.findUnique({
+    where: { id: profileId },
+    select: { username: true, userId: true, user: { select: { isAdmin: true } } },
+  });
+  if (!profile) {
+    return { ok: false, status: 404, error: "Account not found" };
+  }
+  if (profile.userId === actorId) {
+    return { ok: false, status: 400, error: "You can't delete your own account this way" };
+  }
+  if (profile.user.isAdmin) {
+    return { ok: false, status: 400, error: "Remove admin access from this account before deleting it" };
+  }
+
+  const [auditActionCount, noteAuthorCount] = await Promise.all([
+    prisma.adminAuditLog.count({ where: { actorId: profile.userId } }),
+    prisma.adminNote.count({ where: { authorId: profile.userId } }),
+  ]);
+  if (auditActionCount > 0 || noteAuthorCount > 0) {
+    return {
+      ok: false,
+      status: 400,
+      error: "This account has taken admin actions on record and can't be deleted - its history must be preserved",
+    };
+  }
+
+  const unpurgedVerifications = await prisma.verificationRequest.findMany({
+    where: { profileId, mediaDeletedAt: null },
+    select: { id: true, govIdUrl: true, selfieUrl: true },
+  });
+  for (const request of unpurgedVerifications) {
+    await deleteVerificationMedia(request);
+  }
+
+  try {
+    await prisma.report.updateMany({ where: { reportedUserId: profileId }, data: { reportedUserId: null } });
+    await prisma.user.delete({ where: { id: profile.userId } });
+  } catch (error) {
+    console.error("[admin] account deletion failed", error);
+    return {
+      ok: false,
+      status: 409,
+      error: "Couldn't delete this account - it may still have live-request or gift history blocking the delete.",
+    };
+  }
+
+  await recordAdminAction({
+    actorId,
+    action: "account.delete",
+    targetType: "profile",
+    targetId: profileId,
+    summary: `Deleted @${profile.username} and all associated data`,
+  });
+
+  return { ok: true };
 }

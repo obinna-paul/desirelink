@@ -236,7 +236,7 @@ const VERIFICATION_FIELD: Record<
  * delete here just means the next run (or a manual cleanup) can retry against a still-null
  * mediaDeletedAt.
  */
-async function deleteVerificationMedia(request: {
+export async function deleteVerificationMedia(request: {
   id: string;
   govIdUrl: string;
   selfieUrl: string;

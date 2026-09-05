@@ -47,7 +47,7 @@ export function PostSubscribeChip({ prompt }: { prompt: PostSubscribePrompt }) {
   return (
     <div className="flex flex-col items-start gap-1">
       {error && <p className="text-xs text-destructive">{error}</p>}
-      {singleTier && !singleTier.requiresApproval ? (
+      {singleTier ? (
         <button
           type="button"
           disabled={pending}

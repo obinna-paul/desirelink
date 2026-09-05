@@ -15,12 +15,8 @@ function tierButtonState(tier: PublicTierView): { label: string; disabled: boole
   switch (tier.viewerState) {
     case "subscribed":
       return { label: "Subscribed", disabled: true };
-    case "pending":
-      return { label: "Pending approval", disabled: true };
     case "full":
       return { label: "Unavailable", disabled: true };
-    case "denied":
-      return { label: "Request again", disabled: false };
     default:
       return { label: "Subscribe", disabled: false };
   }

@@ -85,6 +85,7 @@ export default async function AdminAccountDetailPage({
       detail={data}
       canModerate={context.capabilities.has("moderate_content")}
       canWriteNotes={context.capabilities.has("write_notes")}
+      canDelete={context.capabilities.has("delete_accounts")}
     />
   );
 }

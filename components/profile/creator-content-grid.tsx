@@ -12,7 +12,11 @@ import { ServiceSummaryModal } from "@/components/profile/service-summary-modal"
 import type { PostView } from "@/lib/posts";
 import type { ServiceListingView } from "@/lib/service-listings";
 
-export const GRID_CLASSNAME =
+// Two columns (not three) so each tile is noticeably bigger - since tiles are aspect-square
+// (see profile-grid-tiles.tsx), fewer columns grows height right along with width.
+export const POST_GRID_CLASSNAME =
+  "grid grid-cols-2 gap-1 sm:gap-1.5 md:grid-cols-3 xl:grid-cols-4";
+export const SERVICE_GRID_CLASSNAME =
   "grid grid-cols-3 gap-0.5 sm:gap-1 md:grid-cols-4 xl:grid-cols-5";
 
 export function PostGridSection({
@@ -43,7 +47,7 @@ export function PostGridSection({
 
   return (
     <>
-      <div className={GRID_CLASSNAME}>
+      <div className={POST_GRID_CLASSNAME}>
         {posts.map((post) => (
           <PostGridTile key={post.id} post={post} onOpen={handleOpen} />
         ))}
@@ -94,7 +98,7 @@ export function ServiceGridSection({
 
   return (
     <>
-      <div className={GRID_CLASSNAME}>
+      <div className={SERVICE_GRID_CLASSNAME}>
         {listings.map((listing) => (
           <ServiceGridTile
             key={listing.id}

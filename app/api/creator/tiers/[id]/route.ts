@@ -32,8 +32,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     );
   }
 
-  const { name, description, priceNaira, tierType, maxSubscribers, isLimited, requiresApproval } =
-    parsed.data;
+  const { name, description, priceNaira, tierType, maxSubscribers, isLimited } = parsed.data;
 
   const tier = await prisma.creatorTier.update({
     where: { id: params.id },
@@ -44,7 +43,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       tierType,
       maxSubscribers,
       isLimited,
-      requiresApproval,
     },
   });
 

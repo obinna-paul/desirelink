@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Ellipsis,
   LayoutGrid,
+  LifeBuoy,
   LockKeyhole,
   MapPin,
   Star,
@@ -31,6 +32,7 @@ import { ReviewDialog } from "@/components/reviews/review-dialog";
 import { ReviewsSection } from "@/components/reviews/reviews-section";
 import { BlockButton } from "@/components/safety/block-button";
 import { ReportDialog } from "@/components/safety/report-dialog";
+import { SignOutButton } from "@/components/layout/sign-out-button";
 import { Button } from "@/components/ui/button";
 import type { CreatorStats } from "@/lib/creator";
 import type { PostView } from "@/lib/posts";
@@ -50,8 +52,8 @@ const PROFILE_SECTIONS: {
   label: string;
   icon: LucideIcon;
 }[] = [
-  { id: "posts", label: "Posts", icon: LayoutGrid },
   { id: "premium", label: "Premium", icon: LockKeyhole },
+  { id: "posts", label: "Posts", icon: LayoutGrid },
   { id: "services", label: "Services", icon: BriefcaseBusiness },
   { id: "reviews", label: "Reviews", icon: Star },
 ];
@@ -59,11 +61,11 @@ const PROFILE_SECTIONS: {
 function normalizeSection(section?: string): ProfileSection {
   return PROFILE_SECTIONS.some((item) => item.id === section)
     ? (section as ProfileSection)
-    : "posts";
+    : "premium";
 }
 
 function sectionHref(profileHref: string, section: ProfileSection) {
-  return section === "posts"
+  return section === "premium"
     ? profileHref
     : `${profileHref}?section=${section}`;
 }
@@ -278,6 +280,22 @@ export function ProfileView({
                     size="sm"
                     className="sm:flex-1"
                   />
+                  <details className="relative">
+                    <summary
+                      aria-label="More profile actions"
+                      className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted [&::-webkit-details-marker]:hidden"
+                    >
+                      <Ellipsis className="h-5 w-5" aria-hidden="true" />
+                    </summary>
+                    <div className="absolute right-0 top-12 z-30 flex min-w-48 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-lift">
+                      <Button asChild variant="ghost" size="sm" className="min-h-11 w-full justify-start gap-1.5 rounded-lg px-3 text-sm font-medium">
+                        <Link href="/help/contact">
+                          <LifeBuoy className="h-4 w-4" aria-hidden="true" /> Help & Support
+                        </Link>
+                      </Button>
+                      <SignOutButton menu />
+                    </div>
+                  </details>
                 </>
               ) : isProvider ? (
                 <>

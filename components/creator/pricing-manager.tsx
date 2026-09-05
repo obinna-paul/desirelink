@@ -22,7 +22,6 @@ type TierView = {
   tierType: string;
   maxSubscribers: number | null;
   isLimited: boolean;
-  requiresApproval: boolean;
   _count: { subscriptions: number };
 };
 
@@ -33,7 +32,6 @@ type FormState = {
   tierType: string;
   isLimited: boolean;
   maxSubscribers: string;
-  requiresApproval: boolean;
 };
 
 const EMPTY_FORM: FormState = {
@@ -43,7 +41,6 @@ const EMPTY_FORM: FormState = {
   tierType: "beginner",
   isLimited: false,
   maxSubscribers: "",
-  requiresApproval: false,
 };
 
 function tierToForm(tier: TierView): FormState {
@@ -54,7 +51,6 @@ function tierToForm(tier: TierView): FormState {
     tierType: tier.tierType,
     isLimited: tier.isLimited,
     maxSubscribers: tier.maxSubscribers?.toString() ?? "",
-    requiresApproval: tier.requiresApproval,
   };
 }
 
@@ -100,7 +96,6 @@ function TierForm({
       tierType: form.tierType as CreatorTierInput["tierType"],
       maxSubscribers,
       isLimited: form.isLimited,
-      requiresApproval: form.requiresApproval,
     });
     setStatus("idle");
 
@@ -189,16 +184,6 @@ function TierForm({
           />
         </div>
       )}
-
-      <label className="flex min-h-9 items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={form.requiresApproval}
-          onChange={(event) => setForm((prev) => ({ ...prev, requiresApproval: event.target.checked }))}
-          className="h-4 w-4"
-        />
-        Require my approval before someone joins
-      </label>
 
       {error && (
         <p role="alert" className="text-xs text-destructive">
