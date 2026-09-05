@@ -20,4 +20,4 @@ export function getHeartPackage(id: string): HeartPackage | undefined {
 }
 
 /** Quick-send presets shown as tappable gift buttons — in a live stream, on a provider's profile, or in chat. */
-export const GIFT_PRESETS = [1, 10, 50, 100, 500] as const;
+export const GIFT_PRESETS = [1, 5, 10, 25, 50] as const;
