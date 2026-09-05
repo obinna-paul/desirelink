@@ -179,6 +179,7 @@ export default async function PublicProfilePage({
         presenceStatus={presenceStatus}
         liveStreamId={activeStream?.id ?? null}
         viewerIsProvider={viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false}
+        viewerEmail={isOwner ? (session?.user?.email ?? "") : ""}
       />
     </div>
   );

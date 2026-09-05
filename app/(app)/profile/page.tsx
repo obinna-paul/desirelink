@@ -72,6 +72,7 @@ export default async function ProfilePage({
         stats={stats}
         presenceStatus={activeStream ? "live" : getOwnPresenceStatus(profile)}
         liveStreamId={activeStream?.id ?? null}
+        viewerEmail={session.user.email ?? ""}
       />
     </div>
   );

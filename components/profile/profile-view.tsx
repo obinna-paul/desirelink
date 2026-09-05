@@ -5,7 +5,6 @@ import {
   BriefcaseBusiness,
   CalendarDays,
   LayoutGrid,
-  LifeBuoy,
   LockKeyhole,
   MapPin,
   Star,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { BannerUploader } from "@/components/profile/banner-uploader";
+import { HelpSupportSheet } from "@/components/help/help-support-sheet";
 import { EmptyProfileSection } from "@/components/profile/empty-profile-section";
 import {
   PostGridSection,
@@ -124,6 +124,7 @@ export function ProfileView({
   presenceStatus = "offline",
   liveStreamId = null,
   viewerIsProvider = false,
+  viewerEmail = "",
 }: {
   profile: Profile & {
     partner: {
@@ -149,6 +150,7 @@ export function ProfileView({
   presenceStatus?: PresenceStatus;
   liveStreamId?: string | null;
   viewerIsProvider?: boolean;
+  viewerEmail?: string;
 }) {
   const visibleSections = isProvider
     ? PROFILE_SECTIONS
@@ -295,11 +297,7 @@ export function ProfileView({
                     className="sm:flex-1"
                   />
                   <ProfileMoreMenu>
-                    <Button asChild variant="ghost" size="sm" className="min-h-11 w-full justify-start gap-1.5 rounded-lg px-3 text-sm font-medium">
-                      <Link href="/help/contact">
-                        <LifeBuoy className="h-4 w-4" aria-hidden="true" /> Help & Support
-                      </Link>
-                    </Button>
+                    <HelpSupportSheet defaultEmail={viewerEmail} />
                     <SignOutButton menu />
                   </ProfileMoreMenu>
                 </>
