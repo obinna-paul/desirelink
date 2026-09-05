@@ -564,7 +564,7 @@ export function ChatWindow({
 
       {giftPickerOpen && counterpartIsProvider && counterpartAcceptsGifts && (
         <div className="z-10 shrink-0 border-b border-[hsl(var(--chat-border))] bg-[hsl(var(--chat-header))] px-4 py-3">
-          <GiftPicker initialBalance={viewerHeartsBalance} onSend={sendHearts} />
+          <GiftPicker initialBalance={viewerHeartsBalance} onSend={sendHearts} recipientName={counterpart.displayName} />
         </div>
       )}
 

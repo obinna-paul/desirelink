@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Heart, Loader2 } from "lucide-react";
+import { Check, Heart, Loader2, Plus, Send } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { formatCents } from "@/lib/creator";
@@ -25,11 +25,14 @@ export function GiftPicker({
   onSend,
   theme = "light",
   showBalance = true,
+  recipientName,
 }: {
   initialBalance: number;
   onSend: (hearts: number) => Promise<SendGiftOutcome>;
   theme?: "light" | "dark";
   showBalance?: boolean;
+  /** Named in the "How many hearts..." prompt above the amount grid, when known. */
+  recipientName?: string;
 }) {
   const isDark = theme === "dark";
   const [balance, setBalance] = useState(initialBalance);
@@ -116,24 +119,37 @@ export function GiftPicker({
   return (
     <div className="flex flex-col gap-2.5">
       {showBalance && (
-        <div className="flex items-center justify-between gap-2">
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold",
-              isDark ? "border-white/15 bg-white/5 text-white" : "border-border/60 bg-secondary text-foreground"
-            )}
-          >
-            <Heart className="h-3.5 w-3.5 text-neon-pink" aria-hidden="true" fill="currentColor" />
-            {balance.toLocaleString()} hearts
-          </span>
+        <div className="flex items-end justify-between gap-2">
+          <div className="flex flex-col gap-1">
+            <span className={cn("text-[10px] font-medium", isDark ? "text-white/40" : "text-muted-foreground")}>
+              You have:
+            </span>
+            <span
+              className={cn(
+                "inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold",
+                isDark ? "border-white/15 bg-white/5 text-white" : "border-border/60 bg-secondary text-foreground"
+              )}
+            >
+              <Heart className="h-3.5 w-3.5 text-neon-pink" aria-hidden="true" fill="currentColor" />
+              {balance.toLocaleString()} hearts
+            </span>
+          </div>
           <Link
             href="/wallet"
-            className={cn("text-xs font-medium underline-offset-2 hover:underline", isDark ? "text-white/70" : "text-primary")}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1.5 text-xs font-semibold transition-colors",
+              isDark ? "border-white/15 text-white hover:bg-white/10" : "border-border/60 text-primary hover:bg-secondary"
+            )}
           >
-            Buy hearts
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            Buy more hearts
           </Link>
         </div>
       )}
+
+      <p className={cn("text-xs font-medium", isDark ? "text-white/60" : "text-muted-foreground")}>
+        How many hearts would you like to send{recipientName ? ` to ${recipientName}` : ""}?
+      </p>
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Gift amount">
         {GIFT_PRESETS.map((hearts) => {
@@ -178,7 +194,7 @@ export function GiftPicker({
         })}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2">
         <input
           type="text"
           inputMode="numeric"
@@ -189,34 +205,30 @@ export function GiftPicker({
           aria-label="Custom hearts amount"
           disabled={sending !== null}
           className={cn(
-            "h-11 w-32 min-w-0 rounded-full border px-3.5 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-40",
+            "h-11 w-full min-w-0 rounded-full border px-3.5 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-40",
             isDark
               ? "border-white/15 bg-white/5 text-white placeholder:text-white/40"
               : "border-border/60 bg-background text-foreground placeholder:text-muted-foreground"
           )}
         />
+        {/* The send action for the custom amount - its own full-width row below the input,
+            solid and icon-led, so it reads unambiguously as the button that submits it. */}
         <button
           type="button"
           disabled={!customAffordable || sending !== null}
           aria-pressed={customEntered && armed === customHearts}
           onClick={() => customEntered && tapAmount(customHearts)}
           className={cn(
-            "flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-            isDark
-              ? customEntered && armed === customHearts
-                ? "border-neon-pink bg-neon-pink/15 text-white"
-                : "border-white/15 text-white hover:bg-white/10"
-              : customEntered && armed === customHearts
-                ? "border-primary bg-accent-tint text-primary"
-                : "border-border/60 text-foreground hover:border-primary/60 hover:bg-secondary"
+            "flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+            isDark ? "bg-neon-pink text-white hover:bg-neon-pink/90" : "bg-primary text-primary-foreground hover:bg-primary/90"
           )}
         >
           {sending !== null && sending === customHearts ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
           ) : (
-            <Heart className="h-3.5 w-3.5 text-neon-pink" aria-hidden="true" fill="currentColor" />
+            <Send className="h-4 w-4" aria-hidden="true" />
           )}
-          {customEntered && armed === customHearts ? "Tap again" : "Send"}
+          {customEntered && armed === customHearts ? "Tap again to confirm" : "Send"}
         </button>
       </div>
 
