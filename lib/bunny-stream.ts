@@ -144,6 +144,32 @@ export async function getBunnyVideoStatus(videoId: string): Promise<BunnyVideoSt
   };
 }
 
+export function verifyBunnyUploadAuthorization(auth: BunnyUploadAuth): boolean {
+  if (auth.libraryId !== libraryId() || auth.authorizationExpire < Math.floor(Date.now() / 1000)) {
+    return false;
+  }
+
+  const expected = crypto
+    .createHash("sha256")
+    .update(`${auth.libraryId}${apiKey()}${auth.authorizationExpire}${auth.videoId}`)
+    .digest("hex");
+  const supplied = Buffer.from(auth.authorizationSignature, "utf8");
+  const expectedBuffer = Buffer.from(expected, "utf8");
+  return supplied.length === expectedBuffer.length && crypto.timingSafeEqual(supplied, expectedBuffer);
+}
+
+export async function deleteBunnyVideo(videoId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/library/${libraryId()}/videos/${videoId}`, {
+    method: "DELETE",
+    headers: { AccessKey: apiKey(), Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok && res.status !== 404) {
+    const detail = (await res.text().catch(() => "")).slice(0, 300);
+    throw new Error(`Bunny Stream: failed to discard video (${res.status})${detail ? `: ${detail}` : ""}`);
+  }
+}
+
 /** Adaptive-bitrate HLS manifest - what actually gets played, via hls.js on browsers
  * without native HLS support (see components/posts/post-video-player.tsx). */
 export function getBunnyPlaybackUrl(videoId: string): string {

@@ -14,8 +14,7 @@
 import * as tus from "tus-js-client";
 
 const FIRST_PARTY_UPLOAD_MAX_BYTES = 3.5 * 1024 * 1024;
-const BUNNY_TUS_ORIGIN = "https://video.bunnycdn.com";
-const BUNNY_TUS_PROXY_PREFIX = "/media-upload/bunny";
+const BUNNY_MOBILE_TUS_ENDPOINT = "/api/upload/bunny-tus";
 
 /** Longest a single reconnect wait sits before retrying anyway - the `online` event is the
  * fast path, this is the backstop so a browser that misreports offline (or never fires the
@@ -279,8 +278,8 @@ type BunnyUploadAuth = {
 const MAX_RECONNECT_RESUMES = 3;
 
 /**
- * Bunny's TUS endpoint documents a 5MB minimum chunk, and tus-js-client defaults to
- * `Infinity` - i.e. the ENTIRE file in a single PATCH. That default is what made video
+ * tus-js-client defaults to `Infinity` - i.e. the ENTIRE file in a single PATCH. That
+ * default is what made video
  * uploads fail here: a phone video (allowed up to 300MB) went up as one enormous request,
  * so any blip on mobile data killed the whole thing, and because the server never
  * acknowledged an intermediate offset there was nothing to resume from - every retry
@@ -289,100 +288,20 @@ const MAX_RECONNECT_RESUMES = 3;
  * server-acknowledged offset real, so a retry picks up where it stopped.
  */
 const BUNNY_CHUNK_SIZE = 5 * 1024 * 1024;
+const BUNNY_MOBILE_CHUNK_SIZE = 3 * 1024 * 1024;
 
-function proxyBunnyUrl(url: string) {
-  if (typeof window === "undefined") return url;
-
-  try {
-    const parsed = new URL(url, window.location.origin);
-    if (parsed.origin === BUNNY_TUS_ORIGIN) {
-      return `${BUNNY_TUS_PROXY_PREFIX}${parsed.pathname}${parsed.search}`;
-    }
-    if (parsed.origin === window.location.origin && parsed.pathname.startsWith("/tusupload")) {
-      return `${BUNNY_TUS_PROXY_PREFIX}${parsed.pathname}${parsed.search}`;
-    }
-  } catch {
-    return url;
-  }
-
-  return url;
-}
-
-function proxyBunnyLocation(location: string) {
-  if (/^https?:\/\//i.test(location)) return proxyBunnyUrl(location);
-  if (location.startsWith("/tusupload")) return `${BUNNY_TUS_PROXY_PREFIX}${location}`;
-  if (location.startsWith("/")) return `${BUNNY_TUS_PROXY_PREFIX}${location}`;
-  return `${BUNNY_TUS_PROXY_PREFIX}/tusupload/${location.replace(/^\/+/, "")}`;
-}
-
-class BunnyProxyResponse implements tus.HttpResponse {
-  constructor(private readonly response: tus.HttpResponse) {}
-
-  getStatus() {
-    return this.response.getStatus();
-  }
-
-  getHeader(header: string) {
-    const value = this.response.getHeader(header);
-    if (!value || header.toLowerCase() !== "location") return value;
-    return proxyBunnyLocation(value);
-  }
-
-  getBody() {
-    return this.response.getBody();
-  }
-
-  getUnderlyingObject() {
-    return this.response.getUnderlyingObject();
-  }
-}
-
-class BunnyProxyRequest implements tus.HttpRequest {
-  constructor(private readonly request: tus.HttpRequest) {}
-
-  getMethod() {
-    return this.request.getMethod();
-  }
-
-  getURL() {
-    return this.request.getURL();
-  }
-
-  setHeader(header: string, value: string) {
-    this.request.setHeader(header, value);
-  }
-
-  getHeader(header: string) {
-    return this.request.getHeader(header);
-  }
-
-  setProgressHandler(handler: (bytesSent: number) => void) {
-    this.request.setProgressHandler(handler);
-  }
-
-  async send(body: unknown) {
-    return new BunnyProxyResponse(await this.request.send(body));
-  }
-
-  abort() {
-    return this.request.abort();
-  }
-
-  getUnderlyingObject() {
-    return this.request.getUnderlyingObject();
-  }
-}
-
-class BunnyProxyHttpStack implements tus.HttpStack {
-  private readonly stack = new tus.DefaultHttpStack({});
-
-  createRequest(method: string, url: string) {
-    return new BunnyProxyRequest(this.stack.createRequest(method, proxyBunnyUrl(url)));
-  }
-
-  getName() {
-    return "UdalaBunnyProxyHttpStack";
-  }
+function discardFailedBunnyVideo(auth: BunnyUploadAuth) {
+  void fetch("/api/upload/bunny-abort", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      videoId: auth.videoId,
+      libraryId: auth.libraryId,
+      authorizationExpire: auth.authorizationExpire,
+      authorizationSignature: auth.authorizationSignature,
+    }),
+    keepalive: true,
+  }).catch(() => undefined);
 }
 
 type TusResponseLike = {
@@ -474,9 +393,8 @@ function uploadToBunnyViaTus(
     const useFirstPartyTransport = isLikelyMobileBrowser();
 
     const upload = new tus.Upload(file, {
-      endpoint: useFirstPartyTransport ? proxyBunnyUrl(auth.tusEndpoint) : auth.tusEndpoint,
-      httpStack: useFirstPartyTransport ? new BunnyProxyHttpStack() : undefined,
-      chunkSize: BUNNY_CHUNK_SIZE,
+      endpoint: useFirstPartyTransport ? BUNNY_MOBILE_TUS_ENDPOINT : auth.tusEndpoint,
+      chunkSize: useFirstPartyTransport ? BUNNY_MOBILE_CHUNK_SIZE : BUNNY_CHUNK_SIZE,
       removeFingerprintOnSuccess: true,
       // A modest bump over tus-js-client's own default ([0, 1000, 3000, 5000], ~9s total) -
       // covers more of the "still connected but flaky" case automatically without leaving
@@ -631,12 +549,17 @@ export async function uploadVideoDirect(
   }
 
   onPhaseChange?.("uploading");
-  await uploadToBunnyViaTus(
-    file,
-    auth,
-    (fraction) => onProgress?.(0.04 + fraction * 0.76),
-    onPhaseChange,
-  );
+  try {
+    await uploadToBunnyViaTus(
+      file,
+      auth,
+      (fraction) => onProgress?.(0.04 + fraction * 0.76),
+      onPhaseChange,
+    );
+  } catch (error) {
+    discardFailedBunnyVideo(auth);
+    throw error;
+  }
 
   onPhaseChange?.("processing");
   onProgress?.(0.8);
