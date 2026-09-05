@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ProgressRing } from "@/components/ui/progress-ring";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
@@ -128,6 +129,12 @@ export function PostComposer({
    * upload doesn't just sit on a generic spinner during the (usually few-second) wait for
    * a playable rendition - text-only, doesn't affect the `uploading` disabled-state logic. */
   const [uploadingLabel, setUploadingLabel] = useState<string | null>(null);
+  /** 0-100 when the current upload/processing step reports real progress (Cloudinary's
+   * XHR upload events, Bunny's TUS upload, or Bunny's own transcode encodeProgress); null
+   * while nothing's known yet (e.g. before the first progress event, or the local-disk
+   * dev fallback, which has no progress signal at all) - the UI falls back to a spinner
+   * only in that null case. */
+  const [uploadingProgress, setUploadingProgress] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showProviderUpgradePrompt, setShowProviderUpgradePrompt] =
@@ -210,13 +217,22 @@ export function PostComposer({
     crop?: VideoCrop,
   ) {
     const isVideo = file.type.startsWith("video/");
+    setUploadingProgress(null);
 
     try {
       const media = isVideo
-        ? await uploadVideoDirect(file, "/api/upload/post-media", undefined, (phase) =>
-            setUploadingLabel(phase === "processing" ? "Processing video..." : "Uploading video..."),
+        ? await uploadVideoDirect(
+            file,
+            "/api/upload/post-media",
+            (fraction) => setUploadingProgress(Math.round(fraction * 100)),
+            (phase) => {
+              setUploadingLabel(phase === "processing" ? "Processing video..." : "Uploading video...");
+              setUploadingProgress(0);
+            },
           )
-        : await uploadMediaDirectToCloudinary(file, "post-image", "/api/upload/post-media");
+        : await uploadMediaDirectToCloudinary(file, "post-image", "/api/upload/post-media", (fraction) =>
+            setUploadingProgress(Math.round(fraction * 100)),
+          );
 
       setMediaItems((prev) => [
         ...prev,
@@ -232,6 +248,7 @@ export function PostComposer({
       setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
     } finally {
       setUploadingLabel(null);
+      setUploadingProgress(null);
     }
   }
 
@@ -796,10 +813,11 @@ export function PostComposer({
             >
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background">
                 {uploading ? (
-                  <Loader2
-                    className="h-5 w-5 animate-spin"
-                    aria-hidden="true"
-                  />
+                  uploadingProgress === null ? (
+                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <ProgressRing progress={uploadingProgress} size={40} strokeWidth={3} />
+                  )
                 ) : (
                   <ImagePlus className="h-5 w-5" aria-hidden="true" />
                 )}
@@ -913,10 +931,11 @@ export function PostComposer({
                     className="flex h-16 w-16 shrink-0 items-center justify-center border border-dashed border-white/30 text-white/75 transition-colors hover:border-white/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:opacity-45"
                   >
                     {uploading ? (
-                      <Loader2
-                        className="h-5 w-5 animate-spin"
-                        aria-hidden="true"
-                      />
+                      uploadingProgress === null ? (
+                        <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <ProgressRing progress={uploadingProgress} size={32} strokeWidth={2} />
+                      )
                     ) : (
                       <ImagePlus className="h-5 w-5" aria-hidden="true" />
                     )}
