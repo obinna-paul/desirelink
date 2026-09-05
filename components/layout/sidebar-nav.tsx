@@ -5,12 +5,21 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { primaryNavItems, secondaryNavItems } from "@/lib/nav-items";
+import { NavCountBadge } from "@/components/layout/nav-count-badge";
+import { useUnreadMessageCount } from "@/lib/use-unread-message-count";
 
-export function SidebarNav({ isProvider = false }: { isProvider?: boolean }) {
+export function SidebarNav({
+  isProvider = false,
+  viewerProfileId = null,
+}: {
+  isProvider?: boolean;
+  viewerProfileId?: string | null;
+}) {
   const pathname = usePathname();
   const items = [...primaryNavItems, ...secondaryNavItems].filter(
     (item) => !item.providerOnly || isProvider
   );
+  const unreadMessageCount = useUnreadMessageCount(viewerProfileId);
 
   return (
     <aside
@@ -31,10 +40,15 @@ export function SidebarNav({ isProvider = false }: { isProvider?: boolean }) {
                 : "text-muted-foreground hover:bg-accent hover:text-foreground"
             )}
           >
-            <Icon
-              className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground")}
-              aria-hidden="true"
-            />
+            <span className="relative flex shrink-0">
+              <Icon
+                className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground")}
+                aria-hidden="true"
+              />
+              {item.href === "/messages" && (
+                <NavCountBadge count={unreadMessageCount} className="absolute -right-2 -top-1.5" />
+              )}
+            </span>
             {item.label}
           </Link>
         );

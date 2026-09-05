@@ -16,7 +16,7 @@ export default async function AppGroupLayout({
   const profile = session?.user?.id
     ? await prisma.profile.findUnique({
         where: { userId: session.user.id },
-        select: { profileType: true, usernameChosen: true, username: true, creatorWelcomeShownAt: true },
+        select: { id: true, profileType: true, usernameChosen: true, username: true, creatorWelcomeShownAt: true },
       })
     : null;
   if (profile && !profile.usernameChosen) {
@@ -27,7 +27,7 @@ export default async function AppGroupLayout({
 
   return (
     <>
-      <AppShell isProvider={isProvider}>{children}</AppShell>
+      <AppShell isProvider={isProvider} viewerProfileId={profile?.id ?? null}>{children}</AppShell>
       {showCreatorWelcome && <CreatorWelcomeModal profileHref={`/profile/${profile!.username}`} />}
     </>
   );
