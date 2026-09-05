@@ -81,6 +81,9 @@ export function signBunnyUpload(videoId: string): BunnyUploadAuth {
 
 export type BunnyVideoStatus = {
   ready: boolean;
+  /** Bunny's own 0-100 transcode progress, clamped and defaulted to 0 - lets a caller show
+   * a real meter while waiting instead of an indeterminate spinner. */
+  encodeProgress: number;
   width: number | null;
   height: number | null;
   durationSeconds: number | null;
@@ -98,7 +101,7 @@ export async function getBunnyVideoStatus(videoId: string): Promise<BunnyVideoSt
     headers: { AccessKey: apiKey(), Accept: "application/json" },
   });
   if (!res.ok) {
-    return { ready: false, width: null, height: null, durationSeconds: null };
+    return { ready: false, encodeProgress: 0, width: null, height: null, durationSeconds: null };
   }
 
   const data = (await res.json()) as {
@@ -109,10 +112,12 @@ export async function getBunnyVideoStatus(videoId: string): Promise<BunnyVideoSt
     length?: number;
   };
 
-  const ready = data.status === 4 || (data.encodeProgress ?? 0) >= 100;
+  const encodeProgress = Math.min(100, Math.max(0, data.encodeProgress ?? 0));
+  const ready = data.status === 4 || encodeProgress >= 100;
 
   return {
     ready,
+    encodeProgress,
     width: data.width || null,
     height: data.height || null,
     durationSeconds: data.length || null,

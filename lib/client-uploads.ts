@@ -185,8 +185,13 @@ type BunnyReadyStatus = {
 /** Polls our status route until Bunny finishes transcoding, since playback needs the
  * rendition manifest that only exists once processing completes - there's no upload-only
  * outcome to fall back to here. Bounded generously (this app caps videos at 3 minutes /
- * 300MB, well within what Bunny's free H.264 encoding tier finishes quickly). */
-async function pollBunnyVideoStatus(videoId: string): Promise<BunnyReadyStatus> {
+ * 300MB, well within what Bunny's free H.264 encoding tier finishes quickly). `onProgress`
+ * gets Bunny's own 0-100 encodeProgress (as a 0-1 fraction, matching the upload phase's
+ * convention) each time it moves, so a caller can show a real transcode meter. */
+async function pollBunnyVideoStatus(
+  videoId: string,
+  onProgress?: (fraction: number) => void
+): Promise<BunnyReadyStatus> {
   const deadline = Date.now() + 8 * 60 * 1000;
   while (Date.now() < deadline) {
     const res = await fetch(`/api/upload/bunny-status/${videoId}`);
@@ -201,6 +206,7 @@ async function pollBunnyVideoStatus(videoId: string): Promise<BunnyReadyStatus> 
           durationSeconds: data.durationSeconds,
         };
       }
+      if (typeof data.encodeProgress === "number") onProgress?.(data.encodeProgress / 100);
     }
     await new Promise((resolve) => setTimeout(resolve, 3000));
   }
@@ -243,7 +249,7 @@ export async function uploadVideoDirect(
   await uploadToBunnyViaTus(file, auth, onProgress);
 
   onPhaseChange?.("processing");
-  const status = await pollBunnyVideoStatus(auth.videoId);
+  const status = await pollBunnyVideoStatus(auth.videoId, onProgress);
 
   return {
     url: status.url,

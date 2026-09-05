@@ -14,7 +14,7 @@ export async function GET(req: Request, { params }: { params: { videoId: string 
 
   const status = await getBunnyVideoStatus(params.videoId);
   if (!status.ready) {
-    return NextResponse.json({ ready: false }, { status: 200 });
+    return NextResponse.json({ ready: false, encodeProgress: status.encodeProgress }, { status: 200 });
   }
 
   return NextResponse.json(
