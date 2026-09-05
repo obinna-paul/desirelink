@@ -5,6 +5,11 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 import { createNotification } from "@/lib/notifications";
+import {
+  sendSubscriptionEndedCreatorEmail,
+  sendSubscriptionEndedFanEmail,
+  sendSubscriptionExpiryWarningEmail,
+} from "@/lib/email/billing-notifications";
 
 /**
  * Subscriptions run for exactly one calendar month and are never auto-renewed or
@@ -168,8 +173,8 @@ export async function getBillingOverview(profileId: string): Promise<BillingOver
 }
 
 const expiringSubscriptionInclude = {
-  subscriber: { select: { id: true, displayName: true } },
-  provider: { select: { id: true, username: true, displayName: true } },
+  subscriber: { select: { id: true, displayName: true, user: { select: { email: true } } } },
+  provider: { select: { id: true, username: true, displayName: true, user: { select: { email: true } } } },
   tier: { select: { name: true } },
 } satisfies Prisma.ProviderSubscriptionInclude;
 
@@ -185,6 +190,13 @@ async function notifySubscriptionEndingSoon(sub: ExpiringSubscription): Promise<
     title: `Your ${sub.tier.name} subscription ends in ${SUBSCRIPTION_EXPIRY_WARNING_DAYS} days`,
     body: `Resubscribe to keep your access to ${sub.provider.displayName}'s Premium content.`,
     href: `/profile/${sub.provider.username}`,
+  });
+  await sendSubscriptionExpiryWarningEmail({
+    subscriberEmail: sub.subscriber.user.email,
+    creatorName: sub.provider.displayName,
+    creatorUsername: sub.provider.username,
+    tierName: sub.tier.name,
+    endsAt: sub.endsAt,
   });
 }
 
@@ -205,6 +217,18 @@ async function notifySubscriptionEnded(sub: ExpiringSubscription): Promise<void>
       title: `${sub.subscriber.displayName}'s ${sub.tier.name} subscription ended`,
       body: "Their access to your Premium content has ended.",
       href: "/creator-dashboard?tab=audience",
+    }),
+    sendSubscriptionEndedFanEmail({
+      subscriberEmail: sub.subscriber.user.email,
+      creatorName: sub.provider.displayName,
+      creatorUsername: sub.provider.username,
+      endsAt: sub.endsAt,
+    }),
+    sendSubscriptionEndedCreatorEmail({
+      creatorEmail: sub.provider.user.email,
+      fanName: sub.subscriber.displayName,
+      tierName: sub.tier.name,
+      endsAt: sub.endsAt,
     }),
   ]);
 }

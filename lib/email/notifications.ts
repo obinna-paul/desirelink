@@ -64,7 +64,9 @@ export async function sendPasswordChangedEmail(email: string): Promise<void> {
   });
 }
 
-async function getAccountByProfileId(profileId: string) {
+/** Shared by every email sender that only has a profileId to work with - exported for
+ * reuse by lib/email/billing-notifications.ts and friends rather than duplicated per file. */
+export async function getAccountByProfileId(profileId: string) {
   return prisma.profile.findUnique({
     where: { id: profileId },
     select: { username: true, user: { select: { email: true } } },

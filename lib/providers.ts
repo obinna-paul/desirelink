@@ -6,6 +6,7 @@ import { processPaymentEvent } from "@/lib/payments/webhook-handler";
 import { getProviderProfile } from "@/lib/provider-types";
 import { creditProviderWallet } from "@/lib/wallet";
 import { safeConfirmPayment } from "@/lib/payments/safe-call";
+import { sendSubscriptionActivatedEmails, sendSubscriptionCancelledEmail } from "@/lib/email/billing-notifications";
 
 export { CREATOR_PROFILE_TYPES, isProviderProfileType, getProviderProfile } from "@/lib/provider-types";
 
@@ -132,6 +133,7 @@ export async function subscribeToProvider(
         data: { userId: subscriberId, tierId, amountCents: tier.priceCents, status: "succeeded", provider: "card" },
       });
       await creditProviderWallet(providerId, tier.priceCents);
+      await sendSubscriptionActivatedEmails(subscriberId, providerId, tierId, tier.priceCents, reference, endsAt);
       return { ok: true, state: "subscribed" };
     }
 
@@ -189,6 +191,8 @@ export async function unsubscribeFromProvider(
     data: { cancelAtPeriodEnd: true },
   });
 
+  await sendSubscriptionCancelledEmail(subscriberId, providerId, subscriptions[0].endsAt);
+
   return { ok: true };
 }
 
@@ -211,6 +215,8 @@ export async function cancelProviderSubscriptionById(
     where: { id: subscriptionId },
     data: { cancelAtPeriodEnd: true },
   });
+
+  await sendSubscriptionCancelledEmail(subscription.subscriberId, subscription.providerId, subscription.endsAt);
 
   return { ok: true };
 }

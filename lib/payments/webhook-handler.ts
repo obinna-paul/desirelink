@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { creditProviderWallet } from "@/lib/wallet";
+import { sendPaymentFailedEmail, sendSubscriptionActivatedEmails } from "@/lib/email/billing-notifications";
 import type { WebhookEvent, WebhookPaymentMethod } from "./types";
 
 type Db = Prisma.TransactionClient;
@@ -11,15 +12,10 @@ function activeProviderName(): string {
   return "paystack";
 }
 
-/**
- * Placeholder for the payment-failed notification. This app doesn't have a
- * transactional email provider wired up yet — swap this for a real send
- * once one exists.
- */
-async function notifyPaymentFailed(userId: string): Promise<void> {
-  console.warn(
-    `[payments] Payment failed for profile ${userId} — email notification not yet wired up.`,
-  );
+/** description is a short human phrase for whatever failed - "your X subscription",
+ * "your Hearts purchase", "your booking" - see each call site below. */
+async function notifyPaymentFailed(userId: string, description: string, amountCents: number): Promise<void> {
+  await sendPaymentFailedEmail(userId, description, amountCents);
 }
 
 /** Creates or refreshes the saved-card record for a profile from whatever the provider just returned. New cards become the default automatically. */
@@ -115,6 +111,14 @@ async function handleProviderTierEvent(
       db,
     );
     await creditProviderWallet(pending.providerId, event.amountCents ?? 0, db);
+    await sendSubscriptionActivatedEmails(
+      pending.subscriberId,
+      pending.providerId,
+      pending.tierId,
+      event.amountCents ?? 0,
+      event.reference ?? pending.paymentSubscriptionId ?? pendingId,
+      pending.endsAt,
+    );
   } else {
     await db.providerSubscription.update({
       where: { id: pendingId },
@@ -126,7 +130,7 @@ async function handleProviderTierEvent(
       { status: "failed", providerSubscriptionId: pendingId },
       db,
     );
-    await notifyPaymentFailed(pending.subscriberId);
+    await notifyPaymentFailed(pending.subscriberId, "your subscription", event.amountCents ?? 0);
   }
 }
 
@@ -160,7 +164,7 @@ async function handleHeartsPurchaseEvent(
       data: { status: "failed" },
     });
     await recordTransaction(pending.userId, event, { status: "failed" }, db);
-    await notifyPaymentFailed(pending.userId);
+    await notifyPaymentFailed(pending.userId, "your Hearts purchase", event.amountCents ?? 0);
   }
 }
 
@@ -203,7 +207,7 @@ async function handleServiceBookingEvent(event: WebhookEvent, db: Db): Promise<v
       where: { id: pendingId },
       data: { status: "cancelled", declineReason: "Payment failed." },
     });
-    await notifyPaymentFailed(pending.customerId);
+    await notifyPaymentFailed(pending.customerId, "your booking", event.amountCents ?? pending.priceCents);
   }
 }
 
