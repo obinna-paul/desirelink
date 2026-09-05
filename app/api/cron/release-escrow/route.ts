@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { isCronAuthorized } from "@/lib/security/cron";
 import { creditProviderWallet } from "@/lib/wallet";
 import { SERVICE_ESCROW_GRACE_HOURS } from "@/lib/service-bookings";
+import { sendEscrowReleasedEmail } from "@/lib/email/booking-notifications";
 
 /**
  * Safety net for escrowed payments that were never explicitly released or
@@ -41,6 +42,7 @@ export async function GET(req: Request) {
         data: { status: "completed", completedAt: new Date() },
       });
     });
+    await sendEscrowReleasedEmail(booking.id);
     serviceBookingsReleased += 1;
   }
 

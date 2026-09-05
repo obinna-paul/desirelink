@@ -5,6 +5,11 @@ import { paymentProvider } from "@/lib/payments";
 import { processPaymentEvent } from "@/lib/payments/webhook-handler";
 import { safeConfirmPayment } from "@/lib/payments/safe-call";
 import { creditProviderWallet } from "@/lib/wallet";
+import {
+  sendBookingCancelledEmail,
+  sendBookingConfirmedEmail,
+  sendEscrowReleasedEmail,
+} from "@/lib/email/booking-notifications";
 import type { ServiceBooking } from "@prisma/client";
 
 /**
@@ -173,6 +178,7 @@ export async function acceptServiceBooking(bookingId: string, providerId: string
     where: { id: bookingId },
     data: { status: "confirmed", respondedAt: new Date() },
   });
+  await sendBookingConfirmedEmail(bookingId);
   return { ok: true, booking: updated };
 }
 
@@ -191,10 +197,12 @@ export async function declineServiceBooking(
 
   await refundHeldBooking(booking.id, booking.transaction);
 
+  const trimmedReason = reason.trim().slice(0, 500) || null;
   const updated = await prisma.serviceBooking.update({
     where: { id: bookingId },
-    data: { status: "declined", declineReason: reason.trim().slice(0, 500) || null, respondedAt: new Date() },
+    data: { status: "declined", declineReason: trimmedReason, respondedAt: new Date() },
   });
+  await sendBookingCancelledEmail(bookingId, "customer", trimmedReason);
   return { ok: true, booking: updated };
 }
 
@@ -213,6 +221,7 @@ export async function cancelServiceBooking(bookingId: string, customerId: string
     where: { id: bookingId },
     data: { status: "cancelled" },
   });
+  await sendBookingCancelledEmail(bookingId, "provider", null);
   return { ok: true, booking: updated };
 }
 
@@ -240,6 +249,7 @@ export async function completeServiceBooking(bookingId: string, customerId: stri
     });
   });
 
+  await sendEscrowReleasedEmail(bookingId);
   return { ok: true, booking: updated };
 }
 

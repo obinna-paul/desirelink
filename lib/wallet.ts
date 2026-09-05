@@ -5,6 +5,11 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { recordAdminAction } from "@/lib/admin/audit";
+import {
+  sendPayoutCompletedEmail,
+  sendPayoutFailedEmail,
+  sendPayoutRequestedEmail,
+} from "@/lib/email/wallet-notifications";
 
 /** Minimum wallet balance a provider can withdraw at once, in kobo. */
 export const MINIMUM_WITHDRAWAL_CENTS = 1_500_000;
@@ -116,6 +121,8 @@ export async function withdrawWalletBalance(
       },
     }),
   ]);
+
+  await sendPayoutRequestedEmail(providerId, netAmountCents);
 
   return {
     ok: true,
@@ -267,6 +274,7 @@ export async function markWithdrawalPaid(withdrawalId: string, actorId: string):
     summary: `Marked ${withdrawal.provider.displayName}'s withdrawal as paid (sent manually)`,
     metadata: { netAmountCents: withdrawal.netAmountCents },
   });
+  await sendPayoutCompletedEmail(withdrawal.providerId, withdrawal.netAmountCents);
 
   return { ok: true };
 }
@@ -314,6 +322,7 @@ export async function markWithdrawalFailed(
       : `Marked ${withdrawal.provider.displayName}'s withdrawal as failed (wallet refunded)`,
     metadata: { amountCents: withdrawal.amountCents, reason },
   });
+  await sendPayoutFailedEmail(withdrawal.providerId, withdrawal.amountCents, reason.trim() || null);
 
   return { ok: true };
 }

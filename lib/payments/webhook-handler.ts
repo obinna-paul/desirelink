@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { creditProviderWallet } from "@/lib/wallet";
 import { sendPaymentFailedEmail, sendSubscriptionActivatedEmails } from "@/lib/email/billing-notifications";
+import { sendNewBookingRequestEmail } from "@/lib/email/booking-notifications";
 import type { WebhookEvent, WebhookPaymentMethod } from "./types";
 
 type Db = Prisma.TransactionClient;
@@ -202,6 +203,7 @@ async function handleServiceBookingEvent(event: WebhookEvent, db: Db): Promise<v
     });
     if (event.paymentMethod)
       await upsertPaymentMethod(pending.customerId, event.paymentMethod, db);
+    await sendNewBookingRequestEmail(pending.id);
   } else {
     await db.serviceBooking.update({
       where: { id: pendingId },
