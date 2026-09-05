@@ -564,6 +564,17 @@ export function ChatWindow({
 
       {giftPickerOpen && counterpartIsProvider && counterpartAcceptsGifts && (
         <div className="z-10 shrink-0 border-b border-[hsl(var(--chat-border))] bg-[hsl(var(--chat-header))] px-4 py-3">
+          <div className="mb-2.5 flex items-center justify-between">
+            <p className="text-sm font-semibold">Send hearts</p>
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => setGiftPickerOpen(false)}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[hsl(var(--chat-incoming))] hover:text-foreground"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
           <GiftPicker initialBalance={viewerHeartsBalance} onSend={sendHearts} recipientName={counterpart.displayName} />
         </div>
       )}
