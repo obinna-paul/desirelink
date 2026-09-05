@@ -187,6 +187,10 @@ model Profile {
 
   username       String  @unique
   usernameChosen Boolean @default(true)
+  // False only for an X/Twitter sign-in, whose account was created with a placeholder
+  // (unreachable) email since X's API never returns one - gates /onboarding/email the
+  // same way usernameChosen gates /onboarding/username. Always true otherwise.
+  emailChosen    Boolean @default(true)
   displayName    String
   bio            String
   avatarUrl      String
@@ -1073,7 +1077,7 @@ model AdminNote {
 model EmailOtp {
   id         String    @id @default(cuid())
   email      String
-  purpose    String // "signup" | "password_reset"
+  purpose    String // "signup" | "password_reset" | "add_email"
   codeHash   String
   attempts   Int       @default(0)
   expiresAt  DateTime

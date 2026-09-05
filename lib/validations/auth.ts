@@ -38,7 +38,7 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
-const otpCodeSchema = z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code");
+export const otpCodeSchema = z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code");
 
 export const verifyEmailSchema = z.object({
   code: otpCodeSchema,
@@ -58,3 +58,15 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+/** /onboarding/email - only reached with a placeholder (X/Twitter) account email. */
+export const addEmailRequestSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email address"),
+});
+export type AddEmailRequestInput = z.infer<typeof addEmailRequestSchema>;
+
+export const addEmailConfirmSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email address"),
+  code: otpCodeSchema,
+});
+export type AddEmailConfirmInput = z.infer<typeof addEmailConfirmSchema>;

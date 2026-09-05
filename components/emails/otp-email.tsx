@@ -2,9 +2,16 @@ import { Text } from "@react-email/components";
 
 import { EmailLayout, OtpCode, colors, eyebrow, heading, muted, paragraph } from "@/components/emails/layout";
 
-export type OtpEmailVariant = "signup" | "resend" | "password_reset";
+export type OtpEmailVariant = "signup" | "resend" | "password_reset" | "add_email";
 
 const COPY: Record<OtpEmailVariant, { subject: string; eyebrow: string; title: string; intro: string; footer: string }> = {
+  add_email: {
+    subject: "Confirm your email for Udala",
+    eyebrow: "Confirm your email",
+    title: "Confirm this address",
+    intro: "Use this code to confirm this email address on your Udala account:",
+    footer: "If you didn't request this, you can safely ignore this email.",
+  },
   signup: {
     subject: "Your Udala code: {code}",
     eyebrow: "Verify your email",

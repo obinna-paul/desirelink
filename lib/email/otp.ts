@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 
-export type OtpPurpose = "signup" | "password_reset";
+export type OtpPurpose = "signup" | "password_reset" | "add_email";
 
 const OTP_TTL_MINUTES = Number(process.env.EMAIL_OTP_TTL_MINUTES ?? 10);
 const MAX_VERIFY_ATTEMPTS = 5;

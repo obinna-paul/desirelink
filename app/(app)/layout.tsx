@@ -16,11 +16,21 @@ export default async function AppGroupLayout({
   const profile = session?.user?.id
     ? await prisma.profile.findUnique({
         where: { userId: session.user.id },
-        select: { id: true, profileType: true, usernameChosen: true, username: true, creatorWelcomeShownAt: true },
+        select: {
+          id: true,
+          profileType: true,
+          usernameChosen: true,
+          emailChosen: true,
+          username: true,
+          creatorWelcomeShownAt: true,
+        },
       })
     : null;
   if (profile && !profile.usernameChosen) {
     redirect("/onboarding/username");
+  }
+  if (profile && !profile.emailChosen) {
+    redirect("/onboarding/email");
   }
   const isProvider = profile ? isProviderProfileType(profile.profileType) : false;
   const showCreatorWelcome = isProvider && !!profile && !profile.creatorWelcomeShownAt;
