@@ -5,6 +5,7 @@ import { forgotPasswordSchema } from "@/lib/validations/auth";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { getClientIp, readJson } from "@/lib/security/request";
 import { sendPasswordResetOtpEmail } from "@/lib/email/notifications";
+import { isTurnstileConfigured, verifyTurnstileToken } from "@/lib/turnstile";
 
 /**
  * Always responds ok regardless of whether the email has an account - otherwise this
@@ -19,6 +20,11 @@ export async function POST(req: Request) {
 
   const email = parsed.data.email;
   const ip = getClientIp(req);
+
+  if (isTurnstileConfigured() && !(await verifyTurnstileToken(parsed.data.turnstileToken, ip))) {
+    return NextResponse.json({ error: "Verification failed. Please try again." }, { status: 400 });
+  }
+
   const ipLimit = checkRateLimit(`forgot-password:ip:${ip}`, { limit: 10, windowMs: 60 * 60 * 1000 });
   const emailLimit = checkRateLimit(`forgot-password:email:${email}`, { limit: 5, windowMs: 60 * 60 * 1000 });
 

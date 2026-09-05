@@ -18,6 +18,7 @@ export const signupSchema = z
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
     profileType: z.enum(ACCOUNT_TYPE_VALUES).default("EXPLORER"),
+    turnstileToken: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -42,6 +43,7 @@ export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 
 export const forgotPasswordSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email address"),
+  turnstileToken: z.string().optional(),
 });
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 

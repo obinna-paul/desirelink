@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { isTurnstileEnabled, TurnstileWidget } from "@/components/auth/turnstile-widget";
 
 export function ForgotPasswordForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "sent">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,12 +24,16 @@ export function ForgotPasswordForm() {
       setError("Enter your email address");
       return;
     }
+    if (isTurnstileEnabled && !turnstileToken) {
+      setError("Please complete the verification challenge");
+      return;
+    }
 
     setStatus("submitting");
     const res = await fetch("/api/auth/forgot-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: trimmed }),
+      body: JSON.stringify({ email: trimmed, turnstileToken }),
     });
 
     if (!res.ok) {
@@ -74,6 +80,10 @@ export function ForgotPasswordForm() {
           />
         </div>
 
+        {isTurnstileEnabled && (
+          <TurnstileWidget onVerify={setTurnstileToken} onExpire={() => setTurnstileToken(null)} />
+        )}
+
         {error && (
           <p role="alert" className="text-sm text-[#b42318]">
             {error}
@@ -82,7 +92,7 @@ export function ForgotPasswordForm() {
 
         <Button
           type="submit"
-          disabled={status !== "idle"}
+          disabled={status !== "idle" || (isTurnstileEnabled && !turnstileToken)}
           className="h-[52px] rounded-xl bg-[#050505] text-base text-white shadow-[0_14px_30px_rgba(5,5,5,0.18)] hover:bg-[#1b1b1b] sm:h-12 sm:rounded-lg sm:text-sm"
         >
           {status === "submitting" ? "Sending..." : "Send reset code"}

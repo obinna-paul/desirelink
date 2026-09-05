@@ -12,6 +12,7 @@ import { AuthLogo } from "@/components/auth/auth-logo";
 import { AccountTypeStep } from "@/components/auth/account-type-step";
 import { FormField } from "@/components/auth/form-field";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { isTurnstileEnabled, TurnstileWidget } from "@/components/auth/turnstile-widget";
 import { Button } from "@/components/ui/button";
 import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
 import { signupSchema, type SignupInput } from "@/lib/validations/auth";
@@ -42,6 +43,7 @@ export default function SignupPage() {
   const [step, setStep] = useState<StepIndex>(0);
   const [status, setStatus] = useState<"idle" | "submitting" | "success">("idle");
   const [serverError, setServerError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const {
     register,
@@ -91,12 +93,18 @@ export default function SignupPage() {
       return;
     }
 
+    if (isTurnstileEnabled && !turnstileToken) {
+      setServerError("Please complete the verification challenge");
+      return;
+    }
+
     setServerError(null);
     setStatus("submitting");
 
     const normalizedData = {
       ...data,
       email: data.email.trim().toLowerCase(),
+      turnstileToken,
     };
 
     const res = await fetch("/api/signup", {
@@ -313,6 +321,9 @@ export default function SignupPage() {
                         : "We will take you to profile settings next so you can add a photo, verify your identity, set visibility, and choose your preferences when you are ready."}
                     </p>
                   </div>
+                  {isTurnstileEnabled && (
+                    <TurnstileWidget onVerify={setTurnstileToken} onExpire={() => setTurnstileToken(null)} />
+                  )}
                 </div>
               )}
 
@@ -344,7 +355,7 @@ export default function SignupPage() {
                 ) : (
                   <Button
                     type="button"
-                    disabled={status !== "idle"}
+                    disabled={status !== "idle" || (isTurnstileEnabled && !turnstileToken)}
                     onClick={handleSubmit(onSubmit)}
                     className="h-12 w-full rounded-xl bg-[#050505] px-6 text-white shadow-[0_14px_30px_rgba(5,5,5,0.18)] hover:bg-[#1b1b1b] sm:w-auto sm:rounded-lg"
                   >
