@@ -4,17 +4,12 @@ export const CONNECTION_REASONS = [
   {
     value: "shared_interest",
     label: "Shared interest",
-    template: "Hi! I noticed we're both into similar things on udala.",
-  },
-  {
-    value: "same_event",
-    label: "Same event",
-    template: "Hi! I saw we're both attending the same event.",
+    template: "Hey! Looks like we're into some of the same things 👀",
   },
   {
     value: "same_city",
     label: "Same city",
-    template: "Hi! I noticed we're both in the same city.",
+    template: "Hey! Noticed we're in the same city — small world.",
   },
   {
     value: "creator_fan",
@@ -22,9 +17,39 @@ export const CONNECTION_REASONS = [
     template: "Hi! I'm a fan of your content and wanted to say hello.",
   },
   {
-    value: "community",
-    label: "Community",
-    template: "Hi! We're part of the same community here and I wanted to connect.",
+    value: "compliment",
+    label: "Compliment",
+    template: "Not gonna lie, your profile stopped my scroll 😏",
+  },
+  {
+    value: "flirty",
+    label: "Flirty",
+    template: "Okay I have to ask... are you as much trouble as you look? 😉",
+  },
+  {
+    value: "straight_up",
+    label: "Straight up",
+    template: "You're exactly my type. Tell me something about you?",
+  },
+  {
+    value: "curious",
+    label: "Curious",
+    template: "What's something you're really into that most people don't know about you?",
+  },
+  {
+    value: "playful",
+    label: "Playful",
+    template: "Be honest — are you as much fun as your photos make you look?",
+  },
+  {
+    value: "spicy",
+    label: "Spicy",
+    template: "I'll admit, I've got a few things on my mind after seeing your photos 😏",
+  },
+  {
+    value: "confident",
+    label: "Confident",
+    template: "Hey gorgeous, mind if I steal a little of your time?",
   },
 ] as const;
 

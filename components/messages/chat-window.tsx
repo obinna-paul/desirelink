@@ -306,14 +306,21 @@ export function ChatWindow({
     }).catch(() => undefined);
   }
 
+  // Resizes after React commits `content` to the textarea's DOM value, rather than inline
+  // inside handleContentChange - reading scrollHeight there right after setContent() saw the
+  // pre-update DOM (correct height only by accident while typing, since the browser applies a
+  // keystroke to the native textarea before firing onChange) and left multi-line text set
+  // programmatically, like an opener template, clipped at single-line height.
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+  }, [content]);
+
   function handleContentChange(value: string) {
     setContent(value);
     setError(null);
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
-    }
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     const isTyping = value.trim().length > 0;
@@ -498,7 +505,6 @@ export function ChatWindow({
     setContent("");
     setPendingMedia(null);
     setReplyingTo(null);
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     if (typingSentRef.current) sendTypingState(false);
     typingSentRef.current = false;
@@ -631,7 +637,7 @@ export function ChatWindow({
         <div className="shrink-0 border-t border-[hsl(var(--chat-border))] bg-[hsl(var(--chat-header))] px-3 py-2.5 md:px-5">
           <p className="mb-2 text-xs font-medium text-muted-foreground">Need an opener?</p>
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {CONNECTION_REASONS.slice(0, 4).map((option) => (
+            {CONNECTION_REASONS.map((option) => (
               <button key={option.value} type="button" onClick={() => handleContentChange(option.template)} className="min-h-10 shrink-0 rounded-full border border-[hsl(var(--chat-border))] bg-[hsl(var(--chat-canvas))] px-3.5 text-xs font-medium transition-colors hover:bg-[hsl(var(--chat-incoming))]">
                 {option.label}
               </button>
