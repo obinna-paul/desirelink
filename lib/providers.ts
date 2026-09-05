@@ -43,7 +43,11 @@ export async function subscribeToProvider(
   subscriberId: string,
   providerId: string,
   tierId: string,
-  urls: { successUrl: string; cancelUrl: string }
+  urls: { successUrl: string; cancelUrl: string },
+  /** The specific post whose "Subscribe now" button started this checkout, if any - see
+   * PostUnlock. Only honored when it actually belongs to this provider, so a client can't
+   * pass an arbitrary post id from a different creator to get it unlocked for free. */
+  conversionPostId?: string
 ): Promise<ProviderSubscribeResult> {
   if (subscriberId === providerId) {
     return { ok: false, status: 400, error: "You can't subscribe to your own tier" };
@@ -57,6 +61,15 @@ export async function subscribeToProvider(
   const tier = await prisma.creatorTier.findUnique({ where: { id: tierId } });
   if (!tier || tier.creatorId !== providerId) {
     return { ok: false, status: 404, error: "Tier not found" };
+  }
+
+  let unlockPostId: string | undefined;
+  if (conversionPostId) {
+    const conversionPost = await prisma.post.findUnique({
+      where: { id: conversionPostId },
+      select: { authorId: true },
+    });
+    if (conversionPost?.authorId === providerId) unlockPostId = conversionPostId;
   }
 
   const [existingProviderSub, existingLegacySub] = await Promise.all([
@@ -114,6 +127,13 @@ export async function subscribeToProvider(
         data: { userId: subscriberId, tierId, amountCents: tier.priceCents, status: "succeeded", provider: "card" },
       });
       await creditProviderWallet(providerId, tier.priceCents);
+      if (unlockPostId) {
+        await prisma.postUnlock.upsert({
+          where: { postId_subscriberId: { postId: unlockPostId, subscriberId } },
+          create: { postId: unlockPostId, subscriberId },
+          update: {},
+        });
+      }
       await sendSubscriptionActivatedEmails(subscriberId, providerId, tierId, tier.priceCents, reference, endsAt);
       return { ok: true, state: "subscribed" };
     }
@@ -127,7 +147,9 @@ export async function subscribeToProvider(
       tier.priceCents,
       urls.successUrl,
       urls.cancelUrl,
-      { kind: "provider_tier", pendingId: pending.id }
+      unlockPostId
+        ? { kind: "provider_tier", pendingId: pending.id, conversionPostId: unlockPostId }
+        : { kind: "provider_tier", pendingId: pending.id }
     );
 
     return { ok: true, state: "checkout", checkoutUrl };

@@ -264,9 +264,13 @@ model Profile {
    */
   creatorWelcomeShownAt DateTime?
 
-  /** Dedupes the one-time personal welcome note from the founder - see app/api/cron/ceo-welcome-note. */
-  ceoNoteSentAt DateTime?
-  /** Dedupes the "your profile is still missing something" nudge - see app/api/cron/profile-nudge. */
+  /**
+   * Dedupes the one-time personal welcome note from the founder - see app/api/cron/ceo-welcome-note.
+   */
+  ceoNoteSentAt      DateTime?
+  /**
+   * Dedupes the "your profile is still missing something" nudge - see app/api/cron/profile-nudge.
+   */
   profileNudgeSentAt DateTime?
 
   /**
@@ -275,17 +279,21 @@ model Profile {
    * one with an unsubscribe link (see lib/email/unsubscribe.ts). Defaults on; flipped off
    * by the one-click unsubscribe link, never by anything else.
    */
-  marketingEmailsEnabled Boolean @default(true)
-  /** Dedupes the weekly digest - see app/api/cron/weekly-digest. */
-  digestSentAt DateTime?
+  marketingEmailsEnabled      Boolean   @default(true)
+  /**
+   * Dedupes the weekly digest - see app/api/cron/weekly-digest.
+   */
+  digestSentAt                DateTime?
   /**
    * Dedupes the win-back email to once per inactive stretch: sent again only once
    * lastActiveAt has moved past this timestamp (i.e. they came back, then went quiet
    * again) - see app/api/cron/win-back.
    */
-  winBackSentAt DateTime?
-  /** "YYYY-MM" of the last month a monthly earnings summary was sent - see
-   * app/api/cron/monthly-earnings-summary. */
+  winBackSentAt               DateTime?
+  /**
+   * "YYYY-MM" of the last month a monthly earnings summary was sent - see
+   * app/api/cron/monthly-earnings-summary.
+   */
   earningsSummarySentForMonth String?
 
   createdAt DateTime @default(now())
@@ -330,6 +338,7 @@ model Profile {
   giftsReceived        Gift[]              @relation("GiftReceiver")
   heartPurchases       HeartPurchase[]
   walletWithdrawals    WalletWithdrawal[]
+  postUnlocks          PostUnlock[]
 
   @@index([city, country])
   @@index([profileType])
@@ -356,17 +365,17 @@ model PartnerInvite {
 // --- Creator monetization ---------------------------------------------------
 
 model CreatorTier {
-  id               String   @id @default(cuid())
-  creatorId        String
-  creator          Profile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  name             String
-  priceCents       Int
-  tierType         String   @default("beginner")
-  description      String
-  maxSubscribers   Int?
-  isLimited        Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id             String   @id @default(cuid())
+  creatorId      String
+  creator        Profile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  name           String
+  priceCents     Int
+  tierType       String   @default("beginner")
+  description    String
+  maxSubscribers Int?
+  isLimited      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   subscriptions         Subscription[]
   providerSubscriptions ProviderSubscription[]
@@ -570,6 +579,7 @@ model Post {
   comments         PostComment[]
   reactions        PostReaction[]
   shares           PostShare[]
+  unlocks          PostUnlock[]
 
   @@index([authorId])
   @@index([isArchived])
@@ -620,6 +630,26 @@ model PostShare {
 
   @@index([postId])
   @@index([userId])
+}
+
+/**
+ * Permanently grants one subscriber access to one specific locked post - the "conversion
+ * post" a fan clicked Subscribe on, regardless of which tier they actually bought. Recorded
+ * once the payment that referenced this post succeeds (see subscribeToProvider and
+ * handleProviderTierEvent), and never re-checked against subscription status: once shown,
+ * always shown, independent of later cancellation/expiry. Every other locked post from that
+ * creator still gates on the normal cumulative tier rule (see lib/subscription-access.ts).
+ */
+model PostUnlock {
+  id           String   @id @default(cuid())
+  postId       String
+  post         Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  subscriberId String
+  subscriber   Profile  @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@unique([postId, subscriberId])
+  @@index([subscriberId])
 }
 
 // --- Trust & safety --------------------------------------------------------
@@ -856,8 +886,10 @@ model LiveStream {
   completedRequests   Int       @default(0)
   createdAt           DateTime  @default(now())
 
-  /** When a "scheduled" stream is meant to start - null once it's live or ended. */
-  scheduledFor DateTime?
+  /**
+   * When a "scheduled" stream is meant to start - null once it's live or ended.
+   */
+  scheduledFor           DateTime?
   /**
    * Set once the "starting soon" notification has fired for this scheduled stream, so the
    * cron pass (lib/live-streams.ts notifyStartingSoonLiveStreams) never sends it twice.
@@ -1106,15 +1138,15 @@ model KnownDevice {
  * typed. See lib/support.ts.
  */
 model SupportTicket {
-  id          String    @id @default(cuid())
-  profileId   String?
-  email       String
-  subject     String
-  message     String
-  status      String    @default("open") // "open" | "resolved"
-  resolvedAt  DateTime?
+  id           String    @id @default(cuid())
+  profileId    String?
+  email        String
+  subject      String
+  message      String
+  status       String    @default("open") // "open" | "resolved"
+  resolvedAt   DateTime?
   resolvedById String?
-  createdAt   DateTime  @default(now())
+  createdAt    DateTime  @default(now())
 
   @@index([status])
   @@index([email])

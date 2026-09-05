@@ -28,6 +28,7 @@ export function SubscribePlansDialog({
   size = "default",
   className,
   renderTrigger,
+  conversionPostId,
 }: {
   providerId: string;
   tiers: PublicTierView[];
@@ -37,6 +38,10 @@ export function SubscribePlansDialog({
    * page's own action row) render its own trigger while reusing this exact modal/
    * interaction, instead of the default full-width Button below. */
   renderTrigger?: (props: { onClick: () => void; currentTier: PublicTierView | null }) => React.ReactNode;
+  /** The specific locked post whose "Subscribe now" button opened this dialog, if any -
+   * grants permanent access to that one post once payment succeeds, regardless of which
+   * tier is actually bought. See PostUnlock. */
+  conversionPostId?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -62,7 +67,7 @@ export function SubscribePlansDialog({
     const response = await fetch(`/api/providers/${providerId}/subscribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tierId: tier.id }),
+      body: JSON.stringify({ tierId: tier.id, conversionPostId }),
     });
     const body = await response.json().catch(() => null);
     setPendingTierId(null);

@@ -100,7 +100,28 @@ export async function getActiveSubscriberIds(creatorId: string): Promise<string[
   );
 }
 
+/**
+ * Post ids this viewer has been permanently granted, regardless of tier - the "conversion
+ * post" they clicked Subscribe on before paying (see PostUnlock, written by
+ * subscribeToProvider and handleProviderTierEvent). Never re-checked against subscription
+ * status once granted.
+ */
+export async function getUnlockedPostIds(
+  viewerId: string | null,
+  postIds: string[],
+): Promise<Set<string>> {
+  if (!viewerId || postIds.length === 0) return new Set();
+
+  const unlocks = await prisma.postUnlock.findMany({
+    where: { subscriberId: viewerId, postId: { in: postIds } },
+    select: { postId: true },
+  });
+
+  return new Set(unlocks.map((unlock) => unlock.postId));
+}
+
 export type PostAccessInput = {
+  id: string;
   authorId: string;
   isSubscriberOnly: boolean;
   tier: { id: string; name: string; priceCents: number } | null;
@@ -126,6 +147,7 @@ export function resolvePostAccess(
   post: PostAccessInput,
   access: Map<string, CreatorAccessInfo>,
   viewerId: string | null,
+  unlockedPostIds: Set<string> = new Set(),
 ): PostAccessResult {
   if (!post.isSubscriberOnly) return { unlocked: true, requiredTier: null };
   if (viewerId && viewerId === post.authorId) return { unlocked: true, requiredTier: null };
@@ -133,6 +155,8 @@ export function resolvePostAccess(
   const requiredTier: RequiredTier | null = post.tier
     ? { id: post.tier.id, name: post.tier.name, priceCents: post.tier.priceCents }
     : null;
+
+  if (unlockedPostIds.has(post.id)) return { unlocked: true, requiredTier };
 
   const info = access.get(post.authorId);
   if (!info) return { unlocked: false, requiredTier };
