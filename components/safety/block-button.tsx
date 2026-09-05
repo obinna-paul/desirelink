@@ -67,9 +67,9 @@ export function BlockButton({
         onClick={handleClick}
       >
         {blocked ? (
-          <ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />
+          <ShieldOff className={cn("h-3.5 w-3.5", menu && "h-4 w-4")} aria-hidden="true" />
         ) : (
-          <ShieldX className="h-3.5 w-3.5" aria-hidden="true" />
+          <ShieldX className={cn("h-3.5 w-3.5", menu && "h-4 w-4")} aria-hidden="true" />
         )}
         {pending ? "..." : blocked ? "Unblock" : "Block"}
       </Button>
