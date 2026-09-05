@@ -134,11 +134,11 @@ export async function getPublicTiersForCreators(
       viewerState = "owner";
     } else if (subscribedTierIds.has(tier.id)) {
       viewerState = "subscribed";
-    } else if (applicationByTier.get(tier.id) === "pending") {
+    } else if (tier.requiresApproval && applicationByTier.get(tier.id) === "pending") {
       viewerState = "pending";
-    } else if (applicationByTier.get(tier.id) === "approved") {
+    } else if (tier.requiresApproval && applicationByTier.get(tier.id) === "approved") {
       viewerState = "approved";
-    } else if (applicationByTier.get(tier.id) === "denied") {
+    } else if (tier.requiresApproval && applicationByTier.get(tier.id) === "denied") {
       viewerState = "denied";
     } else if (isFull) {
       viewerState = "full";
