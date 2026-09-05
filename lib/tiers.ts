@@ -36,13 +36,31 @@ export async function getPublicTiers(
   creatorProfileId: string,
   viewerProfileId: string | null
 ): Promise<PublicTierView[]> {
+  const byCreator = await getPublicTiersForCreators([creatorProfileId], viewerProfileId);
+  return byCreator.get(creatorProfileId) ?? [];
+}
+
+/**
+ * The multi-creator batch behind getPublicTiers - one set of queries covering every
+ * creator's tiers and the viewer's state against all of them, rather than a query set
+ * per creator. Used wherever tier state is needed for more than one creator at a time
+ * (see computeSubscribePrompts in lib/posts.ts).
+ */
+export async function getPublicTiersForCreators(
+  creatorProfileIds: string[],
+  viewerProfileId: string | null,
+): Promise<Map<string, PublicTierView[]>> {
+  const byCreator = new Map<string, PublicTierView[]>();
+  const uniqueCreatorIds = Array.from(new Set(creatorProfileIds));
+  if (uniqueCreatorIds.length === 0) return byCreator;
+
   let tiers: Prisma.CreatorTierGetPayload<{
     include: { _count: { select: { subscriptions: true } } };
   }>[];
 
   try {
     tiers = await prisma.creatorTier.findMany({
-      where: { creatorId: creatorProfileId },
+      where: { creatorId: { in: uniqueCreatorIds } },
       orderBy: { createdAt: "asc" },
       include: {
         _count: {
@@ -55,12 +73,11 @@ export async function getPublicTiers(
   } catch (error) {
     if (isMissingSchemaError(error, "CreatorTier.tierType")) {
       console.warn("Public tiers are unavailable until the CreatorTier.tierType migration is applied.");
-      return [];
+      return byCreator;
     }
     throw error;
   }
 
-  const isOwner = viewerProfileId === creatorProfileId;
   const tierIds = tiers.map((tier) => tier.id);
   const now = new Date();
   let providerSubscriberCounts = new Map<string, number>();
@@ -82,7 +99,7 @@ export async function getPublicTiers(
   }
 
   const [subscriptions, providerSubscriptions, applications] =
-    !isOwner && viewerProfileId
+    viewerProfileId && tierIds.length > 0
       ? await Promise.all([
           prisma.subscription.findMany({
             where: {
@@ -107,7 +124,8 @@ export async function getPublicTiers(
   ]);
   const applicationByTier = new Map(applications.map((app) => [app.tierId, app.status]));
 
-  return tiers.map((tier) => {
+  for (const tier of tiers) {
+    const isOwner = viewerProfileId === tier.creatorId;
     const subscriberCount = tier._count.subscriptions + (providerSubscriberCounts.get(tier.id) ?? 0);
     const isFull = Boolean(tier.maxSubscribers && subscriberCount >= tier.maxSubscribers);
 
@@ -128,7 +146,7 @@ export async function getPublicTiers(
       viewerState = "available";
     }
 
-    return {
+    const view: PublicTierView = {
       id: tier.id,
       name: tier.name,
       description: tier.description,
@@ -140,7 +158,16 @@ export async function getPublicTiers(
       subscriberCount,
       viewerState,
     };
-  });
+
+    const existing = byCreator.get(tier.creatorId);
+    if (existing) {
+      existing.push(view);
+    } else {
+      byCreator.set(tier.creatorId, [view]);
+    }
+  }
+
+  return byCreator;
 }
 
 async function getViewerProviderSubscriptions(viewerProfileId: string, tierIds: string[]) {

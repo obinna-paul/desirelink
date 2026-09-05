@@ -9,6 +9,7 @@ import {
   type CreatorAccessInfo,
   type RequiredTier,
 } from "@/lib/subscription-access";
+import { getPublicTiersForCreators, type PublicTierView } from "@/lib/tiers";
 
 const FEED_LIMIT = 30;
 const PROFILE_POSTS_LIMIT = 50;
@@ -89,6 +90,14 @@ type RawPost = {
 
 type PostLockReason = "subscriber_only";
 
+/** A pitch to subscribe, shown on a free post as a lead-magnet pull toward the creator's
+ * paid tiers - see computeSubscribePrompts, used only by getPublicFeedPosts. */
+export type PostSubscribePrompt = {
+  providerId: string;
+  providerUsername: string;
+  tiers: PublicTierView[];
+};
+
 export type PostCommentView = {
   id: string;
   content: string;
@@ -139,6 +148,9 @@ export type PostView = {
   /** The tier that unlocks this post, when locked - null for a free post, an unlocked
    * post, or a premium post with no tier assigned (any active subscription unlocks it). */
   requiredTier: RequiredTier | null;
+  /** A subscribe pitch attached to this specific post - see PostSubscribePrompt. Only
+   * ever set by getPublicFeedPosts, on the first free post per creator in the feed. */
+  subscribePrompt: PostSubscribePrompt | null;
   viewCount: number;
   isPinned: boolean;
   createdAt: string;
@@ -278,6 +290,7 @@ function toPostView(
     locked,
     lockReason,
     requiredTier: locked ? requiredTier : null,
+    subscribePrompt: null,
     viewCount: post.viewCount,
     isPinned: post.pinnedAt !== null,
     content: locked ? null : post.content,
@@ -509,6 +522,64 @@ async function accessForSubscriberOnlyAuthors(
   return getCreatorAccess(viewerProfileId, authorIds);
 }
 
+/**
+ * Attaches a subscribe pitch to the first free post per creator in a feed page - a lead
+ * magnet: a verified creator's free posts pull viewers toward their paid tiers. Skips a
+ * creator entirely if they have no tiers, or if the viewer already holds (or has pending)
+ * one of their tiers - there's nothing left to pitch. Tier state for every candidate
+ * creator is fetched in one batch (getPublicTiersForCreators) rather than per-creator, so
+ * this stays cheap regardless of how many distinct creators appear in the page.
+ */
+async function computeSubscribePrompts(
+  posts: RawPost[],
+  viewerProfileId: string | null,
+): Promise<Map<string, PostSubscribePrompt>> {
+  const prompts = new Map<string, PostSubscribePrompt>();
+  if (!viewerProfileId) return prompts;
+
+  const firstPostIdByCreator = new Map<string, string>();
+  const usernameByCreator = new Map<string, string>();
+
+  for (const post of posts) {
+    if (post.isSubscriberOnly) continue;
+    if (post.author.id === viewerProfileId) continue;
+    if (firstPostIdByCreator.has(post.author.id)) continue;
+
+    const isVerifiedAny =
+      post.author.isVerified || post.author.isVerifiedCreator || post.author.isVerifiedServiceProvider;
+    if (!isVerifiedAny) continue;
+
+    firstPostIdByCreator.set(post.author.id, post.id);
+    usernameByCreator.set(post.author.id, post.author.username);
+  }
+
+  if (firstPostIdByCreator.size === 0) return prompts;
+
+  const tiersByCreator = await getPublicTiersForCreators(
+    Array.from(firstPostIdByCreator.keys()),
+    viewerProfileId,
+  );
+
+  for (const [creatorId, postId] of Array.from(firstPostIdByCreator)) {
+    const tiers = tiersByCreator.get(creatorId) ?? [];
+    const alreadyEngaged = tiers.some(
+      (tier) => tier.viewerState === "subscribed" || tier.viewerState === "pending",
+    );
+    if (alreadyEngaged) continue;
+
+    const available = tiers.filter((tier) => tier.viewerState === "available");
+    if (available.length === 0) continue;
+
+    prompts.set(postId, {
+      providerId: creatorId,
+      providerUsername: usernameByCreator.get(creatorId)!,
+      tiers: available,
+    });
+  }
+
+  return prompts;
+}
+
 export async function getPublicFeedPosts(
   viewerProfileId: string | null,
 ): Promise<PostView[]> {
@@ -527,8 +598,12 @@ export async function getPublicFeedPosts(
     });
 
     const access = await accessForSubscriberOnlyAuthors(posts, viewerProfileId);
+    const subscribePrompts = await computeSubscribePrompts(posts, viewerProfileId);
     const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
-    return posts.map((post) => toPostView(post, access, viewerProfileId, liveStreamIds));
+    return posts.map((post) => ({
+      ...toPostView(post, access, viewerProfileId, liveStreamIds),
+      subscribePrompt: subscribePrompts.get(post.id) ?? null,
+    }));
   } catch (error) {
     if (isMissingPostArchiveError(error)) {
       console.warn(
@@ -547,8 +622,12 @@ export async function getPublicFeedPosts(
       });
 
       const access = await accessForSubscriberOnlyAuthors(posts, viewerProfileId);
+      const subscribePrompts = await computeSubscribePrompts(posts, viewerProfileId);
       const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
-      return posts.map((post) => toPostView(post, access, viewerProfileId, liveStreamIds));
+      return posts.map((post) => ({
+        ...toPostView(post, access, viewerProfileId, liveStreamIds),
+        subscribePrompt: subscribePrompts.get(post.id) ?? null,
+      }));
     }
     if (isMissingSchemaError(error)) {
       console.warn(
