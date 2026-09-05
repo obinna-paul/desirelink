@@ -58,10 +58,13 @@ const PROFILE_SECTIONS: {
   { id: "reviews", label: "Reviews", icon: Star },
 ];
 
-function normalizeSection(section?: string): ProfileSection {
-  return PROFILE_SECTIONS.some((item) => item.id === section)
+function normalizeSection(
+  sections: { id: ProfileSection }[],
+  section?: string,
+): ProfileSection {
+  return sections.some((item) => item.id === section)
     ? (section as ProfileSection)
-    : "premium";
+    : sections[0].id;
 }
 
 function sectionHref(profileHref: string, section: ProfileSection) {
@@ -147,7 +150,10 @@ export function ProfileView({
   liveStreamId?: string | null;
   viewerIsProvider?: boolean;
 }) {
-  const section = normalizeSection(activeSection);
+  const visibleSections = isProvider
+    ? PROFILE_SECTIONS
+    : PROFILE_SECTIONS.filter((item) => item.id === "posts");
+  const section = normalizeSection(visibleSections, activeSection);
   const visibleFields = new Set(visibleProfileFields);
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
   const freePosts = posts.filter((post) => !post.isSubscriberOnly);
@@ -386,26 +392,28 @@ export function ProfileView({
         </div>
       </section>
 
-      <nav
-        aria-label="Profile sections"
-        className="sticky top-[var(--mobile-header-height,0px)] z-20 mt-3 grid grid-cols-4 border-y border-border bg-background/95 backdrop-blur md:static md:mt-6 md:flex md:border-x-0 md:border-t-0 md:bg-transparent md:backdrop-blur-0"
-      >
-        {PROFILE_SECTIONS.map((item) => (
-          <ProfileSectionTab
-            key={item.id}
-            href={sectionHref(profileHref, item.id)}
-            label={item.label}
-            icon={item.icon}
-            isActive={section === item.id}
-          />
-        ))}
-      </nav>
+      {visibleSections.length > 1 && (
+        <nav
+          aria-label="Profile sections"
+          className="sticky top-[var(--mobile-header-height,0px)] z-20 mt-3 grid grid-cols-4 border-y border-border bg-background/95 backdrop-blur md:static md:mt-6 md:flex md:border-x-0 md:border-t-0 md:bg-transparent md:backdrop-blur-0"
+        >
+          {visibleSections.map((item) => (
+            <ProfileSectionTab
+              key={item.id}
+              href={sectionHref(profileHref, item.id)}
+              label={item.label}
+              icon={item.icon}
+              isActive={section === item.id}
+            />
+          ))}
+        </nav>
+      )}
 
       <SwipeableSection
-        hrefs={PROFILE_SECTIONS.map((item) =>
+        hrefs={visibleSections.map((item) =>
           sectionHref(profileHref, item.id),
         )}
-        currentIndex={PROFILE_SECTIONS.findIndex((item) => item.id === section)}
+        currentIndex={visibleSections.findIndex((item) => item.id === section)}
       >
         <div className="min-h-[18rem] py-3 md:py-5">
           {section === "posts" && (
