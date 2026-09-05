@@ -77,7 +77,7 @@ export function SwitchToProviderForm({
       )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" onClick={() => router.push("/verification")} className="h-11">
+        <Button type="button" variant="outline" onClick={() => router.back()} className="h-11">
           Cancel
         </Button>
         <Button type="button" disabled={status === "submitting"} onClick={handleSwitch} className="h-11">
