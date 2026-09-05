@@ -18,7 +18,11 @@ export const signupSchema = z
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
     profileType: z.enum(ACCOUNT_TYPE_VALUES).default("EXPLORER"),
-    turnstileToken: z.string().optional(),
+    // The client's turnstileToken state starts out (and stays, whenever Turnstile isn't
+    // configured) as `null`, not `undefined` - .nullish() accepts both, where .optional()
+    // alone rejected a literal null and failed every signup with "Expected string,
+    // received null" the moment Turnstile keys weren't set.
+    turnstileToken: z.string().nullish(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -43,7 +47,8 @@ export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 
 export const forgotPasswordSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email address"),
-  turnstileToken: z.string().optional(),
+  // See signupSchema's turnstileToken comment above - same null-vs-undefined mismatch.
+  turnstileToken: z.string().nullish(),
 });
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
