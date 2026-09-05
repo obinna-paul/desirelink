@@ -146,15 +146,13 @@ export function SubscribePlansDialog({
 
                 return (
                   <div key={tier.id} className="rounded-xl border border-border/60 p-3.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{tier.name}</p>
-                        <p className="text-xs text-muted-foreground">{tierTypeLabel}</p>
-                      </div>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="min-w-0 truncate text-base font-bold">{tier.name}</p>
                       <p className="shrink-0 text-sm font-semibold text-primary">
                         {formatCents(tier.priceCents)}/mo
                       </p>
                     </div>
+                    <p className="text-xs text-muted-foreground">{tierTypeLabel}</p>
                     {tier.description && (
                       <p className="mt-1.5 text-xs text-muted-foreground">{tier.description}</p>
                     )}
