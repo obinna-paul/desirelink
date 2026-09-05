@@ -27,11 +27,16 @@ export function SubscribePlansDialog({
   tiers,
   size = "default",
   className,
+  renderTrigger,
 }: {
   providerId: string;
   tiers: PublicTierView[];
   size?: "default" | "sm";
   className?: string;
+  /** Lets a caller in a different visual context (e.g. a feed chip, vs. the profile
+   * page's own action row) render its own trigger while reusing this exact modal/
+   * interaction, instead of the default full-width Button below. */
+  renderTrigger?: (props: { onClick: () => void; currentTier: PublicTierView | null }) => React.ReactNode;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -79,16 +84,20 @@ export function SubscribePlansDialog({
 
   return (
     <div className={cn("min-w-0", className)}>
-      <Button
-        type="button"
-        variant={currentTier ? "outline" : "default"}
-        size={size}
-        className="h-10 w-full min-w-28"
-        onClick={() => setOpen(true)}
-      >
-        {currentTier && <Check className="h-4 w-4" aria-hidden="true" />}
-        {currentTier ? `Subscribed · ${currentTier.name}` : "Subscribe"}
-      </Button>
+      {renderTrigger ? (
+        renderTrigger({ onClick: () => setOpen(true), currentTier })
+      ) : (
+        <Button
+          type="button"
+          variant={currentTier ? "outline" : "default"}
+          size={size}
+          className="h-10 w-full min-w-28"
+          onClick={() => setOpen(true)}
+        >
+          {currentTier && <Check className="h-4 w-4" aria-hidden="true" />}
+          {currentTier ? `Subscribed · ${currentTier.name}` : "Subscribe"}
+        </Button>
+      )}
 
       {open && (
         <div

@@ -1,17 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Heart } from "lucide-react";
 
 import { formatCents } from "@/lib/creator";
+import { SubscribePlansDialog } from "@/components/profile/subscribe-plans-dialog";
 import type { PostSubscribePrompt } from "@/lib/posts";
 
+const CHIP_CLASSNAME =
+  "inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-95 disabled:opacity-60 disabled:active:scale-100";
+
 /**
- * The lead-magnet pitch on a free post: one tier to subscribe to directly, or a link to
- * the full plan picker when the creator has more than one. Mirrors
- * components/live/subscribe-chip.tsx's logic, styled for a card background instead of a
- * dark video overlay.
+ * The lead-magnet pitch on a free post: one tier to subscribe to directly, or the full
+ * plan picker (same slide-up dialog as the profile page's own Subscribe button, opened
+ * inline - never a navigation away from the feed) when the creator has more than one.
+ * Mirrors components/live/subscribe-chip.tsx's logic, styled for a card background
+ * instead of a dark video overlay.
  */
 export function PostSubscribeChip({ prompt }: { prompt: PostSubscribePrompt }) {
   const [pending, setPending] = useState(false);
@@ -52,19 +56,22 @@ export function PostSubscribeChip({ prompt }: { prompt: PostSubscribePrompt }) {
           type="button"
           disabled={pending}
           onClick={() => subscribeToTier(singleTier.id)}
-          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+          className={CHIP_CLASSNAME}
         >
           <Heart className="h-3.5 w-3.5" aria-hidden="true" fill="currentColor" />
           {pending ? "…" : `Subscribe · ${formatCents(singleTier.priceCents)}/mo`}
         </button>
       ) : (
-        <Link
-          href={`/profile/${prompt.providerUsername}`}
-          className="inline-flex items-center gap-1.5 rounded-full bg-accent-tint px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-accent-tint-border/60"
-        >
-          <Heart className="h-3.5 w-3.5" aria-hidden="true" fill="currentColor" />
-          View subscription plans
-        </Link>
+        <SubscribePlansDialog
+          providerId={prompt.providerId}
+          tiers={prompt.tiers}
+          renderTrigger={({ onClick }) => (
+            <button type="button" onClick={onClick} className={CHIP_CLASSNAME}>
+              <Heart className="h-3.5 w-3.5" aria-hidden="true" fill="currentColor" />
+              Subscribe
+            </button>
+          )}
+        />
       )}
     </div>
   );
