@@ -125,7 +125,7 @@ export default function SignupPage() {
       return;
     }
 
-    router.push("/profile/edit");
+    router.push("/verify-email");
     router.refresh();
   }
 

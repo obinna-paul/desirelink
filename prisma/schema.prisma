@@ -137,6 +137,7 @@ model User {
   sessions       Session[]
   adminAuditLogs AdminAuditLog[]
   adminNotes     AdminNote[]
+  knownDevices   KnownDevice[]
 }
 
 // NextAuth Prisma adapter models (Account/Session/VerificationToken) -----
@@ -264,6 +265,11 @@ model Profile {
    * Creator, or on first entry after signing up directly as one) - null means unseen.
    */
   creatorWelcomeShownAt DateTime?
+
+  /** Dedupes the one-time personal welcome note from the founder - see app/api/cron/ceo-welcome-note. */
+  ceoNoteSentAt DateTime?
+  /** Dedupes the "your profile is still missing something" nudge - see app/api/cron/profile-nudge. */
+  profileNudgeSentAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1035,4 +1041,61 @@ model AdminNote {
   createdAt DateTime @default(now())
 
   @@index([profileId])
+}
+
+// --- Email --------------------------------------------------------------
+
+/**
+ * A one-time code sent by email - signup verification and password reset both use this
+ * same table (see lib/email/otp.ts), keyed by the plain email address rather than a user
+ * FK, same pattern NextAuth's own VerificationToken uses above. Only the bcrypt hash of
+ * the code is ever stored, never the code itself.
+ */
+model EmailOtp {
+  id         String    @id @default(cuid())
+  email      String
+  purpose    String // "signup" | "password_reset"
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, purpose])
+}
+
+/**
+ * One row per email actually sent through Resend - lets support answer "did {{email}}
+ * really get their code" in seconds instead of a Resend-dashboard hunt, and is what a
+ * bounce/complaint webhook (see app/api/webhooks/resend) will eventually suppress
+ * against. See lib/email/send.ts.
+ */
+model EmailLog {
+  id        String   @id @default(cuid())
+  recipient String
+  category  String
+  template  String
+  resendId  String?
+  status    String // "sent" | "failed"
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([recipient])
+  @@index([createdAt])
+}
+
+/**
+ * A device/browser fingerprint seen signing in to this account, purely to power the "new
+ * sign-in" security email (lib/auth.ts) - the first time a fingerprint isn't found here
+ * for a user, an alert goes out and the fingerprint is recorded so it won't fire again.
+ */
+model KnownDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint String
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, fingerprint])
 }

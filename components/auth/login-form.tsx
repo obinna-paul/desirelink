@@ -70,7 +70,7 @@ export function LoginForm() {
         />
         <div className="flex justify-end">
           <Link
-            href="/help"
+            href="/forgot-password"
             className="inline-flex min-h-11 items-center text-sm font-semibold text-[#8f285d] underline-offset-4 hover:underline"
           >
             Forgot password?

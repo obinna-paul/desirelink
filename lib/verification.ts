@@ -5,6 +5,7 @@ import { isProviderProfileType } from "@/lib/provider-types";
 import { deleteCloudinaryAsset } from "@/lib/cloudinary";
 import { recordAdminAction } from "@/lib/admin/audit";
 import { createNotification } from "@/lib/notifications";
+import { sendVerificationApprovedEmail, sendVerificationDeniedEmail } from "@/lib/email/notifications";
 
 export const VERIFICATION_REQUEST_TYPES = [
   "creator",
@@ -308,6 +309,7 @@ export async function approveVerificationRequest(
     body: "Your identity verification was approved.",
     href: "/verification",
   });
+  await sendVerificationApprovedEmail(request.profileId);
 
   return { ok: true };
 }
@@ -371,6 +373,7 @@ export async function denyVerificationRequest(
     body: `Your identity verification wasn't approved: ${trimmedReason}. Your account has been suspended.`,
     href: "/verification",
   });
+  await sendVerificationDeniedEmail(request.profileId, trimmedReason);
 
   return { ok: true };
 }

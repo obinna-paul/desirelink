@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { recordAdminAction } from "@/lib/admin/audit";
 import { getActiveSubscriberCount } from "@/lib/creator";
+import { sendAccountReinstatedEmail, sendAccountSuspendedEmail } from "@/lib/email/notifications";
 
 const searchResultSelect = {
   id: true,
@@ -171,6 +172,7 @@ export async function suspendAccount(profileId: string, actorId: string, reason:
     targetId: profileId,
     summary: reason ? `Suspended @${profile.username}: ${reason}` : `Suspended @${profile.username}`,
   });
+  await sendAccountSuspendedEmail(profileId);
 
   return { ok: true };
 }
@@ -192,6 +194,7 @@ export async function reinstateAccount(profileId: string, actorId: string): Prom
     targetId: profileId,
     summary: `Reinstated @${profile.username}`,
   });
+  await sendAccountReinstatedEmail(profileId);
 
   return { ok: true };
 }

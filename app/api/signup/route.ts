@@ -7,6 +7,7 @@ import { signupSchema } from "@/lib/validations/auth";
 import { isUsernameAvailable } from "@/lib/username";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { getClientIp, readJson } from "@/lib/security/request";
+import { sendSignupOtpEmail } from "@/lib/email/notifications";
 
 export async function POST(req: Request) {
   const body = await readJson(req);
@@ -90,6 +91,8 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+
+  await sendSignupOtpEmail(normalizedEmail);
 
   return NextResponse.json({ success: true }, { status: 201 });
 }

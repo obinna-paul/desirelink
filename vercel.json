@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/live-starting-soon",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/ceo-welcome-note",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/profile-nudge",
+      "schedule": "0 8 * * *"
     }
   ]
 }
