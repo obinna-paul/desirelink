@@ -52,8 +52,8 @@ const PROFILE_SECTIONS: {
   label: string;
   icon: LucideIcon;
 }[] = [
-  { id: "posts", label: "Posts", icon: LayoutGrid },
   { id: "premium", label: "Premium", icon: LockKeyhole },
+  { id: "posts", label: "Posts", icon: LayoutGrid },
   { id: "services", label: "Services", icon: BriefcaseBusiness },
   { id: "reviews", label: "Reviews", icon: Star },
 ];
@@ -61,11 +61,11 @@ const PROFILE_SECTIONS: {
 function normalizeSection(section?: string): ProfileSection {
   return PROFILE_SECTIONS.some((item) => item.id === section)
     ? (section as ProfileSection)
-    : "posts";
+    : "premium";
 }
 
 function sectionHref(profileHref: string, section: ProfileSection) {
-  return section === "posts"
+  return section === "premium"
     ? profileHref
     : `${profileHref}?section=${section}`;
 }
