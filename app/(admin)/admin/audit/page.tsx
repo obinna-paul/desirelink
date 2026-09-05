@@ -26,6 +26,7 @@ const ACTION_LABELS: Record<AdminAuditAction, string> = {
   "account.suspend": "Suspended account",
   "account.reinstate": "Reinstated account",
   "account.note": "Added account note",
+  "account.delete": "Deleted account",
   "finance.release_escrow": "Released escrow",
   "finance.refund_escrow": "Refunded escrow",
   "admin.role_change": "Changed admin role",

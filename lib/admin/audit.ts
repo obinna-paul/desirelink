@@ -22,6 +22,7 @@ export type AdminAuditAction =
   | "account.suspend"
   | "account.reinstate"
   | "account.note"
+  | "account.delete"
   | "finance.release_escrow"
   | "finance.refund_escrow"
   | "admin.role_change"

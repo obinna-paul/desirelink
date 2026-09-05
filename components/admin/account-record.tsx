@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import { Ban, CheckCircle2, Lock, ShieldCheck } from "lucide-react";
+import { Ban, CheckCircle2, Lock, ShieldCheck, Trash2 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -107,10 +107,12 @@ export function AccountRecord({
   detail,
   canModerate,
   canWriteNotes,
+  canDelete,
 }: {
   detail: AccountRecordData;
   canModerate: boolean;
   canWriteNotes: boolean;
+  canDelete: boolean;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("Overview");
@@ -118,6 +120,9 @@ export function AccountRecord({
   const [error, setError] = useState<string | null>(null);
   const [noteBody, setNoteBody] = useState("");
   const [confirmSuspend, setConfirmSuspend] = useState(false);
+  const [showDeletePanel, setShowDeletePanel] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const { profile, stats } = detail;
 
@@ -154,6 +159,20 @@ export function AccountRecord({
       return;
     }
     router.refresh();
+  }
+
+  async function deleteAccount() {
+    if (deleteConfirmText.trim() !== profile.username) return;
+    setDeleting(true);
+    setError(null);
+    const res = await fetch(`/api/admin/accounts/${profile.id}/delete`, { method: "POST" });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      setDeleting(false);
+      setError(body?.error ?? "Couldn't delete this account.");
+      return;
+    }
+    router.push("/admin/accounts");
   }
 
   async function submitNote(event: React.FormEvent) {
@@ -230,7 +249,59 @@ export function AccountRecord({
             )}
           </div>
         )}
+
+        {canDelete && !showDeletePanel && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setShowDeletePanel(true)}
+            className="shrink-0 gap-1.5 text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+            Delete account
+          </Button>
+        )}
       </div>
+
+      {showDeletePanel && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
+          <p className="text-sm font-semibold text-destructive">Permanently delete @{profile.username}?</p>
+          <p className="text-sm leading-6 text-muted-foreground">
+            This deletes their account, posts, messages, subscriptions, wallet history, and everything
+            else tied to it. This can&apos;t be undone. Type <strong>{profile.username}</strong> to confirm.
+          </p>
+          <input
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder={profile.username}
+            className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-destructive"
+          />
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              disabled={deleting || deleteConfirmText.trim() !== profile.username}
+              onClick={deleteAccount}
+            >
+              {deleting ? "Deleting..." : "Delete permanently"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={deleting}
+              onClick={() => {
+                setShowDeletePanel(false);
+                setDeleteConfirmText("");
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
