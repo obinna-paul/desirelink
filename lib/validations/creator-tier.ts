@@ -23,7 +23,6 @@ export const creatorTierSchema = z.object({
   tierType: z.enum(TIER_TYPE_VALUES),
   maxSubscribers: z.number().int().min(1).max(100000).nullable(),
   isLimited: z.boolean(),
-  requiresApproval: z.boolean(),
 });
 
 export type CreatorTierInput = z.infer<typeof creatorTierSchema>;

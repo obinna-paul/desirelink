@@ -562,9 +562,7 @@ async function computeSubscribePrompts(
 
   for (const [creatorId, postId] of Array.from(firstPostIdByCreator)) {
     const tiers = tiersByCreator.get(creatorId) ?? [];
-    const alreadyEngaged = tiers.some(
-      (tier) => tier.viewerState === "subscribed" || tier.viewerState === "pending",
-    );
+    const alreadyEngaged = tiers.some((tier) => tier.viewerState === "subscribed");
     if (alreadyEngaged) continue;
 
     const available = tiers.filter((tier) => tier.viewerState === "available");

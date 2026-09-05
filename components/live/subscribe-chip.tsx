@@ -47,7 +47,7 @@ export function SubscribeChip({
     setSubscribed(true);
   }
 
-  if (singleTier && !singleTier.requiresApproval) {
+  if (singleTier) {
     return (
       <div className="flex flex-col items-start gap-1">
         {error && <p className="text-[10px] text-red-300">{error}</p>}

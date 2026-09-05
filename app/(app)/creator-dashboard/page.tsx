@@ -10,7 +10,6 @@ import { BackLink } from "@/components/layout/back-link";
 import { DashboardTabs } from "@/components/creator/dashboard-tabs";
 import { StatCard } from "@/components/creator/stat-card";
 import { AudienceList } from "@/components/creator/audience-list";
-import { ApplicationsList } from "@/components/creator/applications-list";
 import { CreatorAssistantPanel } from "@/components/creator/assistant-panel";
 import { PricingManager } from "@/components/creator/pricing-manager";
 import { WalletOverviewSection } from "@/components/wallet/wallet-overview-section";
@@ -19,7 +18,6 @@ import {
   CREATOR_DASHBOARD_TABS,
   DEFAULT_CREATOR_DASHBOARD_TAB,
   formatCents,
-  getCreatorApplications,
   getCreatorAssistantInsights,
   getCreatorStats,
   getCreatorTiers,
@@ -130,9 +128,8 @@ async function AssistantTab({ profileId }: { profileId: string }) {
 }
 
 async function AudienceTab({ profileId }: { profileId: string }) {
-  const [subscribers, applications, growth, earnings] = await Promise.all([
+  const [subscribers, growth, earnings] = await Promise.all([
     getSubscribers(profileId),
-    getCreatorApplications(profileId),
     getSubscriberGrowth(profileId),
     getEarningsByMonth(profileId),
   ]);
@@ -144,7 +141,6 @@ async function AudienceTab({ profileId }: { profileId: string }) {
         <EarningsChart data={earnings} />
       </div>
       <AudienceList subscribers={subscribers} />
-      {applications.length > 0 && <ApplicationsList initialApplications={applications} />}
     </div>
   );
 }

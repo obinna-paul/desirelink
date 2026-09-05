@@ -45,12 +45,6 @@ enum AvailabilityStatusType {
   couple_looking
 }
 
-enum AccessApplicationStatus {
-  pending
-  approved
-  denied
-}
-
 enum ModerationStatus {
   pending
   reviewed
@@ -313,7 +307,6 @@ model Profile {
   circles                Circle[]
   circleMemberships      CircleMember[]
   availabilityStatuses   AvailabilityStatus[]
-  accessApplications     AccessApplication[]
   transactions           Transaction[]
   reviewsGiven           Review[]              @relation("ReviewReviewer")
   reviewsReceived        Review[]              @relation("ReviewReviewee")
@@ -372,13 +365,11 @@ model CreatorTier {
   description      String
   maxSubscribers   Int?
   isLimited        Boolean  @default(false)
-  requiresApproval Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   subscriptions         Subscription[]
   providerSubscriptions ProviderSubscription[]
-  accessApplications    AccessApplication[]
   transactions          Transaction[]
   posts                 Post[]
 
@@ -742,20 +733,6 @@ model AvailabilityStatus {
 }
 
 // --- Creator access & billing -----------------------------------------------
-
-model AccessApplication {
-  id        String                  @id @default(cuid())
-  tierId    String
-  tier      CreatorTier             @relation(fields: [tierId], references: [id], onDelete: Cascade)
-  userId    String
-  profile   Profile                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status    AccessApplicationStatus
-  createdAt DateTime                @default(now())
-
-  @@unique([tierId, userId])
-  @@index([tierId])
-  @@index([userId])
-}
 
 model Transaction {
   id                     String                @id @default(cuid())

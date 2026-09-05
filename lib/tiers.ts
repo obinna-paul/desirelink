@@ -2,14 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
-export type TierViewerState =
-  | "owner"
-  | "subscribed"
-  | "pending"
-  | "approved"
-  | "denied"
-  | "full"
-  | "available";
+export type TierViewerState = "owner" | "subscribed" | "full" | "available";
 
 export type PublicTierView = {
   id: string;
@@ -18,7 +11,6 @@ export type PublicTierView = {
   priceCents: number;
   tierType: string;
   isLimited: boolean;
-  requiresApproval: boolean;
   maxSubscribers: number | null;
   subscriberCount: number;
   viewerState: TierViewerState;
@@ -98,7 +90,7 @@ export async function getPublicTiersForCreators(
     }
   }
 
-  const [subscriptions, providerSubscriptions, applications] =
+  const [subscriptions, providerSubscriptions] =
     viewerProfileId && tierIds.length > 0
       ? await Promise.all([
           prisma.subscription.findMany({
@@ -111,18 +103,13 @@ export async function getPublicTiersForCreators(
             select: { tierId: true },
           }),
           getViewerProviderSubscriptions(viewerProfileId, tierIds),
-          prisma.accessApplication.findMany({
-            where: { userId: viewerProfileId, tierId: { in: tierIds } },
-            select: { tierId: true, status: true },
-          }),
         ])
-      : [[], [], []];
+      : [[], []];
 
   const subscribedTierIds = new Set([
     ...subscriptions.map((sub) => sub.tierId),
     ...providerSubscriptions.map((sub) => sub.tierId),
   ]);
-  const applicationByTier = new Map(applications.map((app) => [app.tierId, app.status]));
 
   for (const tier of tiers) {
     const isOwner = viewerProfileId === tier.creatorId;
@@ -134,12 +121,6 @@ export async function getPublicTiersForCreators(
       viewerState = "owner";
     } else if (subscribedTierIds.has(tier.id)) {
       viewerState = "subscribed";
-    } else if (tier.requiresApproval && applicationByTier.get(tier.id) === "pending") {
-      viewerState = "pending";
-    } else if (tier.requiresApproval && applicationByTier.get(tier.id) === "approved") {
-      viewerState = "approved";
-    } else if (tier.requiresApproval && applicationByTier.get(tier.id) === "denied") {
-      viewerState = "denied";
     } else if (isFull) {
       viewerState = "full";
     } else {
@@ -153,7 +134,6 @@ export async function getPublicTiersForCreators(
       priceCents: tier.priceCents,
       tierType: tier.tierType,
       isLimited: tier.isLimited,
-      requiresApproval: tier.requiresApproval,
       maxSubscribers: tier.maxSubscribers,
       subscriberCount,
       viewerState,

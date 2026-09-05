@@ -28,7 +28,6 @@ async function getOrCreatePaymentCustomerId(profileId: string, existingCustomerI
 
 export type ProviderSubscribeResult =
   | { ok: true; state: "subscribed" }
-  | { ok: true; state: "pending" }
   | { ok: true; state: "checkout"; checkoutUrl: string }
   | { ok: false; status: number; error: string };
 
@@ -70,24 +69,6 @@ export async function subscribeToProvider(
   ]);
   if (existingProviderSub || existingLegacySub) {
     return { ok: true, state: "subscribed" };
-  }
-
-  if (tier.requiresApproval) {
-    const application = await prisma.accessApplication.findUnique({
-      where: { tierId_userId: { tierId, userId: subscriberId } },
-    });
-
-    if (application?.status === "pending") {
-      return { ok: true, state: "pending" };
-    }
-    if (application?.status !== "approved") {
-      await prisma.accessApplication.upsert({
-        where: { tierId_userId: { tierId, userId: subscriberId } },
-        create: { tierId, userId: subscriberId, status: "pending" },
-        update: { status: "pending" },
-      });
-      return { ok: true, state: "pending" };
-    }
   }
 
   if (tier.maxSubscribers) {
