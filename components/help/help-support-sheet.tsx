@@ -151,23 +151,23 @@ export function HelpSupportSheet({ defaultEmail }: { defaultEmail: string }) {
               <span className="h-1 w-9 rounded-full bg-border" aria-hidden="true" />
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-6 pt-3 sm:pt-6">
-              {status === "sent" ? (
-                <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
-                    <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
-                  </span>
-                  <p className="font-heading text-lg font-semibold text-foreground">Message sent</p>
-                  <p className="max-w-xs text-sm text-muted-foreground">
-                    Thanks for reaching out — a real person will reply to {email || "your email"} within 24 hours,
-                    usually much sooner.
-                  </p>
-                  <Button type="button" className="mt-2 min-w-32" onClick={closeSheet}>
-                    Done
-                  </Button>
-                </div>
-              ) : (
-                <>
+            {status === "sent" ? (
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-5 py-10 text-center">
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+                  <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
+                </span>
+                <p className="font-heading text-lg font-semibold text-foreground">Message sent</p>
+                <p className="max-w-xs text-sm text-muted-foreground">
+                  Thanks for reaching out — a real person will reply to {email || "your email"} within 24 hours,
+                  usually much sooner.
+                </p>
+                <Button type="button" className="mt-2 min-w-32" onClick={closeSheet}>
+                  Done
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-3 sm:pt-6">
                   <div className="mb-5 flex items-start gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-tint text-primary">
                       <LifeBuoy className="h-5 w-5" aria-hidden="true" />
@@ -182,7 +182,7 @@ export function HelpSupportSheet({ defaultEmail }: { defaultEmail: string }) {
                     </div>
                   </div>
 
-                  <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                  <form id="help-support-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
                     <div className="flex flex-col gap-1.5">
                       <label htmlFor="help-email" className="text-xs font-medium text-muted-foreground">
                         Email
@@ -229,26 +229,27 @@ export function HelpSupportSheet({ defaultEmail }: { defaultEmail: string }) {
                         onChange={(e) => setMessage(e.target.value)}
                       />
                     </div>
-
-                    {error && (
-                      <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
-                        {error}
-                      </p>
-                    )}
-
-                    <Button type="submit" disabled={status === "submitting"} className="mt-1 gap-1.5">
-                      {status === "submitting" ? (
-                        "Sending..."
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4" aria-hidden="true" /> Send message
-                        </>
-                      )}
-                    </Button>
                   </form>
-                </>
-              )}
-            </div>
+                </div>
+
+                <div className="shrink-0 border-t border-border px-5 py-4">
+                  {error && (
+                    <p role="alert" className="mb-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+                      {error}
+                    </p>
+                  )}
+                  <Button type="submit" form="help-support-form" disabled={status === "submitting"} className="w-full gap-1.5">
+                    {status === "submitting" ? (
+                      "Sending..."
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" aria-hidden="true" /> Send message
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
