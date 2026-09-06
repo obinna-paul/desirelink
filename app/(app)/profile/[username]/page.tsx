@@ -69,7 +69,11 @@ export default async function PublicProfilePage({
   searchParams,
 }: {
   params: { username: string };
-  searchParams: { section?: string; reference?: string };
+  searchParams: {
+    section?: string;
+    reference?: string;
+    mock_reference?: string;
+  };
 }) {
   const session = await getServerSession(authOptions);
 
@@ -109,8 +113,10 @@ export default async function PublicProfilePage({
     });
   }
 
-  if (searchParams.reference && viewerProfile) {
-    await confirmProviderPayment(searchParams.reference);
+  const paymentReference =
+    searchParams.reference ?? searchParams.mock_reference;
+  if (paymentReference && viewerProfile) {
+    await confirmProviderPayment(paymentReference);
   }
 
   const visibility = await getProfileVisibility(profile.id, viewerProfile?.id ?? null, isOwner);

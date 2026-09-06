@@ -12,7 +12,7 @@ import { CancelProviderSubButton } from "@/components/billing/BillingActions";
 export default async function BillingSettingsPage({
   searchParams,
 }: {
-  searchParams: { reference?: string };
+  searchParams: { reference?: string; mock_reference?: string };
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -24,8 +24,10 @@ export default async function BillingSettingsPage({
     redirect("/login");
   }
 
-  if (searchParams.reference) {
-    await confirmProviderPayment(searchParams.reference);
+  const paymentReference =
+    searchParams.reference ?? searchParams.mock_reference;
+  if (paymentReference) {
+    await confirmProviderPayment(paymentReference);
   }
 
   const overview = await getBillingOverview(profile.id);

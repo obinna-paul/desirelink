@@ -50,6 +50,8 @@ type SendEmailInput = {
   /** Defaults to help@udala.pro for every sender except "help" and "paul" themselves,
    * where a reply already reaches the right inbox without overriding anything. */
   replyTo?: string;
+  /** Stable business-event key. Resend suppresses retries of the same email. */
+  idempotencyKey?: string;
 };
 
 /**
@@ -59,7 +61,16 @@ type SendEmailInput = {
  * subscription, a signup, a payout must all succeed or fail on their own terms, never on
  * whether an email happened to go out.
  */
-export async function sendEmail({ to, subject, react, category, template, from = "hey", replyTo }: SendEmailInput): Promise<void> {
+export async function sendEmail({
+  to,
+  subject,
+  react,
+  category,
+  template,
+  from = "hey",
+  replyTo,
+  idempotencyKey,
+}: SendEmailInput): Promise<void> {
   const sender = EMAIL_SENDERS[from];
   const resolvedReplyTo = replyTo ?? (from === "hey" ? EMAIL_SENDERS.help.address : undefined);
 
@@ -78,13 +89,16 @@ export async function sendEmail({ to, subject, react, category, template, from =
   }
 
   try {
-    const result = await resend.emails.send({
-      from: `${sender.name} <${sender.address}>`,
-      to,
-      subject,
-      html,
-      replyTo: resolvedReplyTo,
-    });
+    const result = await resend.emails.send(
+      {
+        from: `${sender.name} <${sender.address}>`,
+        to,
+        subject,
+        html,
+        replyTo: resolvedReplyTo,
+      },
+      idempotencyKey ? { idempotencyKey } : undefined,
+    );
 
     if (result.error) {
       console.error(`[email] Resend rejected "${subject}" to ${to}`, result.error);

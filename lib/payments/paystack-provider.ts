@@ -10,6 +10,7 @@ import type {
   WebhookEvent,
   WebhookPaymentMethod,
 } from "./types";
+import { getPaymentCurrency } from "./config";
 
 const PAYSTACK_API_BASE = "https://api.paystack.co";
 
@@ -35,6 +36,8 @@ type PaystackTransactionData = {
   status: string;
   reference: string;
   amount: number;
+  currency: string;
+  domain: "test" | "live";
   customer: { customer_code: string; email: string };
   authorization?: PaystackAuthorization;
   metadata?: Record<string, string> | string;
@@ -84,7 +87,20 @@ function toWebhookPaymentMethod(
 
 /** Paystack's transaction currency for this account. The merchant account must support whatever currency is charged. */
 function currency(): string {
-  return process.env.PAYSTACK_CURRENCY ?? "NGN";
+  return getPaymentCurrency();
+}
+
+function normalizeChargeStatus(status: string): WebhookEvent["type"] {
+  if (status === "success") return "charge.succeeded";
+  if (
+    status === "pending" ||
+    status === "processing" ||
+    status === "ongoing" ||
+    status === "queued"
+  ) {
+    return "charge.pending";
+  }
+  return "charge.failed";
 }
 
 function normalizeRecipient(
@@ -320,10 +336,12 @@ export class PaystackProvider implements PaymentProvider {
         : {};
 
     return {
-      type: data.status === "success" ? "charge.succeeded" : "charge.failed",
+      type: normalizeChargeStatus(data.status),
       customerId: data.customer.customer_code,
       paymentMethod: toWebhookPaymentMethod(data.authorization),
       amountCents: data.amount,
+      currency: data.currency,
+      environment: data.domain,
       reference: data.reference,
       metadata,
     };
@@ -369,6 +387,8 @@ export class PaystackProvider implements PaymentProvider {
         customerId: null,
         paymentMethod: null,
         amountCents: data.amount ?? null,
+        currency: data.currency ?? null,
+        environment: data.domain ?? null,
         reference: data.reference ?? null,
         metadata,
       };
@@ -380,16 +400,20 @@ export class PaystackProvider implements PaymentProvider {
         customerId: data.customer?.customer_code ?? null,
         paymentMethod: toWebhookPaymentMethod(data.authorization),
         amountCents: data.amount ?? null,
+        currency: data.currency ?? null,
+        environment: data.domain ?? null,
         reference: data.reference ?? null,
         metadata,
       };
     }
 
     return {
-      type: data.status === "success" ? "charge.succeeded" : "charge.failed",
+      type: normalizeChargeStatus(data.status),
       customerId: data.customer.customer_code,
       paymentMethod: toWebhookPaymentMethod(data.authorization),
       amountCents: data.amount,
+      currency: data.currency,
+      environment: data.domain,
       reference: data.reference,
       metadata,
     };

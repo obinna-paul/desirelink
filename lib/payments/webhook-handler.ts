@@ -4,13 +4,76 @@ import { prisma } from "@/lib/prisma";
 import { creditProviderWallet } from "@/lib/wallet";
 import { sendPaymentFailedEmail, sendSubscriptionActivatedEmails } from "@/lib/email/billing-notifications";
 import { sendNewBookingRequestEmail } from "@/lib/email/booking-notifications";
+import {
+  getPaymentCurrency,
+  getPaymentProviderName,
+  requiresLivePayments,
+} from "./config";
+import { getSubscriptionPeriod } from "./subscription-period";
 import type { WebhookEvent, WebhookPaymentMethod } from "./types";
 
 type Db = Prisma.TransactionClient;
 
 function activeProviderName(): string {
-  if (process.env.USE_MOCK_PAYMENTS === "true") return "mock";
-  return "paystack";
+  return getPaymentProviderName();
+}
+
+type PaymentEventOutcome =
+  | {
+      kind: "provider_subscription_activated";
+      subscriptionId: string;
+      subscriberId: string;
+      providerId: string;
+      tierId: string;
+      amountCents: number;
+      reference: string;
+      endsAt: Date;
+    }
+  | {
+      kind: "provider_subscription_failed";
+      subscriberId: string;
+      amountCents: number;
+    };
+
+export class PaymentIntegrityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PaymentIntegrityError";
+  }
+}
+
+export function assertProviderTierPaymentIntegrity(
+  event: WebhookEvent,
+  expected: {
+    pendingId: string;
+    amountCents: number;
+    customerId: string | null;
+  },
+): void {
+  if (event.amountCents !== expected.amountCents) {
+    throw new PaymentIntegrityError(
+      `Subscription ${expected.pendingId} expected ${expected.amountCents} but provider reported ${event.amountCents ?? "no amount"}.`,
+    );
+  }
+  if (event.currency?.toUpperCase() !== getPaymentCurrency()) {
+    throw new PaymentIntegrityError(
+      `Subscription ${expected.pendingId} expected ${getPaymentCurrency()} but provider reported ${event.currency ?? "no currency"}.`,
+    );
+  }
+  if (!expected.customerId || event.customerId !== expected.customerId) {
+    throw new PaymentIntegrityError(
+      `Subscription ${expected.pendingId} does not belong to the customer reported by the provider.`,
+    );
+  }
+  if (
+    activeProviderName() === "paystack" &&
+    requiresLivePayments() &&
+    event.environment !== "live"
+  ) {
+    throw new PaymentIntegrityError(
+      `Subscription ${expected.pendingId} came from a non-live Paystack transaction.`,
+    );
+  }
 }
 
 /** description is a short human phrase for whatever failed - "your X subscription",
@@ -66,6 +129,7 @@ async function recordTransaction(
   extra: {
     status: "succeeded" | "failed";
     providerSubscriptionId?: string;
+    tierId?: string;
   },
   db: Db,
 ): Promise<void> {
@@ -77,6 +141,7 @@ async function recordTransaction(
       provider: activeProviderName(),
       providerReference: event.reference,
       providerSubscriptionId: extra.providerSubscriptionId,
+      tierId: extra.tierId,
     },
   });
 }
@@ -84,16 +149,29 @@ async function recordTransaction(
 async function handleProviderTierEvent(
   event: WebhookEvent,
   db: Db,
-): Promise<void> {
+): Promise<PaymentEventOutcome | null> {
   const pendingId = event.metadata.pendingId;
-  if (!pendingId) return;
+  if (!pendingId) return null;
 
   const pending = await db.providerSubscription.findUnique({
     where: { id: pendingId },
+    include: {
+      tier: { select: { priceCents: true } },
+      subscriber: {
+        select: { paymentCustomerId: true, displayName: true },
+      },
+    },
   });
-  if (!pending || pending.status !== "pending") return;
+  if (!pending || pending.status !== "pending") return null;
 
   if (event.type === "charge.succeeded") {
+    assertProviderTierPaymentIntegrity(event, {
+      pendingId,
+      amountCents: pending.tier.priceCents,
+      customerId: pending.subscriber.paymentCustomerId,
+    });
+
+    const { startsAt, endsAt } = getSubscriptionPeriod();
     await db.providerSubscription.update({
       where: { id: pendingId },
       data: {
@@ -101,6 +179,8 @@ async function handleProviderTierEvent(
         paymentSubscriptionId: event.reference,
         pastDueSince: null,
         paymentRetryCount: 0,
+        startsAt,
+        endsAt,
       },
     });
     if (event.paymentMethod)
@@ -108,7 +188,11 @@ async function handleProviderTierEvent(
     await recordTransaction(
       pending.subscriberId,
       event,
-      { status: "succeeded", providerSubscriptionId: pendingId },
+      {
+        status: "succeeded",
+        providerSubscriptionId: pendingId,
+        tierId: pending.tierId,
+      },
       db,
     );
     await creditProviderWallet(pending.providerId, event.amountCents ?? 0, db);
@@ -120,14 +204,38 @@ async function handleProviderTierEvent(
         update: {},
       });
     }
-    await sendSubscriptionActivatedEmails(
-      pending.subscriberId,
-      pending.providerId,
-      pending.tierId,
-      event.amountCents ?? 0,
-      event.reference ?? pending.paymentSubscriptionId ?? pendingId,
-      pending.endsAt,
-    );
+    if (pending.providerId !== pending.subscriberId) {
+      try {
+        await db.notification.create({
+          data: {
+            recipientId: pending.providerId,
+            actorId: pending.subscriberId,
+            type: "subscription",
+            title: `${pending.subscriber.displayName} subscribed`,
+            body: "You have a new subscriber.",
+            href: "/creator-dashboard?tab=audience",
+          },
+        });
+      } catch (error) {
+        if (
+          !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+          (error.code !== "P2021" && error.code !== "P2022")
+        ) {
+          throw error;
+        }
+      }
+    }
+
+    return {
+      kind: "provider_subscription_activated",
+      subscriptionId: pending.id,
+      subscriberId: pending.subscriberId,
+      providerId: pending.providerId,
+      tierId: pending.tierId,
+      amountCents: pending.tier.priceCents,
+      reference: event.reference!,
+      endsAt,
+    };
   } else {
     await db.providerSubscription.update({
       where: { id: pendingId },
@@ -139,7 +247,11 @@ async function handleProviderTierEvent(
       { status: "failed", providerSubscriptionId: pendingId },
       db,
     );
-    await notifyPaymentFailed(pending.subscriberId, "your subscription", event.amountCents ?? 0);
+    return {
+      kind: "provider_subscription_failed",
+      subscriberId: pending.subscriberId,
+      amountCents: event.amountCents ?? pending.tier.priceCents,
+    };
   }
 }
 
@@ -261,21 +373,27 @@ async function handleWalletWithdrawalEvent(
   });
 }
 
-async function dispatch(event: WebhookEvent, db: Db): Promise<void> {
+async function dispatch(
+  event: WebhookEvent,
+  db: Db,
+): Promise<PaymentEventOutcome | null> {
   if (event.type === "transfer.succeeded" || event.type === "transfer.failed") {
-    return handleWalletWithdrawalEvent(event, db);
+    await handleWalletWithdrawalEvent(event, db);
+    return null;
   }
-  if (event.type === "unknown") return;
+  if (event.type === "unknown" || event.type === "charge.pending") return null;
 
   switch (event.metadata.kind) {
     case "provider_tier":
       return handleProviderTierEvent(event, db);
     case "hearts_purchase":
-      return handleHeartsPurchaseEvent(event, db);
+      await handleHeartsPurchaseEvent(event, db);
+      return null;
     case "service_booking":
-      return handleServiceBookingEvent(event, db);
+      await handleServiceBookingEvent(event, db);
+      return null;
     default:
-      return;
+      return null;
   }
 }
 
@@ -296,9 +414,15 @@ async function dispatch(event: WebhookEvent, db: Db): Promise<void> {
  * window where one could happen without the other.
  */
 export async function processPaymentEvent(event: WebhookEvent): Promise<void> {
-  if (event.type === "unknown" || !event.reference) return;
+  if (
+    event.type === "unknown" ||
+    event.type === "charge.pending" ||
+    !event.reference
+  ) {
+    return;
+  }
 
-  await prisma.$transaction(async (tx) => {
+  const outcome = await prisma.$transaction(async (tx) => {
     try {
       await tx.processedPaymentEvent.create({
         data: {
@@ -312,11 +436,28 @@ export async function processPaymentEvent(event: WebhookEvent): Promise<void> {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
-        return; // Already processed this exact event — no-op.
+        return null; // Already processed this exact event — no-op.
       }
       throw error;
     }
 
-    await dispatch(event, tx);
+    return dispatch(event, tx);
   });
+
+  if (outcome?.kind === "provider_subscription_activated") {
+    await sendSubscriptionActivatedEmails(
+      outcome.subscriberId,
+      outcome.providerId,
+      outcome.tierId,
+      outcome.amountCents,
+      outcome.reference,
+      outcome.endsAt,
+    );
+  } else if (outcome?.kind === "provider_subscription_failed") {
+    await notifyPaymentFailed(
+      outcome.subscriberId,
+      "your subscription",
+      outcome.amountCents,
+    );
+  }
 }

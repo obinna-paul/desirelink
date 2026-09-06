@@ -102,7 +102,7 @@ export async function createServiceBooking(
         paymentCustomerId,
         defaultCard.externalId,
         listing.priceCents,
-        { kind: "service_booking" },
+        { kind: "service_booking", pendingId: booking.id },
       );
       if (!success) {
         await prisma.serviceBooking.update({
@@ -112,14 +112,8 @@ export async function createServiceBooking(
         return { ok: false, status: 402, error: "Your saved card was declined. Try updating your payment method." };
       }
 
-      await processPaymentEvent({
-        type: "charge.succeeded",
-        customerId: paymentCustomerId,
-        paymentMethod: null,
-        amountCents: listing.priceCents,
-        reference,
-        metadata: { kind: "service_booking", pendingId: booking.id },
-      });
+      const event = await paymentProvider.verifyTransaction(reference);
+      await processPaymentEvent(event);
       return { ok: true, state: "pending_provider", bookingId: booking.id };
     }
 

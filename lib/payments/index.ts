@@ -2,6 +2,10 @@ import "server-only";
 
 import { MockPaymentProvider } from "./mock-provider";
 import { PaystackProvider } from "./paystack-provider";
+import {
+  assertPaymentEnvironmentIsSafe,
+  mockPaymentsRequested,
+} from "./config";
 import type { PaymentProvider } from "./types";
 
 /**
@@ -9,7 +13,9 @@ import type { PaymentProvider } from "./types";
  * for local development and tests.
  */
 function createPaymentProvider(): PaymentProvider {
-  if (process.env.USE_MOCK_PAYMENTS === "true") {
+  assertPaymentEnvironmentIsSafe();
+
+  if (mockPaymentsRequested()) {
     return new MockPaymentProvider();
   }
 

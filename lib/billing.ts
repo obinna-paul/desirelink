@@ -247,19 +247,26 @@ async function processSubscriptionExpiry(
   warnAt: Date,
 ): Promise<"expired" | "warned" | "skipped"> {
   if (sub.endsAt <= now) {
-    await prisma.providerSubscription.update({
-      where: { id: sub.id },
+    const claimed = await prisma.providerSubscription.updateMany({
+      where: { id: sub.id, status: "active", endsAt: { lte: now } },
       data: { status: sub.cancelAtPeriodEnd ? "cancelled" : "expired" },
     });
+    if (claimed.count === 0) return "skipped";
     await notifySubscriptionEnded(sub);
     return "expired";
   }
 
   if (!sub.expiryWarningSentAt && sub.endsAt <= warnAt) {
-    await prisma.providerSubscription.update({
-      where: { id: sub.id },
+    const claimed = await prisma.providerSubscription.updateMany({
+      where: {
+        id: sub.id,
+        status: "active",
+        expiryWarningSentAt: null,
+        endsAt: { gt: now, lte: warnAt },
+      },
       data: { expiryWarningSentAt: now },
     });
+    if (claimed.count === 0) return "skipped";
     await notifySubscriptionEndingSoon(sub);
     return "warned";
   }

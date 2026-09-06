@@ -4,13 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { paymentProvider } from "@/lib/payments";
 import { processPaymentEvent } from "@/lib/payments/webhook-handler";
 import { getProviderProfile } from "@/lib/provider-types";
-import { creditProviderWallet } from "@/lib/wallet";
 import { safeConfirmPayment } from "@/lib/payments/safe-call";
-import { sendSubscriptionActivatedEmails, sendSubscriptionCancelledEmail } from "@/lib/email/billing-notifications";
+import { sendSubscriptionCancelledEmail } from "@/lib/email/billing-notifications";
+import { getSubscriptionPeriod } from "@/lib/payments/subscription-period";
 
 export { CREATOR_PROFILE_TYPES, isProviderProfileType, getProviderProfile } from "@/lib/provider-types";
 
-const SUBSCRIPTION_LENGTH_MONTHS = 1;
+const PENDING_PAYMENT_WINDOW_MS = 30 * 60 * 1000;
 
 /** Reuses an existing payment-provider customer for this profile, creating one on first use. */
 async function getOrCreatePaymentCustomerId(profileId: string, existingCustomerId: string | null): Promise<string> {
@@ -28,6 +28,8 @@ async function getOrCreatePaymentCustomerId(profileId: string, existingCustomerI
 
 export type ProviderSubscribeResult =
   | { ok: true; state: "subscribed" }
+  | { ok: true; state: "already_subscribed" }
+  | { ok: true; state: "processing" }
   | { ok: true; state: "checkout"; checkoutUrl: string }
   | { ok: false; status: number; error: string };
 
@@ -72,37 +74,101 @@ export async function subscribeToProvider(
     if (conversionPost?.authorId === providerId) unlockPostId = conversionPostId;
   }
 
-  const [existingProviderSub, existingLegacySub] = await Promise.all([
-    prisma.providerSubscription.findFirst({
-      where: { subscriberId, tierId, status: "active", endsAt: { gt: new Date() } },
-    }),
-    prisma.subscription.findFirst({
-      where: { subscriberId, tierId, status: "active", endsAt: { gt: new Date() } },
-    }),
-  ]);
-  if (existingProviderSub || existingLegacySub) {
-    return { ok: true, state: "subscribed" };
-  }
+  let pendingId: string | null = null;
+  try {
+    const reservation = await prisma.$transaction(async (tx) => {
+      // Serializes this subscriber/tier attempt and the tier capacity check
+      // without holding a database lock during Paystack I/O.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('provider-subscription'), hashtext(${`${subscriberId}:${tierId}`}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('tier-capacity'), hashtext(${tierId}))`;
 
-  if (tier.maxSubscribers) {
-    const [providerSubCount, legacySubCount] = await Promise.all([
-      prisma.providerSubscription.count({
-        where: { tierId, status: "active", endsAt: { gt: new Date() } },
-      }),
-      prisma.subscription.count({
-        where: { tierId, status: "active", endsAt: { gt: new Date() } },
-      }),
-    ]);
-    if (providerSubCount + legacySubCount >= tier.maxSubscribers) {
+      const now = new Date();
+      const [existingProviderSub, existingLegacySub] = await Promise.all([
+        tx.providerSubscription.findFirst({
+          where: {
+            subscriberId,
+            tierId,
+            status: "active",
+            endsAt: { gt: now },
+          },
+        }),
+        tx.subscription.findFirst({
+          where: {
+            subscriberId,
+            tierId,
+            status: "active",
+            endsAt: { gt: now },
+          },
+        }),
+      ]);
+      if (existingProviderSub || existingLegacySub) {
+        return { state: "already_subscribed" as const };
+      }
+
+      const pendingCutoff = new Date(now.getTime() - PENDING_PAYMENT_WINDOW_MS);
+      const existingPending = await tx.providerSubscription.findFirst({
+        where: {
+          subscriberId,
+          tierId,
+          status: "pending",
+          createdAt: { gt: pendingCutoff },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      if (existingPending) {
+        return { state: "processing" as const };
+      }
+
+      await tx.providerSubscription.updateMany({
+        where: {
+          subscriberId,
+          tierId,
+          status: "pending",
+          createdAt: { lte: pendingCutoff },
+        },
+        data: { status: "failed" },
+      });
+
+      if (tier.maxSubscribers) {
+        const [providerSubCount, legacySubCount] = await Promise.all([
+          tx.providerSubscription.count({
+            where: { tierId, status: "active", endsAt: { gt: now } },
+          }),
+          tx.subscription.count({
+            where: { tierId, status: "active", endsAt: { gt: now } },
+          }),
+        ]);
+        if (providerSubCount + legacySubCount >= tier.maxSubscribers) {
+          return { state: "full" as const };
+        }
+      }
+
+      const { startsAt, endsAt } = getSubscriptionPeriod(now);
+      const pending = await tx.providerSubscription.create({
+        data: {
+          subscriberId,
+          providerId,
+          tierId,
+          status: "pending",
+          startsAt,
+          endsAt,
+        },
+      });
+      return { state: "reserved" as const, pending };
+    });
+
+    if (reservation.state === "already_subscribed") {
+      return { ok: true, state: "already_subscribed" };
+    }
+    if (reservation.state === "processing") {
+      return { ok: true, state: "processing" };
+    }
+    if (reservation.state === "full") {
       return { ok: false, status: 409, error: "This tier is full." };
     }
-  }
 
-  const startsAt = new Date();
-  const endsAt = new Date(startsAt);
-  endsAt.setMonth(endsAt.getMonth() + SUBSCRIPTION_LENGTH_MONTHS);
-
-  try {
+    const pending = reservation.pending;
+    pendingId = pending.id;
     const subscriber = await prisma.profile.findUniqueOrThrow({
       where: { id: subscriberId },
       select: { paymentCustomerId: true },
@@ -115,32 +181,32 @@ export async function subscribeToProvider(
         customerId,
         defaultCard.externalId,
         tier.priceCents,
-        { kind: "provider_tier", providerId, tierId }
+        {
+          kind: "provider_tier",
+          pendingId: pending.id,
+          providerId,
+          tierId,
+          ...(unlockPostId ? { conversionPostId: unlockPostId } : {}),
+        },
       );
-      if (!success) {
-        return { ok: false, status: 402, error: "Your saved card was declined. Try updating your payment method." };
-      }
-      await prisma.providerSubscription.create({
-        data: { subscriberId, providerId, tierId, status: "active", paymentSubscriptionId: reference, startsAt, endsAt },
+      const event = await paymentProvider.verifyTransaction(reference);
+      await processPaymentEvent(event);
+      const confirmed = await prisma.providerSubscription.findUnique({
+        where: { id: pending.id },
+        select: { status: true },
       });
-      await prisma.transaction.create({
-        data: { userId: subscriberId, tierId, amountCents: tier.priceCents, status: "succeeded", provider: "card" },
-      });
-      await creditProviderWallet(providerId, tier.priceCents);
-      if (unlockPostId) {
-        await prisma.postUnlock.upsert({
-          where: { postId_subscriberId: { postId: unlockPostId, subscriberId } },
-          create: { postId: unlockPostId, subscriberId },
-          update: {},
-        });
+      if (confirmed?.status === "active") {
+        return { ok: true, state: "subscribed" };
       }
-      await sendSubscriptionActivatedEmails(subscriberId, providerId, tierId, tier.priceCents, reference, endsAt);
-      return { ok: true, state: "subscribed" };
+      if (!success || confirmed?.status === "failed") {
+        return {
+          ok: false,
+          status: 402,
+          error: "Your saved card was declined. Try updating your payment method.",
+        };
+      }
+      return { ok: true, state: "processing" };
     }
-
-    const pending = await prisma.providerSubscription.create({
-      data: { subscriberId, providerId, tierId, status: "pending", startsAt, endsAt },
-    });
 
     const checkoutUrl = await paymentProvider.createCheckoutSession(
       customerId,
@@ -155,6 +221,11 @@ export async function subscribeToProvider(
     return { ok: true, state: "checkout", checkoutUrl };
   } catch (error) {
     console.error("[payments] subscribeToProvider failed", error);
+    if (pendingId) {
+      // Leave the reservation pending. A provider response may have been lost
+      // after the charge completed; its signed webhook can still reconcile it.
+      console.warn(`[payments] subscription ${pendingId} awaits reconciliation`);
+    }
     return { ok: false, status: 502, error: "We couldn't reach the payment provider. Please try again in a moment." };
   }
 }
@@ -182,17 +253,28 @@ export async function unsubscribeFromProvider(
   tierId?: string
 ): Promise<ProviderUnsubscribeResult> {
   const subscriptions = await prisma.providerSubscription.findMany({
-    where: { subscriberId, providerId, tierId, status: "active" },
+    where: {
+      subscriberId,
+      providerId,
+      tierId,
+      status: "active",
+      cancelAtPeriodEnd: false,
+    },
   });
 
   if (subscriptions.length === 0) {
     return { ok: false, status: 404, error: "No active subscription found" };
   }
 
-  await prisma.providerSubscription.updateMany({
-    where: { id: { in: subscriptions.map((subscription) => subscription.id) } },
+  const cancelled = await prisma.providerSubscription.updateMany({
+    where: {
+      id: { in: subscriptions.map((subscription) => subscription.id) },
+      status: "active",
+      cancelAtPeriodEnd: false,
+    },
     data: { cancelAtPeriodEnd: true },
   });
+  if (cancelled.count === 0) return { ok: true };
 
   await sendSubscriptionCancelledEmail(subscriberId, providerId, subscriptions[0].endsAt);
 
@@ -210,14 +292,19 @@ export async function cancelProviderSubscriptionById(
   if (!subscription || subscription.subscriberId !== subscriberId) {
     return { ok: false, status: 404, error: "Subscription not found" };
   }
-  if (subscription.status !== "active") {
+  if (subscription.status !== "active" || subscription.cancelAtPeriodEnd) {
     return { ok: true };
   }
 
-  await prisma.providerSubscription.update({
-    where: { id: subscriptionId },
+  const cancelled = await prisma.providerSubscription.updateMany({
+    where: {
+      id: subscriptionId,
+      status: "active",
+      cancelAtPeriodEnd: false,
+    },
     data: { cancelAtPeriodEnd: true },
   });
+  if (cancelled.count === 0) return { ok: true };
 
   await sendSubscriptionCancelledEmail(subscription.subscriberId, subscription.providerId, subscription.endsAt);
 

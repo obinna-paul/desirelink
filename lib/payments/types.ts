@@ -1,6 +1,7 @@
 export type WebhookEventType =
   | "charge.succeeded"
   | "charge.failed"
+  | "charge.pending"
   | "transfer.succeeded"
   | "transfer.failed"
   | "unknown";
@@ -20,6 +21,10 @@ export type WebhookEvent = {
   /** The saved card the charge ran against, or that got saved by it. Present whenever the provider returns one, on success or failure alike. */
   paymentMethod: WebhookPaymentMethod | null;
   amountCents: number | null;
+  /** ISO 4217 code reported by the payment provider. Required before paid value is fulfilled. */
+  currency: string | null;
+  /** Paystack reports whether a transaction belongs to its test or live environment. */
+  environment: "test" | "live" | null;
   /** Provider-side transaction/charge id — our idempotency key for this event. */
   reference: string | null;
   metadata: Record<string, string>;

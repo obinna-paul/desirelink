@@ -54,6 +54,7 @@ export async function sendSubscriptionActivatedEmails(
       }),
       category: "billing",
       template: "subscription-confirmed",
+      idempotencyKey: `subscription-confirmed/${reference}`,
     }),
     sendEmail({
       to: provider.user.email,
@@ -61,6 +62,7 @@ export async function sendSubscriptionActivatedEmails(
       react: NewSubscriberEmail({ fanName: subscriber.displayName, tierName: tier.name, amountCents }),
       category: "billing",
       template: "new-subscriber",
+      idempotencyKey: `new-subscriber/${reference}`,
     }),
     sendEmail({
       to: subscriber.user.email,
@@ -74,6 +76,7 @@ export async function sendSubscriptionActivatedEmails(
       }),
       category: "billing",
       template: "subscription-receipt",
+      idempotencyKey: `subscription-receipt/${reference}`,
     }),
   ]);
 }

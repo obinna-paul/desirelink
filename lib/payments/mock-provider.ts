@@ -8,6 +8,7 @@ import type {
   WebhookEvent,
   WebhookPaymentMethod,
 } from "./types";
+import { getPaymentCurrency } from "./config";
 
 const SIMULATED_DELAY_MS = 1000;
 
@@ -170,13 +171,24 @@ export class MockPaymentProvider implements PaymentProvider {
     await delay(SIMULATED_DELAY_MS);
     const transaction = this.transactions.get(reference);
     if (!transaction) {
-      return { type: "unknown", customerId: null, paymentMethod: null, amountCents: null, reference, metadata: {} };
+      return {
+        type: "unknown",
+        customerId: null,
+        paymentMethod: null,
+        amountCents: null,
+        currency: null,
+        environment: "test",
+        reference,
+        metadata: {},
+      };
     }
     return {
       type: "charge.succeeded",
       customerId: transaction.customerId,
       paymentMethod: { id: this.mockCardId(transaction.customerId), ...FAKE_CARD },
       amountCents: transaction.amountCents,
+      currency: getPaymentCurrency(),
+      environment: "test",
       reference,
       metadata: transaction.metadata,
     };
@@ -190,7 +202,16 @@ export class MockPaymentProvider implements PaymentProvider {
     if (typeof reference === "string") {
       return this.verifyTransaction(reference);
     }
-    return { type: "unknown", customerId: null, paymentMethod: null, amountCents: null, reference: null, metadata: {} };
+    return {
+      type: "unknown",
+      customerId: null,
+      paymentMethod: null,
+      amountCents: null,
+      currency: null,
+      environment: "test",
+      reference: null,
+      metadata: {},
+    };
   }
 
   private mockCardId(customerId: string): string {
