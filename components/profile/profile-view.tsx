@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Profile } from "@prisma/client";
 import {
+  Bookmark,
   BriefcaseBusiness,
   CalendarDays,
   LayoutGrid,
@@ -341,6 +342,12 @@ export function ProfileView({
                       menu
                     />
                   </div>
+                  <Link
+                    href="/saved"
+                    className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-foreground hover:bg-accent"
+                  >
+                    <Bookmark className="h-4 w-4" aria-hidden="true" /> Saved posts
+                  </Link>
                   <HelpSupportSheet defaultEmail={viewerEmail} />
                   <SignOutButton menu />
                 </OverflowMenu>

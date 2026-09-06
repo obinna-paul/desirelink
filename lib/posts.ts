@@ -90,6 +90,7 @@ type RawPost = {
   };
   comments: RawComment[];
   reactions: { id: string }[];
+  savedByViewer: { id: string }[];
   _count: { comments: number; reactions: number; shares: number };
 };
 
@@ -177,6 +178,7 @@ export type PostView = {
   };
   counts: { comments: number; reactions: number; shares: number };
   viewerLiked: boolean;
+  viewerSaved: boolean;
   viewerCanManage: boolean;
   viewerCanEdit: boolean;
   comments: PostCommentView[];
@@ -361,6 +363,7 @@ function toPostView(
     },
     counts: post._count,
     viewerLiked: post.reactions.length > 0,
+    viewerSaved: post.savedByViewer.length > 0,
     viewerCanManage: post.author.id === viewerProfileId,
     viewerCanEdit: post.author.id === viewerProfileId,
     comments: locked ? [] : post.comments.map((comment) => toCommentView(comment, liveStreamIds)),
@@ -384,6 +387,11 @@ function postSelect(viewerProfileId: string | null) {
         userId: viewerProfileId ?? "__anonymous__",
         type: "like" as const,
       },
+      select: { id: true },
+      take: 1,
+    },
+    savedByViewer: {
+      where: { viewerId: viewerProfileId ?? "__anonymous__" },
       select: { id: true },
       take: 1,
     },

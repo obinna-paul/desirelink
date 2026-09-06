@@ -322,7 +322,7 @@ export function PostCard({
               isPinned={post.isPinned}
             />
           ) : (
-            <PostOverflowMenu postId={post.id} creatorId={post.author.id} />
+            <PostOverflowMenu postId={post.id} creatorId={post.author.id} viewerSaved={post.viewerSaved} />
           )}
         </div>
       </div>
