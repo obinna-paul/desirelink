@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ProfileGrid } from "@/components/home/profile-grid";
 import { DiscoverFiltersPanel } from "@/components/discover/discover-filters";
+import { DiscoverSearchInput } from "@/components/discover/discover-search-input";
 import {
   DEFAULT_RADIUS_KM,
   parseDiscoverFilters,
@@ -42,7 +43,10 @@ export default async function DiscoverPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <DiscoverFiltersPanel initialFilters={filters} />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <DiscoverSearchInput initialQuery={filters.query} />
+        <DiscoverFiltersPanel initialFilters={filters} />
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
         <p className="text-sm text-muted-foreground">

@@ -270,3 +270,61 @@ export async function searchDiscoverProfiles(
 
   return { profiles: withDistance.slice(0, RESULTS_LIMIT) };
 }
+
+export type ProfileSuggestion = {
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+};
+
+const SUGGESTION_LIMIT = 6;
+// Overfetch so a prefix match (the more relevant result) can be sorted ahead of a
+// same-limit substring match that only happened to be created more recently.
+const SUGGESTION_CANDIDATE_LIMIT = SUGGESTION_LIMIT * 4;
+
+/**
+ * Live type-ahead suggestions for the Discover search bar - a direct Profile query rather
+ * than the SearchDocument index searchDiscoverProfiles uses for full results, since that
+ * index is only rebuilt every 15 minutes (see the search-index refresh cron) and a
+ * type-ahead needs to find a brand-new profile immediately.
+ */
+export async function suggestDiscoverProfiles(
+  query: string,
+  viewerProfileId: string | null,
+): Promise<ProfileSuggestion[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const where: Prisma.ProfileWhereInput = {
+    isIncognito: false,
+    showInSearch: true,
+    isSuspended: false,
+    OR: [
+      { username: { contains: trimmed, mode: "insensitive" } },
+      { displayName: { contains: trimmed, mode: "insensitive" } },
+    ],
+  };
+
+  if (viewerProfileId) {
+    where.NOT = { id: viewerProfileId };
+    where.blocksReceived = { none: { blockerId: viewerProfileId } };
+    where.blocksMade = { none: { blockedId: viewerProfileId } };
+  }
+
+  const candidates = await prisma.profile.findMany({
+    where,
+    select: { username: true, displayName: true, avatarUrl: true },
+    take: SUGGESTION_CANDIDATE_LIMIT,
+  });
+
+  const lowered = trimmed.toLowerCase();
+  const rank = (candidate: ProfileSuggestion): number => {
+    if (candidate.username.toLowerCase().startsWith(lowered)) return 0;
+    if (candidate.displayName.toLowerCase().startsWith(lowered)) return 1;
+    return 2;
+  };
+
+  return candidates
+    .sort((a, b) => rank(a) - rank(b))
+    .slice(0, SUGGESTION_LIMIT);
+}
