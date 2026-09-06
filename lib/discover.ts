@@ -1,16 +1,19 @@
-import type { AvailabilityStatusType, Prisma, ProfileType } from "@prisma/client";
+import type { AvailabilityStatusType, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
+import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
+
+const GENDER_FILTER_VALUES = new Set<string>(GENDER_OPTIONS);
+const ORIENTATION_FILTER_VALUES = new Set<string>(ORIENTATION_OPTIONS);
 
 export const AVAILABILITY_FILTER_OPTIONS = [
-  { value: "any", label: "Any" },
-  { value: "active", label: "Currently active (any status)" },
+  { value: "any", label: "Any availability" },
+  { value: "active", label: "Has an active status" },
   { value: "available_tonight", label: "Available tonight" },
   { value: "out_tonight", label: "Out tonight" },
   { value: "open_to_meeting", label: "Open to meeting" },
   { value: "chatting_only", label: "Chatting only" },
-  { value: "looking_for_event", label: "Looking for an event" },
   { value: "couple_looking", label: "Couple looking" },
 ] as const;
 
@@ -36,19 +39,10 @@ export const LAST_ACTIVE_FILTER_OPTIONS = [
 
 export type LastActiveFilterValue = (typeof LAST_ACTIVE_FILTER_OPTIONS)[number]["value"];
 
-export const BODY_TYPE_FILTER_OPTIONS = [
-  "Slim",
-  "Athletic",
-  "Average",
-  "Curvy",
-  "Plus-size",
-] as const;
-
 export const VERIFICATION_FILTER_OPTIONS = [
   { value: "any", label: "Any status" },
-  { value: "verified", label: "Verified" },
-  { value: "trusted", label: "Trusted member" },
-  { value: "verified_creator", label: "Verified creator" },
+  { value: "verified", label: "Verified profiles" },
+  { value: "trusted", label: "Trusted members" },
 ] as const;
 
 export type VerificationFilterValue = (typeof VERIFICATION_FILTER_OPTIONS)[number]["value"];
@@ -57,8 +51,6 @@ export type DiscoverFilters = {
   query: string;
   genders: string[];
   orientations: string[];
-  accountTypes: ProfileType[];
-  bodyTypes: string[];
   lastActive: LastActiveFilterValue;
   verification: VerificationFilterValue;
   radiusKm: number | null;
@@ -87,10 +79,12 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
 
   return {
     query: toSingle(searchParams.q)?.trim() ?? "",
-    genders: toArray(searchParams.gender),
-    orientations: toArray(searchParams.orientation),
-    accountTypes: [],
-    bodyTypes: toArray(searchParams.bodyType),
+    genders: toArray(searchParams.gender).filter((value) =>
+      GENDER_FILTER_VALUES.has(value),
+    ),
+    orientations: toArray(searchParams.orientation).filter((value) =>
+      ORIENTATION_FILTER_VALUES.has(value),
+    ),
     lastActive: LAST_ACTIVE_FILTER_OPTIONS.some((option) => option.value === lastActiveParam)
       ? (lastActiveParam as LastActiveFilterValue)
       : "any",
@@ -147,22 +141,12 @@ function buildWhere(
     where.orientation = { in: filters.orientations };
   }
 
-  if (filters.accountTypes.length > 0) {
-    where.profileType = { in: filters.accountTypes };
-  }
-
-  if (filters.bodyTypes.length > 0) {
-    and.push({
-      OR: filters.bodyTypes.map((bodyType) => ({
-        bio: { contains: bodyType, mode: "insensitive" },
-      })),
-    });
-  }
-
   if (filters.lastActive !== "any") {
     const days = filters.lastActive === "day" ? 1 : filters.lastActive === "week" ? 7 : 30;
     where.showActivityStatus = true;
     where.lastActiveAt = { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) };
+  } else if (filters.sort === "active") {
+    where.showActivityStatus = true;
   }
 
   if (filters.verification === "verified") {
@@ -175,8 +159,6 @@ function buildWhere(
     });
   } else if (filters.verification === "trusted") {
     where.isTrustedMember = true;
-  } else if (filters.verification === "verified_creator") {
-    where.isVerifiedCreator = true;
   }
 
   if (filters.availability === "active") {
@@ -217,7 +199,7 @@ export async function searchDiscoverProfiles(
 
   if (!needsDistance) {
     const orderBy: Prisma.ProfileOrderByWithRelationInput =
-      effectiveFilters.sort === "active" ? { updatedAt: "desc" } : { createdAt: "desc" };
+      effectiveFilters.sort === "active" ? { lastActiveAt: "desc" } : { createdAt: "desc" };
 
     const profiles = await prisma.profile.findMany({
       where,
@@ -243,7 +225,7 @@ export async function searchDiscoverProfiles(
       locationLat: true,
       locationLng: true,
       createdAt: true,
-      updatedAt: true,
+      lastActiveAt: true,
     },
     take: DISTANCE_CANDIDATE_LIMIT,
   });
@@ -265,7 +247,9 @@ export async function searchDiscoverProfiles(
   if (effectiveFilters.sort === "distance") {
     withDistance.sort((a, b) => a.distanceKm - b.distanceKm);
   } else if (effectiveFilters.sort === "active") {
-    withDistance.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    withDistance.sort(
+      (a, b) => (b.lastActiveAt?.getTime() ?? 0) - (a.lastActiveAt?.getTime() ?? 0),
+    );
   } else {
     withDistance.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }

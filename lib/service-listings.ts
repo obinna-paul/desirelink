@@ -177,7 +177,7 @@ export function parseServiceFilters(searchParams: ServiceSearchParams): ServiceF
     maxPriceCents: nairaParamToCents(toSingle(searchParams.maxPrice)),
     city: toSingle(searchParams.city) ?? "",
     radiusKm: radius && radius !== "any" ? Number(radius) || null : null,
-    verifiedOnly: toSingle(searchParams.verified) !== "false",
+    verifiedOnly: toSingle(searchParams.verified) === "true",
     sort: SERVICE_SORT_OPTIONS.some((option) => option.value === sort) ? (sort as ServiceSortValue) : "newest",
   };
 }

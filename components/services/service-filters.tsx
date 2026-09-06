@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, SlidersHorizontal } from "lucide-react";
 
+import { FilterField, FilterGroup, FilterPanel } from "@/components/filters/filter-panel";
+import {
+  FilterMultiSelect,
+  FilterSelect,
+  type FilterOption,
+} from "@/components/filters/filter-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
 import { SERVICE_CATEGORY_OPTIONS } from "@/lib/account-types";
 import {
   SERVICE_RADIUS_OPTIONS,
@@ -17,57 +20,32 @@ import {
   type ServiceSortValue,
 } from "@/lib/service-listings";
 
-function ToggleChip({
-  label,
-  pressed,
-  onClick,
-}: {
-  label: string;
-  pressed: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={cn(
-        "inline-flex min-h-11 items-center rounded-full border px-3 text-sm transition-colors",
-        pressed
-          ? "border-transparent bg-primary text-primary-foreground"
-          : "border-border bg-card text-muted-foreground hover:border-primary/60 hover:text-foreground"
-      )}
-    >
-      {label}
-    </button>
-  );
-}
+const categoryOptions: FilterOption[] = SERVICE_CATEGORY_OPTIONS.map((category) => ({
+  value: category,
+  label: category,
+}));
 
-function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>
-      {children}
-    </div>
-  );
-}
-
-function toggleValue<T>(list: T[], value: T): T[] {
-  return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
-}
+const radiusOptions: FilterOption[] = [
+  { value: "any", label: "Any distance" },
+  ...SERVICE_RADIUS_OPTIONS.map((km) => ({ value: String(km), label: `Within ${km} km` })),
+];
 
 export function ServiceFiltersPanel({ initialFilters }: { initialFilters: ServiceFilters }) {
   const router = useRouter();
+  const verifiedId = useId();
+  const minPriceId = useId();
+  const maxPriceId = useId();
+  const cityId = useId();
   const [categories, setCategories] = useState<string[]>(initialFilters.categories);
   const [minPrice, setMinPrice] = useState(
-    initialFilters.minPriceCents !== null ? String(initialFilters.minPriceCents / 100) : ""
+    initialFilters.minPriceCents !== null ? String(initialFilters.minPriceCents / 100) : "",
   );
   const [maxPrice, setMaxPrice] = useState(
-    initialFilters.maxPriceCents !== null ? String(initialFilters.maxPriceCents / 100) : ""
+    initialFilters.maxPriceCents !== null ? String(initialFilters.maxPriceCents / 100) : "",
   );
   const [city, setCity] = useState(initialFilters.city);
   const [radiusKm, setRadiusKm] = useState<string>(
-    initialFilters.radiusKm === null ? "any" : String(initialFilters.radiusKm)
+    initialFilters.radiusKm === null ? "any" : String(initialFilters.radiusKm),
   );
   const [verifiedOnly, setVerifiedOnly] = useState(initialFilters.verifiedOnly);
   const [sort, setSort] = useState<ServiceSortValue>(initialFilters.sort);
@@ -79,7 +57,7 @@ export function ServiceFiltersPanel({ initialFilters }: { initialFilters: Servic
     (maxPrice.trim() ? 1 : 0) +
     (city.trim() ? 1 : 0) +
     (radiusKm !== "any" ? 1 : 0) +
-    (verifiedOnly ? 0 : 1) +
+    (verifiedOnly ? 1 : 0) +
     (sort !== "newest" ? 1 : 0);
 
   function applyFilters() {
@@ -88,10 +66,11 @@ export function ServiceFiltersPanel({ initialFilters }: { initialFilters: Servic
     if (minPrice.trim()) params.set("minPrice", minPrice.trim());
     if (maxPrice.trim()) params.set("maxPrice", maxPrice.trim());
     if (city.trim()) params.set("city", city.trim());
-    params.set("radius", radiusKm);
-    params.set("verified", verifiedOnly ? "true" : "false");
-    params.set("sort", sort);
-    router.push(`/services?${params.toString()}`);
+    if (radiusKm !== "any") params.set("radius", radiusKm);
+    if (verifiedOnly) params.set("verified", "true");
+    if (sort !== "newest") params.set("sort", sort);
+    const query = params.toString();
+    router.push(query ? `/services?${query}` : "/services");
     setOpen(false);
   }
 
@@ -101,132 +80,104 @@ export function ServiceFiltersPanel({ initialFilters }: { initialFilters: Servic
     setMaxPrice("");
     setCity("");
     setRadiusKm("any");
-    setVerifiedOnly(true);
+    setVerifiedOnly(false);
     setSort("newest");
     router.push("/services");
     setOpen(false);
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card shadow-sm md:rounded-xl md:shadow-none">
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-        className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold md:hidden"
-      >
-        <span className="flex items-center gap-2">
-          <SlidersHorizontal className="h-4 w-4 text-primary" aria-hidden="true" />
-          Filters
-          {activeFilterCount > 0 && (
-            <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">
-              {activeFilterCount}
-            </span>
-          )}
-        </span>
-        <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} aria-hidden="true" />
-      </button>
-
-      <div className={cn("flex-col gap-5 border-t border-border p-4 md:flex md:border-t-0", open ? "flex" : "hidden")}>
-        <div className="hidden text-sm font-semibold md:block">Filters</div>
-        <FilterSection title="Category">
-          <div className="flex flex-wrap gap-2">
-            {SERVICE_CATEGORY_OPTIONS.map((option) => (
-              <ToggleChip
-                key={option}
-                label={option}
-                pressed={categories.includes(option)}
-                onClick={() => setCategories((prev) => toggleValue(prev, option))}
-              />
-            ))}
-          </div>
-        </FilterSection>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <FilterSection title="Min price (NGN)">
-            <Input
-              aria-label="Minimum price"
-              type="number"
-              min={0}
-              placeholder="Any"
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-              className="h-11 text-sm"
-            />
-          </FilterSection>
-
-          <FilterSection title="Max price (NGN)">
-            <Input
-              aria-label="Maximum price"
-              type="number"
-              min={0}
-              placeholder="Any"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-              className="h-11 text-sm"
-            />
-          </FilterSection>
-
-          <FilterSection title="City">
-            <Input
-              aria-label="City"
-              placeholder="Any city"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className="h-11 text-sm"
-            />
-          </FilterSection>
-
-          <FilterSection title="Radius">
-            <Select
-              aria-label="Radius"
-              value={radiusKm}
-              onChange={(e) => setRadiusKm(e.target.value)}
-              className="h-11 text-sm"
+    <FilterPanel
+      open={open}
+      onOpenChange={setOpen}
+      activeCount={activeFilterCount}
+      title="Service filters"
+      description="Find listed services by category, price, provider location, and verified status."
+    >
+      <div className="flex flex-col gap-6">
+        <FilterGroup title="Service" description="Choose the kind of listing and trust signals you need.">
+          <FilterMultiSelect
+            label="Categories"
+            options={categoryOptions}
+            selected={categories}
+            onChange={setCategories}
+          />
+          <div className="min-w-0">
+            <span className="mb-1.5 block text-sm font-medium text-foreground">Verification</span>
+            <label
+              htmlFor={verifiedId}
+              className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-lg border border-input bg-background px-3.5"
             >
-              <option value="any">Any distance</option>
-              {SERVICE_RADIUS_OPTIONS.map((km) => (
-                <option key={km} value={km}>
-                  Within {km} km
-                </option>
-              ))}
-            </Select>
-          </FilterSection>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <FilterSection title="Sort by">
-            <Select
-              aria-label="Sort by"
-              value={sort}
-              onChange={(e) => setSort(e.target.value as ServiceSortValue)}
-              className="h-11 text-sm"
-            >
-              {SERVICE_SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-          </FilterSection>
-
-          <FilterSection title="Verified creators only">
-            <label className="flex min-h-11 cursor-pointer items-center gap-2">
-              <Switch checked={verifiedOnly} onCheckedChange={setVerifiedOnly} />
-              <span className="text-sm text-muted-foreground">{verifiedOnly ? "On" : "Off"}</span>
+              <span className="text-sm text-foreground">Verified profiles only</span>
+              <Switch id={verifiedId} checked={verifiedOnly} onCheckedChange={setVerifiedOnly} />
             </label>
-          </FilterSection>
-        </div>
+          </div>
+        </FilterGroup>
 
-        <div className="flex gap-3">
-          <Button type="button" onClick={applyFilters} className="flex-1 md:flex-none">
-            Apply filters
+        <div className="border-t border-border" />
+
+        <FilterGroup title="Price and location" description="Prices are listed in Nigerian naira.">
+          <FilterField label="Minimum price" htmlFor={minPriceId}>
+            <Input
+              id={minPriceId}
+              inputMode="decimal"
+              type="number"
+              min={0}
+              placeholder="No minimum"
+              value={minPrice}
+              onChange={(event) => setMinPrice(event.target.value)}
+              className="h-12 rounded-lg px-3.5 text-sm"
+            />
+          </FilterField>
+          <FilterField label="Maximum price" htmlFor={maxPriceId}>
+            <Input
+              id={maxPriceId}
+              inputMode="decimal"
+              type="number"
+              min={0}
+              placeholder="No maximum"
+              value={maxPrice}
+              onChange={(event) => setMaxPrice(event.target.value)}
+              className="h-12 rounded-lg px-3.5 text-sm"
+            />
+          </FilterField>
+          <FilterField label="Provider city" htmlFor={cityId}>
+            <Input
+              id={cityId}
+              value={city}
+              onChange={(event) => setCity(event.target.value)}
+              placeholder="Any city"
+              className="h-12 rounded-lg px-3.5 text-sm"
+            />
+          </FilterField>
+          <FilterSelect
+            label="Distance"
+            value={radiusKm}
+            options={radiusOptions}
+            onChange={setRadiusKm}
+          />
+        </FilterGroup>
+
+        <div className="border-t border-border" />
+
+        <FilterGroup title="Results">
+          <FilterSelect
+            label="Sort by"
+            value={sort}
+            options={SERVICE_SORT_OPTIONS}
+            onChange={(value) => setSort(value as ServiceSortValue)}
+          />
+        </FilterGroup>
+
+        <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
+          <Button type="button" variant="ghost" onClick={clearFilters}>
+            Reset
           </Button>
-          <Button type="button" variant="outline" onClick={clearFilters} className="flex-1 md:flex-none">
-            Clear all
+          <Button type="button" onClick={applyFilters} className="sm:min-w-36">
+            Show services
           </Button>
         </div>
       </div>
-    </section>
+    </FilterPanel>
   );
 }

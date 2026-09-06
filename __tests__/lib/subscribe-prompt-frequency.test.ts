@@ -26,7 +26,7 @@ describe("subscription prompt frequency", () => {
       post("post-4", "creator-1"),
     ]);
 
-    expect([...selected]).toEqual(["post-1"]);
+    expect(Array.from(selected)).toEqual(["post-1"]);
   });
 
   it("leaves two visible free posts between prompts and caps the feed total", () => {
@@ -36,7 +36,7 @@ describe("subscription prompt frequency", () => {
       ),
     );
 
-    expect([...selected]).toEqual(["post-1", "post-4", "post-7"]);
+    expect(Array.from(selected)).toEqual(["post-1", "post-4", "post-7"]);
     expect(selected.size).toBe(MAX_SUBSCRIBE_PROMPTS_PER_FEED);
   });
 
@@ -49,6 +49,6 @@ describe("subscription prompt frequency", () => {
       post("post-4", "creator-4"),
     ]);
 
-    expect([...selected]).toEqual(["post-1", "post-4"]);
+    expect(Array.from(selected)).toEqual(["post-1", "post-4"]);
   });
 });
