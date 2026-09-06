@@ -171,24 +171,3 @@ export async function getHomeFeed(
   }
 }
 
-export async function searchProfiles(
-  query: string,
-  viewerProfile: ViewerProfile | null
-): Promise<ProfileCardData[]> {
-  const notSelf = excludeSelf(viewerProfile);
-
-  return prisma.profile.findMany({
-    where: {
-      isIncognito: false,
-      showInSearch: true,
-      ...notSelf,
-      OR: [
-        { username: { contains: query, mode: "insensitive" } },
-        { displayName: { contains: query, mode: "insensitive" } },
-      ],
-    },
-    select: profileCardSelect(),
-    orderBy: { displayName: "asc" },
-    take: 24,
-  });
-}

@@ -3,6 +3,7 @@ import type { AvailabilityStatusType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
+import { searchDocuments } from "@/lib/search";
 
 const GENDER_FILTER_VALUES = new Set<string>(GENDER_OPTIONS);
 const ORIENTATION_FILTER_VALUES = new Set<string>(ORIENTATION_OPTIONS);
@@ -113,10 +114,10 @@ function hasUsableLocation(viewerProfile: ViewerProfile | null): viewerProfile i
   );
 }
 
-function buildWhere(
+async function buildWhere(
   filters: DiscoverFilters,
   viewerProfile: ViewerProfile | null
-): Prisma.ProfileWhereInput {
+): Promise<Prisma.ProfileWhereInput> {
   const where: Prisma.ProfileWhereInput = { isIncognito: false, showInSearch: true, isSuspended: false };
   const and: Prisma.ProfileWhereInput[] = [];
 
@@ -130,12 +131,11 @@ function buildWhere(
   }
 
   if (filters.query) {
-    and.push({
-      OR: [
-        { username: { contains: filters.query, mode: "insensitive" } },
-        { displayName: { contains: filters.query, mode: "insensitive" } },
-      ],
-    });
+    // Delegates to the shared SearchDocument index (see lib/search.ts) instead of an
+    // unindexed ILIKE scan - the same text-matching engine unified search uses, so a
+    // profile that shows up here shows up in /search too.
+    const matches = await searchDocuments(filters.query, ["profile"]);
+    where.id = { in: matches.map((match) => match.entityId) };
   }
 
   if (filters.genders.length > 0) {
@@ -197,7 +197,7 @@ export async function searchDiscoverProfiles(
   viewerProfile: ViewerProfile | null
 ): Promise<DiscoverResult> {
   const effectiveFilters = filters;
-  const where = buildWhere(effectiveFilters, viewerProfile);
+  const where = await buildWhere(effectiveFilters, viewerProfile);
   const viewerHasLocation = hasUsableLocation(viewerProfile);
   const needsDistance =
     viewerHasLocation && (effectiveFilters.radiusKm !== null || effectiveFilters.sort === "distance");

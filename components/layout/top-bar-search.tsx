@@ -10,21 +10,29 @@ export function TopBarSearch({ className }: { className?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [value, setValue] = useState(searchParams.get("q") ?? "");
+  const onSearchPage = pathname === "/search";
+  const [value, setValue] = useState(onSearchPage ? searchParams.get("q") ?? "" : "");
 
-  if (pathname !== "/discover") {
-    return null;
+  function navigate(query: string) {
+    const params = onSearchPage ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
+    if (query) {
+      params.set("q", query);
+    } else {
+      params.delete("q");
+    }
+
+    const queryString = params.toString();
+    router.push(queryString ? `/search?${queryString}` : "/search");
   }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    const trimmed = value.trim();
-    router.push(trimmed ? `/discover?q=${encodeURIComponent(trimmed)}` : "/discover");
+    navigate(value.trim());
   }
 
   function handleClear() {
     setValue("");
-    router.push("/discover");
+    if (onSearchPage) navigate("");
   }
 
   return (
@@ -34,8 +42,8 @@ export function TopBarSearch({ className }: { className?: string }) {
         type="search"
         value={value}
         onChange={(event) => setValue(event.target.value)}
-        placeholder="Search people"
-        aria-label="Search by username or display name"
+        placeholder="Search udala"
+        aria-label="Search people, posts, hashtags, and services"
         className="h-11 w-full rounded-full border border-input bg-background pl-8 pr-8 text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:text-sm"
       />
       {value && (

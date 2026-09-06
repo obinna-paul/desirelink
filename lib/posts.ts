@@ -822,6 +822,38 @@ export async function getPostsByHashtag(
   return posts.map((post) => toPostView(post, access, viewerProfileId, liveStreamIds));
 }
 
+/** Fetches specific posts by id, in no particular order - callers that need a specific
+ * order (e.g. search results ranked elsewhere) re-sort the returned rows themselves. */
+export async function getPostsByIds(
+  ids: string[],
+  viewerProfileId: string | null,
+): Promise<PostView[]> {
+  if (ids.length === 0) return [];
+
+  const where: Prisma.PostWhereInput = {
+    id: { in: ids },
+    author: { isIncognito: false, isSuspended: false },
+  };
+
+  let posts: RawPost[];
+  try {
+    posts = await prisma.post.findMany({
+      where: { ...where, isArchived: false },
+      select: postSelect(viewerProfileId),
+    });
+  } catch (error) {
+    if (!isMissingPostArchiveError(error)) throw error;
+    console.warn(
+      "Post archive filtering is unavailable until Post.isArchived migration is applied.",
+    );
+    posts = await prisma.post.findMany({ where, select: postSelect(viewerProfileId) });
+  }
+
+  const access = await accessForSubscriberOnlyAuthors(posts, viewerProfileId);
+  const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
+  return posts.map((post) => toPostView(post, access, viewerProfileId, liveStreamIds));
+}
+
 export async function getPostByIdForViewer(
   postId: string,
   viewerProfileId: string | null,
