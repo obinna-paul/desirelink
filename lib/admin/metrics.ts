@@ -228,10 +228,8 @@ export type DiscoveryGuardrails = {
   reportRatePer1000Impressions: number;
   newCreatorReachPct: number;
   repeatContentRatePct: number;
-  followToSubscribeConversionPct: number;
   creatorReachGini: number;
   top1PercentCreatorImpressionSharePct: number;
-  meaningfulDiscoveryRatePct: number;
   activeViewers: number;
 };
 
@@ -240,28 +238,15 @@ export type DiscoveryGuardrails = {
  * never optimized for directly (see the plan: no A/B-testing framework yet at this
  * traffic, this dashboard plus a holdout group is the intended substitute).
  *
- * Two of these - repeatContentRatePct and meaningfulDiscoveryRatePct - read raw
- * PostImpression rows, which are only retained ~45 days (see
- * lib/post-daily-stats.ts's pruneOldPostImpressions). For a 90d/12mo range they reflect
- * only whatever raw impressions still exist, not the full period. Everything else reads
- * PostDailyStats, which is kept indefinitely.
- *
- * meaningfulDiscoveryRatePct is a deliberately narrowed proxy for the plan's full
- * definition (engaging with a never-before-engaged creator via completion, profile
- * visit, follow, message, or subscribe): it counts only new Follows, since Follow's
- * @@unique([followerId, followingId]) already guarantees every row is that viewer's
- * first-ever follow of that creator - a clean, directly computable signal. The other four
- * discovery paths aren't cleanly first-time-attributable per (viewer, creator) yet
- * without more infra, and are a natural follow-up once that exists.
- *
- * followToSubscribeConversionPct also simplifies: it checks whether a subscription to
- * that creator exists at all, not whether it happened after the follow - ordering the two
- * events precisely is a follow-up, not a blocker to watching the guardrail today.
+ * repeatContentRatePct reads raw PostImpression rows, which are only retained ~45 days
+ * (see lib/post-daily-stats.ts's pruneOldPostImpressions). For a 90d/12mo range it
+ * reflects only whatever raw impressions still exist, not the full period. Everything
+ * else reads PostDailyStats, which is kept indefinitely.
  */
 export async function getDiscoveryGuardrails(range: InsightsRange): Promise<DiscoveryGuardrails> {
   const { rangeStart } = buildMetricBuckets(range);
 
-  const [reportsInRange, dailyStatsInRange, impressionsWithAuthor, followsInRange, newCreatorProfiles] =
+  const [reportsInRange, dailyStatsInRange, impressionsWithAuthor, newCreatorProfiles] =
     await Promise.all([
       prisma.report.count({ where: { targetType: "post", createdAt: { gte: rangeStart } } }),
       prisma.postDailyStats.findMany({
@@ -271,10 +256,6 @@ export async function getDiscoveryGuardrails(range: InsightsRange): Promise<Disc
       prisma.postImpression.findMany({
         where: { createdAt: { gte: rangeStart } },
         select: { viewerId: true, post: { select: { authorId: true } } },
-      }),
-      prisma.follow.findMany({
-        where: { createdAt: { gte: rangeStart } },
-        select: { followerId: true, followingId: true },
       }),
       prisma.profile.findMany({ where: { createdAt: { gte: rangeStart } }, select: { id: true } }),
     ]);
@@ -307,45 +288,14 @@ export async function getDiscoveryGuardrails(range: InsightsRange): Promise<Disc
   const repeatContentRatePct =
     impressionsWithAuthor.length > 0 ? (repeatImpressions / impressionsWithAuthor.length) * 100 : 0;
 
-  const followingIds = Array.from(new Set(followsInRange.map((follow) => follow.followingId)));
-  const [subscriptions, providerSubscriptions] = await Promise.all([
-    followingIds.length > 0
-      ? prisma.subscription.findMany({
-          where: { creatorId: { in: followingIds } },
-          select: { subscriberId: true, creatorId: true },
-        })
-      : Promise.resolve([]),
-    followingIds.length > 0
-      ? prisma.providerSubscription.findMany({
-          where: { providerId: { in: followingIds } },
-          select: { subscriberId: true, providerId: true },
-        })
-      : Promise.resolve([]),
-  ]);
-  const subscriberPairs = new Set([
-    ...subscriptions.map((sub) => `${sub.subscriberId}:${sub.creatorId}`),
-    ...providerSubscriptions.map((sub) => `${sub.subscriberId}:${sub.providerId}`),
-  ]);
-  const convertedFollows = followsInRange.filter((follow) =>
-    subscriberPairs.has(`${follow.followerId}:${follow.followingId}`),
-  );
-  const followToSubscribeConversionPct =
-    followsInRange.length > 0 ? (convertedFollows.length / followsInRange.length) * 100 : 0;
-
   const activeViewerIds = new Set(impressionsWithAuthor.map((impression) => impression.viewerId));
-  const discoveringViewerIds = new Set(followsInRange.map((follow) => follow.followerId));
-  const activeDiscoveringViewers = Array.from(discoveringViewerIds).filter((id) => activeViewerIds.has(id));
-  const meaningfulDiscoveryRatePct =
-    activeViewerIds.size > 0 ? (activeDiscoveringViewers.length / activeViewerIds.size) * 100 : 0;
 
   return {
     reportRatePer1000Impressions: round2(reportRatePer1000Impressions),
     newCreatorReachPct: round2(newCreatorReachPct),
     repeatContentRatePct: round2(repeatContentRatePct),
-    followToSubscribeConversionPct: round2(followToSubscribeConversionPct),
     creatorReachGini: round2(creatorReachGini),
     top1PercentCreatorImpressionSharePct: round2(top1PercentCreatorImpressionSharePct),
-    meaningfulDiscoveryRatePct: round2(meaningfulDiscoveryRatePct),
     activeViewers: activeViewerIds.size,
   };
 }

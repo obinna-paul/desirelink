@@ -2,7 +2,6 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     liveStream: { findMany: jest.fn() },
     profile: { findUnique: jest.fn(), findMany: jest.fn() },
-    follow: { findMany: jest.fn() },
     creatorAffinity: { findMany: jest.fn() },
   },
 }));
@@ -20,7 +19,6 @@ import { prisma } from "@/lib/prisma";
 const mockPrisma = prisma as unknown as {
   liveStream: { findMany: jest.Mock };
   profile: { findUnique: jest.Mock; findMany: jest.Mock };
-  follow: { findMany: jest.Mock };
   creatorAffinity: { findMany: jest.Mock };
 };
 
@@ -54,7 +52,6 @@ beforeEach(() => {
   mockPrisma.liveStream.findMany.mockResolvedValue([]);
   mockPrisma.profile.findMany.mockResolvedValue([]);
   mockPrisma.profile.findUnique.mockResolvedValue(null);
-  mockPrisma.follow.findMany.mockResolvedValue([]);
   mockPrisma.creatorAffinity.findMany.mockResolvedValue([]);
 });
 
@@ -82,15 +79,16 @@ describe("getLiveRingFeed", () => {
     );
   });
 
-  it("ranks a followed creator above one the viewer merely has affinity toward", async () => {
-    mockPrisma.liveStream.findMany.mockResolvedValue([liveRow("followed"), liveRow("has-affinity")]);
-    mockPrisma.follow.findMany.mockResolvedValue([{ followingId: "followed" }]);
-    mockPrisma.creatorAffinity.findMany.mockResolvedValue([{ creatorId: "has-affinity", affinity: 20 }]);
+  it("ranks a creator the viewer has higher affinity toward above one with lower affinity", async () => {
+    mockPrisma.liveStream.findMany.mockResolvedValue([liveRow("low-affinity"), liveRow("high-affinity")]);
+    mockPrisma.creatorAffinity.findMany.mockResolvedValue([
+      { creatorId: "low-affinity", affinity: 5 },
+      { creatorId: "high-affinity", affinity: 60 },
+    ]);
 
     const result = await getLiveRingFeed("viewer-1", 20, NOW);
 
-    // relationship weight (0.35 * 1 = 0.35) beats affinity weight (0.30 * 0.5 = 0.15).
-    expect(result.map((r) => r.id)).toEqual(["followed", "has-affinity"]);
+    expect(result.map((r) => r.id)).toEqual(["high-affinity", "low-affinity"]);
   });
 
   it("ranks higher live-stream momentum (hearts received) above lower, all else equal", async () => {
@@ -128,7 +126,6 @@ describe("getLiveRingFeed", () => {
   it("always shows live entries ahead of online-only entries, even if an online candidate outscores every live one", async () => {
     mockPrisma.liveStream.findMany.mockResolvedValue([liveRow("just-live")]);
     mockPrisma.profile.findMany.mockResolvedValue([profileRow("super-relevant", { lastActiveAt: NOW })]);
-    mockPrisma.follow.findMany.mockResolvedValue([{ followingId: "super-relevant" }]);
     mockPrisma.creatorAffinity.findMany.mockResolvedValue([{ creatorId: "super-relevant", affinity: 1000 }]);
 
     const result = await getLiveRingFeed("viewer-1", 20, NOW);

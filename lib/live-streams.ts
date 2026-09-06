@@ -15,7 +15,6 @@ import { getActiveSubscriberIds } from "@/lib/subscription-access";
 import { ONLINE_WINDOW_MS } from "@/lib/presence";
 import { hasIdentityOnFile } from "@/lib/verification";
 import { haversineDistanceKm } from "@/lib/home-feed";
-import { getFollowingIds } from "@/lib/follow";
 import { affinityTerm } from "@/lib/recommendation-scoring";
 import { seededTiebreak } from "@/lib/ranking/slate";
 
@@ -732,8 +731,7 @@ function momentumTerm(totalHeartsReceived: number): number {
 }
 
 const RING_WEIGHTS = {
-  relationship: 0.35,
-  affinity: 0.3,
+  affinity: 0.65,
   locality: 0.15,
   momentum: 0.1,
   novelty: 0.1,
@@ -754,7 +752,6 @@ function rankRingCandidates(
   candidates: RingCandidate[],
   context: {
     viewerLocation: { locationLat: number; locationLng: number } | null;
-    followingIds: Set<string>;
     affinityByCreator: Map<string, number>;
     seed: string;
     now: Date;
@@ -763,7 +760,6 @@ function rankRingCandidates(
   return [...candidates]
     .map((candidate) => {
       const score =
-        RING_WEIGHTS.relationship * (context.followingIds.has(candidate.id) ? 1 : 0) +
         RING_WEIGHTS.affinity * affinityTerm(context.affinityByCreator.get(candidate.id) ?? 0) +
         RING_WEIGHTS.locality * localityTerm(context.viewerLocation, candidate) +
         RING_WEIGHTS.momentum * momentumTerm(candidate.totalHeartsReceived) +
@@ -782,10 +778,10 @@ function rankRingCandidates(
  * providers online for chat (ranked among themselves), self excluded. Live entries are
  * always shown ahead of merely-online ones - being live is the single strongest "worth
  * clicking now" signal, so ranking only reorders within each group rather than fully
- * interleaving them. Ranking itself is relationship (Follow) -> affinity (CreatorAffinity)
- * -> locality -> momentum (live heart activity) -> novelty (newer accounts), per the
- * discovery/ranking plan, session-stable via a deterministic seeded tiebreak so refreshing
- * within the same ~15-minute window doesn't reshuffle an otherwise-unchanged candidate set.
+ * interleaving them. Ranking itself is affinity (CreatorAffinity) -> locality -> momentum
+ * (live heart activity) -> novelty (newer accounts), per the discovery/ranking plan,
+ * session-stable via a deterministic seeded tiebreak so refreshing within the same
+ * ~15-minute window doesn't reshuffle an otherwise-unchanged candidate set.
  */
 export async function getLiveRingFeed(
   viewerProfileId: string | null,
@@ -796,16 +792,12 @@ export async function getLiveRingFeed(
   const bucket = Math.floor(now.getTime() / (RING_SESSION_BUCKET_MINUTES * 60 * 1000));
   const seed = `${viewerProfileId ?? "anonymous"}:${bucket}`;
 
-  const [viewer, followingIds] = await Promise.all([
-    viewerProfileId
-      ? prisma.profile.findUnique({
-          where: { id: viewerProfileId },
-          select: { locationLat: true, locationLng: true },
-        })
-      : Promise.resolve(null),
-    viewerProfileId ? getFollowingIds(viewerProfileId) : Promise.resolve([]),
-  ]);
-  const followingIdSet = new Set(followingIds);
+  const viewer = viewerProfileId
+    ? await prisma.profile.findUnique({
+        where: { id: viewerProfileId },
+        select: { locationLat: true, locationLng: true },
+      })
+    : null;
 
   const liveStreamCandidates = await prisma.liveStream.findMany({
     where: { status: "live", provider: { isIncognito: false, isSuspended: false, showInSearch: true, ...notSelf } },
@@ -853,7 +845,7 @@ export async function getLiveRingFeed(
     : [];
   const affinityByCreator = new Map(affinityRows.map((row) => [row.creatorId, row.affinity]));
 
-  const rankContext = { viewerLocation: viewer, followingIds: followingIdSet, affinityByCreator, seed, now };
+  const rankContext = { viewerLocation: viewer, affinityByCreator, seed, now };
 
   const rankedLive = rankRingCandidates(
     liveStreamCandidates.map((s) => ({

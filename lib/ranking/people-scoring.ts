@@ -83,10 +83,9 @@ const PEOPLE_WEIGHTS = {
 /**
  * Ranks candidate profiles for a "people, not posts" discovery surface (Discover, the
  * creators directory): affinity, locality, trust, novelty - all derived from behavior, never
- * self-reported interests. No relationship/Follow term here on purpose, unlike the Live ring
- * - these surfaces exist to surface people the viewer *doesn't* already have a relationship
- * with. Returns candidate ids in ranked order; graceful degradation is structural for an
- * anonymous or signal-less viewer (affinity/locality both fall to 0), never a special case.
+ * self-reported interests. Returns candidate ids in ranked order; graceful degradation is
+ * structural for an anonymous or signal-less viewer (affinity/locality both fall to 0),
+ * never a special case.
  */
 export async function rankRecommendedProfiles(
   viewer: { id: string; locationLat: number; locationLng: number } | null,

@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { LiveRingRow } from "@/components/home/live-ring-row";
 import { FeedTabs } from "@/components/home/feed-tabs";
-import { getPublicFeedPosts, getPremiumFeedPosts, getFollowingFeedPosts } from "@/lib/posts";
+import { getPublicFeedPosts, getPremiumFeedPosts } from "@/lib/posts";
 import { getLiveRingFeed } from "@/lib/live-streams";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { getOwnPresenceStatus } from "@/lib/presence";
@@ -32,9 +32,8 @@ export default async function HomePage() {
 
   const isProvider = viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false;
 
-  const [posts, followingPosts, premiumFeed, ring, myActiveStream] = await Promise.all([
+  const [posts, premiumFeed, ring, myActiveStream] = await Promise.all([
     getPublicFeedPosts(viewerProfile?.id ?? null),
-    getFollowingFeedPosts(viewerProfile?.id ?? null),
     getPremiumFeedPosts(viewerProfile?.id ?? null),
     getLiveRingFeed(viewerProfile?.id ?? null),
     isProvider && viewerProfile
@@ -61,7 +60,6 @@ export default async function HomePage() {
       />
       <FeedTabs
         posts={posts}
-        followingPosts={followingPosts}
         premiumPosts={premiumFeed.posts}
         hasSubscriptions={premiumFeed.hasSubscriptions}
         liveEntries={ring}

@@ -6,7 +6,6 @@ jest.mock("@/lib/prisma", () => ({
     postShare: { findMany: jest.fn() },
     savedPost: { findMany: jest.fn() },
     postUnlock: { findMany: jest.fn() },
-    follow: { findMany: jest.fn() },
     creatorAffinity: { deleteMany: jest.fn(), createMany: jest.fn() },
     $transaction: jest.fn((ops: unknown[]) => Promise.all(ops)),
   },
@@ -22,7 +21,6 @@ const mockPrisma = prisma as unknown as {
   postShare: { findMany: jest.Mock };
   savedPost: { findMany: jest.Mock };
   postUnlock: { findMany: jest.Mock };
-  follow: { findMany: jest.Mock };
   creatorAffinity: { deleteMany: jest.Mock; createMany: jest.Mock };
 };
 
@@ -40,7 +38,6 @@ beforeEach(() => {
   mockPrisma.postShare.findMany.mockResolvedValue([]);
   mockPrisma.savedPost.findMany.mockResolvedValue([]);
   mockPrisma.postUnlock.findMany.mockResolvedValue([]);
-  mockPrisma.follow.findMany.mockResolvedValue([]);
 });
 
 function rowsFromCreateMany(): { viewerId: string; creatorId: string; affinity: number }[] {
@@ -48,21 +45,12 @@ function rowsFromCreateMany(): { viewerId: string; creatorId: string; affinity: 
 }
 
 describe("refreshCreatorAffinity", () => {
-  it("does nothing when there's no activity or follows", async () => {
+  it("does nothing when there's no activity", async () => {
     const summary = await refreshCreatorAffinity(NOW);
 
     expect(summary).toEqual({ pairsUpdated: 0 });
     expect(mockPrisma.creatorAffinity.deleteMany).toHaveBeenCalledWith({});
     expect(mockPrisma.creatorAffinity.createMany).toHaveBeenCalledWith({ data: [] });
-  });
-
-  it("gives an undecayed flat bonus for a current Follow relationship", async () => {
-    mockPrisma.follow.findMany.mockResolvedValue([{ followerId: "viewer-1", followingId: "creator-1" }]);
-
-    const summary = await refreshCreatorAffinity(NOW);
-
-    expect(summary).toEqual({ pairsUpdated: 1 });
-    expect(rowsFromCreateMany()).toEqual([{ viewerId: "viewer-1", creatorId: "creator-1", affinity: 8 }]);
   });
 
   it("decays event weight by age using a 14-day half-life", async () => {
@@ -89,18 +77,16 @@ describe("refreshCreatorAffinity", () => {
     mockPrisma.postShare.findMany.mockResolvedValue([{ userId: "viewer-1", createdAt: NOW, ...authored("creator-1") }]);
     mockPrisma.savedPost.findMany.mockResolvedValue([{ viewerId: "viewer-1", createdAt: NOW, ...authored("creator-1") }]);
     mockPrisma.postUnlock.findMany.mockResolvedValue([{ subscriberId: "viewer-1", createdAt: NOW, ...authored("creator-1") }]);
-    mockPrisma.follow.findMany.mockResolvedValue([{ followerId: "viewer-1", followingId: "creator-1" }]);
 
     const summary = await refreshCreatorAffinity(NOW);
 
-    // 0.5 (impression) + 1 (like) + 2 (comment) + 3 (share) + 3 (save) + 6 (unlock) + 8 (follow) = 23.5
+    // 0.5 (impression) + 1 (like) + 2 (comment) + 3 (share) + 3 (save) + 6 (unlock) = 15.5
     expect(summary).toEqual({ pairsUpdated: 1 });
-    expect(rowsFromCreateMany()).toEqual([{ viewerId: "viewer-1", creatorId: "creator-1", affinity: 23.5 }]);
+    expect(rowsFromCreateMany()).toEqual([{ viewerId: "viewer-1", creatorId: "creator-1", affinity: 15.5 }]);
   });
 
   it("never records self-affinity from a creator's own posts", async () => {
     mockPrisma.postReaction.findMany.mockResolvedValue([{ userId: "creator-1", createdAt: NOW, ...authored("creator-1") }]);
-    mockPrisma.follow.findMany.mockResolvedValue([{ followerId: "creator-1", followingId: "creator-1" }]);
 
     const summary = await refreshCreatorAffinity(NOW);
 
@@ -108,9 +94,9 @@ describe("refreshCreatorAffinity", () => {
   });
 
   it("keeps separate creators for the same viewer as separate pairs", async () => {
-    mockPrisma.follow.findMany.mockResolvedValue([
-      { followerId: "viewer-1", followingId: "creator-1" },
-      { followerId: "viewer-1", followingId: "creator-2" },
+    mockPrisma.postReaction.findMany.mockResolvedValue([
+      { userId: "viewer-1", createdAt: NOW, ...authored("creator-1") },
+      { userId: "viewer-1", createdAt: NOW, ...authored("creator-2") },
     ]);
 
     const summary = await refreshCreatorAffinity(NOW);
@@ -119,8 +105,8 @@ describe("refreshCreatorAffinity", () => {
     const rows = rowsFromCreateMany();
     expect(rows).toEqual(
       expect.arrayContaining([
-        { viewerId: "viewer-1", creatorId: "creator-1", affinity: 8 },
-        { viewerId: "viewer-1", creatorId: "creator-2", affinity: 8 },
+        { viewerId: "viewer-1", creatorId: "creator-1", affinity: 1 },
+        { viewerId: "viewer-1", creatorId: "creator-2", affinity: 1 },
       ]),
     );
   });
@@ -136,10 +122,6 @@ describe("refreshCreatorAffinity", () => {
     expect(mockPrisma.postReaction.findMany).toHaveBeenCalledWith({
       where: { createdAt: { gte: expectedSince }, type: "like" },
       select: { userId: true, createdAt: true, post: { select: { authorId: true } } },
-    });
-    // Follow relationships aren't dated/windowed - see the "no self-affinity" doc comment.
-    expect(mockPrisma.follow.findMany).toHaveBeenCalledWith({
-      select: { followerId: true, followingId: true },
     });
   });
 });

@@ -18,7 +18,7 @@ export const SCORE_WEIGHTS = {
 } as const;
 
 /** Raw CreatorAffinity.affinity units at which the affinity term reaches 0.5 - e.g. a lone
- * Follow (worth 8 raw units, see lib/creator-affinity.ts) alone only reaches ~0.29. */
+ * unlock (worth 6 raw units, see lib/creator-affinity.ts) alone only reaches ~0.23. */
 const AFFINITY_SATURATION = 20;
 
 /** Raw PostQuality.quality units at which the quality term reaches 0.5. */

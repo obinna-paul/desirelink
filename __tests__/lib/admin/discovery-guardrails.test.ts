@@ -3,10 +3,7 @@ jest.mock("@/lib/prisma", () => ({
     report: { count: jest.fn() },
     postDailyStats: { findMany: jest.fn() },
     postImpression: { findMany: jest.fn() },
-    follow: { findMany: jest.fn() },
     profile: { findMany: jest.fn() },
-    subscription: { findMany: jest.fn() },
-    providerSubscription: { findMany: jest.fn() },
   },
 }));
 
@@ -17,10 +14,7 @@ const mockPrisma = prisma as unknown as {
   report: { count: jest.Mock };
   postDailyStats: { findMany: jest.Mock };
   postImpression: { findMany: jest.Mock };
-  follow: { findMany: jest.Mock };
   profile: { findMany: jest.Mock };
-  subscription: { findMany: jest.Mock };
-  providerSubscription: { findMany: jest.Mock };
 };
 
 beforeEach(() => {
@@ -28,10 +22,7 @@ beforeEach(() => {
   mockPrisma.report.count.mockResolvedValue(0);
   mockPrisma.postDailyStats.findMany.mockResolvedValue([]);
   mockPrisma.postImpression.findMany.mockResolvedValue([]);
-  mockPrisma.follow.findMany.mockResolvedValue([]);
   mockPrisma.profile.findMany.mockResolvedValue([]);
-  mockPrisma.subscription.findMany.mockResolvedValue([]);
-  mockPrisma.providerSubscription.findMany.mockResolvedValue([]);
 });
 
 describe("getDiscoveryGuardrails", () => {
@@ -42,10 +33,8 @@ describe("getDiscoveryGuardrails", () => {
       reportRatePer1000Impressions: 0,
       newCreatorReachPct: 0,
       repeatContentRatePct: 0,
-      followToSubscribeConversionPct: 0,
       creatorReachGini: 0,
       top1PercentCreatorImpressionSharePct: 0,
-      meaningfulDiscoveryRatePct: 0,
       activeViewers: 0,
     });
   });
@@ -98,32 +87,14 @@ describe("getDiscoveryGuardrails", () => {
     expect(result.repeatContentRatePct).toBeCloseTo(66.67, 1);
   });
 
-  it("computes follow-to-subscribe conversion against existing subscriptions", async () => {
-    mockPrisma.follow.findMany.mockResolvedValue([
-      { followerId: "viewer-1", followingId: "creator-A" },
-      { followerId: "viewer-2", followingId: "creator-B" },
-    ]);
-    mockPrisma.providerSubscription.findMany.mockResolvedValue([
-      { subscriberId: "viewer-1", providerId: "creator-A" },
-    ]);
-
-    const result = await getDiscoveryGuardrails("30d");
-
-    expect(result.followToSubscribeConversionPct).toBe(50);
-  });
-
-  it("computes meaningful discovery rate as active discoverers over active viewers", async () => {
+  it("computes active viewers from distinct raw impression viewers", async () => {
     mockPrisma.postImpression.findMany.mockResolvedValue([
       { viewerId: "viewer-1", post: { authorId: "creator-A" } },
       { viewerId: "viewer-2", post: { authorId: "creator-B" } },
-    ]);
-    mockPrisma.follow.findMany.mockResolvedValue([
-      { followerId: "viewer-1", followingId: "creator-A" },
     ]);
 
     const result = await getDiscoveryGuardrails("30d");
 
     expect(result.activeViewers).toBe(2);
-    expect(result.meaningfulDiscoveryRatePct).toBe(50);
   });
 });
