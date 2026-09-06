@@ -188,3 +188,164 @@ export async function getAccountMilestones() {
     earningProfiles: earningProfileIds.size,
   };
 }
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/** Standard Gini coefficient over a sorted-ascending array of nonnegative values - 0 is a
+ * perfectly equal distribution, close to 1 means impressions are concentrated in a
+ * handful of creators. */
+function giniCoefficient(sortedAscending: number[]): number {
+  const n = sortedAscending.length;
+  if (n === 0) return 0;
+  const total = sortedAscending.reduce((sum, value) => sum + value, 0);
+  if (total === 0) return 0;
+
+  let cumulative = 0;
+  let weightedSum = 0;
+  for (const value of sortedAscending) {
+    cumulative += value;
+    weightedSum += cumulative;
+  }
+  return (n + 1 - (2 * weightedSum) / total) / n;
+}
+
+/** Share of the total held by the top `fraction` of entries (e.g. 0.01 for the top 1%),
+ * from a sorted-ascending array. */
+function topShare(sortedAscending: number[], fraction: number): number {
+  const n = sortedAscending.length;
+  if (n === 0) return 0;
+  const total = sortedAscending.reduce((sum, value) => sum + value, 0);
+  if (total === 0) return 0;
+
+  const topCount = Math.max(1, Math.round(n * fraction));
+  const topSum = sortedAscending.slice(n - topCount).reduce((sum, value) => sum + value, 0);
+  return (topSum / total) * 100;
+}
+
+export type DiscoveryGuardrails = {
+  reportRatePer1000Impressions: number;
+  newCreatorReachPct: number;
+  repeatContentRatePct: number;
+  followToSubscribeConversionPct: number;
+  creatorReachGini: number;
+  top1PercentCreatorImpressionSharePct: number;
+  meaningfulDiscoveryRatePct: number;
+  activeViewers: number;
+};
+
+/**
+ * Guardrails for the discovery/ranking plan's Metrics section - watched alongside growth,
+ * never optimized for directly (see the plan: no A/B-testing framework yet at this
+ * traffic, this dashboard plus a holdout group is the intended substitute).
+ *
+ * Two of these - repeatContentRatePct and meaningfulDiscoveryRatePct - read raw
+ * PostImpression rows, which are only retained ~45 days (see
+ * lib/post-daily-stats.ts's pruneOldPostImpressions). For a 90d/12mo range they reflect
+ * only whatever raw impressions still exist, not the full period. Everything else reads
+ * PostDailyStats, which is kept indefinitely.
+ *
+ * meaningfulDiscoveryRatePct is a deliberately narrowed proxy for the plan's full
+ * definition (engaging with a never-before-engaged creator via completion, profile
+ * visit, follow, message, or subscribe): it counts only new Follows, since Follow's
+ * @@unique([followerId, followingId]) already guarantees every row is that viewer's
+ * first-ever follow of that creator - a clean, directly computable signal. The other four
+ * discovery paths aren't cleanly first-time-attributable per (viewer, creator) yet
+ * without more infra, and are a natural follow-up once that exists.
+ *
+ * followToSubscribeConversionPct also simplifies: it checks whether a subscription to
+ * that creator exists at all, not whether it happened after the follow - ordering the two
+ * events precisely is a follow-up, not a blocker to watching the guardrail today.
+ */
+export async function getDiscoveryGuardrails(range: InsightsRange): Promise<DiscoveryGuardrails> {
+  const { rangeStart } = buildMetricBuckets(range);
+
+  const [reportsInRange, dailyStatsInRange, impressionsWithAuthor, followsInRange, newCreatorProfiles] =
+    await Promise.all([
+      prisma.report.count({ where: { targetType: "post", createdAt: { gte: rangeStart } } }),
+      prisma.postDailyStats.findMany({
+        where: { date: { gte: rangeStart } },
+        select: { impressions: true, post: { select: { authorId: true } } },
+      }),
+      prisma.postImpression.findMany({
+        where: { createdAt: { gte: rangeStart } },
+        select: { viewerId: true, post: { select: { authorId: true } } },
+      }),
+      prisma.follow.findMany({
+        where: { createdAt: { gte: rangeStart } },
+        select: { followerId: true, followingId: true },
+      }),
+      prisma.profile.findMany({ where: { createdAt: { gte: rangeStart } }, select: { id: true } }),
+    ]);
+
+  const totalImpressions = dailyStatsInRange.reduce((sum, row) => sum + row.impressions, 0);
+  const reportRatePer1000Impressions = totalImpressions > 0 ? (reportsInRange / totalImpressions) * 1000 : 0;
+
+  const newCreatorIds = new Set(newCreatorProfiles.map((profile) => profile.id));
+  const newCreatorImpressions = dailyStatsInRange
+    .filter((row) => newCreatorIds.has(row.post.authorId))
+    .reduce((sum, row) => sum + row.impressions, 0);
+  const newCreatorReachPct = totalImpressions > 0 ? (newCreatorImpressions / totalImpressions) * 100 : 0;
+
+  const impressionsByCreator = new Map<string, number>();
+  for (const row of dailyStatsInRange) {
+    impressionsByCreator.set(row.post.authorId, (impressionsByCreator.get(row.post.authorId) ?? 0) + row.impressions);
+  }
+  const creatorTotalsAscending = Array.from(impressionsByCreator.values()).sort((a, b) => a - b);
+  const creatorReachGini = giniCoefficient(creatorTotalsAscending);
+  const top1PercentCreatorImpressionSharePct = topShare(creatorTotalsAscending, 0.01);
+
+  const viewerCreatorPairCounts = new Map<string, number>();
+  for (const impression of impressionsWithAuthor) {
+    const key = `${impression.viewerId}:${impression.post.authorId}`;
+    viewerCreatorPairCounts.set(key, (viewerCreatorPairCounts.get(key) ?? 0) + 1);
+  }
+  const repeatImpressions = Array.from(viewerCreatorPairCounts.values())
+    .filter((count) => count > 1)
+    .reduce((sum, count) => sum + count, 0);
+  const repeatContentRatePct =
+    impressionsWithAuthor.length > 0 ? (repeatImpressions / impressionsWithAuthor.length) * 100 : 0;
+
+  const followingIds = Array.from(new Set(followsInRange.map((follow) => follow.followingId)));
+  const [subscriptions, providerSubscriptions] = await Promise.all([
+    followingIds.length > 0
+      ? prisma.subscription.findMany({
+          where: { creatorId: { in: followingIds } },
+          select: { subscriberId: true, creatorId: true },
+        })
+      : Promise.resolve([]),
+    followingIds.length > 0
+      ? prisma.providerSubscription.findMany({
+          where: { providerId: { in: followingIds } },
+          select: { subscriberId: true, providerId: true },
+        })
+      : Promise.resolve([]),
+  ]);
+  const subscriberPairs = new Set([
+    ...subscriptions.map((sub) => `${sub.subscriberId}:${sub.creatorId}`),
+    ...providerSubscriptions.map((sub) => `${sub.subscriberId}:${sub.providerId}`),
+  ]);
+  const convertedFollows = followsInRange.filter((follow) =>
+    subscriberPairs.has(`${follow.followerId}:${follow.followingId}`),
+  );
+  const followToSubscribeConversionPct =
+    followsInRange.length > 0 ? (convertedFollows.length / followsInRange.length) * 100 : 0;
+
+  const activeViewerIds = new Set(impressionsWithAuthor.map((impression) => impression.viewerId));
+  const discoveringViewerIds = new Set(followsInRange.map((follow) => follow.followerId));
+  const activeDiscoveringViewers = Array.from(discoveringViewerIds).filter((id) => activeViewerIds.has(id));
+  const meaningfulDiscoveryRatePct =
+    activeViewerIds.size > 0 ? (activeDiscoveringViewers.length / activeViewerIds.size) * 100 : 0;
+
+  return {
+    reportRatePer1000Impressions: round2(reportRatePer1000Impressions),
+    newCreatorReachPct: round2(newCreatorReachPct),
+    repeatContentRatePct: round2(repeatContentRatePct),
+    followToSubscribeConversionPct: round2(followToSubscribeConversionPct),
+    creatorReachGini: round2(creatorReachGini),
+    top1PercentCreatorImpressionSharePct: round2(top1PercentCreatorImpressionSharePct),
+    meaningfulDiscoveryRatePct: round2(meaningfulDiscoveryRatePct),
+    activeViewers: activeViewerIds.size,
+  };
+}
