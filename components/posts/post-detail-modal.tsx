@@ -7,7 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Share2, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PresenceRing } from "@/components/ui/presence-avatar";
+import { getPresenceDestination, PresenceRing } from "@/components/ui/presence-avatar";
 import { PostVideoPlayer } from "@/components/posts/post-video-player";
 import type { PresenceStatus } from "@/lib/presence";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
@@ -173,11 +173,11 @@ export function PostDetailModal({
         <div className="flex h-full w-full flex-col md:w-[380px] md:shrink-0">
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
             <Link
-              href={
-                author.presenceStatus === "live" && author.activeStreamId
-                  ? `/live/${author.activeStreamId}`
-                  : `/profile/${author.username}`
-              }
+              href={getPresenceDestination({
+                username: author.username,
+                status: author.presenceStatus,
+                activeStreamId: author.activeStreamId,
+              })}
               className="flex min-w-0 items-center gap-2.5"
             >
               <PresenceRing status={author.presenceStatus} size="h-9 w-9">

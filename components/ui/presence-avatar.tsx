@@ -14,6 +14,20 @@ const RING_CLASS: Record<PresenceStatus, string> = {
   live: "ring-presence-live",
 };
 
+export function getPresenceDestination({
+  username,
+  status,
+  activeStreamId,
+}: {
+  username: string;
+  status: PresenceStatus;
+  activeStreamId: string | null;
+}) {
+  return status === "live" && activeStreamId
+    ? `/live/${activeStreamId}`
+    : `/profile/${username}`;
+}
+
 /** The colored ring itself - offline/online/live are fixed tokens, independent of the
  * viewer's own account-type theme, so a ring means the same thing on every page. */
 export function PresenceRing({
@@ -28,8 +42,36 @@ export function PresenceRing({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn("relative shrink-0 rounded-full p-[2px] ring-2", size, RING_CLASS[status], className)}>
+    <div
+      data-presence-status={status}
+      className={cn(
+        "relative shrink-0 rounded-full p-[2px] ring-2",
+        size,
+        RING_CLASS[status],
+        className,
+      )}
+    >
       {children}
+      {status === "live" && (
+        <span
+          data-presence-indicator="live"
+          className="absolute -right-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-presence-live text-white ring-2 ring-card"
+          aria-hidden="true"
+        >
+          <span className="absolute inset-0 animate-ping rounded-full bg-presence-live/45 motion-reduce:animate-none" />
+          <Radio className="relative h-3 w-3" strokeWidth={2.5} />
+        </span>
+      )}
+      {status === "online" && (
+        <span
+          data-presence-indicator="online"
+          className="absolute -right-0.5 -top-0.5 z-10 h-3.5 w-3.5 rounded-full border-2 border-card bg-presence-online shadow-sm"
+          aria-hidden="true"
+        />
+      )}
+      <span className="sr-only">
+        {status === "live" ? "Live now" : status === "online" ? "Online" : "Offline"}
+      </span>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Eye, Lock } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PresenceRing } from "@/components/ui/presence-avatar";
+import { getPresenceDestination, PresenceRing } from "@/components/ui/presence-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CommentsSheet } from "@/components/posts/comments-sheet";
@@ -259,11 +259,11 @@ export function PostCard({
       <div className="flex items-center justify-between gap-2 px-3 pt-3 md:px-4 md:pt-4">
         {showAuthor ? (
           <Link
-            href={
-              post.author.presenceStatus === "live" && post.author.activeStreamId
-                ? `/live/${post.author.activeStreamId}`
-                : `/profile/${post.author.username}`
-            }
+            href={getPresenceDestination({
+              username: post.author.username,
+              status: post.author.presenceStatus,
+              activeStreamId: post.author.activeStreamId,
+            })}
             className="flex min-w-0 items-center gap-2.5"
           >
             <PresenceRing status={post.author.presenceStatus} size="h-10 w-10">

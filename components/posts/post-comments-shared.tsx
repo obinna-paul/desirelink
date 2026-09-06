@@ -6,7 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Loader2, Send, User } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PresenceRing } from "@/components/ui/presence-avatar";
+import { getPresenceDestination, PresenceRing } from "@/components/ui/presence-avatar";
 import { Badge } from "@/components/ui/badge";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { VerificationBadge } from "@/components/profile/verification-badge";
@@ -95,11 +95,11 @@ function CommentThread({
     <li>
       <div className="flex gap-2.5">
         <Link
-          href={
-            comment.author.presenceStatus === "live" && comment.author.activeStreamId
-              ? `/live/${comment.author.activeStreamId}`
-              : `/profile/${comment.author.username}`
-          }
+          href={getPresenceDestination({
+            username: comment.author.username,
+            status: comment.author.presenceStatus,
+            activeStreamId: comment.author.activeStreamId,
+          })}
           className="shrink-0"
         >
           <PresenceRing status={comment.author.presenceStatus} size="h-9 w-9">

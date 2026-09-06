@@ -42,7 +42,7 @@
 
     /* Presence ring colors - fixed regardless of the viewer's own account theme, so an
        avatar reads the same way (offline/online/live) no matter whose page it's on. */
-    --presence-online: 64 32% 36%;
+    --presence-online: 145 68% 38%;
     --presence-live: 276 72% 45%;
   }
 
@@ -125,7 +125,7 @@
     --neon-pink: 335 74% 68%;
     --neon-cyan: 190 46% 61%;
 
-    --presence-online: 66 28% 46%;
+    --presence-online: 145 66% 48%;
     --presence-live: 276 65% 58%;
     --shadow-card: 0 12px 28px hsl(0 0% 0% / 0.32);
     --shadow-lift: 0 12px 28px hsl(0 0% 0% / 0.46);

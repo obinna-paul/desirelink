@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { Radio, Video } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PresenceRing } from "@/components/ui/presence-avatar";
+import { getPresenceDestination, PresenceRing } from "@/components/ui/presence-avatar";
 import type { LiveRingEntry } from "@/lib/live-streams";
 import type { PresenceStatus } from "@/lib/presence";
 
@@ -76,7 +76,11 @@ export function LiveRingRow({
         {entries.map((entry) => (
           <Link
             key={entry.id}
-            href={entry.isLive ? `/live/${entry.streamId}` : `/profile/${entry.username}`}
+            href={getPresenceDestination({
+              username: entry.username,
+              status: entry.isLive ? "live" : "online",
+              activeStreamId: entry.streamId,
+            })}
             className="flex w-14 shrink-0 flex-col items-center gap-1"
           >
             <PresenceRing status={entry.isLive ? "live" : "online"} size="h-12 w-12">

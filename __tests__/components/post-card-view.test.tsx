@@ -15,6 +15,18 @@ jest.mock("@/components/profile/verification-badge", () => ({ VerificationBadge:
 jest.mock("@/components/safety/report-dialog", () => ({ ReportDialog: () => null }));
 jest.mock("@/components/ui/presence-avatar", () => ({
   PresenceRing: ({ children }: { children: React.ReactNode }) => children,
+  getPresenceDestination: ({
+    username,
+    status,
+    activeStreamId,
+  }: {
+    username: string;
+    status: string;
+    activeStreamId: string | null;
+  }) =>
+    status === "live" && activeStreamId
+      ? `/live/${activeStreamId}`
+      : `/profile/${username}`,
 }));
 
 const post: PostView = {
