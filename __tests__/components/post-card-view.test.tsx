@@ -13,6 +13,7 @@ jest.mock("@/components/posts/post-subscribe-cta", () => ({ PostSubscribeCta: ()
 jest.mock("@/components/profile/subscribe-plans-dialog", () => ({ SubscribePlansDialog: () => null }));
 jest.mock("@/components/profile/verification-badge", () => ({ VerificationBadge: () => null }));
 jest.mock("@/components/safety/report-dialog", () => ({ ReportDialog: () => null }));
+jest.mock("@/lib/client-session", () => ({ getClientSessionId: () => "session-1" }));
 jest.mock("@/components/ui/presence-avatar", () => ({
   PresenceRing: ({ children }: { children: React.ReactNode }) => children,
   getPresenceDestination: ({
@@ -118,7 +119,14 @@ describe("PostCard view tracking", () => {
 
     expect(fetchSpy).toHaveBeenCalledWith("/api/posts/post-1/view", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       keepalive: true,
+      body: JSON.stringify({
+        surface: "unknown",
+        position: undefined,
+        dwellMs: 1_000,
+        sessionId: "session-1",
+      }),
     });
     expect(screen.getByText("4 views")).toBeInTheDocument();
   });

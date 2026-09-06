@@ -621,16 +621,39 @@ model Post {
 }
 
 model PostImpression {
-  id        String   @id @default(cuid())
-  postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  viewerId  String
-  viewer    Profile  @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  id       String  @id @default(cuid())
+  postId   String
+  post     Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  viewerId String
+  viewer   Profile @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+
+  /**
+   * Richer context captured at the moment of this impression - added for the
+   * discovery/ranking plan's Phase 1, all nullable since the `@@unique([postId, viewerId])`
+   * below only ever allows ONE row per (post, viewer): only that first-ever impression
+   * carries this context, not every subsequent view. Never touch the unique constraint to
+   * try to log one row per session - that would break the existing view-count dedupe this
+   * model was built for (see app/api/posts/[postId]/view/route.ts).
+   */
+  surface       String?
+  sessionId     String?
+  position      Int?
+  dwellMs       Int?
+  /**
+   * Video watch percentage - always null today; no video-progress tracking exists yet.
+   */
+  completionPct Float?
+  /**
+   * Which ranker produced the slate this was served in - always null until Phase 2.
+   */
+  rankerVersion String?
+
   createdAt DateTime @default(now())
 
   @@unique([postId, viewerId])
   @@index([postId])
   @@index([viewerId])
+  @@index([createdAt])
 }
 
 model PostComment {

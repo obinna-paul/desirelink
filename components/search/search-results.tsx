@@ -102,7 +102,7 @@ export function SearchResults({
           )}
 
           {tab === "posts" && (
-            <PostList posts={posts} emptyMessage="No posts match this search." />
+            <PostList posts={posts} emptyMessage="No posts match this search." surface="search" />
           )}
 
           {tab === "hashtags" &&

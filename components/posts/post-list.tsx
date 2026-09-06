@@ -5,10 +5,13 @@ export function PostList({
   posts,
   emptyMessage,
   showAuthor = true,
+  surface = "unknown",
 }: {
   posts: PostView[];
   emptyMessage: string;
   showAuthor?: boolean;
+  /** Passed through to each PostCard - see its own doc comment. */
+  surface?: string;
 }) {
   if (posts.length === 0) {
     return (
@@ -20,8 +23,8 @@ export function PostList({
 
   return (
     <div className="flex flex-col gap-3">
-      {posts.map((post) => (
-        <PostCard key={post.id} post={post} showAuthor={showAuthor} />
+      {posts.map((post, index) => (
+        <PostCard key={post.id} post={post} showAuthor={showAuthor} surface={surface} position={index} />
       ))}
     </div>
   );

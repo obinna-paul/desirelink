@@ -16,6 +16,7 @@ import { PostCaption } from "@/components/posts/post-caption";
 import { PostDetailModal } from "@/components/posts/post-detail-modal";
 import { PostMediaCarousel } from "@/components/posts/post-media-carousel";
 import { PostOverflowMenu } from "@/components/posts/post-overflow-menu";
+import { getClientSessionId } from "@/lib/client-session";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { PostSubscribeCta } from "@/components/posts/post-subscribe-cta";
 import { SubscribePlansDialog } from "@/components/profile/subscribe-plans-dialog";
@@ -92,9 +93,17 @@ function LockedPostBody({
 export function PostCard({
   post,
   showAuthor = true,
+  surface = "unknown",
+  position,
 }: {
   post: PostView;
   showAuthor?: boolean;
+  /** Which surface this card is rendered in (forYou/following/premium/hashtag/search/
+   * profile/post_detail/...) - logged on the post's first-ever impression for future
+   * ranking input. See lib/posts.ts's PostImpression model. */
+  surface?: string;
+  /** This card's index within the list it's rendered in, for the same reason. */
+  position?: number;
 }) {
   const timeAgo = formatDistanceToNow(new Date(post.createdAt), {
     addSuffix: true,
@@ -142,6 +151,7 @@ export function PostCard({
     let recorded = false;
     let cancelled = false;
     let attempts = 0;
+    let visibleSince: number | null = null;
 
     const clearDwell = () => {
       if (dwellTimer) clearTimeout(dwellTimer);
@@ -152,10 +162,19 @@ export function PostCard({
       if (recorded || cancelled) return;
       attempts += 1;
 
+      const dwellMs = visibleSince ? Date.now() - visibleSince : VIEW_DWELL_MS;
+
       try {
         const response = await fetch(`/api/posts/${post.id}/view`, {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
           keepalive: true,
+          body: JSON.stringify({
+            surface,
+            position,
+            dwellMs,
+            sessionId: getClientSessionId(),
+          }),
         });
         const body = await response.json().catch(() => null);
         if (!response.ok) throw new Error("View tracking failed");
@@ -183,9 +202,12 @@ export function PostCard({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        sufficientlyVisible = Boolean(
+        const nowVisible = Boolean(
           entry?.isIntersecting && entry.intersectionRatio >= VIEW_VISIBILITY_THRESHOLD,
         );
+        if (nowVisible && !sufficientlyVisible) visibleSince = Date.now();
+        if (!nowVisible) visibleSince = null;
+        sufficientlyVisible = nowVisible;
         scheduleDwell();
       },
       { threshold: [0, VIEW_VISIBILITY_THRESHOLD, 1] },
@@ -201,7 +223,7 @@ export function PostCard({
       observer.disconnect();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [post.id, post.locked, post.viewerCanManage]);
+  }, [post.id, post.locked, post.viewerCanManage, surface, position]);
 
   async function sharePost() {
     const canShare = typeof navigator !== "undefined" && "share" in navigator;
