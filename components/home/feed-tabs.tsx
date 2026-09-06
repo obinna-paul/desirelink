@@ -56,20 +56,23 @@ export function FeedTabs({
       </div>
 
       {tab === "forYou" && (
-        <PostList posts={forYou} emptyMessage="No free posts yet. Check back soon." />
+        <PostList posts={forYou} emptyMessage="No free posts yet. Check back soon." surface="forYou" />
       )}
 
       {tab === "following" && (
         <PostList
           posts={followingPosts}
           emptyMessage="Follow creators to see their free posts here."
+          surface="following"
         />
       )}
 
       {tab === "premium" &&
         (hasSubscriptions ? (
           <div className="flex flex-col gap-3">
-            {premiumPosts.length > 0 && <PostList posts={premiumPosts} emptyMessage="" />}
+            {premiumPosts.length > 0 && (
+              <PostList posts={premiumPosts} emptyMessage="" surface="premium" />
+            )}
             <FindCreatorsPrompt variant="end-of-list" />
           </div>
         ) : (

@@ -48,16 +48,28 @@ describe("POST /api/posts/[postId]/view", () => {
       (operation: (client: typeof tx) => Promise<unknown>) => operation(tx),
     );
 
-    const response = await POST(new Request("http://localhost"), {
-      params: { postId: "post-1" },
-    });
+    const response = await POST(
+      new Request("http://localhost", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ surface: "forYou", sessionId: "session-1", position: 2, dwellMs: 1234 }),
+      }),
+      { params: { postId: "post-1" } },
+    );
 
     expect(response).toMatchObject({
       body: { counted: true, count: 12 },
       status: 200,
     });
     expect(tx.postImpression.create).toHaveBeenCalledWith({
-      data: { postId: "post-1", viewerId: "viewer-1" },
+      data: {
+        postId: "post-1",
+        viewerId: "viewer-1",
+        surface: "forYou",
+        sessionId: "session-1",
+        position: 2,
+        dwellMs: 1234,
+      },
     });
     expect(tx.post.update).toHaveBeenCalledWith({
       where: { id: "post-1" },

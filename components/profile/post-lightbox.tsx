@@ -59,13 +59,13 @@ export function PostLightbox({
         tabIndex={-1}
         className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 py-3 focus:outline-none sm:py-4"
       >
-        {posts.map((post) => (
+        {posts.map((post, index) => (
           <div
             key={post.id}
             ref={post.id === initialPostId ? initialItemRef : undefined}
             className={post.id === initialPostId ? "scroll-mt-16" : undefined}
           >
-            <PostCard post={post} />
+            <PostCard post={post} surface="profile" position={index} />
           </div>
         ))}
       </div>

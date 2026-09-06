@@ -32,7 +32,7 @@ export default async function HashtagPage({
         </p>
       </div>
 
-      <PostList posts={posts} emptyMessage="No posts with this hashtag yet." />
+      <PostList posts={posts} emptyMessage="No posts with this hashtag yet." surface="hashtag" />
     </div>
   );
 }

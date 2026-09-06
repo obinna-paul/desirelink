@@ -138,7 +138,7 @@ export default async function PostDetailPage({ params }: { params: { id: string 
           dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
         />
       )}
-      <PostCard post={post} />
+      <PostCard post={post} surface="post_detail" />
     </div>
   );
 }
