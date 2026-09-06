@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { flagContentIfNeeded } from "@/lib/moderation";
 import { getPostByIdForViewer } from "@/lib/posts";
+import { syncPostHashtags } from "@/lib/hashtags";
 import { createPostSchema } from "@/lib/validations/post";
 import { readJson } from "@/lib/security/request";
 import { isProviderProfileType } from "@/lib/provider-types";
@@ -176,6 +177,19 @@ export async function POST(req: Request) {
     } else {
       console.warn(
         "[posts] moderation skipped because the database schema is incomplete",
+        error.meta,
+      );
+    }
+  }
+
+  try {
+    await syncPostHashtags(post.id, post.content);
+  } catch (error) {
+    if (!isMissingSchemaError(error)) {
+      console.error("[posts] hashtag extraction failed after post creation", error);
+    } else {
+      console.warn(
+        "[posts] hashtag extraction skipped because the database schema is incomplete",
         error.meta,
       );
     }

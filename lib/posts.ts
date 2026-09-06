@@ -13,6 +13,7 @@ import {
 import { getPublicTiersForCreators, type PublicTierView } from "@/lib/tiers";
 import { selectSubscribePromptPostIds } from "@/lib/subscribe-prompt-frequency";
 import { getFollowingIds } from "@/lib/follow";
+import { normalizeHashtag } from "@/lib/hashtags";
 
 const FEED_LIMIT = 30;
 const PROFILE_POSTS_LIMIT = 50;
@@ -756,6 +757,47 @@ export async function getFollowingFeedPosts(
 
   const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
   const access = new Map<string, CreatorAccessInfo>();
+  return posts.map((post) => toPostView(post, access, viewerProfileId, liveStreamIds));
+}
+
+/** Newest-first posts tagged with a given hashtag - the hashtag page's data source. Locked
+ * posts still show up (with their usual blurred preview), matching how getPublicFeedPosts
+ * treats subscriber-only content elsewhere in the app. */
+export async function getPostsByHashtag(
+  tag: string,
+  viewerProfileId: string | null,
+): Promise<PostView[]> {
+  const normalized = normalizeHashtag(tag);
+  if (!normalized) return [];
+
+  const where: Prisma.PostWhereInput = {
+    hashtags: { some: { hashtag: { tag: normalized } } },
+    author: { isIncognito: false, isSuspended: false },
+  };
+
+  let posts: RawPost[];
+  try {
+    posts = await prisma.post.findMany({
+      where: { ...where, isArchived: false },
+      orderBy: { createdAt: "desc" },
+      take: FEED_LIMIT,
+      select: postSelect(viewerProfileId),
+    });
+  } catch (error) {
+    if (!isMissingPostArchiveError(error)) throw error;
+    console.warn(
+      "Post archive filtering is unavailable until Post.isArchived migration is applied.",
+    );
+    posts = await prisma.post.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: FEED_LIMIT,
+      select: postSelect(viewerProfileId),
+    });
+  }
+
+  const access = await accessForSubscriberOnlyAuthors(posts, viewerProfileId);
+  const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
   return posts.map((post) => toPostView(post, access, viewerProfileId, liveStreamIds));
 }
 
