@@ -23,6 +23,7 @@ export default async function AppGroupLayout({
           emailChosen: true,
           username: true,
           creatorWelcomeShownAt: true,
+          interestsPromptShownAt: true,
         },
       })
     : null;
@@ -31,6 +32,9 @@ export default async function AppGroupLayout({
   }
   if (profile && !profile.emailChosen) {
     redirect("/onboarding/email");
+  }
+  if (profile && !profile.interestsPromptShownAt) {
+    redirect("/onboarding/interests");
   }
   const isProvider = profile ? isProviderProfileType(profile.profileType) : false;
   const showCreatorWelcome = isProvider && !!profile && !profile.creatorWelcomeShownAt;
