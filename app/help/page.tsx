@@ -56,14 +56,6 @@ export default function HelpCenterPage() {
     mainEntity: [
       {
         "@type": "Question",
-        name: "How do I control who sees my Preferences?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Preferences are private by default. You can choose which selected preferences appear on your profile from Edit Profile.",
-        },
-      },
-      {
-        "@type": "Question",
         name: "What does Incognito mode hide?",
         acceptedAnswer: {
           "@type": "Answer",
@@ -109,13 +101,6 @@ export default function HelpCenterPage() {
         </nav>
 
         <CategorySection id="account-privacy" title="Account & Privacy" icon={UserCog}>
-          <FaqItem question="How do I control who sees my Preferences?">
-            <p>
-              Preferences are private by default and still improve recommendations. In Profile settings,
-              you can choose whether selected preferences appear on your profile. Manage this from{" "}
-              <Link href="/profile/edit">Profile → Edit</Link>.
-            </p>
-          </FaqItem>
           <FaqItem question="What does Incognito mode actually hide?">
             <p>
               Turning on Incognito removes you from Discover, search, and every Home feed tab for

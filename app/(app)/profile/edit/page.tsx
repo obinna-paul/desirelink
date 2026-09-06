@@ -6,13 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { EditProfileForm, type EditableSectionId } from "@/components/profile/edit-profile-form";
 import { PartnerLinkPanel } from "@/components/profile/partner-link-panel";
 import { getPartnerState } from "@/lib/partners";
-import { getAllTopics, getProfileTopicIds } from "@/lib/topics";
 
 const VALID_SECTIONS: EditableSectionId[] = [
   "basics",
   "photos",
   "location",
-  "interests",
   "privacy",
   "availability",
 ];
@@ -36,21 +34,12 @@ export default async function EditProfilePage({
   }
 
   const showPartnerPanel = profile.partnerId !== null;
-  const [partnerState, topics, selectedTopicIds] = await Promise.all([
-    showPartnerPanel ? getPartnerState(profile.id) : Promise.resolve(null),
-    getAllTopics(),
-    getProfileTopicIds(profile.id),
-  ]);
+  const partnerState = showPartnerPanel ? await getPartnerState(profile.id) : null;
   const initialSection = VALID_SECTIONS.find((section) => section === searchParams.section);
 
   return (
     <div className="flex flex-col gap-5 md:gap-6">
-      <EditProfileForm
-        profile={profile}
-        initialSection={initialSection}
-        topics={topics}
-        selectedTopicIds={selectedTopicIds}
-      />
+      <EditProfileForm profile={profile} initialSection={initialSection} />
       {partnerState && <PartnerLinkPanel initialState={partnerState} />}
     </div>
   );

@@ -1,7 +1,6 @@
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     creatorAffinity: { findMany: jest.fn() },
-    profileTopic: { findMany: jest.fn() },
   },
 }));
 
@@ -10,14 +9,12 @@ import {
   noveltyTerm,
   rankRecommendedCreators,
   rankRecommendedProfiles,
-  sharedTopicsTerm,
   trustTerm,
 } from "@/lib/ranking/people-scoring";
 import { prisma } from "@/lib/prisma";
 
 const mockPrisma = prisma as unknown as {
   creatorAffinity: { findMany: jest.Mock };
-  profileTopic: { findMany: jest.Mock };
 };
 
 const NOW = new Date("2026-09-06T12:00:00.000Z");
@@ -28,7 +25,6 @@ const NO_LOCATION = { locationLat: 0, locationLng: 0 };
 beforeEach(() => {
   jest.clearAllMocks();
   mockPrisma.creatorAffinity.findMany.mockResolvedValue([]);
-  mockPrisma.profileTopic.findMany.mockResolvedValue([]);
 });
 
 describe("localityTerm", () => {
@@ -44,18 +40,6 @@ describe("localityTerm", () => {
   it("is 1 for the same coordinates and 0 for a continent away", () => {
     expect(localityTerm(LAGOS, LAGOS)).toBe(1);
     expect(localityTerm(LAGOS, NYC)).toBe(0);
-  });
-});
-
-describe("sharedTopicsTerm", () => {
-  it("is 0 when the viewer has selected no interests", () => {
-    expect(sharedTopicsTerm(new Set(), new Set(["a"]))).toBe(0);
-  });
-
-  it("is the fraction of the viewer's own interests the candidate shares", () => {
-    expect(sharedTopicsTerm(new Set(["a", "b"]), new Set(["a"]))).toBe(0.5);
-    expect(sharedTopicsTerm(new Set(["a", "b"]), new Set(["a", "b", "c"]))).toBe(1);
-    expect(sharedTopicsTerm(new Set(["a", "b"]), new Set(["c"]))).toBe(0);
   });
 });
 
@@ -92,7 +76,6 @@ describe("rankRecommendedProfiles", () => {
     const result = await rankRecommendedProfiles(null, [], NOW);
     expect(result).toEqual([]);
     expect(mockPrisma.creatorAffinity.findMany).not.toHaveBeenCalled();
-    expect(mockPrisma.profileTopic.findMany).not.toHaveBeenCalled();
   });
 
   it("degrades gracefully for an anonymous viewer - trust and novelty still rank candidates", async () => {
@@ -107,28 +90,20 @@ describe("rankRecommendedProfiles", () => {
     expect(mockPrisma.creatorAffinity.findMany).not.toHaveBeenCalled();
   });
 
-  it("ranks by affinity, shared topics, locality, trust, and novelty combined", async () => {
+  it("ranks by affinity, locality, trust, and novelty combined", async () => {
     mockPrisma.creatorAffinity.findMany.mockResolvedValue([{ creatorId: "high-affinity", affinity: 60 }]);
-    mockPrisma.profileTopic.findMany.mockResolvedValue([
-      { profileId: "viewer-1", topicId: "t1" },
-      { profileId: "viewer-1", topicId: "t2" },
-      { profileId: "shared-topics", topicId: "t1" },
-      { profileId: "shared-topics", topicId: "t2" },
-    ]);
 
     const candidates = [
-      { id: "high-affinity", ...NO_LOCATION, createdAt: NOW, ...trustless }, // 0.35*0.75 = .2625
-      { id: "shared-topics", ...NO_LOCATION, createdAt: NOW, ...trustless }, // 0.25*1 = .25
+      { id: "high-affinity", ...NO_LOCATION, createdAt: NOW, ...trustless }, // 0.5*0.75 = .375
+      { id: "trusted", ...NO_LOCATION, createdAt: NOW, ...trustless, isTrustedMember: true }, // 0.2*1 = .2
       { id: "nothing-special", ...NO_LOCATION, createdAt: NOW, ...trustless }, // 0
     ];
 
     const result = await rankRecommendedProfiles({ id: "viewer-1", ...NO_LOCATION }, candidates, NOW);
 
-    // high-affinity: 0.35*0.75 = .2625 > shared-topics: 0.25*1 = .25 (both plus an equal,
-    // tied novelty contribution from the identical createdAt, so it doesn't affect order).
-    expect(result).toEqual(["high-affinity", "shared-topics", "nothing-special"]);
+    expect(result).toEqual(["high-affinity", "trusted", "nothing-special"]);
     expect(mockPrisma.creatorAffinity.findMany).toHaveBeenCalledWith({
-      where: { viewerId: "viewer-1", creatorId: { in: ["high-affinity", "shared-topics", "nothing-special"] } },
+      where: { viewerId: "viewer-1", creatorId: { in: ["high-affinity", "trusted", "nothing-special"] } },
       select: { creatorId: true, affinity: true },
     });
   });
@@ -139,7 +114,6 @@ describe("rankRecommendedCreators", () => {
     const result = await rankRecommendedCreators(null, [], NOW);
     expect(result).toEqual([]);
     expect(mockPrisma.creatorAffinity.findMany).not.toHaveBeenCalled();
-    expect(mockPrisma.profileTopic.findMany).not.toHaveBeenCalled();
   });
 
   it("degrades gracefully for an anonymous viewer - trust and novelty still rank candidates", async () => {
@@ -154,24 +128,17 @@ describe("rankRecommendedCreators", () => {
     expect(mockPrisma.creatorAffinity.findMany).not.toHaveBeenCalled();
   });
 
-  it("ranks by affinity, shared topics, and trust combined, with no locality term", async () => {
+  it("ranks by affinity and trust combined, with no locality term", async () => {
     mockPrisma.creatorAffinity.findMany.mockResolvedValue([{ creatorId: "high-affinity", affinity: 60 }]);
-    mockPrisma.profileTopic.findMany.mockResolvedValue([
-      { profileId: "viewer-1", topicId: "t1" },
-      { profileId: "viewer-1", topicId: "t2" },
-      { profileId: "shared-topics", topicId: "t1" },
-      { profileId: "shared-topics", topicId: "t2" },
-    ]);
 
     const candidates = [
-      { id: "high-affinity", createdAt: NOW, ...trustless }, // 0.40*0.75 = .30
-      { id: "shared-topics", createdAt: NOW, ...trustless }, // 0.25*1 = .25
-      { id: "trusted", createdAt: NOW, ...trustless, isTrustedMember: true }, // 0.20*1 = .20
+      { id: "high-affinity", createdAt: NOW, ...trustless }, // 0.55*0.75 = .4125
+      { id: "trusted", createdAt: NOW, ...trustless, isTrustedMember: true }, // 0.25*1 = .25
       { id: "nothing-special", createdAt: NOW, ...trustless }, // 0
     ];
 
     const result = await rankRecommendedCreators("viewer-1", candidates, NOW);
 
-    expect(result).toEqual(["high-affinity", "shared-topics", "trusted", "nothing-special"]);
+    expect(result).toEqual(["high-affinity", "trusted", "nothing-special"]);
   });
 });
