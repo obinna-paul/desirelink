@@ -60,6 +60,7 @@ const post: PostView = {
   },
   counts: { comments: 0, reactions: 0, shares: 0 },
   viewerLiked: false,
+  viewerSaved: false,
   viewerCanManage: false,
   viewerCanEdit: false,
   comments: [],

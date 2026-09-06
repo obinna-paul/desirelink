@@ -329,6 +329,7 @@ model Profile {
   hiddenCreators         HiddenCreator[]       @relation("HiddenCreatorViewer")
   hiddenByViewers        HiddenCreator[]       @relation("HiddenCreatorCreator")
   searchInteractions     SearchInteraction[]
+  savedPosts             SavedPost[]
   blocksMade             Block[]               @relation("BlockBlocker")
   blocksReceived         Block[]               @relation("BlockBlocked")
   following              Follow[]              @relation("FollowFollower")
@@ -612,6 +613,7 @@ model Post {
   impressions      PostImpression[]
   hashtags         PostHashtag[]
   feedback         PostFeedback[]
+  savedByViewer    SavedPost[]
 
   @@index([authorId])
   @@index([isArchived])
@@ -841,6 +843,19 @@ model HiddenCreator {
   @@unique([viewerId, creatorId])
   @@index([viewerId])
   @@index([creatorId])
+}
+
+model SavedPost {
+  id        String   @id @default(cuid())
+  viewerId  String
+  viewer    Profile  @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([viewerId, postId])
+  @@index([viewerId])
+  @@index([postId])
 }
 
 /**

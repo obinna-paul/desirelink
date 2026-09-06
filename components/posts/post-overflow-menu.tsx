@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { EyeOff, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Bookmark, BookmarkCheck, EyeOff, ThumbsDown, ThumbsUp } from "lucide-react";
 
 import { OverflowMenu } from "@/components/ui/overflow-menu";
 import { ReportDialog } from "@/components/safety/report-dialog";
@@ -45,7 +45,52 @@ function MenuRow({
   );
 }
 
-export function PostOverflowMenu({ postId, creatorId }: { postId: string; creatorId: string }) {
+function SaveMenuRow({ postId, initiallySaved }: { postId: string; initiallySaved: boolean }) {
+  const [saved, setSaved] = useState(initiallySaved);
+  const [pending, setPending] = useState(false);
+
+  async function handleClick() {
+    if (pending) return;
+    setPending(true);
+
+    const res = saved
+      ? await fetch(`/api/saved-posts/${postId}`, { method: "DELETE" })
+      : await fetch("/api/saved-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postId }),
+        });
+
+    setPending(false);
+    if (res.ok) setSaved((prev) => !prev);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={pending}
+      className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-foreground hover:bg-accent"
+    >
+      {saved ? (
+        <BookmarkCheck className="h-4 w-4" aria-hidden="true" />
+      ) : (
+        <Bookmark className="h-4 w-4" aria-hidden="true" />
+      )}
+      {saved ? "Saved" : "Save"}
+    </button>
+  );
+}
+
+export function PostOverflowMenu({
+  postId,
+  creatorId,
+  viewerSaved = false,
+}: {
+  postId: string;
+  creatorId: string;
+  viewerSaved?: boolean;
+}) {
   async function sendFeedback(kind: "interested" | "not_interested") {
     const res = await fetch("/api/content-feedback", {
       method: "POST",
@@ -66,6 +111,7 @@ export function PostOverflowMenu({ postId, creatorId }: { postId: string; creato
 
   return (
     <OverflowMenu label="Post options">
+      <SaveMenuRow postId={postId} initiallySaved={viewerSaved} />
       <MenuRow icon={ThumbsUp} label="Interested" doneLabel="Thanks!" onClick={() => sendFeedback("interested")} />
       <MenuRow
         icon={ThumbsDown}
