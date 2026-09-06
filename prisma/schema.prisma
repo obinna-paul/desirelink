@@ -267,6 +267,14 @@ model Profile {
   creatorWelcomeShownAt DateTime?
 
   /**
+   * Set the first time this profile is shown the onboarding interest picker - null means
+   * unseen. Skippable and one-time: once set, the picker never shows again, but interests
+   * stay editable afterward from Profile → Edit (see the "preferences" the help pages
+   * describe).
+   */
+  interestsPromptShownAt DateTime?
+
+  /**
    * Dedupes the one-time personal welcome note from the founder - see app/api/cron/ceo-welcome-note.
    */
   ceoNoteSentAt      DateTime?
@@ -311,6 +319,7 @@ model Profile {
   postReactions          PostReaction[]
   postShares             PostShare[]
   postImpressions        PostImpression[]
+  interests              ProfileTopic[]
   blocksMade             Block[]               @relation("BlockBlocker")
   blocksReceived         Block[]               @relation("BlockBlocked")
   following              Follow[]              @relation("FollowFollower")
@@ -734,6 +743,33 @@ model PostHashtag {
   @@unique([postId, hashtagId])
   @@index([postId])
   @@index([hashtagId])
+}
+
+/**
+ * Curated taxonomy (~24-40 rows, seeded by this model's own migration - see
+ * lib/topics.ts) that viewers pick from as interests, both in the onboarding picker and
+ * later from Profile → Edit. Deliberately small and hand-picked, unlike the sparse,
+ * free-form Hashtag table.
+ */
+model Topic {
+  id        String         @id @default(cuid())
+  slug      String         @unique
+  name      String
+  createdAt DateTime       @default(now())
+  profiles  ProfileTopic[]
+}
+
+model ProfileTopic {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  topicId   String
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([profileId, topicId])
+  @@index([profileId])
+  @@index([topicId])
 }
 
 model Report {

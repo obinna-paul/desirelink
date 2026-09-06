@@ -23,6 +23,11 @@ export const PROFILE_FIELD_PERMISSIONS = [
     label: "Availability",
     description: "Open to chat and meet signals.",
   },
+  {
+    key: "preferences",
+    label: "Preferences",
+    description: "Interests you've selected.",
+  },
 ] as const;
 
 export type ProfileFieldName = (typeof PROFILE_FIELD_PERMISSIONS)[number]["key"];

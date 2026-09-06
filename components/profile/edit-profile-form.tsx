@@ -15,11 +15,13 @@ import {
   Lock,
   MapPin,
   ShieldCheck,
+  Sparkles,
   type LucideIcon,
   UserRound,
 } from "lucide-react";
 
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
+import { InterestsEditor } from "@/components/profile/interests-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -29,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { updateProfileSchema, type UpdateProfileInput } from "@/lib/validations/profile";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
 import { isProviderProfileType } from "@/lib/provider-types";
+import type { TopicOption } from "@/lib/topics";
 
 type BooleanFieldName =
   | "isVerified"
@@ -43,6 +46,7 @@ export type EditableSectionId =
   | "basics"
   | "photos"
   | "location"
+  | "interests"
   | "privacy"
   | "availability";
 
@@ -59,6 +63,7 @@ const EDIT_SECTIONS: {
   { id: "basics", label: "Basics", description: "Name, bio, identity", icon: UserRound },
   { id: "photos", label: "Photos", description: "Profile image", icon: Camera },
   { id: "location", label: "Location", description: "City and nearby matching", icon: MapPin },
+  { id: "interests", label: "Interests", description: "Topics that improve your recommendations", icon: Sparkles },
   { id: "privacy", label: "Privacy", description: "Visibility and activity", icon: Lock },
   { id: "availability", label: "Availability", description: "Chat and meet status", icon: Bell },
   { id: "verification", label: "Verification", description: "Identity and trust", icon: ShieldCheck, href: "/verification" },
@@ -197,9 +202,13 @@ function SectionShell({
 export function EditProfileForm({
   profile,
   initialSection,
+  topics,
+  selectedTopicIds,
 }: {
   profile: Profile;
   initialSection?: EditableSectionId;
+  topics: TopicOption[];
+  selectedTopicIds: string[];
 }) {
   const router = useRouter();
   const [isDesktop, setIsDesktop] = useState(false);
@@ -360,6 +369,17 @@ export function EditProfileForm({
               </p>
             )}
           </div>
+        </SectionShell>
+      );
+    }
+
+    if (sectionId === "interests") {
+      return (
+        <SectionShell
+          title="Interests"
+          description="Pick topics you're into. Private by default - control who sees these from Settings → Circles, and they improve your recommendations either way."
+        >
+          <InterestsEditor topics={topics} initialSelectedIds={selectedTopicIds} />
         </SectionShell>
       );
     }

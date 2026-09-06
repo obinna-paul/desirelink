@@ -131,16 +131,22 @@ export default async function PublicProfilePage({
   const viewerOrOwnerId = isOwner ? profile.id : (viewerProfile?.id ?? null);
   const isProvider = isProviderProfileType(profile.profileType);
 
-  const [posts, subscriptions, serviceListings, stats, activeStream, viewerIsFollowing] = await Promise.all([
-    getCreatorProfilePosts(profile.id, viewerOrOwnerId),
-    getPublicTiers(profile.id, viewerOrOwnerId),
-    getProviderServiceListings(profile.id),
-    getCreatorStats(profile.id),
-    isProvider
-      ? prisma.liveStream.findFirst({ where: { providerId: profile.id, status: "live" }, select: { id: true } })
-      : Promise.resolve(null),
-    viewerProfile ? isFollowing(viewerProfile.id, profile.id) : Promise.resolve(false),
-  ]);
+  const [posts, subscriptions, serviceListings, stats, activeStream, viewerIsFollowing, interests] =
+    await Promise.all([
+      getCreatorProfilePosts(profile.id, viewerOrOwnerId),
+      getPublicTiers(profile.id, viewerOrOwnerId),
+      getProviderServiceListings(profile.id),
+      getCreatorStats(profile.id),
+      isProvider
+        ? prisma.liveStream.findFirst({ where: { providerId: profile.id, status: "live" }, select: { id: true } })
+        : Promise.resolve(null),
+      viewerProfile ? isFollowing(viewerProfile.id, profile.id) : Promise.resolve(false),
+      prisma.profileTopic.findMany({
+        where: { profileId: profile.id },
+        select: { topic: { select: { name: true } } },
+        orderBy: { topic: { name: "asc" } },
+      }),
+    ]);
 
   const presenceStatus = activeStream
     ? "live"
@@ -206,6 +212,7 @@ export default async function PublicProfilePage({
         canModerate={!isOwner && Boolean(viewerProfile)}
         canFollow={!isOwner && Boolean(viewerProfile)}
         isFollowing={viewerIsFollowing}
+        interests={interests.map((row) => row.topic.name)}
         reviewSummary={reviewSummary}
         reviews={reviews}
         reviewableContexts={reviewableContexts}
