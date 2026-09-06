@@ -595,6 +595,7 @@ model Post {
   @@index([isArchived])
   @@index([postType])
   @@index([tierId])
+  @@index([isArchived, createdAt])
 }
 
 model PostImpression {
