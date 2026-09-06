@@ -6,6 +6,7 @@ import "@livekit/components-styles";
 import { cn } from "@/lib/utils";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { PwaInstallPrompt } from "@/components/pwa/pwa-install-prompt";
 import { DEFAULT_DESCRIPTION, DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL } from "@/lib/site-config";
 import { PRIVATE_ROBOTS } from "@/lib/seo";
 
@@ -99,13 +100,19 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <Script id="udala-pwa-install-capture" strategy="beforeInteractive">
+          {`window.__udalaInstallPrompt=null;window.addEventListener('beforeinstallprompt',function(event){event.preventDefault();window.__udalaInstallPrompt=event;window.dispatchEvent(new Event('udala:pwa-install-ready'));});window.addEventListener('appinstalled',function(){window.__udalaInstallPrompt=null;window.dispatchEvent(new Event('udala:pwa-installed'));});`}
+        </Script>
         <Script id="x-conversion-tracking" strategy="beforeInteractive">
           {`!function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);},s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='https://static.ads-twitter.com/uwt.js',a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');twq('config','${X_PIXEL_ID}');`}
         </Script>
       </head>
       <body className="antialiased">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} storageKey="udala-theme">
-          <SessionProvider>{children}</SessionProvider>
+          <SessionProvider>
+            {children}
+            <PwaInstallPrompt />
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>
