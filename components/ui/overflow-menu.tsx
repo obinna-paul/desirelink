@@ -6,18 +6,23 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
- * The "..." overflow menu shared by every branch of the profile action row (owner,
- * visiting a creator, visiting a regular profile) - a single shell so the trigger's size
- * and the dropdown's row styling can never drift between them the way three hand-copied
- * <details> blocks did before. Each caller supplies its own menu rows as children, styled
+ * A generic "..." overflow menu shell - a single implementation so the trigger's size and
+ * the dropdown's row styling can never drift between the places that need one (profile
+ * actions, post actions, ...). Each caller supplies its own menu rows as children, styled
  * as a full-width icon+label row (see SignOutButton/ShareProfileButton/ReportDialog/
  * BlockButton's `menu` mode) rather than a stack of separate pill buttons.
  */
-export function ProfileMoreMenu({ children }: { children: React.ReactNode }) {
+export function OverflowMenu({
+  label = "More actions",
+  children,
+}: {
+  label?: string;
+  children: React.ReactNode;
+}) {
   return (
     <details className="relative h-11 w-11 shrink-0">
       <summary
-        aria-label="More profile actions"
+        aria-label={label}
         className={cn(
           buttonVariants({ variant: "outline", size: "icon" }),
           "cursor-pointer list-none [&::-webkit-details-marker]:hidden"

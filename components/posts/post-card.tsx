@@ -15,10 +15,10 @@ import { PostActions } from "@/components/posts/post-actions";
 import { PostCaption } from "@/components/posts/post-caption";
 import { PostDetailModal } from "@/components/posts/post-detail-modal";
 import { PostMediaCarousel } from "@/components/posts/post-media-carousel";
+import { PostOverflowMenu } from "@/components/posts/post-overflow-menu";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { PostSubscribeCta } from "@/components/posts/post-subscribe-cta";
 import { SubscribePlansDialog } from "@/components/profile/subscribe-plans-dialog";
-import { ReportDialog } from "@/components/safety/report-dialog";
 import { VerificationBadge } from "@/components/profile/verification-badge";
 import type { PostView } from "@/lib/posts";
 
@@ -300,12 +300,7 @@ export function PostCard({
               isPinned={post.isPinned}
             />
           ) : (
-            <ReportDialog
-              targetType="post"
-              targetId={post.id}
-              label="Report post"
-              variant="icon"
-            />
+            <PostOverflowMenu postId={post.id} creatorId={post.author.id} />
           )}
         </div>
       </div>
