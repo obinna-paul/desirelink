@@ -19,6 +19,22 @@ function linkifyHashtags(text: string): ReactNode[] {
       <Link
         key={index}
         href={`/hashtag/${encodeURIComponent(match[1].normalize("NFKC").toLowerCase())}`}
+        onClick={() => {
+          const tag = match[1].normalize("NFKC").toLowerCase();
+          const storageKey = `udala:hashtag-open:${tag}`;
+          try {
+            if (window.sessionStorage.getItem(storageKey)) return;
+            window.sessionStorage.setItem(storageKey, "1");
+          } catch {
+            // Privacy-restricted browsers can disable storage; navigation should still work.
+          }
+          void fetch("/api/hashtags/interactions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tag }),
+            keepalive: true,
+          });
+        }}
         className="font-semibold not-italic text-primary hover:underline"
       >
         {match[0]}
@@ -34,7 +50,10 @@ function linkifyHashtags(text: string): ReactNode[] {
 export function PostCaption({ content }: { content: string }) {
   const [expanded, setExpanded] = useState(false);
   const isLong = content.length > TRUNCATE_LENGTH;
-  const displayText = expanded || !isLong ? content : content.slice(0, TRUNCATE_LENGTH).trimEnd();
+  const draft = content.slice(0, TRUNCATE_LENGTH);
+  const naturalBreak = Math.max(draft.lastIndexOf(" "), draft.lastIndexOf("\n"));
+  const collapsedText = draft.slice(0, naturalBreak >= 120 ? naturalBreak : TRUNCATE_LENGTH).trimEnd();
+  const displayText = expanded || !isLong ? content : collapsedText;
 
   return (
     <p className="font-heading whitespace-pre-wrap px-3 text-[14.5px] italic leading-6 md:px-4">

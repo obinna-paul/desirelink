@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getOrBuildSlate } from "@/lib/feed-slate";
+import { getViewerHashtagAffinity, postHashtagAffinity } from "@/lib/hashtag-affinity";
 import { scoreCandidates, type RankablePost } from "@/lib/recommendation-scoring";
 import { assembleSlate, seededTiebreak, type SlateCandidate } from "@/lib/ranking/slate";
 
@@ -81,7 +82,7 @@ export async function rankFeedPosts(
     const postIds = posts.map((post) => post.id);
     const authorIds = Array.from(new Set(posts.map((post) => post.authorId)));
 
-    const [affinities, qualities] = await Promise.all([
+    const [affinities, qualities, postHashtags, hashtagAffinity] = await Promise.all([
       prisma.creatorAffinity.findMany({
         where: { viewerId, creatorId: { in: authorIds } },
         select: { creatorId: true, affinity: true },
@@ -90,15 +91,30 @@ export async function rankFeedPosts(
         where: { postId: { in: postIds } },
         select: { postId: true, quality: true },
       }),
+      prisma.postHashtag.findMany({
+        where: { postId: { in: postIds } },
+        select: { postId: true, hashtag: { select: { tag: true } } },
+      }),
+      getViewerHashtagAffinity(viewerId, now),
     ]);
 
     const affinityByCreator = new Map(affinities.map((row) => [row.creatorId, row.affinity]));
     const qualityByPost = new Map(qualities.map((row) => [row.postId, row.quality]));
+    const hashtagsByPost = new Map<string, string[]>();
+    for (const row of postHashtags) {
+      const tags = hashtagsByPost.get(row.postId) ?? [];
+      tags.push(row.hashtag.tag);
+      hashtagsByPost.set(row.postId, tags);
+    }
 
     const rankable: RankablePost[] = posts.map((post) => ({
       id: post.id,
       authorId: post.authorId,
       rawAffinity: affinityByCreator.get(post.authorId) ?? 0,
+      rawTopicAffinity: postHashtagAffinity(
+        hashtagsByPost.get(post.id) ?? [],
+        hashtagAffinity,
+      ),
       rawQuality: qualityByPost.get(post.id) ?? 0,
       publishedAt: post.createdAt,
       isLocked: post.locked,

@@ -2,16 +2,23 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     creatorAffinity: { findMany: jest.fn() },
     postQuality: { findMany: jest.fn() },
+    postHashtag: { findMany: jest.fn() },
     feedSlate: { findUnique: jest.fn(), create: jest.fn() },
   },
+}));
+jest.mock("@/lib/hashtag-affinity", () => ({
+  getViewerHashtagAffinity: jest.fn(),
+  postHashtagAffinity: jest.requireActual("@/lib/hashtag-affinity").postHashtagAffinity,
 }));
 
 import { HOME_FEED_SESSION_SEED, isFeedRankingEnabled, isInRankingHoldout, rankFeedPosts } from "@/lib/ranking/engine";
 import { prisma } from "@/lib/prisma";
+import { getViewerHashtagAffinity } from "@/lib/hashtag-affinity";
 
 const mockPrisma = prisma as unknown as {
   creatorAffinity: { findMany: jest.Mock };
   postQuality: { findMany: jest.Mock };
+  postHashtag: { findMany: jest.Mock };
   feedSlate: { findUnique: jest.Mock; create: jest.Mock };
 };
 
@@ -22,6 +29,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockPrisma.creatorAffinity.findMany.mockResolvedValue([]);
   mockPrisma.postQuality.findMany.mockResolvedValue([]);
+  mockPrisma.postHashtag.findMany.mockResolvedValue([]);
+  (getViewerHashtagAffinity as jest.Mock).mockResolvedValue(new Map());
   mockPrisma.feedSlate.findUnique.mockResolvedValue(null);
   mockPrisma.feedSlate.create.mockResolvedValue({});
 });
@@ -115,9 +124,31 @@ describe("rankFeedPosts", () => {
       where: { postId: { in: ["p1", "p2"] } },
       select: { postId: true, quality: true },
     });
+    expect(mockPrisma.postHashtag.findMany).toHaveBeenCalledWith({
+      where: { postId: { in: ["p1", "p2"] } },
+      select: { postId: true, hashtag: { select: { tag: true } } },
+    });
     expect(mockPrisma.feedSlate.create).toHaveBeenCalledWith({
       data: { viewerId: "viewer-1", sessionSeed: HOME_FEED_SESSION_SEED, bucketStart: BUCKET_START, postIds: ["p1", "p2"] },
     });
+  });
+
+  it("uses hashtag behavior to break an otherwise tied feed score", async () => {
+    mockPrisma.postHashtag.findMany.mockResolvedValue([
+      { postId: "p-topic", hashtag: { tag: "lagosnightlife" } },
+      { postId: "p-other", hashtag: { tag: "food" } },
+    ]);
+    (getViewerHashtagAffinity as jest.Mock).mockResolvedValue(
+      new Map([["lagosnightlife", 8]]),
+    );
+
+    const posts = [
+      { id: "p-other", authorId: "B", createdAt: NOW, locked: false },
+      { id: "p-topic", authorId: "A", createdAt: NOW, locked: false },
+    ];
+    const result = await rankFeedPosts("viewer-1", HOME_FEED_SESSION_SEED, posts, NOW);
+
+    expect(result[0]).toBe("p-topic");
   });
 
   it("drops a locked post with zero affinity toward its creator from the ranked result", async () => {

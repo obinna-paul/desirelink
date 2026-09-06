@@ -10,8 +10,13 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     creatorAffinity: { findMany: jest.fn() },
     postQuality: { findMany: jest.fn() },
+    postHashtag: { findMany: jest.fn() },
     feedSlate: { findUnique: jest.fn(), create: jest.fn() },
   },
+}));
+jest.mock("@/lib/hashtag-affinity", () => ({
+  getViewerHashtagAffinity: jest.fn().mockResolvedValue(new Map()),
+  postHashtagAffinity: jest.requireActual("@/lib/hashtag-affinity").postHashtagAffinity,
 }));
 
 import { rankFeedPosts } from "@/lib/ranking/engine";
@@ -20,6 +25,7 @@ import { prisma } from "@/lib/prisma";
 const mockPrisma = prisma as unknown as {
   creatorAffinity: { findMany: jest.Mock };
   postQuality: { findMany: jest.Mock };
+  postHashtag: { findMany: jest.Mock };
   feedSlate: { findUnique: jest.Mock; create: jest.Mock };
 };
 
@@ -29,6 +35,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockPrisma.feedSlate.findUnique.mockResolvedValue(null);
   mockPrisma.feedSlate.create.mockResolvedValue({});
+  mockPrisma.postHashtag.findMany.mockResolvedValue([]);
 });
 
 describe("ranking sanity: a realistic multi-creator, multi-signal corpus", () => {

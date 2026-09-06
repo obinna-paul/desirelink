@@ -1,4 +1,4 @@
-import { affinityTerm, qualityTerm, recencyTerm, scoreCandidates, scorePost, SCORE_WEIGHTS } from "@/lib/recommendation-scoring";
+import { affinityTerm, qualityTerm, recencyTerm, scoreCandidates, scorePost, topicAffinityTerm, SCORE_WEIGHTS } from "@/lib/recommendation-scoring";
 
 const HOUR = 60 * 60 * 1000;
 const NOW = new Date("2026-09-06T12:00:00.000Z");
@@ -8,8 +8,19 @@ function hoursAgo(hours: number): Date {
 }
 
 describe("SCORE_WEIGHTS", () => {
-  it("keeps the plan's original affinity/quality/recency weights, topicMatch omitted (not renormalized)", () => {
-    expect(SCORE_WEIGHTS).toEqual({ affinity: 0.35, quality: 0.3, recency: 0.15 });
+  it("uses creator, topic, quality, and recency signals without renormalizing", () => {
+    expect(SCORE_WEIGHTS).toEqual({ affinity: 0.35, topic: 0.2, quality: 0.3, recency: 0.15 });
+  });
+});
+
+describe("topicAffinityTerm", () => {
+  it("preserves zero and reaches 0.5 at eight raw topic units", () => {
+    expect(topicAffinityTerm(0)).toBe(0);
+    expect(topicAffinityTerm(8)).toBe(0.5);
+  });
+
+  it("preserves negative topic feedback", () => {
+    expect(topicAffinityTerm(-8)).toBe(-0.5);
   });
 });
 
@@ -62,37 +73,47 @@ describe("recencyTerm", () => {
 describe("scorePost", () => {
   it("degrades gracefully to quality + recency for a viewer with zero affinity", () => {
     const result = scorePost(
-      { id: "post-1", authorId: "author-1", rawAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(36), isLocked: false },
+      { id: "post-1", authorId: "author-1", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(36), isLocked: false },
       NOW,
     );
 
     // affinity=0, quality=0, recency=0.5 -> score = 0.15*0.5 = 0.075
-    expect(result).toEqual({ score: 0.075, affinity: 0, quality: 0, recency: 0.5, penalty: 0 });
+    expect(result).toEqual({ score: 0.075, affinity: 0, topic: 0, quality: 0, recency: 0.5, penalty: 0 });
   });
 
   it("combines all three terms for an engaged viewer and a fresh, high-quality post", () => {
     const result = scorePost(
-      { id: "post-2", authorId: "author-2", rawAffinity: 20, rawQuality: 1, publishedAt: NOW, isLocked: false },
+      { id: "post-2", authorId: "author-2", rawAffinity: 20, rawTopicAffinity: 0, rawQuality: 1, publishedAt: NOW, isLocked: false },
       NOW,
     );
 
     // 0.35*0.5 + 0.30*0.5 + 0.15*1 = 0.175 + 0.15 + 0.15 = 0.475
-    expect(result).toEqual({ score: 0.475, affinity: 0.5, quality: 0.5, recency: 1, penalty: 0 });
+    expect(result).toEqual({ score: 0.475, affinity: 0.5, topic: 0, quality: 0.5, recency: 1, penalty: 0 });
+  });
+
+  it("uses hashtag affinity as a real ranking signal", () => {
+    const result = scorePost(
+      { id: "post-topic", authorId: "author", rawAffinity: 0, rawTopicAffinity: 8, rawQuality: 0, publishedAt: NOW, isLocked: false },
+      NOW,
+    );
+
+    expect(result.topic).toBe(0.5);
+    expect(result.score).toBeCloseTo(0.25, 10);
   });
 
   it("fully penalizes locked content for a viewer with zero affinity toward that creator", () => {
     const result = scorePost(
-      { id: "post-3", authorId: "author-3", rawAffinity: 0, rawQuality: 0, publishedAt: NOW, isLocked: true },
+      { id: "post-3", authorId: "author-3", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: NOW, isLocked: true },
       NOW,
     );
 
     // recency=1 -> 0.15*1 = 0.15; penalty = 0.15*(1-0) = 0.15 -> score cancels to 0
-    expect(result).toEqual({ score: 0, affinity: 0, quality: 0, recency: 1, penalty: 0.15 });
+    expect(result).toEqual({ score: 0, affinity: 0, topic: 0, quality: 0, recency: 1, penalty: 0.15 });
   });
 
   it("scales the locked penalty down as affinity for that creator grows", () => {
     const result = scorePost(
-      { id: "post-4", authorId: "author-4", rawAffinity: 20, rawQuality: 0, publishedAt: NOW, isLocked: true },
+      { id: "post-4", authorId: "author-4", rawAffinity: 20, rawTopicAffinity: 0, rawQuality: 0, publishedAt: NOW, isLocked: true },
       NOW,
     );
 
@@ -109,8 +130,8 @@ describe("scorePost", () => {
 describe("scoreCandidates", () => {
   it("sorts descending by score", () => {
     const posts = [
-      { id: "low", authorId: "a", rawAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(72), isLocked: false },
-      { id: "high", authorId: "b", rawAffinity: 20, rawQuality: 1, publishedAt: NOW, isLocked: false },
+      { id: "low", authorId: "a", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(72), isLocked: false },
+      { id: "high", authorId: "b", rawAffinity: 20, rawTopicAffinity: 0, rawQuality: 1, publishedAt: NOW, isLocked: false },
     ];
 
     const ranked = scoreCandidates(posts, NOW);
@@ -120,8 +141,8 @@ describe("scoreCandidates", () => {
 
   it("breaks a tied score by publishedAt, newest first", () => {
     const posts = [
-      { id: "older", authorId: "a", rawAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(10), isLocked: false },
-      { id: "newer", authorId: "a", rawAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(10), isLocked: false },
+      { id: "older", authorId: "a", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(10), isLocked: false },
+      { id: "newer", authorId: "a", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(10), isLocked: false },
     ];
     posts[1].publishedAt = new Date(posts[0].publishedAt.getTime() + 1);
 

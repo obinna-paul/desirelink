@@ -18,8 +18,8 @@ import { Button } from "@/components/ui/button";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { UploadProgress } from "@/components/ui/upload-progress";
 import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
+import { HashtagTextarea } from "@/components/creator/hashtag-textarea";
 import { VideoFrameDialog } from "@/components/creator/video-frame-dialog";
 import { ProviderUpgradePrompt } from "@/components/settings/provider-upgrade-prompt";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
@@ -686,22 +686,13 @@ export function PostComposer({
       >
         Share something...
       </label>
-      <Textarea
+      <HashtagTextarea
         id="post-content"
-        rows={4}
         maxLength={2000}
         value={content}
-        onChange={(event) => {
-          setContent(event.target.value);
-          setPiiAcknowledged(false);
-        }}
-        className="mt-2 min-h-28 resize-none rounded-[8px] border-border/80 bg-background/45 px-3.5 py-3 text-base leading-6 shadow-none focus-visible:bg-card md:text-sm"
+        onValueChange={setContent}
+        onContentEdited={() => setPiiAcknowledged(false)}
       />
-      {content.length > 0 && (
-        <p className="mt-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
-          {content.length}/2000
-        </p>
-      )}
     </div>
   );
 
