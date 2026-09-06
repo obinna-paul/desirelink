@@ -21,6 +21,8 @@ import {
   isInRankingHoldout,
   rankFeedPosts,
 } from "@/lib/ranking/engine";
+import { affinityTerm, recencyTerm } from "@/lib/recommendation-scoring";
+import { getAffinityByCreator } from "@/lib/ranking/people-scoring";
 
 const FEED_LIMIT = 30;
 const PROFILE_POSTS_LIMIT = 50;
@@ -500,6 +502,130 @@ export type PremiumFeedResult = {
   hasSubscriptions: boolean;
 };
 
+export type PremiumAccessRow = { creatorId: string; maxTierPriceCents: number | null };
+
+/** Overfetch multiplier for the premium candidate query, so the unseen/freshness/affinity
+ * ranking pass below has room to reorder before truncating to FEED_LIMIT - the same pattern
+ * used for the Live ring and Discover's recommended sort. */
+const PREMIUM_CANDIDATE_MULTIPLIER = 3;
+
+/**
+ * A single query for "every subscriber-only post this viewer has paid-tier access to,"
+ * replacing what used to be one `{authorId, OR: tierClauses}` entry per subscribed creator
+ * (a query that grew linearly with subscription count). Joins Post against a VALUES list of
+ * (creatorId, maxTierPriceCents) pairs instead - one join, however many creators. An untiered
+ * post is accessible to any subscribed creator (`t."priceCents" <= access.max_price_cents`
+ * evaluates to SQL NULL, i.e. excluded, when that creator's own price is NULL - a creator with
+ * no known tier price still gets their untiered posts via the `p."tierId" IS NULL` branch).
+ * Author eligibility (isIncognito/isSuspended) and isArchived are filtered here, in SQL,
+ * before the LIMIT - filtering after the fact could return fewer than the limit even when
+ * more accessible posts exist further back.
+ */
+export async function selectEligiblePremiumPostIds(accessRows: PremiumAccessRow[], limit: number): Promise<string[]> {
+  if (accessRows.length === 0) return [];
+
+  const valuesList = Prisma.join(
+    accessRows.map((row) => Prisma.sql`(${row.creatorId}, ${row.maxTierPriceCents}::integer)`),
+  );
+
+  const rows = await prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+    SELECT p.id
+    FROM "Post" p
+    JOIN "Profile" author ON author.id = p."authorId"
+    JOIN (VALUES ${valuesList}) AS access(creator_id, max_price_cents)
+      ON p."authorId" = access.creator_id
+    LEFT JOIN "CreatorTier" t ON t.id = p."tierId"
+    WHERE p."isSubscriberOnly" = true
+      AND p."isArchived" = false
+      AND author."isIncognito" = false
+      AND author."isSuspended" = false
+      AND (p."tierId" IS NULL OR t."priceCents" <= access.max_price_cents)
+    ORDER BY p."createdAt" DESC
+    LIMIT ${limit}
+  `);
+
+  return rows.map((row) => row.id);
+}
+
+/** Original per-creator-OR-clause query, kept as the fallback if the efficient raw-SQL path
+ * above fails for any reason (e.g. a schema mismatch the raw query doesn't degrade from as
+ * gracefully as Prisma's own generated queries do) - correctness over efficiency when the
+ * efficient path can't run at all. Not ranked by unseen/freshness/affinity - a plain
+ * chronological degrade is an acceptable trade for a path that should rarely execute. */
+async function getPremiumFeedPostsLegacy(
+  accessRows: PremiumAccessRow[],
+  viewerProfileId: string,
+): Promise<RawPost[]> {
+  const perCreatorAccess: Prisma.PostWhereInput[] = accessRows.map((row) => {
+    const tierClauses: Prisma.PostWhereInput[] = [{ tierId: null }];
+    if (row.maxTierPriceCents !== null) {
+      tierClauses.push({ tier: { priceCents: { lte: row.maxTierPriceCents } } });
+    }
+    return { authorId: row.creatorId, OR: tierClauses };
+  });
+
+  const where = {
+    isSubscriberOnly: true,
+    author: { isIncognito: false, isSuspended: false },
+    OR: perCreatorAccess,
+  };
+
+  try {
+    return await prisma.post.findMany({
+      where: { ...where, isArchived: false },
+      orderBy: { createdAt: "desc" },
+      take: FEED_LIMIT,
+      select: postSelect(viewerProfileId),
+    });
+  } catch (error) {
+    if (!isMissingPostArchiveError(error)) throw error;
+    console.warn("Post archive filtering is unavailable until Post.isArchived migration is applied.");
+    return prisma.post.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: FEED_LIMIT,
+      select: postSelect(viewerProfileId),
+    });
+  }
+}
+
+/**
+ * Ranks premium candidates unseen-first (no PostImpression from this viewer yet), then by
+ * freshness + affinity within each group - per the discovery/ranking plan. A hard partition
+ * on "unseen," not a soft score bonus, mirrors the Live ring's "live always first" precedent:
+ * a fan should see something new from a creator they pay for before anything already viewed.
+ */
+export async function rankPremiumPosts(
+  posts: RawPost[],
+  viewerProfileId: string,
+  subscribedCreatorIds: string[],
+  now: Date = new Date(),
+): Promise<RawPost[]> {
+  if (posts.length === 0) return posts;
+
+  const postIds = posts.map((post) => post.id);
+  const [seenRows, affinityByCreator] = await Promise.all([
+    prisma.postImpression.findMany({
+      where: { viewerId: viewerProfileId, postId: { in: postIds } },
+      select: { postId: true },
+    }),
+    getAffinityByCreator(viewerProfileId, subscribedCreatorIds),
+  ]);
+  const seenPostIds = new Set(seenRows.map((row) => row.postId));
+
+  return posts
+    .map((post) => ({
+      post,
+      seen: seenPostIds.has(post.id),
+      score: 0.5 * recencyTerm(post.createdAt, now) + 0.5 * affinityTerm(affinityByCreator.get(post.author.id) ?? 0),
+    }))
+    .sort((a, b) => {
+      if (a.seen !== b.seen) return a.seen ? 1 : -1;
+      return b.score - a.score;
+    })
+    .map((entry) => entry.post);
+}
+
 /**
  * Premium posts from creators the viewer is actively subscribed to, restricted further to
  * posts at or below the tier the viewer actually paid for (tiers are cumulative - see
@@ -543,52 +669,31 @@ export async function getPremiumFeedPosts(
 
   const access = await getCreatorAccess(viewerProfileId, subscribedCreatorIds);
 
-  // Filters to accessible posts in the query itself (per creator: either an untiered
-  // post, since any active subscription unlocks those, or one priced at or below the
-  // viewer's paid tier) rather than over-fetching and filtering in JS - otherwise
-  // `take: FEED_LIMIT` could return fewer than FEED_LIMIT posts even when more
-  // accessible ones exist further back, since some of the "top FEED_LIMIT newest" could
-  // belong to a tier above what the viewer holds.
-  const perCreatorAccess: Prisma.PostWhereInput[] = subscribedCreatorIds.flatMap((creatorId) => {
+  const accessRows: PremiumAccessRow[] = subscribedCreatorIds.flatMap((creatorId) => {
     const info = access.get(creatorId);
-    if (!info) return [];
-    const tierClauses: Prisma.PostWhereInput[] = [];
-    if (info.hasAnySub) tierClauses.push({ tierId: null });
-    if (info.maxTierPriceCents !== null) {
-      tierClauses.push({ tier: { priceCents: { lte: info.maxTierPriceCents } } });
-    }
-    return tierClauses.length > 0 ? [{ authorId: creatorId, OR: tierClauses }] : [];
+    return info ? [{ creatorId, maxTierPriceCents: info.maxTierPriceCents }] : [];
   });
-
-  if (perCreatorAccess.length === 0) {
+  if (accessRows.length === 0) {
     return { posts: [], hasSubscriptions: true };
   }
 
-  const where = {
-    isSubscriberOnly: true,
-    author: { isIncognito: false, isSuspended: false },
-    OR: perCreatorAccess,
-  };
-
   let posts: RawPost[];
   try {
-    posts = await prisma.post.findMany({
-      where: { ...where, isArchived: false },
-      orderBy: { createdAt: "desc" },
-      take: FEED_LIMIT,
-      select: postSelect(viewerProfileId),
-    });
+    const eligiblePostIds = await selectEligiblePremiumPostIds(accessRows, FEED_LIMIT * PREMIUM_CANDIDATE_MULTIPLIER);
+    if (eligiblePostIds.length === 0) {
+      posts = [];
+    } else {
+      const fetched: RawPost[] = await prisma.post.findMany({
+        where: { id: { in: eligiblePostIds } },
+        select: postSelect(viewerProfileId),
+      });
+      const byId = new Map(fetched.map((post) => [post.id, post]));
+      const inOrder = eligiblePostIds.map((id) => byId.get(id)).filter((post): post is RawPost => Boolean(post));
+      posts = (await rankPremiumPosts(inOrder, viewerProfileId, subscribedCreatorIds)).slice(0, FEED_LIMIT);
+    }
   } catch (error) {
-    if (!isMissingPostArchiveError(error)) throw error;
-    console.warn(
-      "Post archive filtering is unavailable until Post.isArchived migration is applied.",
-    );
-    posts = await prisma.post.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: FEED_LIMIT,
-      select: postSelect(viewerProfileId),
-    });
+    console.warn("Efficient premium feed query failed, falling back to the per-creator query.", error);
+    posts = await getPremiumFeedPostsLegacy(accessRows, viewerProfileId);
   }
 
   const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
