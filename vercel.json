@@ -35,6 +35,14 @@
     {
       "path": "/api/cron/refresh-search-index",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/rollup-post-daily-stats",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/prune-post-impressions",
+      "schedule": "0 3 * * *"
     }
   ]
 }
