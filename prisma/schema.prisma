@@ -615,6 +615,7 @@ model Post {
   feedback         PostFeedback[]
   savedByViewer    SavedPost[]
   dailyStats       PostDailyStats[]
+  quality          PostQuality?
 
   @@index([authorId])
   @@index([isArchived])
@@ -890,6 +891,28 @@ model PostDailyStats {
   @@unique([postId, date])
   @@index([postId])
   @@index([date])
+}
+
+/**
+ * Tier 1 of the discovery/ranking plan's scoring: one row per post, cron-written from
+ * PostDailyStats (never raw impressions), viewer-independent. See
+ * lib/post-quality.ts's refreshPostQuality for exactly how each field is derived - in
+ * short, quality = smoothedEngagementRate * velocityMultiplier * trustMultiplier, where
+ * trustMultiplier reuses the existing Profile.communityStanding rather than a second
+ * trust score.
+ */
+model PostQuality {
+  id                     String   @id @default(cuid())
+  postId                 String   @unique
+  post                   Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  quality                Float    @default(0)
+  smoothedEngagementRate Float    @default(0)
+  velocityMultiplier     Float    @default(1)
+  trustMultiplier        Float    @default(1)
+  impressions30d         Int      @default(0)
+  updatedAt              DateTime @updatedAt
+
+  @@index([quality])
 }
 
 /**

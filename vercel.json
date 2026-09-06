@@ -43,6 +43,10 @@
     {
       "path": "/api/cron/prune-post-impressions",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-post-quality",
+      "schedule": "0 4 * * *"
     }
   ]
 }
