@@ -5,7 +5,14 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { localityTerm, noveltyTerm, rankRecommendedProfiles, sharedTopicsTerm, trustTerm } from "@/lib/ranking/people-scoring";
+import {
+  localityTerm,
+  noveltyTerm,
+  rankRecommendedCreators,
+  rankRecommendedProfiles,
+  sharedTopicsTerm,
+  trustTerm,
+} from "@/lib/ranking/people-scoring";
 import { prisma } from "@/lib/prisma";
 
 const mockPrisma = prisma as unknown as {
@@ -124,5 +131,47 @@ describe("rankRecommendedProfiles", () => {
       where: { viewerId: "viewer-1", creatorId: { in: ["high-affinity", "shared-topics", "nothing-special"] } },
       select: { creatorId: true, affinity: true },
     });
+  });
+});
+
+describe("rankRecommendedCreators", () => {
+  it("returns an empty list without querying prisma for an empty candidate set", async () => {
+    const result = await rankRecommendedCreators(null, [], NOW);
+    expect(result).toEqual([]);
+    expect(mockPrisma.creatorAffinity.findMany).not.toHaveBeenCalled();
+    expect(mockPrisma.profileTopic.findMany).not.toHaveBeenCalled();
+  });
+
+  it("degrades gracefully for an anonymous viewer - trust and novelty still rank candidates", async () => {
+    const candidates = [
+      { id: "trusted", createdAt: NOW, ...trustless, isTrustedMember: true },
+      { id: "untrusted", createdAt: NOW, ...trustless },
+    ];
+
+    const result = await rankRecommendedCreators(null, candidates, NOW);
+
+    expect(result).toEqual(["trusted", "untrusted"]);
+    expect(mockPrisma.creatorAffinity.findMany).not.toHaveBeenCalled();
+  });
+
+  it("ranks by affinity, shared topics, and trust combined, with no locality term", async () => {
+    mockPrisma.creatorAffinity.findMany.mockResolvedValue([{ creatorId: "high-affinity", affinity: 60 }]);
+    mockPrisma.profileTopic.findMany.mockResolvedValue([
+      { profileId: "viewer-1", topicId: "t1" },
+      { profileId: "viewer-1", topicId: "t2" },
+      { profileId: "shared-topics", topicId: "t1" },
+      { profileId: "shared-topics", topicId: "t2" },
+    ]);
+
+    const candidates = [
+      { id: "high-affinity", createdAt: NOW, ...trustless }, // 0.40*0.75 = .30
+      { id: "shared-topics", createdAt: NOW, ...trustless }, // 0.25*1 = .25
+      { id: "trusted", createdAt: NOW, ...trustless, isTrustedMember: true }, // 0.20*1 = .20
+      { id: "nothing-special", createdAt: NOW, ...trustless }, // 0
+    ];
+
+    const result = await rankRecommendedCreators("viewer-1", candidates, NOW);
+
+    expect(result).toEqual(["high-affinity", "shared-topics", "trusted", "nothing-special"]);
   });
 });

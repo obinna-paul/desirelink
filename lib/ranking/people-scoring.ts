@@ -143,3 +143,48 @@ export async function rankRecommendedProfiles(
     .sort((a, b) => b.score - a.score)
     .map((entry) => entry.id);
 }
+
+export type RecommendableCreator = Omit<RecommendableProfile, "locationLat" | "locationLng">;
+
+const CREATOR_WEIGHTS = {
+  affinity: 0.4,
+  sharedTopics: 0.25,
+  trust: 0.2,
+  novelty: 0.15,
+};
+
+/**
+ * Ranks creators for the creators directory: affinity, shared topics, trust, novelty - no
+ * locality term, unlike rankRecommendedProfiles above. Subscribing is a global marketplace
+ * decision, not a physical-proximity one, so distance has no place here; the weight it would
+ * have carried is redistributed across the remaining four terms instead of left on the table.
+ * Deliberately not merged into rankRecommendedProfiles behind a "skip locality" flag - the
+ * weight formulas and term sets differ enough that a shared wrapper would need more
+ * conditional plumbing than the duplication it would save.
+ */
+export async function rankRecommendedCreators(
+  viewerId: string | null,
+  candidates: RecommendableCreator[],
+  now: Date = new Date(),
+): Promise<string[]> {
+  if (candidates.length === 0) return [];
+
+  const candidateIds = candidates.map((candidate) => candidate.id);
+  const [affinityByCreator, topicsByProfile, viewerTopicIds] = await Promise.all([
+    viewerId ? getAffinityByCreator(viewerId, candidateIds) : Promise.resolve(new Map<string, number>()),
+    getTopicIdsByProfile(candidateIds),
+    viewerId ? getTopicIdsByProfile([viewerId]).then((map) => map.get(viewerId) ?? new Set<string>()) : Promise.resolve(new Set<string>()),
+  ]);
+
+  return candidates
+    .map((candidate) => {
+      const score =
+        CREATOR_WEIGHTS.affinity * affinityTerm(affinityByCreator.get(candidate.id) ?? 0) +
+        CREATOR_WEIGHTS.sharedTopics * sharedTopicsTerm(viewerTopicIds, topicsByProfile.get(candidate.id) ?? new Set()) +
+        CREATOR_WEIGHTS.trust * trustTerm(candidate) +
+        CREATOR_WEIGHTS.novelty * noveltyTerm(candidate.createdAt, now);
+      return { id: candidate.id, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.id);
+}
