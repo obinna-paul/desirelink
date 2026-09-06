@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 
 import { AuthShell } from "@/components/auth/auth-shell";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
+import { PRIVATE_ROBOTS } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Udala - Reset your password",
+  title: "Reset your password",
   description: "Get a code by email to reset your Udala password.",
+  robots: PRIVATE_ROBOTS,
 };
 
 export default function ForgotPasswordPage() {

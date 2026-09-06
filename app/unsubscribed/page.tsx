@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
+import { PRIVATE_ROBOTS } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Unsubscribed — udala",
+  title: "Email preferences updated",
+  robots: PRIVATE_ROBOTS,
 };
 
 export default function UnsubscribedPage({ searchParams }: { searchParams: { ok?: string } }) {

@@ -7,6 +7,8 @@ import { ChevronLeft } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { getAllSlugs, getPostBySlug } from "@/lib/blog";
+import { absoluteUrl, SITE_NAME, SITE_URL } from "@/lib/site-config";
+import { publicPageMetadata, serializeJsonLd } from "@/lib/seo";
 
 export function generateStaticParams() {
   return getAllSlugs().map((slug) => ({ slug }));
@@ -14,18 +16,25 @@ export function generateStaticParams() {
 
 export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
   const post = getPostBySlug(params.slug);
-  if (!post) return {};
+  if (!post) return { title: "Article not found" };
 
   return {
-    title: `${post.title} — udala Blog`,
-    description: post.description,
+    ...publicPageMetadata({
+      title: post.title,
+      description: post.description,
+      path: `/blog/${post.slug}`,
+      type: "article",
+    }),
     authors: [{ name: post.author }],
     openGraph: {
+      siteName: SITE_NAME,
       title: post.title,
       description: post.description,
       type: "article",
+      url: absoluteUrl(`/blog/${post.slug}`),
       publishedTime: post.publishedAt,
       authors: [post.author],
+      images: [{ url: absoluteUrl("/og-image.png"), width: 1200, height: 630, alt: post.title }],
     },
   };
 }
@@ -47,10 +56,32 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
+    "@id": `${absoluteUrl(`/blog/${post.slug}`)}#article`,
+    url: absoluteUrl(`/blog/${post.slug}`),
     headline: post.title,
     description: post.description,
     datePublished: post.publishedAt,
-    author: { "@type": "Organization", name: post.author },
+    mainEntityOfPage: absoluteUrl(`/blog/${post.slug}`),
+    image: absoluteUrl("/og-image.png"),
+    inLanguage: "en",
+    author: { "@type": "Organization", name: post.author, url: SITE_URL },
+    publisher: {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: SITE_NAME,
+      url: SITE_URL,
+      logo: { "@type": "ImageObject", url: absoluteUrl("/icon.png") },
+    },
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Udala", item: absoluteUrl("/landing") },
+      { "@type": "ListItem", position: 2, name: "Blog", item: absoluteUrl("/blog") },
+      { "@type": "ListItem", position: 3, name: post.title, item: absoluteUrl(`/blog/${post.slug}`) },
+    ],
   };
 
   return (
@@ -59,7 +90,8 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
 
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-12 sm:px-8">
         {/* eslint-disable-next-line react/no-danger */}
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
 
         <Link
           href="/blog"

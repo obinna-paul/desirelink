@@ -6,10 +6,12 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { VerifyEmailForm } from "@/components/auth/verify-email-form";
+import { PRIVATE_ROBOTS } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Udala - Verify your email",
+  title: "Verify your email",
   description: "Enter the code we emailed you to finish setting up your Udala account.",
+  robots: PRIVATE_ROBOTS,
 };
 
 export default async function VerifyEmailPage() {

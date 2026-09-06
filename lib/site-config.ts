@@ -10,10 +10,10 @@ export const SITE_URL = (
   "https://udala-seven.vercel.app"
 ).replace(/\/+$/, "");
 
-export const SITE_NAME = "udala";
+export const SITE_NAME = "Udala";
 export const DEFAULT_OG_IMAGE = "/og-image.png";
 export const DEFAULT_DESCRIPTION =
-  "udala is a real-time social marketplace for creators and explorers - live streams, events, services, and a feed built for genuine connection.";
+  "Udala is an African social platform for posts, live streams, private messaging, services, and genuine connections. For adults 18 and over.";
 
 export function absoluteUrl(path: string): string {
   return new URL(path, SITE_URL).toString();

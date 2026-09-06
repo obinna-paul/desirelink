@@ -16,6 +16,7 @@ import { getProviderServiceListings } from "@/lib/service-listings";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { getOwnPresenceStatus, getPresenceStatus } from "@/lib/presence";
 import { absoluteUrl, SITE_NAME } from "@/lib/site-config";
+import { PRIVATE_ROBOTS, PUBLIC_ROBOTS, seoDescription, serializeJsonLd } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -37,9 +38,12 @@ export async function generateMetadata({
   });
   if (!profile || profile.isSuspended) return { title: "Profile not found" };
 
-  const title = `${profile.displayName} (${profile.username})`;
-  const description = profile.bio || `${profile.displayName}'s profile on ${SITE_NAME}.`;
-  const image = profile.bannerUrl || profile.avatarUrl || undefined;
+  const title = `${profile.displayName} (@${profile.username})`;
+  const description = seoDescription(
+    profile.bio,
+    `See posts, services, and public profile details from ${profile.displayName} on ${SITE_NAME}.`,
+  );
+  const image = profile.avatarUrl || profile.bannerUrl || undefined;
   const url = absoluteUrl(`/profile/${profile.username}`);
   const hideFromSearch = profile.isIncognito || !profile.showInSearch;
 
@@ -47,7 +51,7 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical: url },
-    robots: hideFromSearch ? { index: false, follow: false } : undefined,
+    robots: hideFromSearch ? PRIVATE_ROBOTS : PUBLIC_ROBOTS,
     openGraph: {
       type: "profile",
       title,
@@ -84,7 +88,7 @@ export default async function PublicProfilePage({
     },
   });
 
-  if (!profile) {
+  if (!profile || profile.isSuspended) {
     notFound();
   }
 
@@ -106,7 +110,9 @@ export default async function PublicProfilePage({
     notFound();
   }
 
-  if (!isOwner) {
+  // Anonymous traffic includes crawlers and link-preview bots. It should never
+  // inflate the profile analytics shown to the owner.
+  if (!isOwner && viewerProfile) {
     await prisma.profile.update({
       where: { id: profile.id },
       data: { profileViews: { increment: 1 } },
@@ -146,26 +152,47 @@ export default async function PublicProfilePage({
     viewerProfile ? getReviewableContexts(viewerProfile.id, profile.id) : Promise.resolve([]),
   ]);
 
+  const profileUrl = absoluteUrl(`/profile/${profile.username}`);
+  const isSearchable = !profile.isIncognito && profile.showInSearch;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ProfilePage",
+    "@id": `${profileUrl}#profile-page`,
+    url: profileUrl,
     dateCreated: profile.createdAt.toISOString(),
+    dateModified: profile.updatedAt.toISOString(),
     mainEntity: {
       "@type": "Person",
+      "@id": `${profileUrl}#person`,
+      identifier: profile.id,
       name: profile.displayName,
-      alternateName: profile.username,
+      alternateName: `@${profile.username}`,
       description: profile.bio || undefined,
       image: profile.avatarUrl || undefined,
-      url: absoluteUrl(`/profile/${profile.username}`),
+      url: profileUrl,
+      interactionStatistic: [
+        {
+          "@type": "InteractionCounter",
+          interactionType: "https://schema.org/WriteAction",
+          userInteractionCount: posts.length,
+        },
+        {
+          "@type": "InteractionCounter",
+          interactionType: "https://schema.org/FollowAction",
+          userInteractionCount: stats.subscriberCount,
+        },
+      ],
     },
   };
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      {isSearchable && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+        />
+      )}
       <ProfileView
         profile={profile}
         posts={posts}

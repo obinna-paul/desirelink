@@ -325,6 +325,7 @@ export function PostCard({
             media={post.mediaItems}
             liked={liked}
             onDoubleTapLike={() => toggleLike(true)}
+            imageAlt={`Post by ${post.author.displayName}`}
           />
           <div className="flex items-center gap-1.5 px-3 pt-2 text-xs text-muted-foreground md:px-4">
             <Eye className="h-3.5 w-3.5" aria-hidden="true" />

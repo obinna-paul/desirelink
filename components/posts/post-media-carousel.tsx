@@ -13,10 +13,12 @@ export function PostMediaCarousel({
   media,
   liked = false,
   onDoubleTapLike,
+  imageAlt = "Post image",
 }: {
   media: PostMediaItem[];
   liked?: boolean;
   onDoubleTapLike?: () => Promise<void> | void;
+  imageAlt?: string;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const tapStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -150,7 +152,7 @@ export function PostMediaCarousel({
             ) : (
               <Image
                 src={item.url}
-                alt=""
+                alt={media.length > 1 ? `${imageAlt} ${index + 1} of ${media.length}` : imageAlt}
                 fill
                 sizes="(min-width: 1536px) 48rem, (min-width: 640px) 40rem, 100vw"
                 className="object-cover"

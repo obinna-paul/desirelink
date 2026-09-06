@@ -7,21 +7,9 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: [
-        "/api/",
-        "/admin",
-        "/admin/",
-        "/messages",
-        "/settings",
-        "/settings/",
-        "/wallet",
-        "/creator-dashboard",
-        "/onboarding/",
-        "/live/go",
-        "/services/new",
-        "/profile/edit",
-        "/safety/",
-      ],
+      // HTML pages remain crawlable so search engines can read their page-level
+      // noindex directives. APIs have no indexable document content.
+      disallow: ["/api/"],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };

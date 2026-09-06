@@ -1,7 +1,7 @@
 {
-  "name": "udala",
-  "short_name": "udala",
-  "description": "Real-time adult social marketplace",
+  "name": "Udala",
+  "short_name": "Udala",
+  "description": "African social platform for posts, live streams, private messaging, services, and genuine connections.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

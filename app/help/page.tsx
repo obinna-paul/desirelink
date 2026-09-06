@@ -10,11 +10,13 @@ import {
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { FaqItem } from "@/components/help/faq-item";
+import { publicPageMetadata, serializeJsonLd } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Help Center — udala",
-  description: "Answers to common questions about your account, payments, creator tools, and safety on udala.",
-};
+export const metadata: Metadata = publicPageMetadata({
+  title: "Help Center",
+  description: "Get answers about Udala accounts, privacy, payments, subscriptions, live content, services, and safety.",
+  path: "/help",
+});
 
 const CATEGORIES = [
   { id: "account-privacy", title: "Account & Privacy", icon: UserCog },
@@ -48,8 +50,40 @@ function CategorySection({
 }
 
 export default function HelpCenterPage() {
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "How do I control who sees my Preferences?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Preferences are private by default. You can choose which selected preferences appear on your profile from Edit Profile.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "What does Incognito mode hide?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Incognito removes your profile from Discover, search, and Home feed visibility for other members while it is enabled.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "How do I block or report someone?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Use the relevant profile, post, or message controls to block or report a member. You can review your reports in the Safety Center.",
+        },
+      },
+    ],
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(faqJsonLd) }} />
       <PublicHeader />
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-10 px-4 py-12 sm:px-8">

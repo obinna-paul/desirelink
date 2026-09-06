@@ -111,7 +111,7 @@ export function PostGridTile({
         ) : (
           <Image
             src={media.url}
-            alt=""
+            alt={`Post by ${post.author.displayName}`}
             fill
             sizes={TILE_SIZES}
             className="object-cover"
@@ -168,7 +168,7 @@ export function ServiceGridTile({
       {listing.coverImageUrl ? (
         <Image
           src={listing.coverImageUrl}
-          alt=""
+          alt={`${listing.title} service cover`}
           fill
           sizes={TILE_SIZES}
           className="object-cover"

@@ -13,6 +13,15 @@ const withPWA = nextPWA({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/blog/understanding-your-desire-map",
+        destination: "/blog/understanding-your-preferences",
+        permanent: true,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

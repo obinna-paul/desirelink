@@ -14,6 +14,8 @@ import { BookingRequestDialog } from "@/components/services/booking-request-dial
 import { formatCents } from "@/lib/creator";
 import { getServiceListingById } from "@/lib/service-listings";
 import { absoluteUrl, SITE_NAME } from "@/lib/site-config";
+import { getPaymentCurrency } from "@/lib/payments/config";
+import { PRIVATE_ROBOTS, PUBLIC_ROBOTS, publicPageMetadata, seoDescription, serializeJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -33,28 +35,20 @@ export async function generateMetadata({
   if (!listing) return { title: "Service not found" };
 
   const title = listing.title;
-  const description = listing.description
-    ? listing.description.slice(0, 160)
-    : `${listing.title} by ${listing.provider.displayName} on ${SITE_NAME}.`;
-  const url = absoluteUrl(`/services/${listing.id}`);
+  const description = seoDescription(
+    listing.description,
+    `${listing.title} by ${listing.provider.displayName} on ${SITE_NAME}.`,
+  );
+  const indexable = !listing.provider.isIncognito && listing.provider.showInSearch;
 
   return {
-    title,
-    description,
-    alternates: { canonical: url },
-    openGraph: {
-      type: "website",
+    ...publicPageMetadata({
       title,
       description,
-      url,
-      images: listing.coverImageUrl ? [{ url: listing.coverImageUrl }] : undefined,
-    },
-    twitter: {
-      card: listing.coverImageUrl ? "summary_large_image" : "summary",
-      title,
-      description,
-      images: listing.coverImageUrl ? [listing.coverImageUrl] : undefined,
-    },
+      path: `/services/${listing.id}`,
+      image: listing.coverImageUrl,
+    }),
+    robots: indexable ? PUBLIC_ROBOTS : PRIVATE_ROBOTS,
   };
 }
 
@@ -75,6 +69,8 @@ export default async function ServiceListingDetailPage({ params }: { params: { i
     provider.isVerified || provider.isVerifiedCreator || provider.isVerifiedServiceProvider || provider.isTrustedMember;
   const isOwnListing = viewerProfile?.id === provider.id;
   const initials = provider.displayName.slice(0, 2).toUpperCase();
+  const listingUrl = absoluteUrl(`/services/${listing.id}`);
+  const indexable = !provider.isIncognito && provider.showInSearch;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -83,33 +79,50 @@ export default async function ServiceListingDetailPage({ params }: { params: { i
     description: listing.description || undefined,
     category: listing.category,
     image: listing.coverImageUrl || undefined,
-    url: absoluteUrl(`/services/${listing.id}`),
+    "@id": `${listingUrl}#service`,
+    url: listingUrl,
     provider: {
       "@type": "Person",
+      "@id": `${absoluteUrl(`/profile/${provider.username}`)}#person`,
       name: provider.displayName,
       url: absoluteUrl(`/profile/${provider.username}`),
     },
     offers: {
       "@type": "Offer",
       price: (listing.priceCents / 100).toFixed(2),
-      priceCurrency: "USD",
-      url: absoluteUrl(`/services/${listing.id}`),
+      priceCurrency: getPaymentCurrency(),
+      availability: "https://schema.org/InStock",
+      url: listingUrl,
     },
+    areaServed: [provider.city, provider.country].filter(Boolean).join(", ") || undefined,
+    duration: `PT${listing.durationMinutes}M`,
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Udala", item: absoluteUrl("/landing") },
+      { "@type": "ListItem", position: 2, name: provider.displayName, item: absoluteUrl(`/profile/${provider.username}`) },
+      { "@type": "ListItem", position: 3, name: listing.title, item: listingUrl },
+    ],
   };
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 md:gap-6">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      {indexable && (
+        <>
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }} />
+        </>
+      )}
 
       <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm md:rounded-xl md:shadow-none">
         <div className="relative flex h-52 w-full items-center justify-center overflow-hidden bg-avatar-placeholder md:h-64">
           {listing.coverImageUrl ? (
             <Image
               src={listing.coverImageUrl}
-              alt=""
+              alt={`${listing.title} service cover`}
               fill
               priority
               sizes="(min-width: 768px) 42rem, 100vw"
@@ -147,7 +160,7 @@ export default async function ServiceListingDetailPage({ params }: { params: { i
             className="flex w-full items-center gap-2 rounded-2xl border border-border/60 bg-background px-3 py-2.5 transition-colors hover:border-neon-pink/60 md:w-fit md:rounded-lg md:py-2"
           >
             <Avatar className="h-8 w-8 border border-border">
-              <AvatarImage src={provider.avatarUrl} alt="" />
+              <AvatarImage src={provider.avatarUrl} alt={`${provider.displayName}'s profile photo`} />
               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">

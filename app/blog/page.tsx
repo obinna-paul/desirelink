@@ -4,12 +4,14 @@ import type { Metadata } from "next";
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { getAllPosts } from "@/lib/blog";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "udala Blog",
+export const metadata: Metadata = publicPageMetadata({
+  title: "Blog",
   description:
-    "Guides and updates from udala: how Preferences work, safety and consent, offering services, and growing as a creator.",
-};
+    "Practical guides from Udala about online safety, live content, communities, services, and building genuine connections.",
+  path: "/blog",
+});
 
 function formatDate(dateString: string) {
   return new Date(dateString).toLocaleDateString(undefined, {
@@ -28,9 +30,9 @@ export default function BlogIndexPage() {
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-12 sm:px-8">
         <div className="flex flex-col gap-2">
-          <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">udala Blog</h1>
+          <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">Udala Blog</h1>
           <p className="text-muted-foreground">
-            Guides, safety notes, and tips from the team building udala.
+            Guides, safety notes, and tips from the team building Udala.
           </p>
         </div>
 

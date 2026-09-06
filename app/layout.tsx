@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { DEFAULT_DESCRIPTION, DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL } from "@/lib/site-config";
+import { PRIVATE_ROBOTS } from "@/lib/seo";
 
 const manrope = Manrope({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700", "800"], variable: "--font-sans" });
 const newsreader = Newsreader({
@@ -22,11 +23,36 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: SITE_NAME,
   title: {
-    default: SITE_NAME,
+    default: `${SITE_NAME} | African Social and Creator Platform`,
     template: `%s | ${SITE_NAME}`,
   },
   description: DEFAULT_DESCRIPTION,
+  category: "social networking",
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  referrer: "strict-origin-when-cross-origin",
+  keywords: [
+    "African social platform",
+    "African creators",
+    "live streaming",
+    "private messaging",
+    "social discovery",
+    "services marketplace",
+  ],
+  robots: PRIVATE_ROBOTS,
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon.png", type: "image/png" }],
+  },
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -34,18 +60,22 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
+    locale: "en_NG",
     siteName: SITE_NAME,
-    title: SITE_NAME,
+    title: `${SITE_NAME} | African Social and Creator Platform`,
     description: DEFAULT_DESCRIPTION,
     url: SITE_URL,
-    images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: SITE_NAME }],
+    images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: "Udala African social platform" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: SITE_NAME,
+    title: `${SITE_NAME} | African Social and Creator Platform`,
     description: DEFAULT_DESCRIPTION,
     images: [DEFAULT_OG_IMAGE],
   },
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : undefined,
 };
 
 export const viewport: Viewport = {

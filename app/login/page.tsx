@@ -3,10 +3,12 @@ import { Suspense } from "react";
 
 import { AuthShell } from "@/components/auth/auth-shell";
 import { LoginForm } from "@/components/auth/login-form";
+import { PRIVATE_ROBOTS } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Udala - Log in",
-  description: "Log in to continue to Udala.",
+  title: "Log in",
+  description: "Log in securely to continue to your Udala account.",
+  robots: PRIVATE_ROBOTS,
 };
 
 export default function LoginPage() {

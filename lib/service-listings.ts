@@ -40,6 +40,9 @@ const homeServiceListingInclude = {
       isVerifiedCreator: true,
       isVerifiedServiceProvider: true,
       isTrustedMember: true,
+      isIncognito: true,
+      showInSearch: true,
+      isSuspended: true,
     },
   },
 } satisfies Prisma.ServiceListingInclude;
