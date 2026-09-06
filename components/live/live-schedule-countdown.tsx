@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Radio, Share2 } from "lucide-react";
+import { Check, Play, Radio, Share2 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -46,29 +46,46 @@ export function LiveScheduleCountdown({
   scheduledFor,
   provider,
   isLoggedIn,
+  isHost,
 }: {
   streamId: string;
   title: string;
   scheduledFor: string;
   provider: LiveStreamProviderSummary;
   isLoggedIn: boolean;
+  isHost: boolean;
 }) {
   const router = useRouter();
   const msRemaining = useCountdown(scheduledFor);
   const [copied, setCopied] = useState(false);
   const initials = provider.displayName.slice(0, 2).toUpperCase();
 
-  useEffect(() => {
-    const id = setInterval(async () => {
-      const res = await fetch(`/api/live/${streamId}/status`).catch(() => null);
-      if (!res?.ok) return;
-      const body = await res.json().catch(() => null);
-      if (body?.status && body.status !== "scheduled") {
-        router.refresh();
-      }
-    }, STATUS_POLL_MS);
-    return () => clearInterval(id);
+  const checkStatus = useCallback(async () => {
+    const res = await fetch(`/api/live/${streamId}/status`, { cache: "no-store" }).catch(() => null);
+    if (!res) return;
+    if (res.status === 404) {
+      router.refresh();
+      return;
+    }
+    if (!res.ok) return;
+    const body = await res.json().catch(() => null);
+    if (body?.status && body.status !== "scheduled") router.refresh();
   }, [router, streamId]);
+
+  useEffect(() => {
+    void checkStatus();
+    const id = window.setInterval(() => void checkStatus(), STATUS_POLL_MS);
+    const checkWhenVisible = () => {
+      if (document.visibilityState === "visible") void checkStatus();
+    };
+    document.addEventListener("visibilitychange", checkWhenVisible);
+    window.addEventListener("focus", checkWhenVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", checkWhenVisible);
+      window.removeEventListener("focus", checkWhenVisible);
+    };
+  }, [checkStatus]);
 
   async function handleShare() {
     const url = typeof window !== "undefined" ? window.location.href : `/live/${streamId}`;
@@ -112,7 +129,9 @@ export function LiveScheduleCountdown({
 
       {hasStarted ? (
         <p className="text-sm text-muted-foreground">
-          It&rsquo;s about time - checking if {provider.displayName} has started...
+          {isHost
+            ? "Your scheduled time has arrived. Start whenever you're ready."
+            : `It’s about time - checking if ${provider.displayName} has started...`}
         </p>
       ) : (
         <div className="flex items-center gap-2 sm:gap-3">
@@ -124,6 +143,13 @@ export function LiveScheduleCountdown({
       )}
 
       <div className="flex w-full flex-col gap-3">
+        {isHost && (
+          <Button asChild className="w-full gap-2">
+            <Link href="/live/go">
+              <Play className="h-4 w-4" aria-hidden="true" /> Prepare to go live
+            </Link>
+          </Button>
+        )}
         {!isLoggedIn && (
           <Button asChild className="w-full">
             <Link href={`/login?callbackUrl=${encodeURIComponent(`/live/${streamId}`)}`}>Log in to join when it starts</Link>

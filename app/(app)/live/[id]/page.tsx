@@ -92,6 +92,7 @@ export default async function LiveStreamPage({
         scheduledFor={result.scheduledFor}
         provider={result.provider}
         isLoggedIn={Boolean(profile)}
+        isHost={result.isHost}
       />
     );
   }

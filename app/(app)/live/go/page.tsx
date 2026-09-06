@@ -54,7 +54,7 @@ export default async function GoLivePage() {
           defaultRequestOptions={requestPresets}
           existingScheduled={
             scheduled
-              ? { id: scheduled.id, title: scheduled.title, scheduledFor: scheduled.scheduledFor!.toISOString() }
+              ? { id: scheduled.id, title: scheduled.title, scheduledFor: scheduled.scheduledFor.toISOString() }
               : null
           }
         />

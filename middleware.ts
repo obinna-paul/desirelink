@@ -54,6 +54,10 @@ export const config = {
     // Also excluded: api/unsubscribe and unsubscribed — a one-click unsubscribe
     // link clicked straight from an email client never carries a session
     // cookie, and must work exactly the same whether it does or not.
-    "/((?!login|signup|landing|blog|help|offline|forgot-password|reset-password|unsubscribed|api/auth|api/signup|api/support|api/unsubscribe|api/cron|_next/static|_next/image|icons/.*|profile/(?!edit(?:/|$))[^/]+|posts/[^/]+|services/(?!new(?:/|$)|bookings(?:/|$))[^/]+|live/(?!go(?:/|$))[^/]+|.*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|json|js|css|woff2?|txt|xml)$).+)",
+    //
+    // Also excluded: api/live/[id]/status. It exposes only the scheduled/live/ended
+    // state and lets an anonymous viewer's countdown turn into the live room without
+    // forcing them to refresh the shared page manually.
+    "/((?!login|signup|landing|blog|help|offline|forgot-password|reset-password|unsubscribed|api/auth|api/signup|api/support|api/unsubscribe|api/cron|api/live/[^/]+/status(?:/|$)|_next/static|_next/image|icons/.*|profile/(?!edit(?:/|$))[^/]+|posts/[^/]+|services/(?!new(?:/|$)|bookings(?:/|$))[^/]+|live/(?!go(?:/|$))[^/]+|.*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|json|js|css|woff2?|txt|xml)$).+)",
   ],
 };

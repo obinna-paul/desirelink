@@ -8,6 +8,7 @@ jest.mock("@/lib/prisma", () => ({
 
 import {
   getCreatorAccess,
+  getActiveSubscriberIds,
   getUnlockedPostIds,
   resolvePostAccess,
   type CreatorAccessInfo,
@@ -65,6 +66,31 @@ describe("getCreatorAccess", () => {
     expect(providerWhere.endsAt.gt).toBeInstanceOf(Date);
     expect(legacyWhere.status).toBe("active");
     expect(legacyWhere.endsAt.gt).toBeInstanceOf(Date);
+  });
+});
+
+describe("getActiveSubscriberIds", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPrisma.providerSubscription.findMany.mockResolvedValue([{ subscriberId: "fan-1" }]);
+    mockPrisma.subscription.findMany.mockResolvedValue([
+      { subscriberId: "fan-1" },
+      { subscriberId: "fan-2" },
+    ]);
+  });
+
+  it("targets unique subscribers whose access has not expired", async () => {
+    const result = await getActiveSubscriberIds("creator-1");
+
+    expect(result).toEqual(["fan-1", "fan-2"]);
+    const providerWhere = mockPrisma.providerSubscription.findMany.mock.calls[0][0].where;
+    const legacyWhere = mockPrisma.subscription.findMany.mock.calls[0][0].where;
+    expect(providerWhere).toEqual(
+      expect.objectContaining({ providerId: "creator-1", status: "active", endsAt: { gt: expect.any(Date) } }),
+    );
+    expect(legacyWhere).toEqual(
+      expect.objectContaining({ creatorId: "creator-1", status: "active", endsAt: { gt: expect.any(Date) } }),
+    );
   });
 });
 

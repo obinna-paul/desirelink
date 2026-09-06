@@ -78,19 +78,18 @@ export async function getCreatorAccess(
   return access;
 }
 
-/** Every fan with a currently-active subscription to this creator, across both
- * ProviderSubscription and the legacy Subscription table - used to fan out
- * "creator went live" notifications (see lib/live-streams.ts). Unlike getCreatorAccess
- * this doesn't filter by endsAt: a notification list is best-effort and a subscription
- * expiring in the next few minutes is not worth a second query to exclude. */
+/** Every fan with a currently-active, unexpired subscription to this creator, across both
+ * subscription tables. This is used for live announcements, so it follows the same access
+ * boundary as paid content instead of relying on the expiry cron to update status first. */
 export async function getActiveSubscriberIds(creatorId: string): Promise<string[]> {
+  const now = new Date();
   const [providerSubs, legacySubs] = await Promise.all([
     prisma.providerSubscription.findMany({
-      where: { providerId: creatorId, status: "active" },
+      where: { providerId: creatorId, status: "active", endsAt: { gt: now } },
       select: { subscriberId: true },
     }),
     prisma.subscription.findMany({
-      where: { creatorId, status: "active" },
+      where: { creatorId, status: "active", endsAt: { gt: now } },
       select: { subscriberId: true },
     }),
   ]);

@@ -42,7 +42,7 @@ export function ScheduleLiveShareModal({
     };
   }, [onClose]);
 
-  async function handleCopy() {
+  async function handleShare() {
     const canShare = typeof navigator !== "undefined" && "share" in navigator;
     if (canShare) {
       await navigator.share({ title: stream.title, url }).catch(() => null);
@@ -93,14 +93,14 @@ export function ScheduleLiveShareModal({
           {url}
         </div>
 
-        <Button type="button" className="mt-4 w-full gap-1.5" onClick={handleCopy}>
+        <Button type="button" className="mt-4 w-full gap-1.5" onClick={handleShare}>
           {copied ? (
             <>
               <Check className="h-4 w-4" aria-hidden="true" /> Link copied
             </>
           ) : (
             <>
-              <Share2 className="h-4 w-4" aria-hidden="true" /> Copy link
+              <Share2 className="h-4 w-4" aria-hidden="true" /> Share live
             </>
           )}
         </Button>

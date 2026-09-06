@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarClock, Radio } from "lucide-react";
+import Link from "next/link";
+import { CalendarClock, ExternalLink, Radio, Share2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { GoLiveStaging } from "@/components/live/go-live-staging";
@@ -41,22 +42,29 @@ export function GoLiveEntry({
     if (!scheduled) return;
     setCancelling(true);
     setCancelError(null);
-    const res = await fetch(`/api/live/${scheduled.id}/cancel-scheduled`, { method: "POST" });
-    setCancelling(false);
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      setCancelError(body?.error ?? "Couldn't cancel this scheduled live.");
-      return;
+    try {
+      const res = await fetch(`/api/live/${scheduled.id}/cancel-scheduled`, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setCancelError(body?.error ?? "Couldn't cancel this scheduled live.");
+        return;
+      }
+      setScheduled(null);
+      setMode("choice");
+      router.refresh();
+    } catch {
+      setCancelError("We couldn't reach the scheduling service. Check your connection and try again.");
+    } finally {
+      setCancelling(false);
     }
-    setScheduled(null);
-    setMode("choice");
-    router.refresh();
   }
 
   if (mode === "summary" && scheduled) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-5 py-16 text-center">
-        <CalendarClock className="h-8 w-8 text-primary" aria-hidden="true" />
+      <div className="mx-auto flex w-full max-w-md flex-col items-center gap-6 py-12 text-center sm:py-16">
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-tint text-primary">
+          <CalendarClock className="h-6 w-6" aria-hidden="true" />
+        </span>
         <div>
           <h1 className="font-heading text-xl font-semibold text-foreground">You have a live scheduled</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -74,6 +82,16 @@ export function GoLiveEntry({
           <Button type="button" onClick={() => setMode("staging")} className="w-full">
             Start now
           </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Button asChild type="button" variant="outline" className="gap-2">
+              <Link href={`/live/${scheduled.id}`}>
+                <ExternalLink className="h-4 w-4" aria-hidden="true" /> View page
+              </Link>
+            </Button>
+            <Button type="button" variant="outline" className="gap-2" onClick={() => setMode("share")}>
+              <Share2 className="h-4 w-4" aria-hidden="true" /> Share
+            </Button>
+          </div>
           <Button type="button" variant="outline" onClick={() => void handleCancel()} disabled={cancelling} className="w-full">
             {cancelling ? "Cancelling..." : "Cancel scheduled live"}
           </Button>
@@ -139,10 +157,16 @@ export function GoLiveEntry({
           <CalendarClock className="h-8 w-8 text-primary" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">Your live is scheduled for {formatScheduledFor(scheduled.scheduledFor)}.</p>
         </div>
-        <ScheduleLiveShareModal stream={scheduled} onClose={() => router.push("/")} />
+        <ScheduleLiveShareModal
+          stream={scheduled}
+          onClose={() => {
+            setMode("summary");
+            router.refresh();
+          }}
+        />
       </>
     );
   }
 
-  return <GoLiveStaging defaultTitle={defaultTitle} defaultRequestOptions={defaultRequestOptions} />;
+  return <GoLiveStaging defaultTitle={scheduled?.title ?? defaultTitle} defaultRequestOptions={defaultRequestOptions} />;
 }

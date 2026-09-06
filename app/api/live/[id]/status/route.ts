@@ -10,7 +10,14 @@ import { prisma } from "@/lib/prisma";
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const stream = await prisma.liveStream.findUnique({ where: { id: params.id }, select: { status: true } });
   if (!stream) {
-    return NextResponse.json({ status: "not_found" }, { status: 404 });
+    return NextResponse.json(
+      { status: "not_found" },
+      { status: 404, headers: { "Cache-Control": "no-store, max-age=0" } },
+    );
   }
-  return NextResponse.json({ status: stream.status });
+  const status = stream.status === "scheduled" || stream.status === "live" ? stream.status : "ended";
+  return NextResponse.json(
+    { status },
+    { headers: { "Cache-Control": "no-store, max-age=0" } },
+  );
 }

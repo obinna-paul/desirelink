@@ -1,6 +1,7 @@
 import "server-only";
 
 import { randomBytes } from "crypto";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType, CREATOR_PROFILE_TYPES } from "@/lib/provider-types";
@@ -9,7 +10,7 @@ import { triggerEvent } from "@/lib/pusher-server";
 import { liveStreamChannelName, LIVE_GIFT_SENT_EVENT, LIVE_STREAM_ENDED_EVENT } from "@/lib/live-stream-channels";
 import { settleGift } from "@/lib/hearts";
 import { refundOpenLiveRequests, type LiveRequestOptionInput } from "@/lib/live-requests";
-import { createNotification, createNotificationsBulk } from "@/lib/notifications";
+import { createNotificationsBulk } from "@/lib/notifications";
 import { getActiveSubscriberIds } from "@/lib/subscription-access";
 import { ONLINE_WINDOW_MS } from "@/lib/presence";
 import { hasIdentityOnFile } from "@/lib/verification";
@@ -18,13 +19,66 @@ function generateRoomName(): string {
   return `live-${randomBytes(12).toString("hex")}`;
 }
 
-function formatScheduledTime(date: Date): string {
+function normalizeTimeZone(timeZone?: string): string {
+  if (!timeZone || timeZone.length > 100) return "UTC";
+  try {
+    new Intl.DateTimeFormat("en", { timeZone }).format();
+    return timeZone;
+  } catch {
+    return "UTC";
+  }
+}
+
+function formatScheduledTime(date: Date, timeZone?: string): string {
   return new Intl.DateTimeFormat("en-NG", {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: normalizeTimeZone(timeZone),
+    timeZoneName: "short",
   }).format(date);
+}
+
+const TRANSACTION_RETRIES = 3;
+
+class LiveStreamWriteConflictError extends Error {}
+
+async function runSerializable<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  for (let attempt = 0; attempt < TRANSACTION_RETRIES; attempt += 1) {
+    try {
+      return await prisma.$transaction(work, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error) {
+      const isWriteConflict = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034";
+      if (!isWriteConflict) throw error;
+      if (attempt === TRANSACTION_RETRIES - 1) throw new LiveStreamWriteConflictError();
+    }
+  }
+
+  throw new Error("The live stream transaction could not be completed.");
+}
+
+async function notifyLiveAudience(
+  providerId: string,
+  buildNotification: (subscriberId: string) => {
+    recipientId: string;
+    actorId?: string;
+    type: "live";
+    title: string;
+    body: string;
+    href: string;
+  },
+): Promise<void> {
+  try {
+    const subscriberIds = await getActiveSubscriberIds(providerId);
+    if (subscriberIds.length > 0) {
+      await createNotificationsBulk(subscriberIds.map(buildNotification));
+    }
+  } catch (error) {
+    console.error("Live audience notification failed", { providerId, error });
+  }
 }
 
 export type StartLiveStreamResult =
@@ -53,67 +107,96 @@ export async function startLiveStream(
     return { ok: false, status: 403, error: "Verify your identity before going live." };
   }
 
-  // A "scheduled" row for this provider is reused (same id, same shareable link) rather than
-  // creating a second stream - whoever already has the link keeps working once they go live.
-  const existing = await prisma.liveStream.findFirst({
-    where: { providerId, status: { in: ["live", "scheduled"] } },
-    select: { id: true, roomName: true, title: true, status: true },
-  });
   const streamTitle = title.trim().slice(0, 120) || `${profile.displayName}'s live stream`;
-  const isBrandNew = !existing;
-  const isStartingScheduled = existing?.status === "scheduled";
+  let transition;
+  try {
+    transition = await runSerializable(async (tx) => {
+      const active = await tx.liveStream.findFirst({
+        where: { providerId, status: "live" },
+        orderBy: { startedAt: "desc" },
+        select: { id: true, roomName: true, title: true },
+      });
+      if (active) {
+        await tx.liveStream.updateMany({
+          where: { providerId, status: "scheduled" },
+          data: { status: "ended", endedAt: new Date() },
+        });
+        return { stream: active, isBrandNew: false, isStartingScheduled: false };
+      }
 
-  let stream: { id: string; roomName: string; title: string };
-  if (existing && existing.status === "scheduled") {
-    stream = await prisma.liveStream.update({
-      where: { id: existing.id },
-      data: {
-        status: "live",
-        startedAt: new Date(),
-        scheduledFor: null,
-        title: streamTitle,
-        heartGoal: heartGoal && heartGoal > 0 ? Math.min(Math.trunc(heartGoal), 1_000_000) : null,
-        requestOptions: {
-          deleteMany: {},
-          create: options.map((option, sortOrder) => ({ ...option, sortOrder })),
+      await tx.liveStream.updateMany({
+        where: { providerId, status: "scheduled", scheduledFor: null },
+        data: { status: "ended", endedAt: new Date() },
+      });
+
+      // Reuse the scheduled row so every previously shared URL becomes the live room.
+      const scheduled = await tx.liveStream.findFirst({
+        where: { providerId, status: "scheduled", scheduledFor: { not: null } },
+        orderBy: { scheduledFor: "asc" },
+        select: { id: true },
+      });
+      if (scheduled) {
+        await tx.liveStream.updateMany({
+          where: { providerId, status: "scheduled", id: { not: scheduled.id } },
+          data: { status: "ended", endedAt: new Date() },
+        });
+        const stream = await tx.liveStream.update({
+          where: { id: scheduled.id, status: "scheduled" },
+          data: {
+            status: "live",
+            startedAt: new Date(),
+            endedAt: null,
+            scheduledFor: null,
+            title: streamTitle,
+            heartGoal: heartGoal && heartGoal > 0 ? Math.min(Math.trunc(heartGoal), 1_000_000) : null,
+            requestOptions: {
+              deleteMany: {},
+              create: options.map((option, sortOrder) => ({ ...option, sortOrder })),
+            },
+          },
+          select: { id: true, roomName: true, title: true },
+        });
+        return { stream, isBrandNew: false, isStartingScheduled: true };
+      }
+
+      const stream = await tx.liveStream.create({
+        data: {
+          providerId,
+          title: streamTitle,
+          roomName: generateRoomName(),
+          heartGoal: heartGoal && heartGoal > 0 ? Math.min(Math.trunc(heartGoal), 1_000_000) : null,
+          requestOptions: {
+            create: options.map((option, sortOrder) => ({ ...option, sortOrder })),
+          },
         },
-      },
-      select: { id: true, roomName: true, title: true },
+        select: { id: true, roomName: true, title: true },
+      });
+      return { stream, isBrandNew: true, isStartingScheduled: false };
     });
-  } else if (existing) {
-    stream = existing;
-  } else {
-    stream = await prisma.liveStream.create({
-      data: {
-        providerId,
-        title: streamTitle,
-        roomName: generateRoomName(),
-        heartGoal: heartGoal && heartGoal > 0 ? Math.min(Math.trunc(heartGoal), 1_000_000) : null,
-        requestOptions: {
-          create: options.map((option, sortOrder) => ({ ...option, sortOrder })),
-        },
-      },
-      select: { id: true, roomName: true, title: true },
-    });
+  } catch (error) {
+    if (
+      error instanceof LiveStreamWriteConflictError ||
+      (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025")
+    ) {
+      return { ok: false, status: 409, error: "Your live stream changed in another tab. Refresh and try again." };
+    }
+    throw error;
   }
+
+  const { stream, isBrandNew, isStartingScheduled } = transition;
 
   // Only alert subscribers for a stream that's genuinely just starting now, brand new or
   // freshly promoted from scheduled - reconnecting to an already-live session (e.g. a page
   // refresh) hits the plain `existing` branch above and must stay silent.
-  if ((isBrandNew || isStartingScheduled) && notifySubscribers) {
-    const subscriberIds = await getActiveSubscriberIds(providerId);
-    if (subscriberIds.length > 0) {
-      await createNotificationsBulk(
-        subscriberIds.map((subscriberId) => ({
-          recipientId: subscriberId,
-          actorId: providerId,
-          type: "live" as const,
-          title: `${profile.displayName} is live`,
-          body: streamTitle,
-          href: `/live/${stream.id}`,
-        })),
-      );
-    }
+  if (isStartingScheduled || (isBrandNew && notifySubscribers)) {
+    await notifyLiveAudience(providerId, (subscriberId) => ({
+      recipientId: subscriberId,
+      actorId: providerId,
+      type: "live",
+      title: `${profile.displayName} is live`,
+      body: stream.title,
+      href: `/live/${stream.id}`,
+    }));
   }
 
   const token = await createLiveKitToken({
@@ -140,6 +223,7 @@ export async function scheduleLiveStream(
   providerId: string,
   title: string,
   scheduledFor: Date,
+  timeZone?: string,
 ): Promise<ScheduleLiveStreamResult> {
   const profile = await prisma.profile.findUnique({
     where: { id: providerId },
@@ -152,47 +236,63 @@ export async function scheduleLiveStream(
     return { ok: false, status: 403, error: "Verify your identity before scheduling a live." };
   }
 
+  const scheduledTime = scheduledFor.getTime();
+  if (!Number.isFinite(scheduledTime)) {
+    return { ok: false, status: 400, error: "Choose a valid date and time." };
+  }
+
   const now = Date.now();
-  if (scheduledFor.getTime() < now + MIN_SCHEDULE_LEAD_MINUTES * 60 * 1000) {
+  if (scheduledTime < now + MIN_SCHEDULE_LEAD_MINUTES * 60 * 1000) {
     return { ok: false, status: 400, error: `Schedule at least ${MIN_SCHEDULE_LEAD_MINUTES} minutes from now.` };
   }
-  if (scheduledFor.getTime() > now + MAX_SCHEDULE_LEAD_DAYS * 24 * 60 * 60 * 1000) {
+  if (scheduledTime > now + MAX_SCHEDULE_LEAD_DAYS * 24 * 60 * 60 * 1000) {
     return { ok: false, status: 400, error: `Schedule within the next ${MAX_SCHEDULE_LEAD_DAYS} days.` };
   }
 
-  const existing = await prisma.liveStream.findFirst({
-    where: { providerId, status: { in: ["live", "scheduled"] } },
-    select: { id: true },
-  });
-  if (existing) {
+  const streamTitle = title.trim().slice(0, 120) || `${profile.displayName}'s live stream`;
+  let stream;
+  try {
+    stream = await runSerializable(async (tx) => {
+      await tx.liveStream.updateMany({
+        where: { providerId, status: "scheduled", scheduledFor: null },
+        data: { status: "ended", endedAt: new Date() },
+      });
+      const existing = await tx.liveStream.findFirst({
+        where: { providerId, status: { in: ["live", "scheduled"] } },
+        select: { id: true },
+      });
+      if (existing) return null;
+
+      return tx.liveStream.create({
+        data: {
+          providerId,
+          title: streamTitle,
+          status: "scheduled",
+          roomName: generateRoomName(),
+          scheduledFor,
+        },
+        select: { id: true, roomName: true, title: true, scheduledFor: true },
+      });
+    });
+  } catch (error) {
+    if (error instanceof LiveStreamWriteConflictError) {
+      return { ok: false, status: 409, error: "Another live stream was created at the same time. Refresh and try again." };
+    }
+    throw error;
+  }
+
+  if (!stream) {
     return { ok: false, status: 400, error: "You already have a live stream in progress or scheduled." };
   }
 
-  const streamTitle = title.trim().slice(0, 120) || `${profile.displayName}'s live stream`;
-  const stream = await prisma.liveStream.create({
-    data: {
-      providerId,
-      title: streamTitle,
-      status: "scheduled",
-      roomName: generateRoomName(),
-      scheduledFor,
-    },
-    select: { id: true, roomName: true, title: true, scheduledFor: true },
-  });
-
-  const subscriberIds = await getActiveSubscriberIds(providerId);
-  if (subscriberIds.length > 0) {
-    await createNotificationsBulk(
-      subscriberIds.map((subscriberId) => ({
-        recipientId: subscriberId,
-        actorId: providerId,
-        type: "live" as const,
-        title: `${profile.displayName} scheduled a live`,
-        body: `${streamTitle} - ${formatScheduledTime(scheduledFor)}`,
-        href: `/live/${stream.id}`,
-      })),
-    );
-  }
+  await notifyLiveAudience(providerId, (subscriberId) => ({
+    recipientId: subscriberId,
+    actorId: providerId,
+    type: "live",
+    title: `${profile.displayName} scheduled a live`,
+    body: `${streamTitle} - ${formatScheduledTime(scheduledFor, timeZone)}`,
+    href: `/live/${stream.id}`,
+  }));
 
   return {
     ok: true,
@@ -201,10 +301,13 @@ export async function scheduleLiveStream(
 }
 
 export async function getScheduledStreamForProvider(providerId: string) {
-  return prisma.liveStream.findFirst({
-    where: { providerId, status: "scheduled" },
+  const stream = await prisma.liveStream.findFirst({
+    where: { providerId, status: "scheduled", scheduledFor: { not: null } },
+    orderBy: { scheduledFor: "asc" },
     select: { id: true, title: true, scheduledFor: true },
   });
+  if (!stream?.scheduledFor) return null;
+  return { ...stream, scheduledFor: stream.scheduledFor };
 }
 
 export type CancelScheduledStreamResult = { ok: true } | { ok: false; status: number; error: string };
@@ -212,7 +315,12 @@ export type CancelScheduledStreamResult = { ok: true } | { ok: false; status: nu
 export async function cancelScheduledLiveStream(providerId: string, streamId: string): Promise<CancelScheduledStreamResult> {
   const stream = await prisma.liveStream.findUnique({
     where: { id: streamId },
-    select: { providerId: true, status: true },
+    select: {
+      providerId: true,
+      status: true,
+      title: true,
+      provider: { select: { displayName: true } },
+    },
   });
   if (!stream || stream.providerId !== providerId) {
     return { ok: false, status: 404, error: "Scheduled stream not found." };
@@ -221,11 +329,27 @@ export async function cancelScheduledLiveStream(providerId: string, streamId: st
     return { ok: false, status: 400, error: "This stream isn't scheduled." };
   }
 
-  await prisma.liveStream.update({ where: { id: streamId }, data: { status: "ended", endedAt: new Date() } });
+  const cancelled = await prisma.liveStream.updateMany({
+    where: { id: streamId, providerId, status: "scheduled" },
+    data: { status: "ended", endedAt: new Date() },
+  });
+  if (cancelled.count === 0) {
+    return { ok: false, status: 409, error: "This live has already started or was cancelled." };
+  }
+
+  await notifyLiveAudience(providerId, (subscriberId) => ({
+    recipientId: subscriberId,
+    actorId: providerId,
+    type: "live",
+    title: `${stream.provider.displayName} cancelled a scheduled live`,
+    body: stream.title,
+    href: `/live/${streamId}`,
+  }));
   return { ok: true };
 }
 
 const STARTING_SOON_WINDOW_MINUTES = 10;
+const STARTING_SOON_LATE_GRACE_MINUTES = 10;
 const SCHEDULED_NO_SHOW_GRACE_MINUTES = 120;
 
 /**
@@ -235,54 +359,114 @@ const SCHEDULED_NO_SHOW_GRACE_MINUTES = 120;
  */
 export async function processScheduledLiveStreams(): Promise<{ notified: number; expired: number }> {
   const now = new Date();
+  const expiryBoundary = new Date(now.getTime() - SCHEDULED_NO_SHOW_GRACE_MINUTES * 60 * 1000);
 
-  const startingSoon = await prisma.liveStream.findMany({
+  const expiring = await prisma.liveStream.findMany({
     where: {
       status: "scheduled",
-      startingSoonNotifiedAt: null,
-      scheduledFor: { lte: new Date(now.getTime() + STARTING_SOON_WINDOW_MINUTES * 60 * 1000) },
+      OR: [{ scheduledFor: null }, { scheduledFor: { lte: expiryBoundary } }],
     },
     select: {
       id: true,
       title: true,
       providerId: true,
+      scheduledFor: true,
       provider: { select: { displayName: true } },
     },
   });
 
-  for (const stream of startingSoon) {
-    const subscriberIds = await getActiveSubscriberIds(stream.providerId);
-    if (subscriberIds.length > 0) {
-      await createNotificationsBulk(
-        subscriberIds.map((subscriberId) => ({
+  let expired = 0;
+  for (const stream of expiring) {
+    const claimed = await prisma.liveStream.updateMany({
+      where: { id: stream.id, status: "scheduled" },
+      data: { status: "ended", endedAt: now },
+    });
+    if (claimed.count === 0) continue;
+    expired += 1;
+
+    try {
+      const subscriberIds = stream.scheduledFor ? await getActiveSubscriberIds(stream.providerId) : [];
+      await createNotificationsBulk([
+        ...subscriberIds.map((subscriberId) => ({
           recipientId: subscriberId,
           actorId: stream.providerId,
           type: "live" as const,
-          title: `${stream.provider.displayName} is going live soon`,
+          title: `${stream.provider.displayName}'s scheduled live did not start`,
           body: stream.title,
           href: `/live/${stream.id}`,
         })),
-      );
+        {
+          recipientId: stream.providerId,
+          type: "live" as const,
+          title: "Your scheduled live expired",
+          body: stream.scheduledFor
+            ? "It was closed because it did not start within two hours of the scheduled time."
+            : "It was closed because its scheduled time was missing.",
+          href: "/live/go",
+        },
+      ]);
+    } catch (error) {
+      console.error("Scheduled live expiry notification failed", { streamId: stream.id, error });
     }
-    await createNotification({
-      recipientId: stream.providerId,
-      type: "live",
-      title: "Your scheduled live starts soon",
-      body: "Get ready - your audience has been notified too.",
-      href: `/live/${stream.id}`,
-    });
-    await prisma.liveStream.update({ where: { id: stream.id }, data: { startingSoonNotifiedAt: now } });
   }
 
-  const expired = await prisma.liveStream.updateMany({
+  const startingSoon = await prisma.liveStream.findMany({
     where: {
       status: "scheduled",
-      scheduledFor: { lte: new Date(now.getTime() - SCHEDULED_NO_SHOW_GRACE_MINUTES * 60 * 1000) },
+      startingSoonNotifiedAt: null,
+      scheduledFor: {
+        gte: new Date(now.getTime() - STARTING_SOON_LATE_GRACE_MINUTES * 60 * 1000),
+        lte: new Date(now.getTime() + STARTING_SOON_WINDOW_MINUTES * 60 * 1000),
+      },
     },
-    data: { status: "ended", endedAt: now },
+    select: {
+      id: true,
+      title: true,
+      providerId: true,
+      scheduledFor: true,
+      provider: { select: { displayName: true } },
+    },
   });
 
-  return { notified: startingSoon.length, expired: expired.count };
+  let notified = 0;
+  for (const stream of startingSoon) {
+    const claimed = await prisma.liveStream.updateMany({
+      where: { id: stream.id, status: "scheduled", startingSoonNotifiedAt: null },
+      data: { startingSoonNotifiedAt: now },
+    });
+    if (claimed.count === 0) continue;
+    notified += 1;
+
+    try {
+      const subscriberIds = await getActiveSubscriberIds(stream.providerId);
+      const isDue = Boolean(stream.scheduledFor && stream.scheduledFor <= now);
+      await createNotificationsBulk(
+        [
+          ...subscriberIds.map((subscriberId) => ({
+            recipientId: subscriberId,
+            actorId: stream.providerId,
+            type: "live" as const,
+            title: isDue
+              ? `${stream.provider.displayName}'s live is due to start`
+              : `${stream.provider.displayName} is going live soon`,
+            body: stream.title,
+            href: `/live/${stream.id}`,
+          })),
+          {
+            recipientId: stream.providerId,
+            type: "live" as const,
+            title: isDue ? "Your scheduled live is due" : "Your scheduled live starts soon",
+            body: isDue ? "Open your live setup when you're ready to begin." : "Get ready - your audience has been reminded.",
+            href: "/live/go",
+          },
+        ],
+      );
+    } catch (error) {
+      console.error("Scheduled live reminder failed", { streamId: stream.id, error });
+    }
+  }
+
+  return { notified, expired };
 }
 
 export type LiveStreamProviderSummary = { id: string; username: string; displayName: string; avatarUrl: string };
@@ -290,7 +474,14 @@ export type LiveStreamProviderSummary = { id: string; username: string; displayN
 export type LiveStreamPageState =
   | { state: "not_found" }
   | { state: "ended" }
-  | { state: "scheduled"; streamId: string; title: string; scheduledFor: string; provider: LiveStreamProviderSummary }
+  | {
+      state: "scheduled";
+      streamId: string;
+      title: string;
+      scheduledFor: string;
+      provider: LiveStreamProviderSummary;
+      isHost: boolean;
+    }
   | { state: "live_locked"; streamId: string; title: string; provider: LiveStreamProviderSummary }
   | {
       state: "live";
@@ -338,16 +529,18 @@ export async function getLiveStreamPageState(
   if (!stream) return { state: "not_found" };
 
   if (stream.status === "scheduled") {
+    if (!stream.scheduledFor) return { state: "ended" };
     return {
       state: "scheduled",
       streamId: stream.id,
       title: stream.title,
-      scheduledFor: stream.scheduledFor!.toISOString(),
+      scheduledFor: stream.scheduledFor.toISOString(),
       provider: stream.provider,
+      isHost: viewer?.id === stream.provider.id,
     };
   }
 
-  if (stream.status === "ended") {
+  if (stream.status !== "live") {
     return { state: "ended" };
   }
 
