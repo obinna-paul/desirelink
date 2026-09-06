@@ -117,11 +117,16 @@ function buildWhere(
   filters: DiscoverFilters,
   viewerProfile: ViewerProfile | null
 ): Prisma.ProfileWhereInput {
-  const where: Prisma.ProfileWhereInput = { isIncognito: false, showInSearch: true };
+  const where: Prisma.ProfileWhereInput = { isIncognito: false, showInSearch: true, isSuspended: false };
   const and: Prisma.ProfileWhereInput[] = [];
 
   if (viewerProfile) {
     where.NOT = { id: viewerProfile.id };
+    // Symmetric: neither a profile the viewer blocked nor one that blocked the viewer
+    // should surface in search - matches the same filter already applied in
+    // lib/recommendations.ts's candidate query.
+    where.blocksReceived = { none: { blockerId: viewerProfile.id } };
+    where.blocksMade = { none: { blockedId: viewerProfile.id } };
   }
 
   if (filters.query) {
