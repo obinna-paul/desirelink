@@ -6,6 +6,7 @@ import { NewBookingRequestEmail } from "@/components/emails/new-booking-request"
 import { BookingConfirmedEmail } from "@/components/emails/booking-confirmed";
 import { EscrowReleasedEmail } from "@/components/emails/escrow-released";
 import { BookingCancelledEmail } from "@/components/emails/booking-cancelled";
+import { PLATFORM_FEE_RATE } from "@/lib/wallet";
 
 function formatDate(date: Date): string {
   return date.toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" });
@@ -65,13 +66,14 @@ export async function sendEscrowReleasedEmail(bookingId: string): Promise<void> 
   const booking = await getBookingForEmail(bookingId);
   if (!booking) return;
 
+  const providerEarningsCents = booking.priceCents - Math.round(booking.priceCents * PLATFORM_FEE_RATE);
   await sendEmail({
     to: booking.provider.user.email,
     subject: "Paid ✓",
     react: EscrowReleasedEmail({
       customerName: booking.customer.displayName,
       serviceName: booking.listing.title,
-      amountCents: booking.priceCents,
+      amountCents: providerEarningsCents,
     }),
     category: "bookings",
     template: "escrow-released",

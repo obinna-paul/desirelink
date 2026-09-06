@@ -1,5 +1,6 @@
 import {
   assertProviderTierPaymentIntegrity,
+  assertServiceBookingPaymentIntegrity,
   PaymentIntegrityError,
 } from "@/lib/payments/webhook-handler";
 import { getSubscriptionPeriod } from "@/lib/payments/subscription-period";
@@ -48,6 +49,44 @@ describe("subscription payment integrity", () => {
     expect(() =>
       assertProviderTierPaymentIntegrity(successfulEvent(overrides), expected),
     ).toThrow(PaymentIntegrityError);
+  });
+});
+
+describe("service booking payment integrity", () => {
+  const expected = {
+    bookingId: "booking_pending",
+    amountCents: 250_000,
+    customerId: "CUS_customer",
+  };
+
+  const bookingEvent = (overrides: Partial<WebhookEvent> = {}): WebhookEvent => ({
+    type: "charge.succeeded",
+    customerId: "CUS_customer",
+    paymentMethod: null,
+    amountCents: 250_000,
+    currency: "NGN",
+    environment: "live",
+    reference: "ref_booking",
+    metadata: { kind: "service_booking", pendingId: "booking_pending" },
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    process.env.PAYSTACK_CURRENCY = "NGN";
+  });
+
+  it("accepts the exact booking charge", () => {
+    expect(() => assertServiceBookingPaymentIntegrity(bookingEvent(), expected)).not.toThrow();
+  });
+
+  it.each([
+    ["amount", { amountCents: 249_999 }],
+    ["currency", { currency: "USD" }],
+    ["customer", { customerId: "CUS_other" }],
+  ])("rejects a mismatched %s", (_label, overrides) => {
+    expect(() => assertServiceBookingPaymentIntegrity(bookingEvent(overrides), expected)).toThrow(
+      PaymentIntegrityError,
+    );
   });
 });
 

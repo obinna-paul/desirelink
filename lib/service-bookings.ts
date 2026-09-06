@@ -5,6 +5,7 @@ import { paymentProvider } from "@/lib/payments";
 import { processPaymentEvent } from "@/lib/payments/webhook-handler";
 import { safeConfirmPayment } from "@/lib/payments/safe-call";
 import { creditProviderWallet } from "@/lib/wallet";
+import { createNotification, createNotificationsBulk } from "@/lib/notifications";
 import {
   sendBookingCancelledEmail,
   sendBookingConfirmedEmail,
@@ -13,12 +14,10 @@ import {
 import type { ServiceBooking } from "@prisma/client";
 
 /**
- * How long after the requested service time an accepted-but-unconfirmed
- * booking's escrow auto-releases to the provider (see
- * app/api/cron/release-escrow/route.ts). Gives the customer a window to
- * flag a no-show or a problem before the money moves automatically.
+ * How long a past-due held booking can remain untouched before finance is
+ * asked to review it. This never releases money automatically.
  */
-export const SERVICE_ESCROW_GRACE_HOURS = 48;
+export const SERVICE_ESCROW_REVIEW_HOURS = 48;
 
 async function getOrCreatePaymentCustomerId(
   profileId: string,
@@ -38,10 +37,65 @@ async function getOrCreatePaymentCustomerId(
 
 export type CreateBookingResult =
   | { ok: true; state: "pending_provider"; bookingId: string }
+  | { ok: true; state: "processing_payment"; bookingId: string }
   | { ok: true; state: "checkout"; bookingId: string; checkoutUrl: string }
   | { ok: false; status: number; error: string };
 
 const MAX_NOTE_LENGTH = 500;
+
+async function deliverBookingSideEffects(tasks: Promise<unknown>[]): Promise<void> {
+  const results = await Promise.allSettled(tasks);
+  results.forEach((result) => {
+    if (result.status === "rejected") console.error("[booking] notification delivery failed", result.reason);
+  });
+}
+
+async function escalateRefundFailure(
+  booking: { id: string; providerId: string; customerId: string },
+  reason: string,
+): Promise<void> {
+  await prisma.serviceBooking.update({
+    where: { id: booking.id },
+    data: {
+      status: "refund_requested",
+      refundRequestedAt: new Date(),
+      refundReason: reason,
+      adminEscalatedAt: new Date(),
+    },
+  });
+  const admins = await prisma.user.findMany({
+    where: {
+      isAdmin: true,
+      OR: [{ adminRole: "FINANCE" }, { adminRole: "SUPERADMIN" }, { adminRole: null }],
+    },
+    select: { profile: { select: { id: true } } },
+  });
+  await deliverBookingSideEffects([
+    createNotificationsBulk([
+      {
+        recipientId: booking.providerId,
+        type: "booking",
+        title: "Refund needs finance review",
+        body: "The automatic refund could not complete. Payment remains locked in escrow.",
+        href: "/services/bookings",
+      },
+      {
+        recipientId: booking.customerId,
+        type: "booking",
+        title: "Refund needs finance review",
+        body: "Your payment is still protected. Udala Finance has been notified.",
+        href: "/services/bookings",
+      },
+      ...admins.flatMap(({ profile }) => profile ? [{
+        recipientId: profile.id,
+        type: "booking" as const,
+        title: "Service refund needs manual action",
+        body: reason,
+        href: "/admin/finance",
+      }] : []),
+    ]),
+  ]);
+}
 
 /**
  * Starts a service booking request. Payment is charged immediately (a saved
@@ -64,8 +118,8 @@ export async function createServiceBooking(
     return { ok: false, status: 400, error: "Choose a date and time in the future." };
   }
 
-  const listing = await prisma.serviceListing.findUnique({
-    where: { id: listingId },
+  const listing = await prisma.serviceListing.findFirst({
+    where: { id: listingId, isActive: true, provider: { isSuspended: false } },
     select: { id: true, providerId: true, priceCents: true },
   });
   if (!listing) {
@@ -73,6 +127,9 @@ export async function createServiceBooking(
   }
   if (listing.providerId === customerId) {
     return { ok: false, status: 400, error: "You can't book your own service." };
+  }
+  if (listing.priceCents < 10_000) {
+    return { ok: false, status: 409, error: "This listing needs a valid price before it can be booked." };
   }
 
   const trimmedNote = note.trim().slice(0, MAX_NOTE_LENGTH);
@@ -89,6 +146,7 @@ export async function createServiceBooking(
     },
   });
 
+  let paymentCaptured = false;
   try {
     const profile = await prisma.profile.findUniqueOrThrow({
       where: { id: customerId },
@@ -112,6 +170,7 @@ export async function createServiceBooking(
         return { ok: false, status: 402, error: "Your saved card was declined. Try updating your payment method." };
       }
 
+      paymentCaptured = true;
       const event = await paymentProvider.verifyTransaction(reference);
       await processPaymentEvent(event);
       return { ok: true, state: "pending_provider", bookingId: booking.id };
@@ -128,8 +187,14 @@ export async function createServiceBooking(
     return { ok: true, state: "checkout", bookingId: booking.id, checkoutUrl };
   } catch (error) {
     console.error("[payments] createServiceBooking failed", error);
-    await prisma.serviceBooking.update({
-      where: { id: booking.id },
+    if (paymentCaptured) {
+      const current = await prisma.serviceBooking.findUnique({ where: { id: booking.id }, select: { status: true } });
+      return current?.status === "pending_provider"
+        ? { ok: true, state: "pending_provider", bookingId: booking.id }
+        : { ok: true, state: "processing_payment", bookingId: booking.id };
+    }
+    await prisma.serviceBooking.updateMany({
+      where: { id: booking.id, status: "pending_payment" },
       data: { status: "cancelled", declineReason: "Payment failed." },
     });
     return { ok: false, status: 502, error: "We couldn't reach the payment provider. Please try again in a moment." };
@@ -168,11 +233,25 @@ export async function acceptServiceBooking(bookingId: string, providerId: string
     return { ok: false, status: 409, error: "This booking has already been responded to." };
   }
 
-  const updated = await prisma.serviceBooking.update({
-    where: { id: bookingId },
+  const claim = await prisma.serviceBooking.updateMany({
+    where: { id: bookingId, status: "pending_provider", transaction: { escrowStatus: "held" } },
     data: { status: "confirmed", respondedAt: new Date() },
   });
-  await sendBookingConfirmedEmail(bookingId);
+  if (claim.count !== 1) {
+    return { ok: false, status: 409, error: "This booking is already being resolved." };
+  }
+  const updated = await prisma.serviceBooking.findUniqueOrThrow({ where: { id: bookingId } });
+  await deliverBookingSideEffects([
+    createNotification({
+      recipientId: booking.customerId,
+      actorId: booking.providerId,
+      type: "booking",
+      title: "Booking accepted",
+      body: "Your provider accepted the booking. Your payment remains protected in escrow.",
+      href: "/services/bookings",
+    }),
+    sendBookingConfirmedEmail(bookingId),
+  ]);
   return { ok: true, booking: updated };
 }
 
@@ -189,37 +268,77 @@ export async function declineServiceBooking(
     return { ok: false, status: 409, error: "This booking has already been responded to." };
   }
 
-  await refundHeldBooking(booking.id, booking.transaction);
-
   const trimmedReason = reason.trim().slice(0, 500) || null;
-  const updated = await prisma.serviceBooking.update({
-    where: { id: bookingId },
+  const claim = await prisma.serviceBooking.updateMany({
+    where: { id: bookingId, status: "pending_provider", transaction: { escrowStatus: "held" } },
     data: { status: "declined", declineReason: trimmedReason, respondedAt: new Date() },
   });
-  await sendBookingCancelledEmail(bookingId, "customer", trimmedReason);
+  if (claim.count !== 1) {
+    return { ok: false, status: 409, error: "This booking is already being resolved." };
+  }
+  try {
+    const refundClaimed = await refundHeldServiceBooking(booking.id, booking.transaction);
+    if (!refundClaimed) throw new Error("The held payment could not be claimed for refund.");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The automatic refund could not be started.";
+    await escalateRefundFailure(booking, message);
+    return { ok: false, status: 502, error: "The refund needs manual review. Udala Finance has been notified." };
+  }
+  const updated = await prisma.serviceBooking.findUniqueOrThrow({ where: { id: bookingId } });
+  await deliverBookingSideEffects([
+    createNotification({
+      recipientId: booking.customerId,
+      actorId: booking.providerId,
+      type: "booking",
+      title: "Booking declined",
+      body: "The booking was declined and your payment is being refunded.",
+      href: "/services/bookings",
+    }),
+    sendBookingCancelledEmail(bookingId, "customer", trimmedReason),
+  ]);
   return { ok: true, booking: updated };
 }
 
-/** Customer cancels a booking before it's completed — refunds the held payment in full. Providers can no longer be booked-then-ghosted by a cancellation after they've done the work, since completion locks the booking. */
+/** Customer can cancel while the provider has not accepted. Accepted work uses the refund-review flow instead. */
 export async function cancelServiceBooking(bookingId: string, customerId: string): Promise<BookingActionResult> {
   const booking = await findBookingWithTransaction(bookingId);
   if (!booking) return { ok: false, status: 404, error: "Booking not found." };
   if (booking.customerId !== customerId) return { ok: false, status: 403, error: "Not your booking." };
-  if (booking.status !== "pending_provider" && booking.status !== "confirmed") {
+  if (booking.status !== "pending_provider") {
     return { ok: false, status: 409, error: "This booking can no longer be cancelled." };
   }
 
-  await refundHeldBooking(booking.id, booking.transaction);
-
-  const updated = await prisma.serviceBooking.update({
-    where: { id: bookingId },
+  const claim = await prisma.serviceBooking.updateMany({
+    where: { id: bookingId, status: "pending_provider", transaction: { escrowStatus: "held" } },
     data: { status: "cancelled" },
   });
-  await sendBookingCancelledEmail(bookingId, "provider", null);
+  if (claim.count !== 1) {
+    return { ok: false, status: 409, error: "This booking is already being resolved." };
+  }
+  try {
+    const refundClaimed = await refundHeldServiceBooking(booking.id, booking.transaction);
+    if (!refundClaimed) throw new Error("The held payment could not be claimed for refund.");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The automatic refund could not be started.";
+    await escalateRefundFailure(booking, message);
+    return { ok: false, status: 502, error: "The refund needs manual review. Udala Finance has been notified." };
+  }
+  const updated = await prisma.serviceBooking.findUniqueOrThrow({ where: { id: bookingId } });
+  await deliverBookingSideEffects([
+    createNotification({
+      recipientId: booking.providerId,
+      actorId: booking.customerId,
+      type: "booking",
+      title: "Booking cancelled",
+      body: "The customer cancelled before you accepted. Their held payment is being refunded.",
+      href: "/services/bookings",
+    }),
+    sendBookingCancelledEmail(bookingId, "provider", null),
+  ]);
   return { ok: true, booking: updated };
 }
 
-/** Customer confirms the service was delivered — releases the held payment to the provider's wallet. This is the only way money moves, short of the auto-release safety net. */
+/** Customer confirms delivery and explicitly releases the held payment to the provider wallet. */
 export async function completeServiceBooking(bookingId: string, customerId: string): Promise<BookingActionResult> {
   const booking = await findBookingWithTransaction(bookingId);
   if (!booking) return { ok: false, status: 404, error: "Booking not found." };
@@ -231,19 +350,119 @@ export async function completeServiceBooking(bookingId: string, customerId: stri
     return { ok: false, status: 409, error: "No held payment found for this booking." };
   }
 
+  let updated: ServiceBooking | null;
+  try {
+    updated = await prisma.$transaction(async (tx) => {
+      const bookingClaim = await tx.serviceBooking.updateMany({
+        where: { id: bookingId, status: "confirmed" },
+        data: { status: "completed", completedAt: new Date() },
+      });
+      if (bookingClaim.count !== 1) return null;
+
+      const escrowClaim = await tx.transaction.updateMany({
+        where: { id: booking.transaction!.id, escrowStatus: "held" },
+        data: { escrowStatus: "released", escrowReleasedAt: new Date() },
+      });
+      if (escrowClaim.count !== 1) throw new Error("ESCROW_ALREADY_RESOLVED");
+      await creditProviderWallet(booking.providerId, booking.transaction!.amountCents, tx);
+      return tx.serviceBooking.findUniqueOrThrow({ where: { id: bookingId } });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "ESCROW_ALREADY_RESOLVED") {
+      return { ok: false, status: 409, error: "This payment is already being resolved." };
+    }
+    throw error;
+  }
+
+  if (!updated) {
+    return { ok: false, status: 409, error: "This booking is already being resolved." };
+  }
+
+  await deliverBookingSideEffects([
+    createNotification({
+      recipientId: booking.providerId,
+      actorId: booking.customerId,
+      type: "booking",
+      title: "Payment released",
+      body: "The customer confirmed delivery. The payment is now available in your wallet.",
+      href: "/wallet",
+    }),
+    sendEscrowReleasedEmail(bookingId),
+  ]);
+  return { ok: true, booking: updated };
+}
+
+/** Customer reports a problem after acceptance. Money stays held until finance resolves it. */
+export async function requestServiceBookingRefund(
+  bookingId: string,
+  customerId: string,
+  reason: string,
+): Promise<BookingActionResult> {
+  const booking = await findBookingWithTransaction(bookingId);
+  if (!booking) return { ok: false, status: 404, error: "Booking not found." };
+  if (booking.customerId !== customerId) return { ok: false, status: 403, error: "Not your booking." };
+  if (booking.status !== "confirmed") {
+    return { ok: false, status: 409, error: "This booking cannot be sent for refund review." };
+  }
+  if (!booking.transaction || booking.transaction.escrowStatus !== "held") {
+    return { ok: false, status: 409, error: "No held payment found for this booking." };
+  }
+
+  const trimmedReason = reason.trim().slice(0, 500);
+  if (trimmedReason.length < 10) {
+    return { ok: false, status: 400, error: "Tell us what went wrong in at least 10 characters." };
+  }
+
+  const now = new Date();
   const updated = await prisma.$transaction(async (tx) => {
-    await tx.transaction.update({
-      where: { id: booking.transaction!.id },
-      data: { escrowStatus: "released", escrowReleasedAt: new Date() },
+    const claim = await tx.serviceBooking.updateMany({
+      where: { id: bookingId, status: "confirmed", transaction: { escrowStatus: "held" } },
+      data: {
+        status: "refund_requested",
+        refundRequestedAt: now,
+        refundReason: trimmedReason,
+        adminEscalatedAt: now,
+      },
     });
-    await creditProviderWallet(booking.providerId, booking.transaction!.amountCents, tx);
-    return tx.serviceBooking.update({
-      where: { id: bookingId },
-      data: { status: "completed", completedAt: new Date() },
-    });
+    if (claim.count !== 1) return null;
+    return tx.serviceBooking.findUniqueOrThrow({ where: { id: bookingId } });
+  });
+  if (!updated) {
+    return { ok: false, status: 409, error: "This booking is already being resolved." };
+  }
+
+  const admins = await prisma.user.findMany({
+    where: {
+      isAdmin: true,
+      OR: [{ adminRole: "FINANCE" }, { adminRole: "SUPERADMIN" }, { adminRole: null }],
+    },
+    select: { profile: { select: { id: true } } },
   });
 
-  await sendEscrowReleasedEmail(bookingId);
+  await deliverBookingSideEffects([
+    createNotificationsBulk([
+      {
+        recipientId: booking.providerId,
+        actorId: booking.customerId,
+        type: "booking",
+        title: "Refund review opened",
+        body: "The customer reported a problem. Payment remains held while Udala reviews it.",
+        href: "/services/bookings",
+      },
+      ...admins.flatMap(({ profile }) =>
+        profile
+          ? [{
+              recipientId: profile.id,
+              type: "booking" as const,
+              title: "Service refund needs review",
+              body: trimmedReason,
+              href: "/admin/finance",
+            }]
+          : [],
+      ),
+    ]),
+  ]);
+
   return { ok: true, booking: updated };
 }
 
@@ -259,10 +478,13 @@ const BOOKING_LIST_SELECT = {
   declineReason: true,
   respondedAt: true,
   completedAt: true,
+  refundRequestedAt: true,
+  refundReason: true,
   createdAt: true,
   listing: { select: { title: true, coverImageUrl: true } },
   provider: { select: { username: true, displayName: true, avatarUrl: true } },
   customer: { select: { username: true, displayName: true, avatarUrl: true } },
+  transaction: { select: { escrowStatus: true } },
 } as const;
 
 /** A provider's bookings, newest request first — used to render the accept/decline queue and history. */
@@ -284,20 +506,38 @@ export async function getCustomerBookings(customerId: string) {
 }
 
 /** Shared refund helper for decline/cancel — no-ops safely if payment never actually reached "held" (e.g. it's still mid-checkout). */
-async function refundHeldBooking(
+export async function refundHeldServiceBooking(
   bookingId: string,
   transaction: { id: string; amountCents: number; escrowStatus: string | null; providerReference: string | null } | null,
-): Promise<void> {
-  if (!transaction || transaction.escrowStatus !== "held") return;
+): Promise<boolean> {
+  if (!transaction || transaction.escrowStatus !== "held") return false;
 
-  if (transaction.providerReference) {
-    await paymentProvider.refundTransaction(transaction.providerReference, transaction.amountCents, {
+  const claim = await prisma.transaction.updateMany({
+    where: { id: transaction.id, escrowStatus: "held" },
+    data: { escrowStatus: "refund_pending" },
+  });
+  if (claim.count !== 1) return false;
+
+  try {
+    if (!transaction.providerReference) {
+      throw new Error("This legacy payment has no provider reference and needs manual finance review.");
+    }
+    const refund = await paymentProvider.refundTransaction(transaction.providerReference, transaction.amountCents, {
       reason: `Service booking ${bookingId} refund`,
     });
+    if (refund.status === "failed") throw new Error("The payment provider rejected this refund.");
+    if (refund.status === "pending") return true;
+  } catch (error) {
+    await prisma.transaction.updateMany({
+      where: { id: transaction.id, escrowStatus: "refund_pending" },
+      data: { escrowStatus: "held" },
+    });
+    throw error;
   }
 
-  await prisma.transaction.update({
-    where: { id: transaction.id },
+  await prisma.transaction.updateMany({
+    where: { id: transaction.id, escrowStatus: "refund_pending" },
     data: { escrowStatus: "refunded", escrowReleasedAt: new Date() },
   });
+  return true;
 }

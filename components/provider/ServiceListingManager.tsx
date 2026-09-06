@@ -114,8 +114,8 @@ function ServiceListingForm({
 
     const priceNaira = Number(form.priceNaira);
     const durationMinutes = Number(form.durationMinutes);
-    if (!form.title.trim() || Number.isNaN(priceNaira) || priceNaira < 0) {
-      setError("Enter a title and a valid price.");
+    if (!form.title.trim() || Number.isNaN(priceNaira) || priceNaira < 100) {
+      setError("Enter a title and a price of at least ₦100.");
       return;
     }
     if (!Number.isInteger(durationMinutes) || durationMinutes < 15) {
@@ -288,7 +288,7 @@ function ServiceListingForm({
           <Input
             id="service-price"
             type="number"
-            min={0}
+            min={100}
             step="0.01"
             value={form.priceNaira}
             onChange={(event) =>
@@ -406,7 +406,7 @@ export function ServiceListingManager({
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm("Delete this service listing?")) return;
+    if (!window.confirm("Remove this service from discovery? Existing bookings will be kept.")) return;
 
     const res = await fetch(`/api/service-listings/${id}`, {
       method: "DELETE",

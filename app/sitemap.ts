@@ -33,7 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       orderBy: { updatedAt: "desc" },
     }),
     prisma.serviceListing.findMany({
-      where: { provider: { isSuspended: false } },
+      where: { isActive: true, provider: { isSuspended: false } },
       select: { id: true, updatedAt: true },
       take: MAX_ENTITIES_PER_TYPE,
       orderBy: { updatedAt: "desc" },

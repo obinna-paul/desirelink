@@ -4,6 +4,10 @@ export type WebhookEventType =
   | "charge.pending"
   | "transfer.succeeded"
   | "transfer.failed"
+  | "refund.pending"
+  | "refund.needs_attention"
+  | "refund.succeeded"
+  | "refund.failed"
   | "unknown";
 
 export type WebhookPaymentMethod = {

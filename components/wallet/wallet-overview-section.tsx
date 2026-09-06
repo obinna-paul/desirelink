@@ -1,4 +1,5 @@
-import { Heart } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Heart, LockKeyhole } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 import { getWalletOverview, MINIMUM_WITHDRAWAL_CENTS } from "@/lib/wallet";
@@ -51,6 +52,34 @@ export async function WalletOverviewSection({ profileId }: { profileId: string }
           </div>
         )}
       </div>
+
+      {overview.isProvider && overview.pendingEscrowCount > 0 && (
+        <section className="border-y border-border/70 bg-secondary/45 px-1 py-4 md:rounded-lg md:border md:px-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-background text-foreground">
+                <LockKeyhole className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Pending in escrow</p>
+                <p className="mt-0.5 text-xl font-semibold tabular-nums">
+                  {formatCents(overview.pendingServiceEscrowCents)}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Estimated earnings from {overview.pendingEscrowCount} held {overview.pendingEscrowCount === 1 ? "booking" : "bookings"}, after Udala&apos;s fee. This is not withdrawable yet.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/services/bookings"
+              aria-label="Open service escrow bookings"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-background"
+            >
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+        </section>
+      )}
 
       {!overview.isProvider && (
         <section className="flex flex-col gap-3">

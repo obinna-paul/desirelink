@@ -32,7 +32,7 @@ export function BookingRequestDialog({
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+  const [submittedState, setSubmittedState] = useState<"pending_provider" | "processing_payment" | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useFocusTrap(open, dialogRef);
@@ -50,7 +50,7 @@ export function BookingRequestDialog({
     setRequestedAt("");
     setNote("");
     setError(null);
-    setSubmitted(false);
+    setSubmittedState(null);
     setOpen(true);
   }
 
@@ -80,7 +80,7 @@ export function BookingRequestDialog({
       return;
     }
     setSubmitting(false);
-    setSubmitted(true);
+    setSubmittedState(body?.state === "processing_payment" ? "processing_payment" : "pending_provider");
   }
 
   return (
@@ -117,12 +117,15 @@ export function BookingRequestDialog({
               </button>
             </div>
 
-            {submitted ? (
+            {submittedState ? (
               <div className="flex flex-col items-center gap-3 py-4 text-center">
-                <p className="text-sm font-medium">Booking request sent</p>
+                <p className="text-sm font-medium">
+                  {submittedState === "processing_payment" ? "Confirming your payment" : "Booking request sent"}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  Your payment of {formatCents(priceCents)} is held safely in escrow while the provider reviews
-                  your request. You&apos;ll be notified the moment they respond.
+                  {submittedState === "processing_payment"
+                    ? "Your payment was received and is being verified. We will notify the provider as soon as confirmation completes."
+                    : `Your payment of ${formatCents(priceCents)} is held safely in escrow while the provider reviews your request. You'll be notified the moment they respond.`}
                 </p>
                 <Button type="button" size="sm" className="w-full sm:w-auto" asChild>
                   <a href="/services/bookings">View my bookings</a>

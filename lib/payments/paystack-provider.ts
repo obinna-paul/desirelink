@@ -63,6 +63,9 @@ type PaystackTransferData = {
 type PaystackRefundData = {
   transaction_reference: string;
   status: string;
+  amount?: number | string;
+  currency?: string;
+  domain?: "test" | "live";
 };
 
 function normalizeRefundStatus(status: string): RefundResult["status"] {
@@ -366,7 +369,7 @@ export class PaystackProvider implements PaymentProvider {
 
     const body = JSON.parse(raw.toString("utf8")) as {
       event: string;
-      data: PaystackTransactionData & Partial<PaystackTransferData>;
+      data: PaystackTransactionData & Partial<PaystackTransferData> & Partial<PaystackRefundData>;
     };
     const data = body.data;
     const metadata =
@@ -391,6 +394,27 @@ export class PaystackProvider implements PaymentProvider {
         environment: data.domain ?? null,
         reference: data.reference ?? null,
         metadata,
+      };
+    }
+
+    if (body.event.startsWith("refund.")) {
+      const amount = typeof data.amount === "string" ? Number(data.amount) : data.amount;
+      return {
+        type:
+          body.event === "refund.processed"
+            ? "refund.succeeded"
+            : body.event === "refund.failed"
+              ? "refund.failed"
+              : body.event === "refund.needs-attention"
+                ? "refund.needs_attention"
+              : "refund.pending",
+        customerId: null,
+        paymentMethod: null,
+        amountCents: Number.isFinite(amount) ? Number(amount) : null,
+        currency: data.currency ?? null,
+        environment: data.domain ?? null,
+        reference: data.transaction_reference ?? null,
+        metadata: {},
       };
     }
 

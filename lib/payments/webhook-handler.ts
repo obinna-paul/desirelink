@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { creditProviderWallet } from "@/lib/wallet";
 import { sendPaymentFailedEmail, sendSubscriptionActivatedEmails } from "@/lib/email/billing-notifications";
 import { sendNewBookingRequestEmail } from "@/lib/email/booking-notifications";
+import { createNotification } from "@/lib/notifications";
 import { sendPayoutCompletedEmail, sendPayoutFailedEmail } from "@/lib/email/wallet-notifications";
 import {
   getPaymentCurrency,
@@ -40,6 +41,26 @@ type PaymentEventOutcome =
       withdrawalId: string;
       providerId: string;
       amountCents: number;
+    }
+  | {
+      kind: "service_booking_paid";
+      bookingId: string;
+      providerId: string;
+      customerId: string;
+      customerName: string;
+      listingTitle: string;
+    }
+  | {
+      kind: "service_booking_failed";
+      customerId: string;
+      amountCents: number;
+    }
+  | {
+      kind: "service_refund_processed" | "service_refund_failed" | "service_refund_attention";
+      bookingId: string;
+      customerId: string;
+      providerId: string;
+      listingTitle: string;
     };
 
 export class PaymentIntegrityError extends Error {
@@ -79,6 +100,36 @@ export function assertProviderTierPaymentIntegrity(
   ) {
     throw new PaymentIntegrityError(
       `Subscription ${expected.pendingId} came from a non-live Paystack transaction.`,
+    );
+  }
+}
+
+export function assertServiceBookingPaymentIntegrity(
+  event: WebhookEvent,
+  expected: { bookingId: string; amountCents: number; customerId: string | null },
+): void {
+  if (event.amountCents !== expected.amountCents) {
+    throw new PaymentIntegrityError(
+      `Service booking ${expected.bookingId} expected ${expected.amountCents} but provider reported ${event.amountCents ?? "no amount"}.`,
+    );
+  }
+  if (event.currency?.toUpperCase() !== getPaymentCurrency()) {
+    throw new PaymentIntegrityError(
+      `Service booking ${expected.bookingId} expected ${getPaymentCurrency()} but provider reported ${event.currency ?? "no currency"}.`,
+    );
+  }
+  if (!expected.customerId || event.customerId !== expected.customerId) {
+    throw new PaymentIntegrityError(
+      `Service booking ${expected.bookingId} does not belong to the customer reported by the provider.`,
+    );
+  }
+  if (
+    activeProviderName() === "paystack" &&
+    requiresLivePayments() &&
+    event.environment !== "live"
+  ) {
+    throw new PaymentIntegrityError(
+      `Service booking ${expected.bookingId} came from a non-live Paystack transaction.`,
     );
   }
 }
@@ -302,17 +353,33 @@ async function handleHeartsPurchaseEvent(
  * (see lib/service-bookings.ts's createServiceBooking). On success this is
  * the ONLY place the Transaction gets created, and it's deliberately left in
  * escrow ("held") rather than crediting the provider's wallet — that only
- * happens once the customer confirms completion (or the auto-release cron
- * fires), so a provider can't get paid for a booking they never delivered.
+ * happens only once the customer confirms completion or finance resolves a
+ * dispute, so a provider cannot receive money before delivery is confirmed.
  */
-async function handleServiceBookingEvent(event: WebhookEvent, db: Db): Promise<void> {
+async function handleServiceBookingEvent(event: WebhookEvent, db: Db): Promise<PaymentEventOutcome | null> {
   const pendingId = event.metadata.pendingId;
-  if (!pendingId) return;
+  if (!pendingId) return null;
 
-  const pending = await db.serviceBooking.findUnique({ where: { id: pendingId } });
-  if (!pending || pending.status !== "pending_payment") return;
+  const pending = await db.serviceBooking.findUnique({
+    where: { id: pendingId },
+    select: {
+      id: true,
+      status: true,
+      customerId: true,
+      providerId: true,
+      priceCents: true,
+      listing: { select: { title: true } },
+      customer: { select: { displayName: true, paymentCustomerId: true } },
+    },
+  });
+  if (!pending || pending.status !== "pending_payment") return null;
 
   if (event.type === "charge.succeeded") {
+    assertServiceBookingPaymentIntegrity(event, {
+      bookingId: pending.id,
+      amountCents: pending.priceCents,
+      customerId: pending.customer.paymentCustomerId,
+    });
     await db.serviceBooking.update({
       where: { id: pendingId },
       data: { status: "pending_provider" },
@@ -330,13 +397,24 @@ async function handleServiceBookingEvent(event: WebhookEvent, db: Db): Promise<v
     });
     if (event.paymentMethod)
       await upsertPaymentMethod(pending.customerId, event.paymentMethod, db);
-    await sendNewBookingRequestEmail(pending.id);
+    return {
+      kind: "service_booking_paid",
+      bookingId: pending.id,
+      providerId: pending.providerId,
+      customerId: pending.customerId,
+      customerName: pending.customer.displayName,
+      listingTitle: pending.listing.title,
+    };
   } else {
     await db.serviceBooking.update({
       where: { id: pendingId },
       data: { status: "cancelled", declineReason: "Payment failed." },
     });
-    await notifyPaymentFailed(pending.customerId, "your booking", event.amountCents ?? pending.priceCents);
+    return {
+      kind: "service_booking_failed",
+      customerId: pending.customerId,
+      amountCents: event.amountCents ?? pending.priceCents,
+    };
   }
 }
 
@@ -391,12 +469,98 @@ async function handleWalletWithdrawalEvent(
   };
 }
 
+async function handleServiceRefundEvent(
+  event: WebhookEvent,
+  db: Db,
+): Promise<PaymentEventOutcome | null> {
+  if (!event.reference || event.type === "refund.pending") return null;
+
+  const transaction = await db.transaction.findFirst({
+    where: { providerReference: event.reference, escrowStatus: "refund_pending" },
+    select: {
+      id: true,
+      serviceBooking: {
+        select: {
+          id: true,
+          customerId: true,
+          providerId: true,
+          listing: { select: { title: true } },
+        },
+      },
+    },
+  });
+  if (!transaction?.serviceBooking) return null;
+
+  const booking = transaction.serviceBooking;
+  if (event.type === "refund.succeeded") {
+    await db.transaction.update({
+      where: { id: transaction.id },
+      data: { escrowStatus: "refunded", escrowReleasedAt: new Date() },
+    });
+    return {
+      kind: "service_refund_processed",
+      bookingId: booking.id,
+      customerId: booking.customerId,
+      providerId: booking.providerId,
+      listingTitle: booking.listing.title,
+    };
+  }
+
+  if (event.type === "refund.needs_attention") {
+    await db.serviceBooking.update({
+      where: { id: booking.id },
+      data: {
+        status: "refund_requested",
+        refundRequestedAt: new Date(),
+        refundReason: "Paystack needs additional customer bank details to complete this refund.",
+        adminEscalatedAt: new Date(),
+      },
+    });
+    return {
+      kind: "service_refund_attention",
+      bookingId: booking.id,
+      customerId: booking.customerId,
+      providerId: booking.providerId,
+      listingTitle: booking.listing.title,
+    };
+  }
+
+  await db.transaction.update({
+    where: { id: transaction.id },
+    data: { escrowStatus: "held", escrowReleasedAt: null },
+  });
+  await db.serviceBooking.update({
+    where: { id: booking.id },
+    data: {
+      status: "refund_requested",
+      refundRequestedAt: new Date(),
+      refundReason: "The payment provider could not complete the approved refund. Finance must review it manually.",
+      adminEscalatedAt: null,
+    },
+  });
+  return {
+    kind: "service_refund_failed",
+    bookingId: booking.id,
+    customerId: booking.customerId,
+    providerId: booking.providerId,
+    listingTitle: booking.listing.title,
+  };
+}
+
 async function dispatch(
   event: WebhookEvent,
   db: Db,
 ): Promise<PaymentEventOutcome | null> {
   if (event.type === "transfer.succeeded" || event.type === "transfer.failed") {
     return handleWalletWithdrawalEvent(event, db);
+  }
+  if (
+    event.type === "refund.pending" ||
+    event.type === "refund.needs_attention" ||
+    event.type === "refund.succeeded" ||
+    event.type === "refund.failed"
+  ) {
+    return handleServiceRefundEvent(event, db);
   }
   if (event.type === "unknown" || event.type === "charge.pending") return null;
 
@@ -407,8 +571,7 @@ async function dispatch(
       await handleHeartsPurchaseEvent(event, db);
       return null;
     case "service_booking":
-      await handleServiceBookingEvent(event, db);
-      return null;
+      return handleServiceBookingEvent(event, db);
     default:
       return null;
   }
@@ -485,5 +648,81 @@ export async function processPaymentEvent(event: WebhookEvent): Promise<void> {
       "The bank transfer was not completed.",
       outcome.withdrawalId,
     );
+  } else if (outcome?.kind === "service_booking_paid") {
+    const deliveries = await Promise.allSettled([
+      createNotification({
+        recipientId: outcome.providerId,
+        actorId: outcome.customerId,
+        type: "booking",
+        title: `${outcome.customerName} booked ${outcome.listingTitle}`,
+        body: "Payment is secured in escrow. Review the request when you are ready.",
+        href: "/services/bookings",
+      }),
+      sendNewBookingRequestEmail(outcome.bookingId),
+    ]);
+    deliveries.forEach((delivery) => {
+      if (delivery.status === "rejected") console.error("[booking] post-payment notification failed", delivery.reason);
+    });
+  } else if (outcome?.kind === "service_booking_failed") {
+    await notifyPaymentFailed(outcome.customerId, "your booking", outcome.amountCents);
+  } else if (outcome?.kind === "service_refund_processed") {
+    await createNotification({
+      recipientId: outcome.customerId,
+      type: "booking",
+      title: "Refund processed",
+      body: `The refund for ${outcome.listingTitle} has been processed. Your bank may take several days to reflect it.`,
+      href: "/services/bookings",
+    });
+  } else if (outcome?.kind === "service_refund_failed") {
+    const admins = await prisma.user.findMany({
+      where: {
+        isAdmin: true,
+        OR: [{ adminRole: "FINANCE" }, { adminRole: "SUPERADMIN" }, { adminRole: null }],
+      },
+      select: { profile: { select: { id: true } } },
+    });
+    const deliveries = await Promise.allSettled([
+      createNotification({
+        recipientId: outcome.customerId,
+        type: "booking",
+        title: "Refund needs attention",
+        body: `The refund for ${outcome.listingTitle} could not complete automatically. Udala Finance has been notified.`,
+        href: "/services/bookings",
+      }),
+      ...admins.flatMap(({ profile }) => profile ? [createNotification({
+        recipientId: profile.id,
+        type: "booking",
+        title: "Service refund failed",
+        body: `${outcome.listingTitle} needs manual finance review.`,
+        href: "/admin/finance",
+      })] : []),
+    ]);
+    deliveries.forEach((delivery) => {
+      if (delivery.status === "rejected") console.error("[booking] refund failure notification failed", delivery.reason);
+    });
+  } else if (outcome?.kind === "service_refund_attention") {
+    const admins = await prisma.user.findMany({
+      where: {
+        isAdmin: true,
+        OR: [{ adminRole: "FINANCE" }, { adminRole: "SUPERADMIN" }, { adminRole: null }],
+      },
+      select: { profile: { select: { id: true } } },
+    });
+    await Promise.allSettled([
+      createNotification({
+        recipientId: outcome.customerId,
+        type: "booking",
+        title: "Refund needs bank details",
+        body: `Your refund for ${outcome.listingTitle} needs additional bank details. Udala Finance will help resolve it.`,
+        href: "/services/bookings",
+      }),
+      ...admins.flatMap(({ profile }) => profile ? [createNotification({
+        recipientId: profile.id,
+        type: "booking",
+        title: "Refund needs customer bank details",
+        body: `${outcome.listingTitle} requires action in Paystack before the refund can complete.`,
+        href: "/admin/finance",
+      })] : []),
+    ]);
   }
 }

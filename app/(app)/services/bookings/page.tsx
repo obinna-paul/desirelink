@@ -38,8 +38,13 @@ export default async function ServiceBookingsPage({
     getCustomerBookings(profile.id),
     isProvider ? getProviderBookings(profile.id) : Promise.resolve([]),
   ]);
-  const customerBookings = customerBookingsRaw.map((b) => ({ ...b, requestedAt: b.requestedAt.toISOString() }));
-  const providerBookings = providerBookingsRaw.map((b) => ({ ...b, requestedAt: b.requestedAt.toISOString() }));
+  const serializeBooking = <T extends { requestedAt: Date; refundRequestedAt: Date | null }>(booking: T) => ({
+    ...booking,
+    requestedAt: booking.requestedAt.toISOString(),
+    refundRequestedAt: booking.refundRequestedAt?.toISOString() ?? null,
+  });
+  const customerBookings = customerBookingsRaw.map(serializeBooking);
+  const providerBookings = providerBookingsRaw.map(serializeBooking);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 pb-10">
@@ -48,8 +53,8 @@ export default async function ServiceBookingsPage({
         <div>
           <p className="text-sm font-semibold">Every booking is escrow-protected</p>
           <p className="text-xs text-muted-foreground">
-            Payment is held safely until you confirm the service was delivered — providers are only paid once
-            you&apos;re satisfied, or automatically after a short grace period if nothing&apos;s flagged.
+            Payment is held safely until you confirm delivery. If something goes wrong, request a refund review
+            and no money will move until Udala resolves it.
           </p>
         </div>
       </div>

@@ -5,7 +5,7 @@
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/cron/release-escrow",
+      "path": "/api/cron/escalate-service-escrow",
       "schedule": "0 7 * * *"
     },
     {

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
-import { BriefcaseBusiness, ShieldCheck } from "lucide-react";
+import { BriefcaseBusiness, CheckCircle2, Clock3, LockKeyhole, ShieldCheck, TriangleAlert } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,8 +15,11 @@ export type BookingListItem = {
   requestedAt: string;
   note: string;
   priceCents: number;
-  status: "pending_payment" | "pending_provider" | "confirmed" | "declined" | "cancelled" | "completed";
+  status: "pending_payment" | "pending_provider" | "confirmed" | "refund_requested" | "declined" | "cancelled" | "completed";
   declineReason: string | null;
+  refundRequestedAt: string | null;
+  refundReason: string | null;
+  transaction: { escrowStatus: string | null } | null;
   listing: { title: string; coverImageUrl: string | null };
   provider: { username: string; displayName: string; avatarUrl: string };
   customer: { username: string; displayName: string; avatarUrl: string };
@@ -26,8 +29,9 @@ const STATUS_LABEL: Record<BookingListItem["status"], string> = {
   pending_payment: "Awaiting payment",
   pending_provider: "Awaiting creator response",
   confirmed: "Confirmed",
-  declined: "Declined — refunded",
-  cancelled: "Cancelled — refunded",
+  refund_requested: "Under review",
+  declined: "Declined",
+  cancelled: "Cancelled",
   completed: "Completed",
 };
 
@@ -35,6 +39,7 @@ const STATUS_VARIANT: Record<BookingListItem["status"], "default" | "outline" | 
   pending_payment: "outline",
   pending_provider: "secondary",
   confirmed: "default",
+  refund_requested: "secondary",
   declined: "outline",
   cancelled: "outline",
   completed: "default",
@@ -156,6 +161,114 @@ function ActionButton({
   );
 }
 
+function RefundRequestControl({ bookingId, onDone }: { bookingId: string; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!open) {
+    return (
+      <Button type="button" size="sm" variant="outline" className="min-h-10" onClick={() => setOpen(true)}>
+        Report a problem
+      </Button>
+    );
+  }
+
+  return (
+    <div className="w-full border-t border-border/50 pt-3">
+      <label htmlFor={`refund-reason-${bookingId}`} className="text-sm font-medium">
+        What went wrong?
+      </label>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Payment will stay locked while Udala reviews your request.
+      </p>
+      <Textarea
+        id={`refund-reason-${bookingId}`}
+        rows={3}
+        minLength={10}
+        maxLength={500}
+        className="mt-2 resize-none"
+        placeholder="Describe what happened so our team can review it fairly."
+        value={reason}
+        onChange={(event) => setReason(event.target.value)}
+      />
+      {error && <p role="alert" className="mt-1 text-xs text-destructive">{error}</p>}
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+        <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={() => setOpen(false)}>
+          Keep booking
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="text-destructive hover:text-destructive"
+          disabled={pending || reason.trim().length < 10}
+          onClick={async () => {
+            setPending(true);
+            setError(null);
+            const result = await patchBooking(bookingId, { action: "request_refund", reason });
+            setPending(false);
+            if (!result.ok) {
+              setError(result.error ?? "Couldn't open a refund review.");
+              return;
+            }
+            onDone();
+          }}
+        >
+          {pending ? "Submitting..." : "Request refund review"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function EscrowStatus({ booking }: { booking: BookingListItem }) {
+  const refundProcessing = booking.transaction?.escrowStatus === "refund_pending";
+  const released = booking.transaction?.escrowStatus === "released" || booking.status === "completed";
+  const refunded = booking.transaction?.escrowStatus === "refunded";
+  const review = booking.status === "refund_requested";
+
+  const Icon = released || refunded ? CheckCircle2 : review ? TriangleAlert : refundProcessing || booking.status === "pending_payment" ? Clock3 : LockKeyhole;
+  const title = refundProcessing
+    ? "Refund processing"
+    : released
+    ? "Payment released"
+    : refunded
+      ? "Payment refunded"
+      : review
+        ? "Payment held for review"
+        : booking.status === "pending_payment"
+          ? "Waiting for payment"
+          : "Payment secured";
+  const detail = refundProcessing
+    ? "The payment provider is processing the refund. It cannot be released to the provider."
+    : released
+    ? "The funds are now in the provider's wallet."
+    : refunded
+      ? "The held payment is no longer payable to the provider."
+      : review
+        ? "Udala finance has been notified. No money can move until the review is resolved."
+        : booking.status === "pending_provider"
+          ? "Held in escrow while the provider reviews the request."
+          : booking.status === "confirmed"
+            ? "Held in escrow until the customer releases it or reports a problem."
+            : "Complete checkout to secure this request.";
+
+  return (
+    <div className="flex gap-2.5 border-t border-border/50 pt-3">
+      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${review ? "text-amber-600" : "text-primary"}`} aria-hidden="true" />
+      <div className="min-w-0">
+        <p className="text-xs font-semibold">Escrow room · {title}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{detail}</p>
+        {review && booking.refundReason && (
+          <p className="mt-2 text-xs text-foreground"><span className="font-medium">Issue reported:</span> {booking.refundReason}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function BookingList({ role, bookings }: { role: "provider" | "customer"; bookings: BookingListItem[] }) {
   const router = useRouter();
 
@@ -199,10 +312,12 @@ export function BookingList({ role, bookings }: { role: "provider" | "customer";
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-3">
+            <EscrowStatus booking={booking} />
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-sm font-semibold text-primary">
                 {formatCents(booking.priceCents)}
-                {(booking.status === "pending_provider" || booking.status === "confirmed") && (
+                {(booking.status === "pending_provider" || booking.status === "confirmed" || booking.status === "refund_requested") && (
                   <span className="flex items-center gap-1 text-[11px] font-normal text-muted-foreground">
                     <ShieldCheck className="h-3 w-3" aria-hidden="true" /> held in escrow
                   </span>
@@ -216,7 +331,7 @@ export function BookingList({ role, bookings }: { role: "provider" | "customer";
                     <DeclineControl bookingId={booking.id} onDone={() => router.refresh()} />
                   </>
                 )}
-                {role === "customer" && (booking.status === "pending_provider" || booking.status === "confirmed") && (
+                {role === "customer" && booking.status === "pending_provider" && (
                   <ActionButton
                     label="Cancel"
                     action="cancel"
@@ -227,7 +342,7 @@ export function BookingList({ role, bookings }: { role: "provider" | "customer";
                 )}
                 {role === "customer" && booking.status === "confirmed" && (
                   <ActionButton
-                    label="Confirm service delivered"
+                    label="Release payment"
                     action="complete"
                     bookingId={booking.id}
                     onDone={() => router.refresh()}
@@ -235,6 +350,9 @@ export function BookingList({ role, bookings }: { role: "provider" | "customer";
                 )}
               </div>
             </div>
+            {role === "customer" && booking.status === "confirmed" && (
+              <RefundRequestControl bookingId={booking.id} onDone={() => router.refresh()} />
+            )}
           </div>
         );
       })}

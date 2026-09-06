@@ -8,9 +8,10 @@ import {
   cancelServiceBooking,
   completeServiceBooking,
   declineServiceBooking,
+  requestServiceBookingRefund,
 } from "@/lib/service-bookings";
 
-const ACTIONS = ["accept", "decline", "cancel", "complete"] as const;
+const ACTIONS = ["accept", "decline", "cancel", "complete", "request_refund"] as const;
 type Action = (typeof ACTIONS)[number];
 
 function isAction(value: unknown): value is Action {
@@ -49,6 +50,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         return cancelServiceBooking(params.id, profile.id);
       case "complete":
         return completeServiceBooking(params.id, profile.id);
+      case "request_refund":
+        return requestServiceBookingRefund(params.id, profile.id, reason);
     }
   })();
 

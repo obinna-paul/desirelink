@@ -20,6 +20,7 @@ enum ServiceBookingStatus {
   pending_payment
   pending_provider
   confirmed
+  refund_requested
   declined
   cancelled
   completed
@@ -27,6 +28,7 @@ enum ServiceBookingStatus {
 
 enum EscrowStatus {
   held
+  refund_pending
   released
   refunded
 }
@@ -447,12 +449,14 @@ model ServiceListing {
   durationMinutes Int
   priceCents      Int
   coverImageUrl   String?
+  isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   bookings ServiceBooking[]
 
   @@index([providerId])
+  @@index([isActive])
 }
 
 /**
@@ -462,9 +466,8 @@ model ServiceListing {
  * moves to "pending_provider" and the funds are held in escrow on the linked
  * Transaction — the provider must accept or decline before the requested
  * time. Funds only reach the provider's wallet once the customer confirms
- * completion, or the release-escrow cron auto-releases after the scheduled
- * time plus a grace period. Declining or cancelling refunds the customer in
- * full.
+ * completion. A confirmed booking can instead be flagged for an admin-reviewed
+ * refund. No timed process moves held funds into the provider wallet.
  */
 model ServiceBooking {
   id          String               @id @default(cuid())
@@ -479,9 +482,12 @@ model ServiceBooking {
   priceCents  Int
   status      ServiceBookingStatus @default(pending_payment)
 
-  declineReason String?
-  respondedAt   DateTime?
-  completedAt   DateTime?
+  declineReason     String?
+  respondedAt       DateTime?
+  completedAt       DateTime?
+  refundRequestedAt DateTime?
+  refundReason      String?
+  adminEscalatedAt  DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -492,6 +498,7 @@ model ServiceBooking {
   @@index([providerId])
   @@index([customerId])
   @@index([status])
+  @@index([refundRequestedAt])
 }
 
 model PaymentMethod {
@@ -556,13 +563,13 @@ model Notification {
 // --- Creator posts -------------------------------------------------------
 
 model Post {
-  id               String         @id @default(cuid())
+  id               String           @id @default(cuid())
   authorId         String
-  author           Profile        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author           Profile          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   content          String
   mediaUrls        Json
-  postType         PostType       @default(standard)
-  isSubscriberOnly Boolean        @default(false)
+  postType         PostType         @default(standard)
+  isSubscriberOnly Boolean          @default(false)
   /**
    * Which tier unlocks this post, when isSubscriberOnly is true - null means "any active
    * subscription to this creator unlocks it" (the fallback for posts made before per-tier
@@ -571,12 +578,12 @@ model Post {
    * lib/subscription-access.ts).
    */
   tierId           String?
-  tier             CreatorTier?   @relation(fields: [tierId], references: [id], onDelete: SetNull)
-  isArchived       Boolean        @default(false)
-  viewCount        Int            @default(0)
+  tier             CreatorTier?     @relation(fields: [tierId], references: [id], onDelete: SetNull)
+  isArchived       Boolean          @default(false)
+  viewCount        Int              @default(0)
   pinnedAt         DateTime?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
   comments         PostComment[]
   reactions        PostReaction[]
   shares           PostShare[]

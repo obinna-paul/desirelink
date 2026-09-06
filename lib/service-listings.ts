@@ -8,7 +8,7 @@ import type { ServiceListingInput } from "@/lib/validations/service-listing";
 export async function getProviderServiceListings(providerId: string) {
   try {
     return await prisma.serviceListing.findMany({
-      where: { providerId },
+      where: { providerId, isActive: true },
       orderBy: { createdAt: "asc" },
     });
   } catch (error) {
@@ -53,6 +53,7 @@ export async function getServiceListingById(id: string): Promise<HomeServiceList
     return await prisma.serviceListing.findFirst({
       where: {
         id,
+        isActive: true,
         provider: { isSuspended: false },
       },
       include: homeServiceListingInclude,
@@ -73,6 +74,7 @@ export async function getHomeServiceListings(limit = 24): Promise<HomeServiceLis
   try {
     return await prisma.serviceListing.findMany({
       where: {
+        isActive: true,
         provider: {
           isIncognito: false,
           isSuspended: false,
@@ -106,7 +108,7 @@ export async function updateServiceListing(
   input: ServiceListingInput
 ): Promise<ServiceListingActionResult> {
   const existing = await prisma.serviceListing.findUnique({ where: { id } });
-  if (!existing || existing.providerId !== providerId) {
+  if (!existing || !existing.isActive || existing.providerId !== providerId) {
     return { ok: false, status: 404, error: "Service listing not found" };
   }
 
@@ -120,7 +122,9 @@ export async function deleteServiceListing(id: string, providerId: string): Prom
     return { ok: false, status: 404, error: "Service listing not found" };
   }
 
-  await prisma.serviceListing.delete({ where: { id } });
+  // Keep booking and transaction history intact. Archived listings disappear
+  // from discovery and can no longer receive new bookings.
+  await prisma.serviceListing.update({ where: { id }, data: { isActive: false } });
   return { ok: true };
 }
 
@@ -213,7 +217,7 @@ export async function searchServiceListings(
     ];
   }
 
-  const where: Prisma.ServiceListingWhereInput = { provider: providerWhere };
+  const where: Prisma.ServiceListingWhereInput = { isActive: true, provider: providerWhere };
 
   if (filters.categories.length > 0) {
     where.category = { in: filters.categories };

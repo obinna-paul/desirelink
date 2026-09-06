@@ -147,7 +147,15 @@ export async function getWalletOverview(profileId: string) {
 
   const isProvider = isProviderProfileType(profile.profileType);
 
-  const [heartPurchases, giftsReceived, giftsSent, withdrawals] =
+  const [
+    heartPurchases,
+    giftsReceived,
+    giftsSent,
+    withdrawals,
+    pendingEscrowAggregate,
+    pendingEscrowCount,
+    pendingServiceBookings,
+  ] =
     await Promise.all([
       prisma.heartPurchase.findMany({
         where: { userId: profileId, status: "succeeded" },
@@ -199,7 +207,40 @@ export async function getWalletOverview(profileId: string) {
             },
           })
         : Promise.resolve([]),
+      isProvider
+        ? prisma.transaction.aggregate({
+            where: { escrowStatus: "held", serviceBooking: { providerId: profileId } },
+            _sum: { amountCents: true },
+          })
+        : Promise.resolve({ _sum: { amountCents: null } }),
+      isProvider
+        ? prisma.transaction.count({
+            where: { escrowStatus: "held", serviceBooking: { providerId: profileId } },
+          })
+        : Promise.resolve(0),
+      isProvider
+        ? prisma.serviceBooking.findMany({
+            where: {
+              providerId: profileId,
+              transaction: { escrowStatus: "held" },
+              status: { in: ["pending_provider", "confirmed", "refund_requested"] },
+            },
+            orderBy: { createdAt: "desc" },
+            take: 3,
+            select: {
+              id: true,
+              priceCents: true,
+              status: true,
+              listing: { select: { title: true } },
+              customer: { select: { displayName: true } },
+            },
+          })
+        : Promise.resolve([]),
     ]);
+
+  const pendingEscrowGrossCents = pendingEscrowAggregate._sum.amountCents ?? 0;
+  const pendingServiceEscrowCents =
+    pendingEscrowGrossCents - Math.round(pendingEscrowGrossCents * PLATFORM_FEE_RATE);
 
   return {
     heartsBalance: profile.heartsBalance,
@@ -212,6 +253,9 @@ export async function getWalletOverview(profileId: string) {
     giftsReceived,
     giftsSent,
     withdrawals,
+    pendingServiceEscrowCents,
+    pendingEscrowCount,
+    pendingServiceBookings,
   };
 }
 
