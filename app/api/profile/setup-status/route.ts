@@ -23,6 +23,7 @@ export async function GET() {
       showExactLocation: true,
       isVerified: true,
       isVerifiedCreator: true,
+      isVerifiedServiceProvider: true,
     },
   });
 

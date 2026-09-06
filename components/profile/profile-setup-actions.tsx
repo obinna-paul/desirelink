@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import type { Profile } from "@prisma/client";
 import {
@@ -29,7 +29,40 @@ export type SetupProfile = Pick<
   | "showExactLocation"
   | "isVerified"
   | "isVerifiedCreator"
+  | "isVerifiedServiceProvider"
 >;
+
+const VISIBLE_ACTION_LIMIT = 3;
+const EXIT_ANIMATION_MS = 360;
+const SETUP_HANDOFF_KEY = "udala:quick-actions-handoff";
+
+type SetupActionState = {
+  id: string;
+  done: boolean;
+};
+
+type SetupHandoff = {
+  visibleIds: string[];
+  doneById: Record<string, boolean>;
+};
+
+function pendingActionIds(actions: SetupActionState[]) {
+  return actions
+    .filter((action) => !action.done)
+    .slice(0, VISIBLE_ACTION_LIMIT)
+    .map((action) => action.id);
+}
+
+function fillVisibleQueue(seedIds: string[], actions: SetupActionState[]) {
+  const knownIds = new Set(actions.map((action) => action.id));
+  return Array.from(
+    new Set(
+      seedIds
+        .filter((id) => knownIds.has(id))
+        .concat(actions.filter((action) => !action.done).map((action) => action.id)),
+    ),
+  ).slice(0, VISIBLE_ACTION_LIMIT);
+}
 
 async function fetchSetupStatus(url: string): Promise<{ profile: SetupProfile }> {
   const res = await fetch(url);
@@ -48,7 +81,8 @@ export function ProfileSetupActions({ profile: initialProfile }: { profile: Setu
     dedupingInterval: 3_000,
   });
   const profile = data?.profile ?? initialProfile;
-  const hasVerification = profile.isVerified || profile.isVerifiedCreator;
+  const hasVerification =
+    profile.isVerified || profile.isVerifiedCreator || profile.isVerifiedServiceProvider;
 
   const actions = useMemo(
     () => [
@@ -131,47 +165,112 @@ export function ProfileSetupActions({ profile: initialProfile }: { profile: Setu
   const completed = actions.filter((action) => action.done).length;
   const progress = Math.round((completed / actions.length) * 100);
   const actionStateSignature = actions.map((action) => `${action.id}:${action.done}`).join("|");
-  const pendingIds = useMemo(() => actions.filter((action) => !action.done).slice(0, 3).map((action) => action.id), [actions]);
+  const pendingIds = useMemo(() => pendingActionIds(actions), [actions]);
+  const actionsRef = useRef(actions);
+  const pendingIdsRef = useRef(pendingIds);
+  const visibleIdsRef = useRef(pendingIds);
   const previousDoneRef = useRef<Map<string, boolean> | null>(null);
+  const animationRunningRef = useRef(false);
+  const exitStartTimerRef = useRef<number | null>(null);
+  const replacementTimerRef = useRef<number | null>(null);
   const [visibleIds, setVisibleIds] = useState<string[]>(() => pendingIds);
   const [exitingIds, setExitingIds] = useState<Set<string>>(() => new Set());
 
+  actionsRef.current = actions;
+  pendingIdsRef.current = pendingIds;
+  visibleIdsRef.current = visibleIds;
+
+  const clearAnimationTimers = useCallback(() => {
+    if (exitStartTimerRef.current !== null) window.clearTimeout(exitStartTimerRef.current);
+    if (replacementTimerRef.current !== null) window.clearTimeout(replacementTimerRef.current);
+    exitStartTimerRef.current = null;
+    replacementTimerRef.current = null;
+  }, []);
+
+  const animateCompletedActions = useCallback((completedIds: string[], seedIds: string[]) => {
+    clearAnimationTimers();
+    animationRunningRef.current = true;
+    const queue = fillVisibleQueue(seedIds, actionsRef.current);
+    setVisibleIds(queue);
+    setExitingIds(new Set());
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    exitStartTimerRef.current = window.setTimeout(() => {
+      setExitingIds(new Set(completedIds));
+      replacementTimerRef.current = window.setTimeout(
+        () => {
+          setVisibleIds(pendingIdsRef.current);
+          setExitingIds(new Set());
+          animationRunningRef.current = false;
+          exitStartTimerRef.current = null;
+          replacementTimerRef.current = null;
+        },
+        reduceMotion ? 0 : EXIT_ANIMATION_MS,
+      );
+    }, reduceMotion ? 0 : 32);
+  }, [clearAnimationTimers]);
+
   useEffect(() => {
+    const currentActions = actionsRef.current;
+    const currentDone = new Map(currentActions.map((action) => [action.id, action.done]));
     const previousDone = previousDoneRef.current;
-    const currentDone = new Map(actions.map((action) => [action.id, action.done]));
 
-    if (previousDone) {
-      const newlyCompleted = actions
-        .filter((action) => action.done && previousDone.get(action.id) === false)
+    if (!previousDone) {
+      let handoff: SetupHandoff | null = null;
+      try {
+        const stored = window.sessionStorage.getItem(SETUP_HANDOFF_KEY);
+        handoff = stored ? (JSON.parse(stored) as SetupHandoff) : null;
+        window.sessionStorage.removeItem(SETUP_HANDOFF_KEY);
+      } catch {
+        handoff = null;
+      }
+
+      const completedAfterNavigation = (handoff?.visibleIds ?? []).filter(
+        (id) => currentDone.get(id) === true && handoff?.doneById[id] === false,
+      );
+      if (handoff && completedAfterNavigation.length > 0) {
+        animateCompletedActions(completedAfterNavigation, handoff.visibleIds);
+      } else {
+        setVisibleIds(pendingIdsRef.current);
+      }
+    } else {
+      const completedWhileMounted = currentActions
+        .filter(
+          (action) =>
+            action.done &&
+            previousDone.get(action.id) === false &&
+            visibleIdsRef.current.includes(action.id),
+        )
         .map((action) => action.id);
-      const visibleNewlyCompleted = newlyCompleted.filter((id) => visibleIds.includes(id));
 
-      if (visibleNewlyCompleted.length > 0) {
-        setExitingIds((current) => new Set(Array.from(current).concat(visibleNewlyCompleted)));
-        const timeout = window.setTimeout(() => {
-          setExitingIds((current) => {
-            const next = new Set(current);
-            visibleNewlyCompleted.forEach((id) => next.delete(id));
-            return next;
-          });
-          setVisibleIds(pendingIds);
-        }, 360);
-
-        previousDoneRef.current = currentDone;
-        return () => window.clearTimeout(timeout);
+      if (completedWhileMounted.length > 0) {
+        animateCompletedActions(completedWhileMounted, visibleIdsRef.current);
+      } else if (!animationRunningRef.current) {
+        setVisibleIds(pendingIdsRef.current);
       }
     }
 
-    if (exitingIds.size === 0) {
-      setVisibleIds((current) => {
-        const currentSignature = current.join("|");
-        const nextSignature = pendingIds.join("|");
-        return currentSignature === nextSignature ? current : pendingIds;
-      });
-    }
-
     previousDoneRef.current = currentDone;
-  }, [actions, actionStateSignature, exitingIds.size, pendingIds, visibleIds]);
+  }, [actionStateSignature, animateCompletedActions]);
+
+  useEffect(
+    () => () => {
+      clearAnimationTimers();
+    },
+    [clearAnimationTimers],
+  );
+
+  function rememberVisibleQueue() {
+    const handoff: SetupHandoff = {
+      visibleIds: visibleIdsRef.current,
+      doneById: Object.fromEntries(actionsRef.current.map((action) => [action.id, action.done])),
+    };
+    try {
+      window.sessionStorage.setItem(SETUP_HANDOFF_KEY, JSON.stringify(handoff));
+    } catch {
+      // The checklist still works when storage is unavailable; only the return animation is skipped.
+    }
+  }
 
   const actionById = new Map(actions.map((action) => [action.id, action]));
   const visibleActions = visibleIds
@@ -204,10 +303,11 @@ export function ProfileSetupActions({ profile: initialProfile }: { profile: Setu
             <Link
               key={action.id}
               href={action.href}
+              onClick={rememberVisibleQueue}
               aria-hidden={isExiting}
               tabIndex={isExiting ? -1 : undefined}
               className={cn(
-                "group flex max-h-24 min-h-[58px] items-center gap-3 overflow-hidden rounded-xl border border-border bg-muted/60 px-3 py-2.5 transition-[max-height,min-height,opacity,transform,margin,padding,border-color,background-color] duration-300 ease-out hover:border-primary/40 hover:bg-accent-tint/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring motion-reduce:transition-none",
+                "group flex max-h-24 min-h-[58px] animate-in items-center gap-3 overflow-hidden rounded-xl border border-border bg-muted/60 px-3 py-2.5 fade-in slide-in-from-bottom-1 transition-[max-height,min-height,opacity,transform,margin,padding,border-color,background-color] duration-300 ease-out hover:border-primary/40 hover:bg-accent-tint/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring motion-reduce:animate-none motion-reduce:transition-none",
                 isExiting && "pointer-events-none max-h-0 -translate-x-8 border-transparent py-0 opacity-0"
               )}
             >

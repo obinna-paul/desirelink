@@ -33,6 +33,7 @@ export async function RightRail() {
           showExactLocation: true,
           isVerified: true,
           isVerifiedCreator: true,
+          isVerifiedServiceProvider: true,
           profileType: true,
         },
       })
@@ -62,7 +63,7 @@ export async function RightRail() {
       aria-label="People nearby"
       className="sticky top-16 hidden h-[calc(100vh-4rem)] w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border/60 bg-sidebar px-5 py-6 xl:flex"
     >
-      {viewerProfile && isProvider && <HomeOnlyQuickActions profile={viewerProfile} />}
+      {viewerProfile && <HomeOnlyQuickActions profile={viewerProfile} />}
       {viewerProfile && !isProvider && (
         <ExplorerDiscoveryPanel
           onlineCreators={onlineCreators}
