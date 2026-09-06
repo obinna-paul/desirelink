@@ -59,6 +59,7 @@ type ChatEntry = ({ kind: "chat" } & ChatMessage) | SystemEntry;
 
 type GiftEvent = { hearts: number; sender: { displayName: string; avatarUrl: string } };
 type CelebrationGift = GiftEvent & { id: number };
+type ReactionEvent = { senderId: string };
 
 type PresenceMemberInfo = { username?: string; displayName?: string; avatarUrl?: string };
 type PresenceMember = { id?: string; info?: PresenceMemberInfo };
@@ -387,7 +388,10 @@ export function LiveRoom({
       setGiftQueue((prev) => [...prev, { ...gift, id: giftIdRef.current++ }]);
       pushSystemEntry(`${gift.sender.displayName} sent ${gift.hearts} ${gift.hearts === 1 ? "heart" : "hearts"}`);
     }
-    function onReaction() {
+    function onReaction(reaction: ReactionEvent) {
+      // The viewer already gets an immediate local burst on double-tap. Ignore only that
+      // echoed event; hosts and every other viewer still see it in realtime.
+      if (reaction.senderId === viewerProfileId) return;
       setRemoteReactionTick((tick) => tick + 1);
     }
     function onEnded() {
@@ -412,7 +416,7 @@ export function LiveRoom({
       channel.unbind(LIVE_REQUEST_COMPLETED_EVENT, onRequestCompleted);
       client.unsubscribe(channelName);
     };
-  }, [streamId, provider.id]);
+  }, [streamId, provider.id, viewerProfileId]);
 
   useEffect(() => {
     void fetch(`/api/live/${streamId}/requests`)
@@ -551,7 +555,10 @@ export function LiveRoom({
           <ConnectionStateToast />
           <ConnectionAnnouncer />
 
-          {!isHost && <FloatingHeartsLayer onDoubleTap={sendReaction} remoteReactionTick={remoteReactionTick} />}
+          <FloatingHeartsLayer
+            onDoubleTap={isHost ? undefined : sendReaction}
+            remoteReactionTick={remoteReactionTick}
+          />
 
           <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 bg-gradient-to-b from-black/70 to-transparent px-3 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] lg:pt-3">
             <div className="flex min-w-0 items-start gap-2">

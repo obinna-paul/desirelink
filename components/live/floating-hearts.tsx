@@ -20,7 +20,7 @@ export function FloatingHeartsLayer({
   onDoubleTap,
   remoteReactionTick,
 }: {
-  onDoubleTap: () => void;
+  onDoubleTap?: () => void;
   remoteReactionTick: number;
 }) {
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -44,6 +44,7 @@ export function FloatingHeartsLayer({
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (!onDoubleTap) return;
     const now = Date.now();
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -67,7 +68,12 @@ export function FloatingHeartsLayer({
   }, [remoteReactionTick]);
 
   return (
-    <div ref={containerRef} className="absolute inset-0" onPointerDown={handlePointerDown}>
+    <div
+      ref={containerRef}
+      className={onDoubleTap ? "absolute inset-0" : "pointer-events-none absolute inset-0"}
+      onPointerDown={onDoubleTap ? handlePointerDown : undefined}
+      aria-hidden="true"
+    >
       {particles.map((particle) => (
         <Heart
           key={particle.id}
