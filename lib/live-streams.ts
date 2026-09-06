@@ -14,6 +14,10 @@ import { createNotificationsBulk } from "@/lib/notifications";
 import { getActiveSubscriberIds } from "@/lib/subscription-access";
 import { ONLINE_WINDOW_MS } from "@/lib/presence";
 import { hasIdentityOnFile } from "@/lib/verification";
+import { haversineDistanceKm } from "@/lib/home-feed";
+import { getFollowingIds } from "@/lib/follow";
+import { affinityTerm } from "@/lib/recommendation-scoring";
+import { seededTiebreak } from "@/lib/ranking/slate";
 
 function generateRoomName(): string {
   return `live-${randomBytes(12).toString("hex")}`;
@@ -679,49 +683,208 @@ export type LiveRingEntry = {
   streamId: string | null;
 };
 
-/** Powers the Home ring row: everyone currently live, then providers online for chat, self excluded. */
-export async function getLiveRingFeed(viewerProfileId: string | null, limit = 20): Promise<LiveRingEntry[]> {
-  const notSelf = viewerProfileId ? { NOT: { id: viewerProfileId } } : {};
+/** How many candidates to fetch per limit slot before ranking cuts it down - without this,
+ * whoever ranking would have promoted never gets considered because a plain `take: limit`
+ * chronological query already threw them away. */
+const RING_CANDIDATE_MULTIPLIER = 3;
 
-  const liveStreams = await prisma.liveStream.findMany({
-    where: { status: "live", provider: { isIncognito: false, ...notSelf } },
+/** Session-stable ranking: a viewer refreshing within this window sees the same order, since
+ * the score is a pure function of (viewer, candidate, bucket) - no persistence needed for a
+ * ring this small and cheap to recompute, unlike the main feed's FeedSlate. */
+const RING_SESSION_BUCKET_MINUTES = 15;
+
+/** Mirrors lib/recommendations.ts's scoreProximity buckets, normalized to [0, 1] so it
+ * combines cleanly with the other weighted terms below. */
+function localityTerm(
+  viewer: { locationLat: number; locationLng: number } | null,
+  candidate: { locationLat: number; locationLng: number },
+): number {
+  if (!viewer) return 0;
+  const viewerHasLocation = viewer.locationLat !== 0 || viewer.locationLng !== 0;
+  const candidateHasLocation = candidate.locationLat !== 0 || candidate.locationLng !== 0;
+  if (!viewerHasLocation || !candidateHasLocation) return 0;
+
+  const distanceKm = haversineDistanceKm(viewer.locationLat, viewer.locationLng, candidate.locationLat, candidate.locationLng);
+  if (distanceKm <= 10) return 1;
+  if (distanceKm <= 25) return 0.75;
+  if (distanceKm <= 50) return 0.5;
+  if (distanceKm <= 100) return 0.25;
+  if (distanceKm <= 250) return 0.1;
+  return 0;
+}
+
+/** Newer accounts nudged up, decaying over a month rather than recommendation-scoring.ts's
+ * 36-hour post-recency half-life - an account is "novel" on a much longer timescale than a
+ * single post is "fresh". */
+const RING_NOVELTY_HALF_LIFE_DAYS = 30;
+function noveltyTerm(createdAt: Date, now: Date): number {
+  const ageDays = Math.max(0, (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.pow(0.5, ageDays / RING_NOVELTY_HALF_LIFE_DAYS);
+}
+
+/** Live activity right now - saturates like affinity/quality do elsewhere, so a handful of
+ * early hearts doesn't already max this term out. Always 0 for a merely-online (not live)
+ * candidate - there's no live-specific momentum signal for them. */
+const MOMENTUM_SATURATION = 50;
+function momentumTerm(totalHeartsReceived: number): number {
+  if (totalHeartsReceived <= 0) return 0;
+  return totalHeartsReceived / (totalHeartsReceived + MOMENTUM_SATURATION);
+}
+
+const RING_WEIGHTS = {
+  relationship: 0.35,
+  affinity: 0.3,
+  locality: 0.15,
+  momentum: 0.1,
+  novelty: 0.1,
+};
+
+type RingCandidate = {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+  locationLat: number;
+  locationLng: number;
+  createdAt: Date;
+  totalHeartsReceived: number;
+};
+
+function rankRingCandidates(
+  candidates: RingCandidate[],
+  context: {
+    viewerLocation: { locationLat: number; locationLng: number } | null;
+    followingIds: Set<string>;
+    affinityByCreator: Map<string, number>;
+    seed: string;
+    now: Date;
+  },
+): RingCandidate[] {
+  return [...candidates]
+    .map((candidate) => {
+      const score =
+        RING_WEIGHTS.relationship * (context.followingIds.has(candidate.id) ? 1 : 0) +
+        RING_WEIGHTS.affinity * affinityTerm(context.affinityByCreator.get(candidate.id) ?? 0) +
+        RING_WEIGHTS.locality * localityTerm(context.viewerLocation, candidate) +
+        RING_WEIGHTS.momentum * momentumTerm(candidate.totalHeartsReceived) +
+        RING_WEIGHTS.novelty * noveltyTerm(candidate.createdAt, context.now);
+      return { candidate, score };
+    })
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return seededTiebreak(context.seed, a.candidate.id) - seededTiebreak(context.seed, b.candidate.id);
+    })
+    .map((entry) => entry.candidate);
+}
+
+/**
+ * Powers the Home ring row: everyone currently live (ranked among themselves), then
+ * providers online for chat (ranked among themselves), self excluded. Live entries are
+ * always shown ahead of merely-online ones - being live is the single strongest "worth
+ * clicking now" signal, so ranking only reorders within each group rather than fully
+ * interleaving them. Ranking itself is relationship (Follow) -> affinity (CreatorAffinity)
+ * -> locality -> momentum (live heart activity) -> novelty (newer accounts), per the
+ * discovery/ranking plan, session-stable via a deterministic seeded tiebreak so refreshing
+ * within the same ~15-minute window doesn't reshuffle an otherwise-unchanged candidate set.
+ */
+export async function getLiveRingFeed(
+  viewerProfileId: string | null,
+  limit = 20,
+  now: Date = new Date(),
+): Promise<LiveRingEntry[]> {
+  const notSelf = viewerProfileId ? { NOT: { id: viewerProfileId } } : {};
+  const bucket = Math.floor(now.getTime() / (RING_SESSION_BUCKET_MINUTES * 60 * 1000));
+  const seed = `${viewerProfileId ?? "anonymous"}:${bucket}`;
+
+  const [viewer, followingIds] = await Promise.all([
+    viewerProfileId
+      ? prisma.profile.findUnique({
+          where: { id: viewerProfileId },
+          select: { locationLat: true, locationLng: true },
+        })
+      : Promise.resolve(null),
+    viewerProfileId ? getFollowingIds(viewerProfileId) : Promise.resolve([]),
+  ]);
+  const followingIdSet = new Set(followingIds);
+
+  const liveStreamCandidates = await prisma.liveStream.findMany({
+    where: { status: "live", provider: { isIncognito: false, isSuspended: false, showInSearch: true, ...notSelf } },
     orderBy: { startedAt: "desc" },
-    take: limit,
+    take: limit * RING_CANDIDATE_MULTIPLIER,
     select: {
       id: true,
-      provider: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+      totalHeartsReceived: true,
+      provider: {
+        select: { id: true, username: true, displayName: true, avatarUrl: true, locationLat: true, locationLng: true, createdAt: true },
+      },
     },
   });
 
-  const liveProviderIds = new Set(liveStreams.map((s) => s.provider.id));
-  const remaining = Math.max(0, limit - liveStreams.length);
+  const liveCandidateProviderIds = new Set(liveStreamCandidates.map((s) => s.provider.id));
+  const streamIdByProvider = new Map(liveStreamCandidates.map((s) => [s.provider.id, s.id]));
 
-  const onlineProviders = remaining
-    ? await prisma.profile.findMany({
+  const onlineCandidates = await prisma.profile.findMany({
+    where: {
+      ...notSelf,
+      isIncognito: false,
+      isSuspended: false,
+      showInSearch: true,
+      profileType: { in: [...CREATOR_PROFILE_TYPES] },
+      id: { notIn: Array.from(liveCandidateProviderIds) },
+      showActivityStatus: true,
+      lastActiveAt: { gt: new Date(Date.now() - ONLINE_WINDOW_MS) },
+    },
+    orderBy: { lastActiveAt: "desc" },
+    // Overfetch by the same multiplier regardless of how many live candidates came back -
+    // the exact remaining slot count isn't known until after live candidates are ranked
+    // (ranking reorders, it doesn't drop anyone), so this just needs enough headroom.
+    take: limit * RING_CANDIDATE_MULTIPLIER,
+    select: { id: true, username: true, displayName: true, avatarUrl: true, locationLat: true, locationLng: true, createdAt: true },
+  });
+
+  const affinityRows = viewerProfileId
+    ? await prisma.creatorAffinity.findMany({
         where: {
-          ...notSelf,
-          isIncognito: false,
-          profileType: { in: [...CREATOR_PROFILE_TYPES] },
-          id: { notIn: Array.from(liveProviderIds) },
-          showActivityStatus: true,
-          lastActiveAt: { gt: new Date(Date.now() - ONLINE_WINDOW_MS) },
+          viewerId: viewerProfileId,
+          creatorId: { in: [...Array.from(liveCandidateProviderIds), ...onlineCandidates.map((p) => p.id)] },
         },
-        orderBy: { lastActiveAt: "desc" },
-        take: remaining,
-        select: { id: true, username: true, displayName: true, avatarUrl: true },
+        select: { creatorId: true, affinity: true },
       })
     : [];
+  const affinityByCreator = new Map(affinityRows.map((row) => [row.creatorId, row.affinity]));
 
-  return [
-    ...liveStreams.map((s) => ({
+  const rankContext = { viewerLocation: viewer, followingIds: followingIdSet, affinityByCreator, seed, now };
+
+  const rankedLive = rankRingCandidates(
+    liveStreamCandidates.map((s) => ({
       id: s.provider.id,
       username: s.provider.username,
       displayName: s.provider.displayName,
       avatarUrl: s.provider.avatarUrl,
-      isLive: true,
-      streamId: s.id,
+      locationLat: s.provider.locationLat,
+      locationLng: s.provider.locationLng,
+      createdAt: s.provider.createdAt,
+      totalHeartsReceived: s.totalHeartsReceived,
     })),
-    ...onlineProviders.map((p) => ({
+    rankContext,
+  ).slice(0, limit);
+
+  const remaining = Math.max(0, limit - rankedLive.length);
+  const rankedOnline = rankRingCandidates(
+    onlineCandidates.map((p) => ({ ...p, totalHeartsReceived: 0 })),
+    rankContext,
+  ).slice(0, remaining);
+
+  return [
+    ...rankedLive.map((p) => ({
+      id: p.id,
+      username: p.username,
+      displayName: p.displayName,
+      avatarUrl: p.avatarUrl,
+      isLive: true,
+      streamId: streamIdByProvider.get(p.id) ?? null,
+    })),
+    ...rankedOnline.map((p) => ({
       id: p.id,
       username: p.username,
       displayName: p.displayName,
