@@ -20,7 +20,7 @@ import {
 } from "@/components/profile/creator-content-grid";
 import { InviteButton } from "@/components/profile/invite-button";
 import { ProfileAvatarEditor } from "@/components/profile/profile-avatar-editor";
-import { ProfileMoreMenu } from "@/components/profile/profile-more-menu";
+import { OverflowMenu } from "@/components/ui/overflow-menu";
 import { ProfileSectionTab } from "@/components/profile/profile-section-tab";
 import { ProfileSetupActions } from "@/components/profile/profile-setup-actions";
 import { SubscribePlansDialog } from "@/components/profile/subscribe-plans-dialog";
@@ -333,7 +333,7 @@ export function ProfileView({
                   size="sm"
                   className="hidden sm:inline-flex sm:flex-1"
                 />
-                <ProfileMoreMenu>
+                <OverflowMenu>
                   <div className="sm:hidden">
                     <ShareProfileButton
                       profileHref={profileHref}
@@ -343,7 +343,7 @@ export function ProfileView({
                   </div>
                   <HelpSupportSheet defaultEmail={viewerEmail} />
                   <SignOutButton menu />
-                </ProfileMoreMenu>
+                </OverflowMenu>
               </div>
             ) : (
               <div className="mt-4 flex min-w-0 items-center gap-2">
@@ -369,7 +369,7 @@ export function ProfileView({
                       className="flex-1"
                     />
                   )}
-                  <ProfileMoreMenu>
+                  <OverflowMenu>
                     <ShareProfileButton
                       profileHref={profileHref}
                       displayName={profile.displayName}
@@ -389,7 +389,7 @@ export function ProfileView({
                         />
                       </>
                     )}
-                  </ProfileMoreMenu>
+                  </OverflowMenu>
                   </>
                 ) : (
                   <>
@@ -413,7 +413,7 @@ export function ProfileView({
                       recipientDisplayName={profile.displayName}
                     />
                   )}
-                  <ProfileMoreMenu>
+                  <OverflowMenu>
                     <ShareProfileButton
                       profileHref={profileHref}
                       displayName={profile.displayName}
@@ -433,7 +433,7 @@ export function ProfileView({
                         />
                       </>
                     )}
-                  </ProfileMoreMenu>
+                  </OverflowMenu>
                   </>
                 )}
               </div>

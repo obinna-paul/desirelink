@@ -109,6 +109,11 @@ enum PartnerInviteStatus {
   cancelled
 }
 
+enum PostFeedbackKind {
+  interested
+  not_interested
+}
+
 // --- Auth ------------------------------------------------------------------
 
 model User {
@@ -320,6 +325,9 @@ model Profile {
   postShares             PostShare[]
   postImpressions        PostImpression[]
   interests              ProfileTopic[]
+  postFeedback           PostFeedback[]        @relation("PostFeedbackViewer")
+  hiddenCreators         HiddenCreator[]       @relation("HiddenCreatorViewer")
+  hiddenByViewers        HiddenCreator[]       @relation("HiddenCreatorCreator")
   blocksMade             Block[]               @relation("BlockBlocker")
   blocksReceived         Block[]               @relation("BlockBlocked")
   following              Follow[]              @relation("FollowFollower")
@@ -602,6 +610,7 @@ model Post {
   unlocks          PostUnlock[]
   impressions      PostImpression[]
   hashtags         PostHashtag[]
+  feedback         PostFeedback[]
 
   @@index([authorId])
   @@index([isArchived])
@@ -770,6 +779,44 @@ model ProfileTopic {
   @@unique([profileId, topicId])
   @@index([profileId])
   @@index([topicId])
+}
+
+/**
+ * A viewer's soft signal about one post - "Interested" / "Not interested" in the post
+ * menu. Logged only, for future ranking input (see the discovery/ranking plan's Tier 1
+ * quality score) - never suppresses the post itself. For actually hiding content, see
+ * HiddenCreator below.
+ */
+model PostFeedback {
+  id        String           @id @default(cuid())
+  viewerId  String
+  viewer    Profile          @relation("PostFeedbackViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  kind      PostFeedbackKind
+  createdAt DateTime         @default(now())
+
+  @@unique([viewerId, postId, kind])
+  @@index([viewerId])
+  @@index([postId])
+}
+
+/**
+ * "Hide posts from this creator" in the post menu - a hard mute, distinct from Block
+ * (which also cuts messaging and profile visibility). A muted creator's posts stop
+ * appearing in the viewer's feeds; everything else about the relationship is unaffected.
+ */
+model HiddenCreator {
+  id        String   @id @default(cuid())
+  viewerId  String
+  viewer    Profile  @relation("HiddenCreatorViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+  creatorId String
+  creator   Profile  @relation("HiddenCreatorCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([viewerId, creatorId])
+  @@index([viewerId])
+  @@index([creatorId])
 }
 
 model Report {

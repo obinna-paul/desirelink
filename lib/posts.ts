@@ -14,6 +14,7 @@ import { getPublicTiersForCreators, type PublicTierView } from "@/lib/tiers";
 import { selectSubscribePromptPostIds } from "@/lib/subscribe-prompt-frequency";
 import { getFollowingIds } from "@/lib/follow";
 import { normalizeHashtag } from "@/lib/hashtags";
+import { getHiddenCreatorIds } from "@/lib/content-feedback";
 
 const FEED_LIMIT = 30;
 const PROFILE_POSTS_LIMIT = 50;
@@ -511,11 +512,19 @@ export async function getPremiumFeedPosts(
     }),
   ]);
 
-  const subscribedCreatorIds = Array.from(
+  const allSubscribedCreatorIds = Array.from(
     new Set([...providerSubs.map((sub) => sub.providerId), ...legacySubs.map((sub) => sub.creatorId)]),
   );
-  if (subscribedCreatorIds.length === 0) {
+  if (allSubscribedCreatorIds.length === 0) {
     return { posts: [], hasSubscriptions: false };
+  }
+
+  const hiddenCreatorIds = new Set(await getHiddenCreatorIds(viewerProfileId));
+  const subscribedCreatorIds = allSubscribedCreatorIds.filter(
+    (creatorId) => !hiddenCreatorIds.has(creatorId),
+  );
+  if (subscribedCreatorIds.length === 0) {
+    return { posts: [], hasSubscriptions: true };
   }
 
   const access = await getCreatorAccess(viewerProfileId, subscribedCreatorIds);
@@ -658,10 +667,13 @@ async function computeSubscribePrompts(
 export async function getPublicFeedPosts(
   viewerProfileId: string | null,
 ): Promise<PostView[]> {
+  const hiddenCreatorIds = viewerProfileId ? await getHiddenCreatorIds(viewerProfileId) : [];
+
   try {
     const posts = await prisma.post.findMany({
       where: {
         isArchived: false,
+        authorId: hiddenCreatorIds.length > 0 ? { notIn: hiddenCreatorIds } : undefined,
         author: {
           isIncognito: false,
           isSuspended: false,
@@ -686,6 +698,7 @@ export async function getPublicFeedPosts(
       );
       const posts = await prisma.post.findMany({
         where: {
+          authorId: hiddenCreatorIds.length > 0 ? { notIn: hiddenCreatorIds } : undefined,
           author: {
             isIncognito: false,
             isSuspended: false,
@@ -725,11 +738,16 @@ export async function getFollowingFeedPosts(
 ): Promise<PostView[]> {
   if (!viewerProfileId) return [];
 
-  const followingIds = await getFollowingIds(viewerProfileId);
-  if (followingIds.length === 0) return [];
+  const [followingIds, hiddenCreatorIds] = await Promise.all([
+    getFollowingIds(viewerProfileId),
+    getHiddenCreatorIds(viewerProfileId),
+  ]);
+  const hiddenSet = new Set(hiddenCreatorIds);
+  const visibleFollowingIds = followingIds.filter((id) => !hiddenSet.has(id));
+  if (visibleFollowingIds.length === 0) return [];
 
   const where: Prisma.PostWhereInput = {
-    authorId: { in: followingIds },
+    authorId: { in: visibleFollowingIds },
     isSubscriberOnly: false,
     author: { isIncognito: false, isSuspended: false },
   };
@@ -770,8 +788,11 @@ export async function getPostsByHashtag(
   const normalized = normalizeHashtag(tag);
   if (!normalized) return [];
 
+  const hiddenCreatorIds = viewerProfileId ? await getHiddenCreatorIds(viewerProfileId) : [];
+
   const where: Prisma.PostWhereInput = {
     hashtags: { some: { hashtag: { tag: normalized } } },
+    authorId: hiddenCreatorIds.length > 0 ? { notIn: hiddenCreatorIds } : undefined,
     author: { isIncognito: false, isSuspended: false },
   };
 
