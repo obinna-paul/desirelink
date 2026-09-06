@@ -36,13 +36,13 @@ export function CreatorDirectoryFiltersPanel({
   const [sort, setSort] = useState<CreatorDirectorySortValue>(initialFilters.sort);
   const [open, setOpen] = useState(false);
 
-  const activeFilterCount = tierTypes.length + (sort !== "newest" ? 1 : 0);
+  const activeFilterCount = tierTypes.length + (sort !== "recommended" ? 1 : 0);
 
   function destination() {
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     tierTypes.forEach((value) => params.append("tierType", value));
-    if (sort !== "newest") params.set("sort", sort);
+    if (sort !== "recommended") params.set("sort", sort);
     const search = params.toString();
     return search ? `/creators?${search}` : "/creators";
   }
@@ -55,7 +55,7 @@ export function CreatorDirectoryFiltersPanel({
 
   function clearFilters() {
     setTierTypes([]);
-    setSort("newest");
+    setSort("recommended");
     const trimmedQuery = query.trim();
     router.push(trimmedQuery ? `/creators?q=${encodeURIComponent(trimmedQuery)}` : "/creators");
     setOpen(false);

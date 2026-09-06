@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { CreatorDirectoryFiltersPanel } from "@/components/creators/creator-directory-filters";
 import { CreatorDirectoryGrid } from "@/components/creators/creator-directory-grid";
 import {
@@ -24,8 +25,13 @@ export default async function CreatorsPage({
     redirect("/login");
   }
 
+  const viewerProfile = await prisma.profile.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true },
+  });
+
   const filters = parseCreatorDirectoryFilters(searchParams);
-  const creators = await searchSubscribableCreators(filters);
+  const creators = await searchSubscribableCreators(filters, viewerProfile?.id ?? null);
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">

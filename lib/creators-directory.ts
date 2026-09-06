@@ -3,8 +3,10 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { TIER_TYPE_VALUES } from "@/lib/validations/creator-tier";
 import { searchDocuments } from "@/lib/search";
+import { rankRecommendedCreators } from "@/lib/ranking/people-scoring";
 
 export const CREATOR_DIRECTORY_SORT_OPTIONS = [
+  { value: "recommended", label: "Recommended for you" },
   { value: "newest", label: "Newest creators" },
   { value: "subscribers", label: "Most subscribers" },
   { value: "price_low", label: "Price: low to high" },
@@ -45,7 +47,7 @@ export function parseCreatorDirectoryFilters(
     ),
     sort: CREATOR_DIRECTORY_SORT_OPTIONS.some((option) => option.value === sortParam)
       ? (sortParam as CreatorDirectorySortValue)
-      : "newest",
+      : "recommended",
   };
 }
 
@@ -56,6 +58,8 @@ export type SubscribableCreator = {
   avatarUrl: string;
   isVerified: boolean;
   isVerifiedCreator: boolean;
+  isVerifiedServiceProvider: boolean;
+  isTrustedMember: boolean;
   minTierPriceCents: number;
   tierCount: number;
   subscriberCount: number;
@@ -95,6 +99,7 @@ async function buildWhere(filters: CreatorDirectoryFilters): Promise<Prisma.Prof
  */
 export async function searchSubscribableCreators(
   filters: CreatorDirectoryFilters,
+  viewerProfileId: string | null = null,
 ): Promise<SubscribableCreator[]> {
   const where = await buildWhere(filters);
 
@@ -107,10 +112,16 @@ export async function searchSubscribableCreators(
       avatarUrl: true,
       isVerified: true,
       isVerifiedCreator: true,
+      isVerifiedServiceProvider: true,
+      isTrustedMember: true,
       createdAt: true,
       creatorTiers: { select: { priceCents: true } },
       _count: { select: { subscriptionsAsCreator: { where: { status: "active" } } } },
     },
+    // Deterministic ordering before truncation - the same nondeterminism risk Discover's
+    // distance-candidate query had (see searchDiscoverProfiles): once total matches exceed
+    // CANDIDATE_LIMIT, which rows survive is otherwise up to Postgres, not this query.
+    orderBy: { createdAt: "desc" },
     take: CANDIDATE_LIMIT,
   });
 
@@ -121,11 +132,19 @@ export async function searchSubscribableCreators(
     avatarUrl: candidate.avatarUrl,
     isVerified: candidate.isVerified,
     isVerifiedCreator: candidate.isVerifiedCreator,
+    isVerifiedServiceProvider: candidate.isVerifiedServiceProvider,
+    isTrustedMember: candidate.isTrustedMember,
     minTierPriceCents: Math.min(...candidate.creatorTiers.map((tier) => tier.priceCents)),
     tierCount: candidate.creatorTiers.length,
     subscriberCount: candidate._count.subscriptionsAsCreator,
     createdAt: candidate.createdAt,
   }));
+
+  if (filters.sort === "recommended") {
+    const rankedIds = await rankRecommendedCreators(viewerProfileId, creators);
+    const byId = new Map(creators.map((creator) => [creator.id, creator]));
+    return rankedIds.map((id) => byId.get(id)!).slice(0, RESULTS_LIMIT);
+  }
 
   switch (filters.sort) {
     case "subscribers":
