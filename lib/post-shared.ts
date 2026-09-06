@@ -26,8 +26,20 @@ export type PostMediaItem = {
   crop?: VideoCrop;
 };
 
-export const POST_DISPLAY_ASPECT_RATIOS = ["square", "portrait_3_4", "full_9_16"] as const;
+export const POST_DISPLAY_ASPECT_RATIOS = [
+  "square",
+  "portrait_3_4",
+  "full_9_16",
+  "landscape_16_9",
+] as const;
 export type PostDisplayAspectRatio = (typeof POST_DISPLAY_ASPECT_RATIOS)[number];
+
+export function isPostDisplayAspectRatio(value: unknown): value is PostDisplayAspectRatio {
+  return (
+    typeof value === "string" &&
+    (POST_DISPLAY_ASPECT_RATIOS as readonly string[]).includes(value)
+  );
+}
 
 export const POST_DISPLAY_RATIO_OPTIONS: {
   value: PostDisplayAspectRatio;
@@ -38,6 +50,7 @@ export const POST_DISPLAY_RATIO_OPTIONS: {
   { value: "square", label: "Square", helper: "1:1", ratio: 1 },
   { value: "portrait_3_4", label: "Portrait", helper: "3:4", ratio: 3 / 4 },
   { value: "full_9_16", label: "Full length", helper: "9:16", ratio: 9 / 16 },
+  { value: "landscape_16_9", label: "Landscape", helper: "16:9", ratio: 16 / 9 },
 ];
 
 /** Feed media renders at its own aspect ratio (post-crop for images, native for video), clamped to Reels-style bounds. */
@@ -57,5 +70,6 @@ export const IMAGE_CROP_PRESETS = [
   { id: "square", label: "Square", ratio: 1 },
   { id: "portrait_3_4", label: "3:4", ratio: 3 / 4 },
   { id: "full_9_16", label: "9:16", ratio: 9 / 16 },
+  { id: "landscape_16_9", label: "16:9", ratio: 16 / 9 },
 ] as const satisfies readonly { id: string; label: string; ratio: number | null }[];
 export type ImageCropPresetId = (typeof IMAGE_CROP_PRESETS)[number]["id"];

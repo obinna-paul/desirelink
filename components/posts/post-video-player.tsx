@@ -1,12 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LoaderCircle, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import {
+  LoaderCircle,
+  Pause,
+  Play,
+  RotateCcw,
+  RotateCw,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 
 import type { VideoCrop } from "@/lib/post-shared";
-import { getVideoPosterUrl, isHlsVideoSource } from "@/lib/video-playback";
+import {
+  getVideoPosterUrl,
+  getVideoTapZone,
+  isHlsVideoSource,
+  type VideoTapZone,
+} from "@/lib/video-playback";
 
 type PlaybackState = "loading" | "ready" | "playing" | "paused" | "error";
+type SeekDirection = Extract<VideoTapZone, "backward" | "forward">;
+
+const DOUBLE_TAP_WINDOW_MS = 300;
+const SEEK_SECONDS = 10;
+const PLAYBACK_RATES = [0.5, 1, 1.5, 2] as const;
 
 export function PostVideoPlayer({
   src,
@@ -25,9 +43,16 @@ export function PostVideoPlayer({
   const manuallyPausedRef = useRef(false);
   const mutedRef = useRef(true);
   const hlsManagedRef = useRef(false);
+  const tapStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lastTapRef = useRef<{ time: number; zone: VideoTapZone } | null>(null);
+  const tapTimerRef = useRef<number | null>(null);
+  const feedbackTimerRef = useRef<number | null>(null);
+  const playbackIconTimerRef = useRef<number | null>(null);
   const [muted, setMuted] = useState(true);
+  const [playbackRate, setPlaybackRate] = useState<(typeof PLAYBACK_RATES)[number]>(1);
   const [manuallyPaused, setManuallyPaused] = useState(false);
   const [showPauseIcon, setShowPauseIcon] = useState(false);
+  const [seekFeedback, setSeekFeedback] = useState<SeekDirection | null>(null);
   const [playbackState, setPlaybackState] = useState<PlaybackState>("loading");
   const [reloadKey, setReloadKey] = useState(0);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
@@ -160,6 +185,20 @@ export function PostVideoPlayer({
 
   useEffect(() => {
     const el = videoRef.current;
+    if (el) el.playbackRate = playbackRate;
+  }, [playbackRate, reloadKey, src]);
+
+  useEffect(
+    () => () => {
+      if (tapTimerRef.current !== null) window.clearTimeout(tapTimerRef.current);
+      if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
+      if (playbackIconTimerRef.current !== null) window.clearTimeout(playbackIconTimerRef.current);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const el = videoRef.current;
     if (!el) return;
 
     const observer = new IntersectionObserver(
@@ -198,7 +237,57 @@ export function PostVideoPlayer({
       setPlaybackState("paused");
     }
     setShowPauseIcon(true);
-    window.setTimeout(() => setShowPauseIcon(false), 500);
+    if (playbackIconTimerRef.current !== null) {
+      window.clearTimeout(playbackIconTimerRef.current);
+    }
+    playbackIconTimerRef.current = window.setTimeout(() => setShowPauseIcon(false), 500);
+  }
+
+  function seekVideo(direction: SeekDirection) {
+    const el = videoRef.current;
+    if (!el || !Number.isFinite(el.currentTime)) return;
+    const delta = direction === "backward" ? -SEEK_SECONDS : SEEK_SECONDS;
+    const upperBound = Number.isFinite(el.duration) ? el.duration : Number.POSITIVE_INFINITY;
+    el.currentTime = Math.max(0, Math.min(upperBound, el.currentTime + delta));
+    setSeekFeedback(direction);
+    if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = window.setTimeout(() => setSeekFeedback(null), 650);
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("[data-video-control='true']")) return;
+    tapStartRef.current = { x: event.clientX, y: event.clientY };
+  }
+
+  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("[data-video-control='true']")) return;
+
+    const start = tapStartRef.current;
+    tapStartRef.current = null;
+    if (!start) return;
+    if (Math.abs(event.clientX - start.x) > 14 || Math.abs(event.clientY - start.y) > 14) return;
+
+    const zone = getVideoTapZone(event.clientX, event.currentTarget.getBoundingClientRect());
+    const previous = lastTapRef.current;
+    if (previous && previous.zone === zone && event.timeStamp - previous.time <= DOUBLE_TAP_WINDOW_MS) {
+      lastTapRef.current = null;
+      if (tapTimerRef.current !== null) {
+        window.clearTimeout(tapTimerRef.current);
+        tapTimerRef.current = null;
+      }
+      if (zone !== "center") seekVideo(zone);
+      return;
+    }
+
+    lastTapRef.current = { time: event.timeStamp, zone };
+    if (tapTimerRef.current !== null) window.clearTimeout(tapTimerRef.current);
+    tapTimerRef.current = window.setTimeout(() => {
+      lastTapRef.current = null;
+      tapTimerRef.current = null;
+      togglePlayback();
+    }, DOUBLE_TAP_WINDOW_MS);
   }
 
   const framedStyle =
@@ -217,7 +306,16 @@ export function PostVideoPlayer({
       : undefined;
 
   return (
-    <div ref={frameRef} className="relative h-full w-full overflow-hidden bg-black">
+    <div
+      ref={frameRef}
+      data-video-player="true"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => {
+        tapStartRef.current = null;
+      }}
+      className="relative h-full w-full touch-manipulation overflow-hidden bg-black"
+    >
       <video
         ref={videoRef}
         src={isHls ? undefined : src}
@@ -230,7 +328,20 @@ export function PostVideoPlayer({
         disableRemotePlayback
         controlsList="nodownload noremoteplayback noplaybackrate"
         onContextMenu={(event) => event.preventDefault()}
-        onClick={togglePlayback}
+        tabIndex={0}
+        aria-label="Post video. Press Space to play or pause. Use Left and Right Arrow to seek ten seconds."
+        onKeyDown={(event) => {
+          if (event.key === " " || event.key === "Enter") {
+            event.preventDefault();
+            togglePlayback();
+          } else if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            seekVideo("backward");
+          } else if (event.key === "ArrowRight") {
+            event.preventDefault();
+            seekVideo("forward");
+          }
+        }}
         onLoadedData={() => {
           setPlaybackState((current) => (current === "playing" ? current : "ready"));
           void attemptPlayback();
@@ -250,8 +361,8 @@ export function PostVideoPlayer({
         }}
         className={
           hasFramedCrop
-            ? "absolute left-1/2 top-1/2 cursor-pointer select-none"
-            : "h-full w-full cursor-pointer object-cover"
+            ? "absolute left-1/2 top-1/2 cursor-pointer select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-white"
+            : "h-full w-full cursor-pointer object-cover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-white"
         }
         style={framedStyle}
       />
@@ -266,6 +377,8 @@ export function PostVideoPlayer({
         <div className="absolute inset-0 flex items-center justify-center bg-black/35 px-6 backdrop-blur-[1px]">
           <button
             type="button"
+            data-video-control="true"
+            data-post-carousel-control="true"
             onClick={(event) => {
               event.stopPropagation();
               manuallyPausedRef.current = false;
@@ -291,18 +404,66 @@ export function PostVideoPlayer({
           </span>
         </div>
       )}
+      {seekFeedback && (
+        <div
+          className={`pointer-events-none absolute inset-y-0 flex w-[38%] items-center justify-center ${
+            seekFeedback === "backward" ? "left-0" : "right-0"
+          }`}
+          aria-hidden="true"
+        >
+          <span className="flex h-16 w-16 flex-col items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-150">
+            {seekFeedback === "backward" ? (
+              <RotateCcw className="h-5 w-5" />
+            ) : (
+              <RotateCw className="h-5 w-5" />
+            )}
+            <span className="mt-0.5 text-[10px] font-semibold tabular-nums">10s</span>
+          </span>
+        </div>
+      )}
+      <span className="sr-only" aria-live="polite">
+        {seekFeedback === "backward"
+          ? "Rewound ten seconds"
+          : seekFeedback === "forward"
+            ? "Moved forward ten seconds"
+            : ""}
+      </span>
       <button
         type="button"
+        data-video-control="true"
+        data-post-carousel-control="true"
         onClick={(event) => {
           event.stopPropagation();
           setMuted((current) => !current);
         }}
         aria-label={muted ? "Unmute video" : "Mute video"}
         aria-pressed={!muted}
-        className="absolute bottom-3 left-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition-colors hover:bg-black/70"
+        className="absolute bottom-3 left-3 flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition-colors hover:bg-black/70"
       >
         {muted ? <VolumeX className="h-4 w-4" aria-hidden="true" /> : <Volume2 className="h-4 w-4" aria-hidden="true" />}
       </button>
+      <label
+        data-video-control="true"
+        data-post-carousel-control="true"
+        className="absolute bottom-3 right-3"
+      >
+        <span className="sr-only">Playback speed</span>
+        <select
+          value={playbackRate}
+          onChange={(event) => {
+            const nextRate = Number(event.target.value) as (typeof PLAYBACK_RATES)[number];
+            setPlaybackRate(nextRate);
+          }}
+          aria-label="Playback speed"
+          className="h-11 min-w-12 cursor-pointer appearance-none rounded-full border-0 bg-black/50 px-2 text-center text-xs font-semibold text-white shadow-none outline-none backdrop-blur transition-colors hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-white"
+        >
+          {PLAYBACK_RATES.map((rate) => (
+            <option key={rate} value={rate} className="bg-black text-white">
+              {rate}x
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   );
 }

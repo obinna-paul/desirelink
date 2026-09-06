@@ -1,7 +1,7 @@
 import { Prisma, type ProfileType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import type { PostMediaItem } from "@/lib/post-shared";
+import { isPostDisplayAspectRatio, type PostMediaItem } from "@/lib/post-shared";
 import { getLiveStreamIdsByProvider, getPresenceStatus, type PresenceStatus } from "@/lib/presence";
 import {
   getCreatorAccess,
@@ -205,9 +205,7 @@ export function toMediaItems(value: unknown): PostMediaItem[] {
               : undefined,
           displayAspectRatio:
             "displayAspectRatio" in item &&
-            (item.displayAspectRatio === "square" ||
-              item.displayAspectRatio === "portrait_3_4" ||
-              item.displayAspectRatio === "full_9_16")
+            isPostDisplayAspectRatio(item.displayAspectRatio)
               ? item.displayAspectRatio
               : undefined,
           crop:

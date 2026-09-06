@@ -619,7 +619,7 @@ export function PostComposer({
       <p className="mt-1 text-xs leading-5 text-muted-foreground">
         Choose how your photos and videos will appear in the feed.
       </p>
-      <div className="mt-3 flex items-end gap-7 sm:gap-10">
+      <div className="mt-3 grid grid-cols-4 items-end gap-1 sm:flex sm:gap-8">
         {POST_DISPLAY_RATIO_OPTIONS.map((option) => {
           const selected = displayAspectRatio === option.value;
           return (
@@ -630,7 +630,7 @@ export function PostComposer({
               disabled={uploading || reviewQueue.length > 0}
               onClick={() => setDisplayAspectRatio(option.value)}
               className={cn(
-                "group flex min-h-[72px] min-w-[56px] flex-col items-center justify-end gap-2 py-1 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 disabled:cursor-not-allowed disabled:opacity-45",
+                "group flex min-h-[72px] min-w-0 flex-col items-center justify-end gap-2 py-1 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 disabled:cursor-not-allowed disabled:opacity-45 sm:min-w-[64px]",
                 selected
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground",
@@ -649,7 +649,7 @@ export function PostComposer({
                   )}
                   style={{
                     aspectRatio: option.ratio,
-                    height: option.ratio === 1 ? 28 : 32,
+                    height: option.ratio > 1 ? 24 : option.ratio === 1 ? 28 : 32,
                   }}
                 />
                 {selected && (
@@ -658,11 +658,9 @@ export function PostComposer({
                   </span>
                 )}
               </span>
-              <span className="text-xs font-semibold">
-                {option.label}{" "}
-                <span className="font-normal text-muted-foreground">
-                  {option.helper}
-                </span>
+              <span className="text-[11px] font-semibold leading-4 sm:text-xs">
+                <span className="block">{option.label}</span>
+                <span className="block font-normal text-muted-foreground">{option.helper}</span>
               </span>
             </button>
           );

@@ -15,3 +15,16 @@ export function getVideoPosterUrl(src: string): string | undefined {
     return src.replace(/\/playlist\.m3u8(?=($|[?#]))/i, "/thumbnail.jpg");
   }
 }
+
+export type VideoTapZone = "backward" | "center" | "forward";
+
+export function getVideoTapZone(
+  clientX: number,
+  frame: Pick<DOMRect, "left" | "width">,
+): VideoTapZone {
+  if (frame.width <= 0) return "center";
+  const position = (clientX - frame.left) / frame.width;
+  if (position <= 0.3) return "backward";
+  if (position >= 0.7) return "forward";
+  return "center";
+}

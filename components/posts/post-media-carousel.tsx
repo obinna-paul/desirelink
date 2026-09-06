@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Heart } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { feedMediaAspectRatio, type PostMediaItem } from "@/lib/post-shared";
+import { getVideoTapZone } from "@/lib/video-playback";
 import { PostVideoPlayer } from "@/components/posts/post-video-player";
 
 export function PostMediaCarousel({
@@ -71,6 +72,21 @@ export function PostMediaCarousel({
   }
 
   async function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    const start = tapStartRef.current;
+    tapStartRef.current = null;
+    if (!start) return;
+
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("[data-post-carousel-control='true']")) return;
+
+    const videoPlayer = target?.closest<HTMLElement>("[data-video-player='true']");
+    if (
+      videoPlayer &&
+      getVideoTapZone(event.clientX, videoPlayer.getBoundingClientRect()) !== "center"
+    ) {
+      return;
+    }
+
     if (
       !onDoubleTapLike ||
       liked ||
@@ -79,13 +95,6 @@ export function PostMediaCarousel({
     ) {
       return;
     }
-
-    const target = event.target as HTMLElement | null;
-    if (target?.closest("[data-post-carousel-control='true']")) return;
-
-    const start = tapStartRef.current;
-    tapStartRef.current = null;
-    if (!start) return;
 
     const horizontalMovement = Math.abs(event.clientX - start.x);
     const verticalMovement = Math.abs(event.clientY - start.y);
