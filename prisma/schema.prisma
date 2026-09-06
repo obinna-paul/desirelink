@@ -336,6 +336,7 @@ model Profile {
   followers              Follow[]              @relation("FollowFollowing")
   creatorAffinities      CreatorAffinity[]     @relation("CreatorAffinityViewer")
   affinityFromViewers    CreatorAffinity[]     @relation("CreatorAffinityCreator")
+  feedSlates             FeedSlate[]
   reportsMade            Report[]              @relation("ReportReporter")
   reportsReceived        Report[]              @relation("ReportReportedUser")
   circles                Circle[]
@@ -938,6 +939,26 @@ model CreatorAffinity {
   @@unique([viewerId, creatorId])
   @@index([viewerId])
   @@index([creatorId])
+}
+
+/**
+ * A frozen, ranked list of ~100 post ids for one (viewer, sessionSeed, ~15-minute bucket) -
+ * see lib/feed-slate.ts's getOrBuildSlate. Ranked order isn't a stable DB column (scores
+ * shift between requests), so a ranked feed can't be paginated with the app's usual keyset
+ * cursor; this table lets pagination be a plain offset read into a slate computed once and
+ * reused for the rest of that bucket, per the discovery/ranking plan.
+ */
+model FeedSlate {
+  id          String   @id @default(cuid())
+  viewerId    String
+  viewer      Profile  @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  sessionSeed String
+  bucketStart DateTime
+  postIds     String[] @default([])
+  createdAt   DateTime @default(now())
+
+  @@unique([viewerId, sessionSeed, bucketStart])
+  @@index([viewerId])
 }
 
 /**
