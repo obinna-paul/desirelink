@@ -98,7 +98,7 @@ export function PostCard({
 }: {
   post: PostView;
   showAuthor?: boolean;
-  /** Which surface this card is rendered in (forYou/following/premium/hashtag/search/
+  /** Which surface this card is rendered in (forYou/premium/hashtag/search/
    * profile/post_detail/...) - logged on the post's first-ever impression for future
    * ranking input. See lib/posts.ts's PostImpression model. */
   surface?: string;

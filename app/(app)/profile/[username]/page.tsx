@@ -9,7 +9,6 @@ import { getCreatorProfilePosts } from "@/lib/posts";
 import { getCreatorStats } from "@/lib/creator";
 import { getPublicTiers } from "@/lib/tiers";
 import { getBlockRelationship } from "@/lib/block";
-import { isFollowing } from "@/lib/follow";
 import { getProfileVisibility } from "@/lib/circles";
 import { getReviewableContexts, getReviewsForProfile, getReviewSummary } from "@/lib/reviews";
 import { confirmProviderPayment } from "@/lib/providers";
@@ -131,7 +130,7 @@ export default async function PublicProfilePage({
   const viewerOrOwnerId = isOwner ? profile.id : (viewerProfile?.id ?? null);
   const isProvider = isProviderProfileType(profile.profileType);
 
-  const [posts, subscriptions, serviceListings, stats, activeStream, viewerIsFollowing] =
+  const [posts, subscriptions, serviceListings, stats, activeStream] =
     await Promise.all([
       getCreatorProfilePosts(profile.id, viewerOrOwnerId),
       getPublicTiers(profile.id, viewerOrOwnerId),
@@ -140,7 +139,6 @@ export default async function PublicProfilePage({
       isProvider
         ? prisma.liveStream.findFirst({ where: { providerId: profile.id, status: "live" }, select: { id: true } })
         : Promise.resolve(null),
-      viewerProfile ? isFollowing(viewerProfile.id, profile.id) : Promise.resolve(false),
     ]);
 
   const presenceStatus = activeStream
@@ -205,8 +203,6 @@ export default async function PublicProfilePage({
         isProvider={isProvider}
         canMessage={!isOwner && Boolean(viewerProfile)}
         canModerate={!isOwner && Boolean(viewerProfile)}
-        canFollow={!isOwner && Boolean(viewerProfile)}
-        isFollowing={viewerIsFollowing}
         reviewSummary={reviewSummary}
         reviews={reviews}
         reviewableContexts={reviewableContexts}

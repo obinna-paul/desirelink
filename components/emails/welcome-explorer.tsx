@@ -9,7 +9,7 @@ export function WelcomeExplorerEmail({ firstName, city }: { firstName: string; c
       <Text style={eyebrow}>Welcome</Text>
       <Text style={heading}>You&apos;re in, {firstName}</Text>
       <Text style={paragraph}>
-        Udala&apos;s where you find people worth following and go live with them. Add a photo, follow a few people, see
+        Udala&apos;s where you find people worth watching and go live with them. Add a photo, explore a few profiles, see
         who&apos;s live.{city ? ` There's usually someone live near ${city} right now.` : ""}
       </Text>
       <EmailButton href={absoluteUrl("/profile/edit")}>Complete your profile</EmailButton>

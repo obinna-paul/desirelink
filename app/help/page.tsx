@@ -120,7 +120,7 @@ export default function HelpCenterPage() {
           </FaqItem>
           <FaqItem question="What are Circles, and how do I manage who's in them?">
             <p>
-              Circles are groups you create to control who sees your Followers-level content. You add
+              Circles are groups you create to control who sees select profile details. You add
               and remove members from{" "}
               <Link href="/settings/circles">Settings → Circles</Link>.
             </p>

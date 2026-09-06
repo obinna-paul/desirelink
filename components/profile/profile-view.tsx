@@ -32,7 +32,6 @@ import type { PresenceStatus } from "@/lib/presence";
 import { ReviewDialog } from "@/components/reviews/review-dialog";
 import { ReviewsSection } from "@/components/reviews/reviews-section";
 import { BlockButton } from "@/components/safety/block-button";
-import { FollowButton } from "@/components/profile/follow-button";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { SignOutButton } from "@/components/layout/sign-out-button";
 import { Button } from "@/components/ui/button";
@@ -118,8 +117,6 @@ export function ProfileView({
   activeSection,
   canMessage = false,
   canModerate = false,
-  canFollow = false,
-  isFollowing = false,
   reviewSummary,
   reviews,
   reviewableContexts = [],
@@ -146,8 +143,6 @@ export function ProfileView({
   activeSection?: string;
   canMessage?: boolean;
   canModerate?: boolean;
-  canFollow?: boolean;
-  isFollowing?: boolean;
   reviewSummary: ReviewSummary;
   reviews: ReviewData[];
   reviewableContexts?: ReviewableContext[];
@@ -341,9 +336,6 @@ export function ProfileView({
               <div className="mt-4 flex min-w-0 items-center gap-2">
                 {isProvider ? (
                   <>
-                  {canFollow && (
-                    <FollowButton profileId={profile.id} initiallyFollowing={isFollowing} />
-                  )}
                   {/* Subscribe is the one thing worth a solid, colored button here - Message
                       stays outline so the two never compete for the same attention. */}
                   {canMessage && (
@@ -385,9 +377,6 @@ export function ProfileView({
                   </>
                 ) : (
                   <>
-                  {canFollow && (
-                    <FollowButton profileId={profile.id} initiallyFollowing={isFollowing} />
-                  )}
                   {canMessage && (
                     <Button
                       asChild

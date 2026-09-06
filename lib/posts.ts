@@ -12,7 +12,6 @@ import {
 } from "@/lib/subscription-access";
 import { getPublicTiersForCreators, type PublicTierView } from "@/lib/tiers";
 import { selectSubscribePromptPostIds } from "@/lib/subscribe-prompt-frequency";
-import { getFollowingIds } from "@/lib/follow";
 import { normalizeHashtag } from "@/lib/hashtags";
 import { getHiddenCreatorIds } from "@/lib/content-feedback";
 import {
@@ -883,57 +882,6 @@ export async function getPublicFeedPosts(
     }
     throw error;
   }
-}
-
-/**
- * Strictly chronological free posts from creators the viewer follows - the trust anchor and
- * fallback surface (see the discovery/ranking plan): Follow never unlocks subscriber-only
- * content, it only surfaces a followed creator's free posts here and enables their go-live
- * notifications.
- */
-export async function getFollowingFeedPosts(
-  viewerProfileId: string | null,
-): Promise<PostView[]> {
-  if (!viewerProfileId) return [];
-
-  const [followingIds, hiddenCreatorIds] = await Promise.all([
-    getFollowingIds(viewerProfileId),
-    getHiddenCreatorIds(viewerProfileId),
-  ]);
-  const hiddenSet = new Set(hiddenCreatorIds);
-  const visibleFollowingIds = followingIds.filter((id) => !hiddenSet.has(id));
-  if (visibleFollowingIds.length === 0) return [];
-
-  const where: Prisma.PostWhereInput = {
-    authorId: { in: visibleFollowingIds },
-    isSubscriberOnly: false,
-    author: { isIncognito: false, isSuspended: false },
-  };
-
-  let posts: RawPost[];
-  try {
-    posts = await prisma.post.findMany({
-      where: { ...where, isArchived: false },
-      orderBy: { createdAt: "desc" },
-      take: FEED_LIMIT,
-      select: postSelect(viewerProfileId),
-    });
-  } catch (error) {
-    if (!isMissingPostArchiveError(error)) throw error;
-    console.warn(
-      "Post archive filtering is unavailable until Post.isArchived migration is applied.",
-    );
-    posts = await prisma.post.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: FEED_LIMIT,
-      select: postSelect(viewerProfileId),
-    });
-  }
-
-  const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
-  const access = new Map<string, CreatorAccessInfo>();
-  return posts.map((post) => toPostView(post, access, viewerProfileId, liveStreamIds));
 }
 
 /** Newest-first posts tagged with a given hashtag - the hashtag page's data source. Locked

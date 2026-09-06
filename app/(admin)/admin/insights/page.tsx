@@ -129,21 +129,11 @@ export default async function AdminInsightsPage({ searchParams }: { searchParams
           <h2 className="text-sm font-semibold">Discovery guardrails</h2>
           <p className="text-xs text-muted-foreground">
             Watched alongside growth, not optimized for directly - see the discovery/ranking plan.
-            Repeat-content and meaningful-discovery only reflect impressions still within the
-            ~45-day retention window, regardless of the range selected above.
+            Repeat-content only reflects impressions still within the ~45-day retention window,
+            regardless of the range selected above.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Tile
-            label="Meaningful discovery"
-            value={`${guardrails.meaningfulDiscoveryRatePct}%`}
-            hint={`Of ${guardrails.activeViewers} active viewers, followed a new creator`}
-          />
-          <Tile
-            label="Follow → subscribe"
-            value={`${guardrails.followToSubscribeConversionPct}%`}
-            hint="Of new follows, also a subscriber"
-          />
           <Tile
             label="New-creator reach"
             value={`${guardrails.newCreatorReachPct}%`}

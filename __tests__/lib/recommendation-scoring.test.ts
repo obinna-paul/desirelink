@@ -22,7 +22,7 @@ describe("affinityTerm", () => {
     expect(affinityTerm(20)).toBe(0.5);
   });
 
-  it("gives a lone Follow (raw 8) a partial, not dominant, term", () => {
+  it("gives a moderate raw affinity (8) a partial, not dominant, term", () => {
     expect(affinityTerm(8)).toBeCloseTo(8 / 28, 10);
   });
 });
