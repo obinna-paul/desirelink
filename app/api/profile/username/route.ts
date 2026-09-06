@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { isUsernameAvailable, normalizeUsername } from "@/lib/username";
 import { usernameFieldSchema } from "@/lib/validations/auth";
 import { readJson } from "@/lib/security/request";
+import { syncProfileSearchDocument } from "@/lib/search";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -38,9 +39,12 @@ export async function POST(req: Request) {
   }
 
   try {
-    await prisma.profile.update({
+    const profile = await prisma.profile.update({
       where: { userId: session.user.id },
       data: { username, usernameChosen: true },
+    });
+    await syncProfileSearchDocument(profile).catch((error) => {
+      console.warn("[profile/username] failed to refresh search document", error);
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

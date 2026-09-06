@@ -1,13 +1,14 @@
 import { prisma } from "@/lib/prisma";
+import { upsertSearchDocument } from "@/lib/search";
 
-const HASHTAG_PATTERN = /#([a-zA-Z0-9_]{1,50})/g;
+const HASHTAG_PATTERN = new RegExp("#([\\p{L}\\p{M}\\p{N}_]{1,50})", "gu");
 
 /** Caps how many distinct hashtags get indexed per post - a lightweight defense against
  * tag stuffing. Extra tags past this are silently dropped, not an error. */
 export const MAX_HASHTAGS_PER_POST = 10;
 
 export function normalizeHashtag(raw: string): string {
-  return raw.trim().replace(/^#/, "").toLowerCase();
+  return raw.trim().replace(/^#/, "").normalize("NFKC").toLowerCase();
 }
 
 /** Extracts up to MAX_HASHTAGS_PER_POST unique hashtags from a caption, in first-seen order. */
@@ -40,4 +41,15 @@ export async function syncPostHashtags(postId: string, content: string): Promise
     data: hashtags.map((hashtag) => ({ postId, hashtagId: hashtag.id })),
     skipDuplicates: true,
   });
+
+  await Promise.all(
+    hashtags.map((hashtag) =>
+      upsertSearchDocument({
+        entityType: "hashtag",
+        entityId: hashtag.id,
+        title: hashtag.tag,
+        body: hashtag.tag,
+      }),
+    ),
+  );
 }

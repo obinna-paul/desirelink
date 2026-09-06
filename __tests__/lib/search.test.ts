@@ -6,7 +6,13 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { upsertSearchDocument, deleteSearchDocument, searchDocuments, logSearchInteraction } from "@/lib/search";
+import {
+  upsertSearchDocument,
+  deleteSearchDocument,
+  searchDocuments,
+  logSearchInteraction,
+  syncPostSearchDocument,
+} from "@/lib/search";
 import { prisma } from "@/lib/prisma";
 
 const mockPrisma = prisma as unknown as {
@@ -60,6 +66,39 @@ describe("deleteSearchDocument", () => {
     expect(mockPrisma.searchDocument.deleteMany).toHaveBeenCalledWith({
       where: { entityType: "post", entityId: "post-1" },
     });
+  });
+});
+
+describe("syncPostSearchDocument", () => {
+  it("indexes a free public post immediately", async () => {
+    await syncPostSearchDocument({
+      id: "post-1",
+      content: "Fresh creator post #Lagos",
+      isSubscriberOnly: false,
+      isArchived: false,
+      viewCount: 12,
+    });
+
+    expect(mockPrisma.searchDocument.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ entityType: "post", entityId: "post-1", popularity: 12 }),
+      }),
+    );
+  });
+
+  it("removes premium posts instead of exposing their captions in search", async () => {
+    await syncPostSearchDocument({
+      id: "post-1",
+      content: "Private caption",
+      isSubscriberOnly: true,
+      isArchived: false,
+      viewCount: 0,
+    });
+
+    expect(mockPrisma.searchDocument.deleteMany).toHaveBeenCalledWith({
+      where: { entityType: "post", entityId: "post-1" },
+    });
+    expect(mockPrisma.searchDocument.upsert).not.toHaveBeenCalled();
   });
 });
 

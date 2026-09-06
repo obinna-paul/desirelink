@@ -6,6 +6,7 @@ jest.mock("@/lib/prisma", () => ({
     postShare: { findMany: jest.fn() },
     savedPost: { findMany: jest.fn() },
     postUnlock: { findMany: jest.fn() },
+    postFeedback: { findMany: jest.fn() },
     creatorAffinity: { deleteMany: jest.fn(), createMany: jest.fn() },
     $transaction: jest.fn((ops: unknown[]) => Promise.all(ops)),
   },
@@ -21,6 +22,7 @@ const mockPrisma = prisma as unknown as {
   postShare: { findMany: jest.Mock };
   savedPost: { findMany: jest.Mock };
   postUnlock: { findMany: jest.Mock };
+  postFeedback: { findMany: jest.Mock };
   creatorAffinity: { deleteMany: jest.Mock; createMany: jest.Mock };
 };
 
@@ -38,6 +40,7 @@ beforeEach(() => {
   mockPrisma.postShare.findMany.mockResolvedValue([]);
   mockPrisma.savedPost.findMany.mockResolvedValue([]);
   mockPrisma.postUnlock.findMany.mockResolvedValue([]);
+  mockPrisma.postFeedback.findMany.mockResolvedValue([]);
 });
 
 function rowsFromCreateMany(): { viewerId: string; creatorId: string; affinity: number }[] {
@@ -91,6 +94,22 @@ describe("refreshCreatorAffinity", () => {
     const summary = await refreshCreatorAffinity(NOW);
 
     expect(summary).toEqual({ pairsUpdated: 0 });
+  });
+
+  it("uses explicit feedback as a positive or negative creator signal", async () => {
+    mockPrisma.postFeedback.findMany.mockResolvedValue([
+      { viewerId: "viewer-1", kind: "interested", createdAt: NOW, ...authored("creator-1") },
+      { viewerId: "viewer-2", kind: "not_interested", createdAt: NOW, ...authored("creator-1") },
+    ]);
+
+    await refreshCreatorAffinity(NOW);
+
+    expect(rowsFromCreateMany()).toEqual(
+      expect.arrayContaining([
+        { viewerId: "viewer-1", creatorId: "creator-1", affinity: 3 },
+        { viewerId: "viewer-2", creatorId: "creator-1", affinity: -5 },
+      ]),
+    );
   });
 
   it("keeps separate creators for the same viewer as separate pairs", async () => {

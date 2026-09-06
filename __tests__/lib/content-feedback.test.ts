@@ -2,8 +2,9 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     post: { findUnique: jest.fn() },
     profile: { findUnique: jest.fn() },
-    postFeedback: { upsert: jest.fn() },
+    postFeedback: { upsert: jest.fn(), deleteMany: jest.fn(), findMany: jest.fn() },
     hiddenCreator: { upsert: jest.fn(), deleteMany: jest.fn(), findMany: jest.fn() },
+    $transaction: jest.fn((ops: unknown[]) => Promise.all(ops)),
   },
 }));
 
@@ -12,13 +13,14 @@ import {
   hideCreator,
   unhideCreator,
   getHiddenCreatorIds,
+  getNotInterestedPostIds,
 } from "@/lib/content-feedback";
 import { prisma } from "@/lib/prisma";
 
 const mockPrisma = prisma as unknown as {
   post: { findUnique: jest.Mock };
   profile: { findUnique: jest.Mock };
-  postFeedback: { upsert: jest.Mock };
+  postFeedback: { upsert: jest.Mock; deleteMany: jest.Mock; findMany: jest.Mock };
   hiddenCreator: { upsert: jest.Mock; deleteMany: jest.Mock; findMany: jest.Mock };
 };
 
@@ -42,12 +44,25 @@ describe("recordPostFeedback", () => {
     const result = await recordPostFeedback("viewer-1", "post-1", "not_interested");
 
     expect(result).toEqual({ ok: true });
+    expect(mockPrisma.postFeedback.deleteMany).toHaveBeenCalledWith({
+      where: { viewerId: "viewer-1", postId: "post-1", kind: "interested" },
+    });
     expect(mockPrisma.postFeedback.upsert).toHaveBeenCalledWith({
       where: {
         viewerId_postId_kind: { viewerId: "viewer-1", postId: "post-1", kind: "not_interested" },
       },
       create: { viewerId: "viewer-1", postId: "post-1", kind: "not_interested" },
       update: {},
+    });
+  });
+
+  it("returns posts the viewer explicitly marked not interested", async () => {
+    mockPrisma.postFeedback.findMany.mockResolvedValue([{ postId: "post-2" }]);
+
+    await expect(getNotInterestedPostIds("viewer-1")).resolves.toEqual(["post-2"]);
+    expect(mockPrisma.postFeedback.findMany).toHaveBeenCalledWith({
+      where: { viewerId: "viewer-1", kind: "not_interested" },
+      select: { postId: true },
     });
   });
 });

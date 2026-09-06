@@ -179,7 +179,7 @@ export default async function PublicProfilePage({
         },
         {
           "@type": "InteractionCounter",
-          interactionType: "https://schema.org/FollowAction",
+          interactionType: "https://schema.org/SubscribeAction",
           userInteractionCount: stats.subscriberCount,
         },
       ],

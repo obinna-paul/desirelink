@@ -129,7 +129,7 @@ function scoreAvailability(
   }
 
   if ((viewer.openToChat && candidate.openToChat) || (viewer.openToMeet && candidate.openToMeet)) {
-    return { score: 5, reasons: ["Your availability preferences line up"] };
+    return { score: 5, reasons: ["Your availability overlaps"] };
   }
 
   if (candidateStatus) {

@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma";
 
 export type ContentFeedbackActionResult = { ok: true } | { ok: false; status: number; error: string };
 
-/** "Interested" / "Not interested" from the post menu - a soft signal, logged for future
- * ranking input. Never suppresses the post itself. */
+/** "Interested" / "Not interested" from the post menu. A viewer can hold only one signal
+ * for a post at a time; choosing the opposite option replaces the previous signal. */
 export async function recordPostFeedback(
   viewerId: string,
   postId: string,
@@ -16,11 +16,16 @@ export async function recordPostFeedback(
     return { ok: false, status: 404, error: "Post not found" };
   }
 
-  await prisma.postFeedback.upsert({
-    where: { viewerId_postId_kind: { viewerId, postId, kind } },
-    create: { viewerId, postId, kind },
-    update: {},
-  });
+  const oppositeKind: PostFeedbackKind = kind === "interested" ? "not_interested" : "interested";
+
+  await prisma.$transaction([
+    prisma.postFeedback.deleteMany({ where: { viewerId, postId, kind: oppositeKind } }),
+    prisma.postFeedback.upsert({
+      where: { viewerId_postId_kind: { viewerId, postId, kind } },
+      create: { viewerId, postId, kind },
+      update: {},
+    }),
+  ]);
 
   return { ok: true };
 }
@@ -58,4 +63,14 @@ export async function getHiddenCreatorIds(viewerId: string): Promise<string[]> {
     select: { creatorId: true },
   });
   return rows.map((row) => row.creatorId);
+}
+
+/** Posts explicitly marked "Not interested" are removed from that viewer's discovery
+ * surfaces immediately. Selecting "Interested" later removes the opposing row. */
+export async function getNotInterestedPostIds(viewerId: string): Promise<string[]> {
+  const rows = await prisma.postFeedback.findMany({
+    where: { viewerId, kind: "not_interested" },
+    select: { postId: true },
+  });
+  return rows.map((row) => row.postId);
 }

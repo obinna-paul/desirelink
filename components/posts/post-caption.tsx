@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 
 const TRUNCATE_LENGTH = 150;
-const HASHTAG_PATTERN = /#([a-zA-Z0-9_]{1,50})/g;
+const HASHTAG_PATTERN = new RegExp("#([\\p{L}\\p{M}\\p{N}_]{1,50})", "gu");
 
 /** Splits caption text on #hashtags and turns each into a link to its hashtag page,
  * leaving everything else as plain text. */
@@ -18,7 +18,7 @@ function linkifyHashtags(text: string): ReactNode[] {
     nodes.push(
       <Link
         key={index}
-        href={`/hashtag/${match[1].toLowerCase()}`}
+        href={`/hashtag/${encodeURIComponent(match[1].normalize("NFKC").toLowerCase())}`}
         className="font-semibold not-italic text-primary hover:underline"
       >
         {match[0]}

@@ -4,6 +4,7 @@ jest.mock("@/lib/prisma", () => ({
     postHashtag: { deleteMany: jest.fn(), createMany: jest.fn() },
   },
 }));
+jest.mock("@/lib/search", () => ({ upsertSearchDocument: jest.fn() }));
 
 import {
   extractHashtags,
@@ -12,6 +13,7 @@ import {
   MAX_HASHTAGS_PER_POST,
 } from "@/lib/hashtags";
 import { prisma } from "@/lib/prisma";
+import { upsertSearchDocument } from "@/lib/search";
 
 const mockPrisma = prisma as unknown as {
   hashtag: { upsert: jest.Mock };
@@ -53,6 +55,10 @@ describe("extractHashtags", () => {
     expect(extractHashtags("just a plain caption")).toEqual([]);
   });
 
+  it("supports hashtags written with African-language characters", () => {
+    expect(extractHashtags("#Ọdịnala #Àṣà #Kiswahili")).toEqual(["ọdịnala", "àṣà", "kiswahili"]);
+  });
+
   it("ignores a bare # with nothing after it", () => {
     expect(extractHashtags("just a # symbol")).toEqual([]);
   });
@@ -92,5 +98,6 @@ describe("syncPostHashtags", () => {
       ],
       skipDuplicates: true,
     });
+    expect(upsertSearchDocument).toHaveBeenCalledTimes(2);
   });
 });

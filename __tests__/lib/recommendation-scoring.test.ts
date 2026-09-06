@@ -25,6 +25,10 @@ describe("affinityTerm", () => {
   it("gives a moderate raw affinity (8) a partial, not dominant, term", () => {
     expect(affinityTerm(8)).toBeCloseTo(8 / 28, 10);
   });
+
+  it("preserves negative affinity so explicit disinterest lowers a creator's rank", () => {
+    expect(affinityTerm(-5)).toBeCloseTo(-5 / 25, 10);
+  });
 });
 
 describe("qualityTerm", () => {

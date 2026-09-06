@@ -3,10 +3,11 @@ import { getOrBuildSlate } from "@/lib/feed-slate";
 import { scoreCandidates, type RankablePost } from "@/lib/recommendation-scoring";
 import { assembleSlate, seededTiebreak, type SlateCandidate } from "@/lib/ranking/slate";
 
-/** Env-presence flag, matching the isBunnyStreamConfigured() idiom (lib/bunny-stream.ts) -
- * ranking stays fully off, with zero behavior change, until this is explicitly set. */
+/** Ranking is the normal feed behavior. Keep an explicit false/0 kill switch for emergency
+ * rollback; the caller already falls back to chronology if ranking storage is unavailable. */
 export function isFeedRankingEnabled(): boolean {
-  return process.env.FEED_RANKING_ENABLED === "true";
+  const value = process.env.FEED_RANKING_ENABLED?.trim().toLowerCase();
+  return value !== "false" && value !== "0";
 }
 
 /** Share of viewers permanently excluded from ranking even when the flag is on, always
@@ -39,6 +40,22 @@ export type RankableFeedPost = {
   locked: boolean;
 };
 
+const MAX_SLATE_LENGTH = 100;
+
+/** Exploration favors strong or fresh posts from creators the viewer has no positive
+ * history with. It is intentionally behavior-only: no follows or declared preferences. */
+function buildExplorationPool(scored: ReturnType<typeof scoreCandidates>): SlateCandidate[] {
+  return scored
+    .filter((post) => post.affinity <= 0 && !post.isLocked)
+    .map((post) => ({
+      id: post.id,
+      authorId: post.authorId,
+      score: post.quality * 0.7 + post.recency * 0.3,
+      isLocked: false,
+      hasAffinity: false,
+    }));
+}
+
 /**
  * Re-orders an already-eligible, already-access-resolved set of feed posts using the Tier 2
  * four-term score (lib/recommendation-scoring.ts) and slate assembly (lib/ranking/slate.ts),
@@ -48,10 +65,9 @@ export type RankableFeedPost = {
  * this as the full candidate set, see applyFeedRanking in lib/posts.ts for how the caller
  * folds omitted posts back in rather than letting the feed silently shrink.
  *
- * Deliberate v1 simplification, disclosed: there is no separate exploration-pool candidate
- * source yet (that's a retrieval-stage concern, not built out here), so assembleSlate always
- * receives an empty exploration pool - its exploration quota falls back to the main pool for
- * every slot, meaning no structural exploration diversity yet.
+ * The exploration pool is derived from fresh or high-quality unlocked posts by creators the
+ * viewer has no positive behavioral history with. This gives unfamiliar creators reserved
+ * opportunities without relying on follows or self-declared preferences.
  */
 export async function rankFeedPosts(
   viewerId: string,
@@ -98,7 +114,14 @@ export async function rankFeedPosts(
       hasAffinity: post.affinity > 0,
     }));
 
-    const assembled = assembleSlate({ ranked: slateCandidates, exploration: [] }, { seed: `${viewerId}:${sessionSeed}` });
+    const exploration = buildExplorationPool(scored);
+    const assembled = assembleSlate(
+      { ranked: slateCandidates, exploration },
+      {
+        seed: `${viewerId}:${sessionSeed}`,
+        targetLength: Math.min(MAX_SLATE_LENGTH, posts.length),
+      },
+    );
 
     return assembled.map((candidate) => candidate.id);
   };

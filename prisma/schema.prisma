@@ -757,10 +757,9 @@ model PostHashtag {
 }
 
 /**
- * A viewer's soft signal about one post - "Interested" / "Not interested" in the post
- * menu. Logged only, for future ranking input (see the discovery/ranking plan's Tier 1
- * quality score) - never suppresses the post itself. For actually hiding content, see
- * HiddenCreator below.
+ * A viewer's signal about one post - "Interested" / "Not interested" in the post menu.
+ * Opposing rows are kept mutually exclusive by the write path. Not-interested posts are
+ * excluded from that viewer's discovery surfaces and both signals shape creator affinity.
  */
 model PostFeedback {
   id        String           @id @default(cuid())
@@ -814,7 +813,7 @@ model SavedPost {
  * weightedEngagement follows the discovery/ranking plan's Tier 1 positive-signal weights,
  * limited to the signals actually attributable to a specific post today: unlock 6 (this
  * codebase's per-post subscribe-conversion signal, via PostUnlock), share 3, save 3,
- * comment 2, like 1. Follow-from-post, profile-visit, video-completion, and
+ * comment 2, like 1. Profile-visit, video-completion, and
  * caption-expand aren't tracked per-post yet, so they contribute nothing here.
  */
 model PostDailyStats {
@@ -865,11 +864,11 @@ model PostQuality {
 /**
  * Viewer-scoped, decayed engagement score toward one creator - Tier 2 scoring's affinity
  * term reads this directly (two Map lookups per request, not a query per candidate). Rebuilt
- * wholesale each cron run from raw event tables (Follow/PostReaction/PostComment/PostShare/
- * SavedPost/PostUnlock/PostImpression) rather than upserted incrementally, the same
+ * wholesale each cron run from raw event tables (PostReaction/PostComment/PostShare/
+ * SavedPost/PostUnlock/PostImpression/PostFeedback) rather than upserted incrementally, the same
  * full-rebuild pattern as refreshSearchIndex in lib/search-index.ts - see
  * refreshCreatorAffinity in lib/creator-affinity.ts for exactly how affinity is derived,
- * including why a current Follow relationship isn't decayed like the other signals.
+ * including the time decay applied to each interaction.
  */
 model CreatorAffinity {
   id        String   @id @default(cuid())

@@ -35,20 +35,21 @@ const RECENCY_HALF_LIFE_HOURS = 36;
  * as an eligibility-stage SQL filter on the candidate query, not a score penalty. */
 const LOCKED_WITHOUT_AFFINITY_PENALTY = 0.15;
 
-function saturate(value: number, halfPoint: number): number {
-  if (value <= 0) return 0;
-  return value / (value + halfPoint);
+function saturateSigned(value: number, halfPoint: number): number {
+  if (value === 0) return 0;
+  const magnitude = Math.abs(value) / (Math.abs(value) + halfPoint);
+  return Math.sign(value) * magnitude;
 }
 
 /** 0 when the viewer has no CreatorAffinity row for this creator - the graceful-degradation
  * case the plan requires: a new viewer's score collapses cleanly to quality + recency. */
 export function affinityTerm(rawAffinity: number): number {
-  return saturate(rawAffinity, AFFINITY_SATURATION);
+  return saturateSigned(rawAffinity, AFFINITY_SATURATION);
 }
 
 /** 0 when the post has no PostQuality row yet (e.g. brand new, cron hasn't run). */
 export function qualityTerm(rawQuality: number): number {
-  return saturate(rawQuality, QUALITY_SATURATION);
+  return Math.max(0, saturateSigned(rawQuality, QUALITY_SATURATION));
 }
 
 export function recencyTerm(publishedAt: Date, now: Date = new Date()): number {

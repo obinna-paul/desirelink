@@ -13,7 +13,7 @@ import {
 import { getPublicTiersForCreators, type PublicTierView } from "@/lib/tiers";
 import { selectSubscribePromptPostIds } from "@/lib/subscribe-prompt-frequency";
 import { normalizeHashtag } from "@/lib/hashtags";
-import { getHiddenCreatorIds } from "@/lib/content-feedback";
+import { getHiddenCreatorIds, getNotInterestedPostIds } from "@/lib/content-feedback";
 import {
   HOME_FEED_SESSION_SEED,
   isFeedRankingEnabled,
@@ -24,6 +24,7 @@ import { affinityTerm, recencyTerm } from "@/lib/recommendation-scoring";
 import { getAffinityByCreator } from "@/lib/ranking/people-scoring";
 
 const FEED_LIMIT = 30;
+const FEED_CANDIDATE_LIMIT = 120;
 const PROFILE_POSTS_LIMIT = 50;
 
 function isMissingSchemaError(error: unknown): boolean {
@@ -823,12 +824,22 @@ async function applyFeedRanking(
 export async function getPublicFeedPosts(
   viewerProfileId: string | null,
 ): Promise<PostView[]> {
-  const hiddenCreatorIds = viewerProfileId ? await getHiddenCreatorIds(viewerProfileId) : [];
+  const [hiddenCreatorIds, notInterestedPostIds] = viewerProfileId
+    ? await Promise.all([
+        getHiddenCreatorIds(viewerProfileId),
+        getNotInterestedPostIds(viewerProfileId),
+      ])
+    : [[], []];
+  const shouldRank = Boolean(
+    viewerProfileId && isFeedRankingEnabled() && !isInRankingHoldout(viewerProfileId),
+  );
+  const take = shouldRank ? FEED_CANDIDATE_LIMIT : FEED_LIMIT;
 
   try {
     const posts = await prisma.post.findMany({
       where: {
         isArchived: false,
+        id: notInterestedPostIds.length > 0 ? { notIn: notInterestedPostIds } : undefined,
         authorId: hiddenCreatorIds.length > 0 ? { notIn: hiddenCreatorIds } : undefined,
         author: {
           isIncognito: false,
@@ -836,7 +847,7 @@ export async function getPublicFeedPosts(
         },
       },
       orderBy: { createdAt: "desc" },
-      take: FEED_LIMIT,
+      take,
       select: postSelect(viewerProfileId),
     });
 
@@ -847,7 +858,7 @@ export async function getPublicFeedPosts(
       ...toPostView(post, access, viewerProfileId, liveStreamIds),
       subscribePrompt: subscribePrompts.get(post.id) ?? null,
     }));
-    return await applyFeedRanking(viewerProfileId, posts, postViews);
+    return (await applyFeedRanking(viewerProfileId, posts, postViews)).slice(0, FEED_LIMIT);
   } catch (error) {
     if (isMissingPostArchiveError(error)) {
       console.warn(
@@ -855,6 +866,7 @@ export async function getPublicFeedPosts(
       );
       const posts = await prisma.post.findMany({
         where: {
+          id: notInterestedPostIds.length > 0 ? { notIn: notInterestedPostIds } : undefined,
           authorId: hiddenCreatorIds.length > 0 ? { notIn: hiddenCreatorIds } : undefined,
           author: {
             isIncognito: false,
@@ -862,17 +874,18 @@ export async function getPublicFeedPosts(
           },
         },
         orderBy: { createdAt: "desc" },
-        take: FEED_LIMIT,
+        take,
         select: postSelect(viewerProfileId),
       });
 
       const access = await accessForSubscriberOnlyAuthors(posts, viewerProfileId);
       const subscribePrompts = await computeSubscribePrompts(posts, viewerProfileId);
       const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
-      return posts.map((post) => ({
+      const postViews = posts.map((post) => ({
         ...toPostView(post, access, viewerProfileId, liveStreamIds),
         subscribePrompt: subscribePrompts.get(post.id) ?? null,
       }));
+      return (await applyFeedRanking(viewerProfileId, posts, postViews)).slice(0, FEED_LIMIT);
     }
     if (isMissingSchemaError(error)) {
       console.warn(
@@ -894,10 +907,16 @@ export async function getPostsByHashtag(
   const normalized = normalizeHashtag(tag);
   if (!normalized) return [];
 
-  const hiddenCreatorIds = viewerProfileId ? await getHiddenCreatorIds(viewerProfileId) : [];
+  const [hiddenCreatorIds, notInterestedPostIds] = viewerProfileId
+    ? await Promise.all([
+        getHiddenCreatorIds(viewerProfileId),
+        getNotInterestedPostIds(viewerProfileId),
+      ])
+    : [[], []];
 
   const where: Prisma.PostWhereInput = {
     hashtags: { some: { hashtag: { tag: normalized } } },
+    id: notInterestedPostIds.length > 0 ? { notIn: notInterestedPostIds } : undefined,
     authorId: hiddenCreatorIds.length > 0 ? { notIn: hiddenCreatorIds } : undefined,
     author: { isIncognito: false, isSuspended: false },
   };

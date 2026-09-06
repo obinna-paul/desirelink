@@ -28,6 +28,74 @@ export async function deleteSearchDocument(entityType: SearchEntityType, entityI
   await prisma.searchDocument.deleteMany({ where: { entityType, entityId } });
 }
 
+/** Keeps newly published or edited free posts searchable immediately. The periodic full
+ * rebuild remains the repair path for missed writes and deleted orphan documents. */
+export async function syncPostSearchDocument(post: {
+  id: string;
+  content: string;
+  isSubscriberOnly: boolean;
+  isArchived: boolean;
+  viewCount: number;
+}): Promise<void> {
+  if (post.isSubscriberOnly || post.isArchived) {
+    await deleteSearchDocument("post", post.id);
+    return;
+  }
+
+  await upsertSearchDocument({
+    entityType: "post",
+    entityId: post.id,
+    title: post.content.slice(0, 140),
+    body: post.content.slice(0, 500),
+    popularity: post.viewCount,
+  });
+}
+
+export async function syncProfileSearchDocument(profile: {
+  id: string;
+  username: string;
+  displayName: string;
+  bio: string;
+  profileViews: number;
+  isIncognito: boolean;
+  showInSearch: boolean;
+  isSuspended: boolean;
+}): Promise<void> {
+  if (profile.isIncognito || !profile.showInSearch || profile.isSuspended) {
+    await deleteSearchDocument("profile", profile.id);
+    return;
+  }
+
+  await upsertSearchDocument({
+    entityType: "profile",
+    entityId: profile.id,
+    title: profile.displayName || profile.username,
+    body: `${profile.username} ${profile.bio}`.slice(0, 500),
+    popularity: profile.profileViews,
+  });
+}
+
+export async function syncServiceSearchDocument(listing: {
+  id: string;
+  title: string;
+  description: string;
+  isActive: boolean;
+  bookingCount?: number;
+}): Promise<void> {
+  if (!listing.isActive) {
+    await deleteSearchDocument("service_listing", listing.id);
+    return;
+  }
+
+  await upsertSearchDocument({
+    entityType: "service_listing",
+    entityId: listing.id,
+    title: listing.title,
+    body: listing.description.slice(0, 500),
+    popularity: listing.bookingCount ?? 0,
+  });
+}
+
 export type SearchResultRow = {
   entityType: string;
   entityId: string;

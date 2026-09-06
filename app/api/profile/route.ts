@@ -7,6 +7,7 @@ import { updateProfileSchema } from "@/lib/validations/profile";
 import { recalculateReputation } from "@/lib/reputation";
 import { readJson } from "@/lib/security/request";
 import { isProviderProfileType } from "@/lib/provider-types";
+import { syncProfileSearchDocument } from "@/lib/search";
 
 export async function PATCH(req: Request) {
   const session = await getServerSession(authOptions);
@@ -55,6 +56,10 @@ export async function PATCH(req: Request) {
   });
 
   const { score, isTrustedMember } = await recalculateReputation(profile.id);
+
+  await syncProfileSearchDocument(profile).catch((error) => {
+    console.warn("[profile] failed to refresh search document", error);
+  });
 
   return NextResponse.json(
     { profile: { ...profile, communityStanding: score, isTrustedMember } },

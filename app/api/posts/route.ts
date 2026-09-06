@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { flagContentIfNeeded } from "@/lib/moderation";
 import { getPostByIdForViewer } from "@/lib/posts";
 import { syncPostHashtags } from "@/lib/hashtags";
+import { syncPostSearchDocument } from "@/lib/search";
 import { createPostSchema } from "@/lib/validations/post";
 import { readJson } from "@/lib/security/request";
 import { isProviderProfileType } from "@/lib/provider-types";
@@ -184,12 +185,19 @@ export async function POST(req: Request) {
 
   try {
     await syncPostHashtags(post.id, post.content);
+    await syncPostSearchDocument({
+      id: post.id,
+      content: post.content,
+      isSubscriberOnly: post.isSubscriberOnly,
+      isArchived: false,
+      viewCount: 0,
+    });
   } catch (error) {
     if (!isMissingSchemaError(error)) {
-      console.error("[posts] hashtag extraction failed after post creation", error);
+      console.error("[posts] discovery indexing failed after post creation", error);
     } else {
       console.warn(
-        "[posts] hashtag extraction skipped because the database schema is incomplete",
+        "[posts] discovery indexing skipped because the database schema is incomplete",
         error.meta,
       );
     }

@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { flagContentIfNeeded } from "@/lib/moderation";
 import { getPostByIdForViewer } from "@/lib/posts";
 import { syncPostHashtags } from "@/lib/hashtags";
+import { deleteSearchDocument, syncPostSearchDocument } from "@/lib/search";
 import { prisma } from "@/lib/prisma";
 import { readJson } from "@/lib/security/request";
 import { updatePostSchema } from "@/lib/validations/post";
@@ -91,6 +92,9 @@ export async function PATCH(
         where: { id: params.postId },
         data: { isArchived: true },
       });
+      await deleteSearchDocument("post", params.postId).catch((error) => {
+        console.warn("[posts] failed to remove archived post from search", error);
+      });
     } catch (error) {
       if (isMissingPostArchiveError(error)) {
         return NextResponse.json(
@@ -173,9 +177,16 @@ export async function PATCH(
     }
   }
 
-  await prisma.post.update({
+  const updatedPost = await prisma.post.update({
     where: { id: params.postId },
     data: updateData,
+    select: {
+      id: true,
+      content: true,
+      isSubscriberOnly: true,
+      isArchived: true,
+      viewCount: true,
+    },
   });
 
   try {
@@ -191,8 +202,9 @@ export async function PATCH(
 
   try {
     await syncPostHashtags(params.postId, parsed.data.content);
+    await syncPostSearchDocument(updatedPost);
   } catch (error) {
-    console.warn("[posts] hashtag extraction failed after post edit", error);
+    console.warn("[posts] discovery indexing failed after post edit", error);
   }
 
   const post = await getPostByIdForViewer(params.postId, profile.id);
@@ -222,5 +234,8 @@ export async function DELETE(
   if ("error" in owned) return owned.error;
 
   await prisma.post.delete({ where: { id: params.postId } });
+  await deleteSearchDocument("post", params.postId).catch((error) => {
+    console.warn("[posts] failed to remove deleted post from search", error);
+  });
   return NextResponse.json({ ok: true, deleted: true });
 }

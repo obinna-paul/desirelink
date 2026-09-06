@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bookmark, BookmarkCheck, EyeOff, ThumbsDown, ThumbsUp } from "lucide-react";
 
 import { OverflowMenu } from "@/components/ui/overflow-menu";
@@ -91,12 +92,15 @@ export function PostOverflowMenu({
   creatorId: string;
   viewerSaved?: boolean;
 }) {
+  const router = useRouter();
+
   async function sendFeedback(kind: "interested" | "not_interested") {
     const res = await fetch("/api/content-feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ postId, kind }),
     });
+    if (res.ok && kind === "not_interested") router.refresh();
     return res.ok;
   }
 
@@ -106,6 +110,7 @@ export function PostOverflowMenu({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ creatorId }),
     });
+    if (res.ok) router.refresh();
     return res.ok;
   }
 

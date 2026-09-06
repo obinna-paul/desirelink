@@ -32,17 +32,19 @@ describe("isFeedRankingEnabled", () => {
     process.env.FEED_RANKING_ENABLED = original;
   });
 
-  it("is false when unset", () => {
+  it("is true when unset", () => {
     delete process.env.FEED_RANKING_ENABLED;
+    expect(isFeedRankingEnabled()).toBe(true);
+  });
+
+  it("supports an explicit false kill switch", () => {
+    process.env.FEED_RANKING_ENABLED = "false";
+    expect(isFeedRankingEnabled()).toBe(false);
+    process.env.FEED_RANKING_ENABLED = "0";
     expect(isFeedRankingEnabled()).toBe(false);
   });
 
-  it("is false for anything other than the exact string 'true'", () => {
-    process.env.FEED_RANKING_ENABLED = "1";
-    expect(isFeedRankingEnabled()).toBe(false);
-  });
-
-  it("is true only for the exact string 'true'", () => {
+  it("is true when explicitly enabled", () => {
     process.env.FEED_RANKING_ENABLED = "true";
     expect(isFeedRankingEnabled()).toBe(true);
   });

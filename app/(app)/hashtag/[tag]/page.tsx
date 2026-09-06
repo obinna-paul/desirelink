@@ -20,7 +20,7 @@ export default async function HashtagPage({
       })
     : null;
 
-  const tag = normalizeHashtag(decodeURIComponent(params.tag));
+  const tag = normalizeHashtag(params.tag);
   const posts = await getPostsByHashtag(tag, viewerProfile?.id ?? null);
 
   return (

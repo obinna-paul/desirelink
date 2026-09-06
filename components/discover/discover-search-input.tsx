@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Search, X } from "lucide-react";
@@ -19,6 +19,12 @@ export function DiscoverSearchInput({ initialQuery }: { initialQuery: string }) 
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
+  const inputId = useId();
+
+  useEffect(() => {
+    setValue(initialQuery);
+  }, [initialQuery]);
 
   useEffect(() => {
     const trimmed = value.trim();
@@ -99,7 +105,7 @@ export function DiscoverSearchInput({ initialQuery }: { initialQuery: string }) 
   }
 
   return (
-    <div ref={containerRef} className="relative w-full sm:max-w-sm">
+    <div ref={containerRef} className="relative w-full sm:max-w-md">
       <form onSubmit={handleSubmit} className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
@@ -107,33 +113,51 @@ export function DiscoverSearchInput({ initialQuery }: { initialQuery: string }) 
           value={value}
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => suggestions.length > 0 && setOpen(true)}
-          placeholder="Search people"
-          aria-label="Search by username or display name"
+          onFocus={() => value.trim() && setOpen(true)}
+          placeholder="Search Udala"
+          aria-label="Search people, posts, hashtags, and services"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={listboxId}
+          aria-activedescendant={highlighted >= 0 ? `${inputId}-option-${highlighted}` : undefined}
           autoComplete="off"
-          className="h-11 w-full rounded-full border border-input bg-background pl-9 pr-9 text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:text-sm"
+          className="h-12 w-full rounded-xl border border-input bg-card pl-10 pr-12 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
         />
         {value && (
           <button
             type="button"
             aria-label="Clear search"
             onClick={handleClear}
-            className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="absolute right-0.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X className="h-4 w-4" />
           </button>
         )}
       </form>
 
-      {open && suggestions.length > 0 && (
-        <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+      {open && value.trim() && (
+        <ul
+          id={listboxId}
+          role="listbox"
+          aria-label="People suggestions"
+          className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-border bg-card p-1.5 shadow-lg"
+        >
+          {suggestions.length === 0 && (
+            <li className="px-3 py-2 text-sm text-muted-foreground" role="presentation">
+              No matching people yet.
+            </li>
+          )}
           {suggestions.map((suggestion, index) => (
-            <li key={suggestion.username}>
+            <li key={suggestion.username} role="presentation">
               <Link
+                id={`${inputId}-option-${index}`}
+                role="option"
+                aria-selected={index === highlighted}
                 href={`/profile/${suggestion.username}`}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 text-sm transition-colors",
+                  "flex min-h-12 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                   index === highlighted ? "bg-accent" : "hover:bg-accent",
                 )}
               >
@@ -148,6 +172,16 @@ export function DiscoverSearchInput({ initialQuery }: { initialQuery: string }) 
               </Link>
             </li>
           ))}
+          <li className="mt-1 border-t border-border pt-1" role="presentation">
+            <button
+              type="button"
+              onClick={() => navigateToQuery(value.trim())}
+              className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-semibold text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            >
+              <Search className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <span className="truncate">See all results for &ldquo;{value.trim()}&rdquo;</span>
+            </button>
+          </li>
         </ul>
       )}
     </div>

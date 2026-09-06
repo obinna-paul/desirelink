@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm } from "@/lib/home-feed";
 import { SERVICE_CATEGORY_OPTIONS } from "@/lib/account-types";
 import type { ServiceListingInput } from "@/lib/validations/service-listing";
+import { syncServiceSearchDocument } from "@/lib/search";
 
 export async function getProviderServiceListings(providerId: string) {
   try {
@@ -126,7 +127,11 @@ export async function getHomeServiceListings(limit = 24): Promise<HomeServiceLis
 }
 
 export async function createServiceListing(providerId: string, input: ServiceListingInput) {
-  return prisma.serviceListing.create({ data: { providerId, ...input } });
+  const listing = await prisma.serviceListing.create({ data: { providerId, ...input } });
+  await syncServiceSearchDocument(listing).catch((error) => {
+    console.warn("[services] failed to add listing to search", error);
+  });
+  return listing;
 }
 
 export type ServiceListingActionResult = { ok: true } | { ok: false; status: number; error: string };
@@ -141,7 +146,10 @@ export async function updateServiceListing(
     return { ok: false, status: 404, error: "Service listing not found" };
   }
 
-  await prisma.serviceListing.update({ where: { id }, data: input });
+  const listing = await prisma.serviceListing.update({ where: { id }, data: input });
+  await syncServiceSearchDocument(listing).catch((error) => {
+    console.warn("[services] failed to update listing in search", error);
+  });
   return { ok: true };
 }
 
@@ -153,7 +161,10 @@ export async function deleteServiceListing(id: string, providerId: string): Prom
 
   // Keep booking and transaction history intact. Archived listings disappear
   // from discovery and can no longer receive new bookings.
-  await prisma.serviceListing.update({ where: { id }, data: { isActive: false } });
+  const listing = await prisma.serviceListing.update({ where: { id }, data: { isActive: false } });
+  await syncServiceSearchDocument(listing).catch((error) => {
+    console.warn("[services] failed to remove listing from search", error);
+  });
   return { ok: true };
 }
 

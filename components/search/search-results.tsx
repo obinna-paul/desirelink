@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Hash } from "lucide-react";
+import { BriefcaseBusiness, ChevronRight, Hash, Images, LayoutGrid, UserRound } from "lucide-react";
 
 import { ProfileGrid } from "@/components/home/profile-grid";
 import { PostList } from "@/components/posts/post-list";
@@ -20,11 +20,11 @@ export type TopResultRow = {
 };
 
 const TABS = [
-  { key: "top", label: "Top" },
-  { key: "people", label: "People" },
-  { key: "posts", label: "Posts" },
-  { key: "hashtags", label: "Hashtags" },
-  { key: "services", label: "Services" },
+  { key: "top", label: "Top", icon: LayoutGrid },
+  { key: "people", label: "People", icon: UserRound },
+  { key: "posts", label: "Posts", icon: Images },
+  { key: "hashtags", label: "Tags", icon: Hash },
+  { key: "services", label: "Services", icon: BriefcaseBusiness },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -50,7 +50,7 @@ export function SearchResults({
 
   if (!query) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 p-8 text-center text-sm text-muted-foreground md:rounded-xl md:p-10">
+      <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground md:p-10">
         Search for people, posts, hashtags, and services.
       </div>
     );
@@ -60,38 +60,50 @@ export function SearchResults({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-1 overflow-x-auto rounded-full bg-muted p-1">
-        {TABS.map((t) => (
+      <div className="-mx-4 overflow-x-auto border-b border-border px-4 md:mx-0 md:px-0">
+        <div className="flex min-w-max md:grid md:min-w-0 md:grid-cols-5">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          return (
           <button
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
             className={cn(
-              "label-caps flex-1 whitespace-nowrap rounded-full px-3 py-2 text-[11px] transition-colors",
-              tab === t.key ? "bg-card text-primary shadow-card" : "text-muted-foreground"
+              "relative flex min-h-11 min-w-20 items-center justify-center gap-1.5 whitespace-nowrap px-3 text-xs font-semibold transition-colors md:min-w-0 md:text-sm",
+              tab === t.key
+                ? "text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-foreground"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
+            <Icon className="h-4 w-4" aria-hidden="true" />
             {t.label}
           </button>
-        ))}
+          );
+        })}
+        </div>
       </div>
 
       {noResults ? (
-        <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 p-8 text-center text-sm text-muted-foreground md:rounded-xl md:p-10">
-          No results for &ldquo;{query}&rdquo;.
+        <div className="rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center">
+          <p className="text-sm font-semibold text-foreground">No results for &ldquo;{query}&rdquo;</p>
+          <p className="mt-1 text-sm text-muted-foreground">Try a shorter name, a different spelling, or another hashtag.</p>
         </div>
       ) : (
         <>
           {tab === "top" && (
-            <div className="flex flex-col gap-1">
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
               {top.map((row) => (
                 <Link
                   key={row.key}
                   href={row.href}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3 hover:border-primary/60"
+                  className="group flex min-h-14 items-center justify-between gap-3 border-b border-border px-4 py-3 transition-colors last:border-b-0 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 >
-                  <span className="truncate text-sm font-medium">{row.title}</span>
-                  <span className="label-caps shrink-0 text-[10px] text-muted-foreground">{row.subtitle}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-foreground">{row.title}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">{row.subtitle}</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                 </Link>
               ))}
             </div>
@@ -107,16 +119,16 @@ export function SearchResults({
 
           {tab === "hashtags" &&
             (hashtags.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 p-8 text-center text-sm text-muted-foreground md:rounded-xl md:p-10">
-                No hashtags match this search.
+              <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground md:p-10">
+                No hashtags match. Try a shorter or broader word.
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {hashtags.map((tag) => (
                   <Link
                     key={tag}
-                    href={`/hashtag/${tag}`}
-                    className="flex items-center gap-1 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium hover:border-primary/60"
+                    href={`/hashtag/${encodeURIComponent(tag)}`}
+                    className="flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold transition-colors hover:border-foreground/30 hover:bg-accent"
                   >
                     <Hash className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                     {tag}
