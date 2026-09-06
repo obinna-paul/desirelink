@@ -279,30 +279,56 @@ export function ProfileView({
               </p>
             )}
 
-            <div className="mt-4 flex items-center gap-2">
-              {isOwner ? (
-                <>
-                  <Button asChild size="sm" className="flex-1" variant="outline">
-                    <Link href="/profile/edit">Edit profile</Link>
-                  </Button>
-                  {isProvider && (
-                    <Button asChild size="sm" className="flex-1">
-                      <Link href="/creator-dashboard">Dashboard</Link>
-                    </Button>
-                  )}
-                  <ShareProfileButton
-                    profileHref={profileHref}
-                    displayName={profile.displayName}
+            {isOwner ? (
+              <div
+                className={`mt-4 grid w-full min-w-0 items-center gap-2 sm:flex ${
+                  isProvider
+                    ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.75rem]"
+                    : "grid-cols-[minmax(0,1fr)_2.75rem]"
+                }`}
+              >
+                <Button
+                  asChild
+                  size="sm"
+                  className="min-w-0 px-3 sm:flex-1"
+                  variant="outline"
+                >
+                  <Link href="/profile/edit">Edit profile</Link>
+                </Button>
+                {isProvider && (
+                  <Button
+                    asChild
                     size="sm"
-                    className="sm:flex-1"
-                  />
-                  <ProfileMoreMenu>
-                    <HelpSupportSheet defaultEmail={viewerEmail} />
-                    <SignOutButton menu />
-                  </ProfileMoreMenu>
-                </>
-              ) : isProvider ? (
-                <>
+                    className="min-w-0 px-3 sm:flex-1"
+                  >
+                    <Link href="/creator-dashboard">
+                      <span className="sm:hidden">Studio</span>
+                      <span className="hidden sm:inline">Creative Studio</span>
+                    </Link>
+                  </Button>
+                )}
+                <ShareProfileButton
+                  profileHref={profileHref}
+                  displayName={profile.displayName}
+                  size="sm"
+                  className="hidden sm:inline-flex sm:flex-1"
+                />
+                <ProfileMoreMenu>
+                  <div className="sm:hidden">
+                    <ShareProfileButton
+                      profileHref={profileHref}
+                      displayName={profile.displayName}
+                      menu
+                    />
+                  </div>
+                  <HelpSupportSheet defaultEmail={viewerEmail} />
+                  <SignOutButton menu />
+                </ProfileMoreMenu>
+              </div>
+            ) : (
+              <div className="mt-4 flex min-w-0 items-center gap-2">
+                {isProvider ? (
+                  <>
                   {/* Subscribe is the one thing worth a solid, colored button here - Message
                       stays outline so the two never compete for the same attention. */}
                   {canMessage && (
@@ -341,9 +367,9 @@ export function ProfileView({
                       </>
                     )}
                   </ProfileMoreMenu>
-                </>
-              ) : (
-                <>
+                  </>
+                ) : (
+                  <>
                   {canMessage && (
                     <Button
                       asChild
@@ -382,9 +408,10 @@ export function ProfileView({
                       </>
                     )}
                   </ProfileMoreMenu>
-                </>
-              )}
-            </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
         </div>

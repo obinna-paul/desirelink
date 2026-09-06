@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
  */
 export function ProfileMoreMenu({ children }: { children: React.ReactNode }) {
   return (
-    <details className="relative">
+    <details className="relative h-11 w-11 shrink-0">
       <summary
         aria-label="More profile actions"
         className={cn(
@@ -25,7 +25,7 @@ export function ProfileMoreMenu({ children }: { children: React.ReactNode }) {
       >
         <Ellipsis className="h-5 w-5" aria-hidden="true" />
       </summary>
-      <div className="absolute right-0 top-12 z-30 flex min-w-48 flex-col gap-1 rounded-xl border border-border bg-card p-2 shadow-lift">
+      <div className="absolute right-0 top-12 z-30 flex w-56 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-xl border border-border bg-card p-2 shadow-lift">
         {children}
       </div>
     </details>
