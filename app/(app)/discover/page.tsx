@@ -36,7 +36,7 @@ export default async function DiscoverPage({
     filters.orientations.length +
     (filters.radiusKm !== DEFAULT_RADIUS_KM ? 1 : 0) +
     (filters.availability !== "any" ? 1 : 0) +
-    (filters.sort !== "newest" ? 1 : 0) +
+    (filters.sort !== "recommended" ? 1 : 0) +
     (filters.lastActive !== "any" ? 1 : 0) +
     (filters.verification !== "any" ? 1 : 0);
 

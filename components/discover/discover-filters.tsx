@@ -57,7 +57,7 @@ export function DiscoverFiltersPanel({
     orientations.length +
     (radiusKm !== String(DEFAULT_RADIUS_KM) ? 1 : 0) +
     (availability !== "any" ? 1 : 0) +
-    (sort !== "newest" ? 1 : 0) +
+    (sort !== "recommended" ? 1 : 0) +
     (lastActive !== "any" ? 1 : 0) +
     (verification !== "any" ? 1 : 0);
 
@@ -82,7 +82,7 @@ export function DiscoverFiltersPanel({
     setVerification("any");
     setRadiusKm(String(DEFAULT_RADIUS_KM));
     setAvailability("any");
-    setSort("newest");
+    setSort("recommended");
     router.push(initialFilters.query ? `/discover?q=${encodeURIComponent(initialFilters.query)}` : "/discover");
     setOpen(false);
   }

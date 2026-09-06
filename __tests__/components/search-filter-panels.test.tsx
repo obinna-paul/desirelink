@@ -11,7 +11,7 @@ const discoverFilters = {
   verification: "any" as const,
   radiusKm: 50,
   availability: "any" as const,
-  sort: "newest" as const,
+  sort: "recommended" as const,
 };
 
 const serviceFilters = {

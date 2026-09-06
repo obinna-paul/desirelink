@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
 import { searchDocuments } from "@/lib/search";
+import { rankRecommendedProfiles } from "@/lib/ranking/people-scoring";
 
 const GENDER_FILTER_VALUES = new Set<string>(GENDER_OPTIONS);
 const ORIENTATION_FILTER_VALUES = new Set<string>(ORIENTATION_OPTIONS);
@@ -24,6 +25,7 @@ export const RADIUS_OPTIONS = [10, 25, 50, 100, 250] as const;
 export const DEFAULT_RADIUS_KM = 50;
 
 export const DISCOVER_SORT_OPTIONS = [
+  { value: "recommended", label: "Recommended for you" },
   { value: "newest", label: "Newest" },
   { value: "active", label: "Recently active" },
   { value: "distance", label: "Distance" },
@@ -98,7 +100,7 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
       : "any",
     sort: DISCOVER_SORT_OPTIONS.some((option) => option.value === sortParam)
       ? (sortParam as DiscoverSortValue)
-      : "newest",
+      : "recommended",
   };
 }
 
@@ -199,10 +201,11 @@ export async function searchDiscoverProfiles(
   const effectiveFilters = filters;
   const where = await buildWhere(effectiveFilters, viewerProfile);
   const viewerHasLocation = hasUsableLocation(viewerProfile);
-  const needsDistance =
-    viewerHasLocation && (effectiveFilters.radiusKm !== null || effectiveFilters.sort === "distance");
+  const wantsRecommended = effectiveFilters.sort === "recommended";
+  const needsInMemoryRanking =
+    wantsRecommended || (viewerHasLocation && (effectiveFilters.radiusKm !== null || effectiveFilters.sort === "distance"));
 
-  if (!needsDistance) {
+  if (!needsInMemoryRanking) {
     const orderBy: Prisma.ProfileOrderByWithRelationInput =
       effectiveFilters.sort === "active" ? { lastActiveAt: "desc" } : { createdAt: "desc" };
 
@@ -232,25 +235,31 @@ export async function searchDiscoverProfiles(
       createdAt: true,
       lastActiveAt: true,
     },
+    // Deterministic ordering before truncation - otherwise, once total matches exceed
+    // DISTANCE_CANDIDATE_LIMIT, which rows make the cut is up to Postgres, not this query,
+    // and can vary request to request even with nothing else changing.
+    orderBy: { createdAt: "desc" },
     take: DISTANCE_CANDIDATE_LIMIT,
   });
 
   let withDistance = candidates.map((candidate) => ({
     ...candidate,
-    distanceKm: haversineDistanceKm(
-      viewerProfile.locationLat,
-      viewerProfile.locationLng,
-      candidate.locationLat,
-      candidate.locationLng
-    ),
+    distanceKm:
+      viewerProfile && viewerHasLocation
+        ? haversineDistanceKm(viewerProfile.locationLat, viewerProfile.locationLng, candidate.locationLat, candidate.locationLng)
+        : undefined,
   }));
 
-  if (effectiveFilters.radiusKm !== null) {
-    withDistance = withDistance.filter((candidate) => candidate.distanceKm <= effectiveFilters.radiusKm!);
+  if (effectiveFilters.radiusKm !== null && viewerHasLocation) {
+    withDistance = withDistance.filter((candidate) => (candidate.distanceKm ?? Infinity) <= effectiveFilters.radiusKm!);
   }
 
-  if (effectiveFilters.sort === "distance") {
-    withDistance.sort((a, b) => a.distanceKm - b.distanceKm);
+  if (wantsRecommended) {
+    const rankedIds = await rankRecommendedProfiles(viewerProfile, withDistance);
+    const byId = new Map(withDistance.map((candidate) => [candidate.id, candidate]));
+    withDistance = rankedIds.map((id) => byId.get(id)!);
+  } else if (effectiveFilters.sort === "distance") {
+    withDistance.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
   } else if (effectiveFilters.sort === "active") {
     withDistance.sort(
       (a, b) => (b.lastActiveAt?.getTime() ?? 0) - (a.lastActiveAt?.getTime() ?? 0),
