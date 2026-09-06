@@ -13,6 +13,7 @@ import type { LiveRingEntry } from "@/lib/live-streams";
 
 const TABS = [
   { key: "forYou", label: "For You" },
+  { key: "following", label: "Following" },
   { key: "premium", label: "Premium" },
   { key: "live", label: "Live" },
 ] as const;
@@ -21,11 +22,13 @@ type TabKey = (typeof TABS)[number]["key"];
 
 export function FeedTabs({
   posts,
+  followingPosts,
   premiumPosts,
   hasSubscriptions,
   liveEntries,
 }: {
   posts: PostView[];
+  followingPosts: PostView[];
   premiumPosts: PostView[];
   hasSubscriptions: boolean;
   liveEntries: LiveRingEntry[];
@@ -54,6 +57,13 @@ export function FeedTabs({
 
       {tab === "forYou" && (
         <PostList posts={forYou} emptyMessage="No free posts yet. Check back soon." />
+      )}
+
+      {tab === "following" && (
+        <PostList
+          posts={followingPosts}
+          emptyMessage="Follow creators to see their free posts here."
+        />
       )}
 
       {tab === "premium" &&

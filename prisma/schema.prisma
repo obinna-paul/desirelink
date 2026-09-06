@@ -313,6 +313,8 @@ model Profile {
   postImpressions        PostImpression[]
   blocksMade             Block[]               @relation("BlockBlocker")
   blocksReceived         Block[]               @relation("BlockBlocked")
+  following              Follow[]              @relation("FollowFollower")
+  followers              Follow[]              @relation("FollowFollowing")
   reportsMade            Report[]              @relation("ReportReporter")
   reportsReceived        Report[]              @relation("ReportReportedUser")
   circles                Circle[]
@@ -689,6 +691,24 @@ model Block {
   @@unique([blockerId, blockedId])
   @@index([blockerId])
   @@index([blockedId])
+}
+
+/**
+ * Free "show me more" relationship - distinct from the paid Subscription/ProviderSubscription
+ * models. Following a creator surfaces their free posts in the viewer's Following feed and
+ * enables go-live notifications; it never unlocks subscriber-only content.
+ */
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    Profile  @relation("FollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   Profile  @relation("FollowFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
 }
 
 model Report {

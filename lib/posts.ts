@@ -12,6 +12,7 @@ import {
 } from "@/lib/subscription-access";
 import { getPublicTiersForCreators, type PublicTierView } from "@/lib/tiers";
 import { selectSubscribePromptPostIds } from "@/lib/subscribe-prompt-frequency";
+import { getFollowingIds } from "@/lib/follow";
 
 const FEED_LIMIT = 30;
 const PROFILE_POSTS_LIMIT = 50;
@@ -710,6 +711,52 @@ export async function getPublicFeedPosts(
     }
     throw error;
   }
+}
+
+/**
+ * Strictly chronological free posts from creators the viewer follows - the trust anchor and
+ * fallback surface (see the discovery/ranking plan): Follow never unlocks subscriber-only
+ * content, it only surfaces a followed creator's free posts here and enables their go-live
+ * notifications.
+ */
+export async function getFollowingFeedPosts(
+  viewerProfileId: string | null,
+): Promise<PostView[]> {
+  if (!viewerProfileId) return [];
+
+  const followingIds = await getFollowingIds(viewerProfileId);
+  if (followingIds.length === 0) return [];
+
+  const where: Prisma.PostWhereInput = {
+    authorId: { in: followingIds },
+    isSubscriberOnly: false,
+    author: { isIncognito: false, isSuspended: false },
+  };
+
+  let posts: RawPost[];
+  try {
+    posts = await prisma.post.findMany({
+      where: { ...where, isArchived: false },
+      orderBy: { createdAt: "desc" },
+      take: FEED_LIMIT,
+      select: postSelect(viewerProfileId),
+    });
+  } catch (error) {
+    if (!isMissingPostArchiveError(error)) throw error;
+    console.warn(
+      "Post archive filtering is unavailable until Post.isArchived migration is applied.",
+    );
+    posts = await prisma.post.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: FEED_LIMIT,
+      select: postSelect(viewerProfileId),
+    });
+  }
+
+  const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
+  const access = new Map<string, CreatorAccessInfo>();
+  return posts.map((post) => toPostView(post, access, viewerProfileId, liveStreamIds));
 }
 
 export async function getPostByIdForViewer(
