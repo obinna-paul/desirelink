@@ -328,6 +328,7 @@ model Profile {
   postFeedback           PostFeedback[]        @relation("PostFeedbackViewer")
   hiddenCreators         HiddenCreator[]       @relation("HiddenCreatorViewer")
   hiddenByViewers        HiddenCreator[]       @relation("HiddenCreatorCreator")
+  searchInteractions     SearchInteraction[]
   blocksMade             Block[]               @relation("BlockBlocker")
   blocksReceived         Block[]               @relation("BlockBlocked")
   following              Follow[]              @relation("FollowFollower")
@@ -817,6 +818,45 @@ model HiddenCreator {
   @@unique([viewerId, creatorId])
   @@index([viewerId])
   @@index([creatorId])
+}
+
+/**
+ * One row per searchable entity (profile, post, hashtag, service_listing), rebuilt
+ * wholesale by a cron job rather than kept live on every write - see
+ * lib/search.ts and app/api/cron/refresh-search-index. searchVector is a
+ * Postgres-generated tsvector column (see this model's introducing migration) - Prisma
+ * can only read/write the other columns, never that one directly, which is why every
+ * search query goes through $queryRaw instead of the normal Prisma Client API.
+ */
+model SearchDocument {
+  id           String                   @id @default(cuid())
+  entityType   String
+  entityId     String
+  title        String
+  body         String
+  searchVector Unsupported("tsvector")?
+  popularity   Int                      @default(0)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@unique([entityType, entityId])
+  @@index([entityType])
+}
+
+/**
+ * One row per search request - including zero-result ones, which is the dataset that
+ * shows what people want and can't find.
+ */
+model SearchInteraction {
+  id          String   @id @default(cuid())
+  viewerId    String?
+  viewer      Profile? @relation(fields: [viewerId], references: [id], onDelete: SetNull)
+  query       String
+  resultCount Int
+  createdAt   DateTime @default(now())
+
+  @@index([viewerId])
+  @@index([createdAt])
 }
 
 model Report {

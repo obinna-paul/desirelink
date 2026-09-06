@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { TIER_TYPE_VALUES } from "@/lib/validations/creator-tier";
+import { searchDocuments } from "@/lib/search";
 
 export const CREATOR_DIRECTORY_SORT_OPTIONS = [
   { value: "newest", label: "Newest creators" },
@@ -64,7 +65,7 @@ export type SubscribableCreator = {
 const RESULTS_LIMIT = 30;
 const CANDIDATE_LIMIT = 300;
 
-function buildWhere(filters: CreatorDirectoryFilters): Prisma.ProfileWhereInput {
+async function buildWhere(filters: CreatorDirectoryFilters): Promise<Prisma.ProfileWhereInput> {
   const and: Prisma.ProfileWhereInput[] = [
     { OR: [{ isVerified: true }, { isVerifiedCreator: true }] },
     { creatorTiers: { some: filters.tierTypes.length > 0 ? { tierType: { in: filters.tierTypes } } : {} } },
@@ -72,12 +73,10 @@ function buildWhere(filters: CreatorDirectoryFilters): Prisma.ProfileWhereInput 
   ];
 
   if (filters.query) {
-    and.push({
-      OR: [
-        { username: { contains: filters.query, mode: "insensitive" } },
-        { displayName: { contains: filters.query, mode: "insensitive" } },
-      ],
-    });
+    // Delegates to the shared SearchDocument index (see lib/search.ts) instead of an
+    // unindexed ILIKE scan - the same text-matching engine unified search uses.
+    const matches = await searchDocuments(filters.query, ["profile"]);
+    and.push({ id: { in: matches.map((match) => match.entityId) } });
   }
 
   return {
@@ -97,7 +96,7 @@ function buildWhere(filters: CreatorDirectoryFilters): Prisma.ProfileWhereInput 
 export async function searchSubscribableCreators(
   filters: CreatorDirectoryFilters,
 ): Promise<SubscribableCreator[]> {
-  const where = buildWhere(filters);
+  const where = await buildWhere(filters);
 
   const candidates = await prisma.profile.findMany({
     where,

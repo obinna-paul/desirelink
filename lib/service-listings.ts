@@ -73,6 +73,32 @@ export async function getServiceListingById(id: string): Promise<HomeServiceList
   }
 }
 
+/** Fetches specific listings by id, in no particular order - callers that need a specific
+ * order (e.g. search results ranked elsewhere) re-sort the returned rows themselves. */
+export async function getServiceListingsByIds(ids: string[]): Promise<HomeServiceListingView[]> {
+  if (ids.length === 0) return [];
+
+  try {
+    return await prisma.serviceListing.findMany({
+      where: {
+        id: { in: ids },
+        isActive: true,
+        provider: { isIncognito: false, isSuspended: false },
+      },
+      include: homeServiceListingInclude,
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2021" || error.code === "P2022")
+    ) {
+      console.warn("Service listing lookup is unavailable until service listing migrations are applied.");
+      return [];
+    }
+    throw error;
+  }
+}
+
 export async function getHomeServiceListings(limit = 24): Promise<HomeServiceListingView[]> {
   try {
     return await prisma.serviceListing.findMany({
