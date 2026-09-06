@@ -15,6 +15,12 @@ import { selectSubscribePromptPostIds } from "@/lib/subscribe-prompt-frequency";
 import { getFollowingIds } from "@/lib/follow";
 import { normalizeHashtag } from "@/lib/hashtags";
 import { getHiddenCreatorIds } from "@/lib/content-feedback";
+import {
+  HOME_FEED_SESSION_SEED,
+  isFeedRankingEnabled,
+  isInRankingHoldout,
+  rankFeedPosts,
+} from "@/lib/ranking/engine";
 
 const FEED_LIMIT = 30;
 const PROFILE_POSTS_LIMIT = 50;
@@ -672,6 +678,44 @@ async function computeSubscribePrompts(
   return prompts;
 }
 
+/**
+ * Re-orders getPublicFeedPosts's chronological candidates via the ranking engine, when the
+ * FEED_RANKING_ENABLED flag is on and this viewer isn't in the holdout group. Ranking only
+ * ever reorders - it never shrinks the feed: any post the slate couldn't place (creator caps,
+ * the locked-without-affinity gate, see lib/ranking/slate.ts) is appended at the end in its
+ * original chronological position, so the feed's length contract never changes. Any failure
+ * (including the ranking tables not existing yet) falls back to the untouched chronological
+ * order, matching this file's existing degrade-never-500 pattern.
+ */
+async function applyFeedRanking(
+  viewerProfileId: string | null,
+  posts: RawPost[],
+  postViews: PostView[],
+): Promise<PostView[]> {
+  if (!viewerProfileId) return postViews;
+  if (!isFeedRankingEnabled()) return postViews;
+  if (isInRankingHoldout(viewerProfileId)) return postViews;
+
+  try {
+    const rankable = posts.map((post, i) => ({
+      id: post.id,
+      authorId: post.author.id,
+      createdAt: post.createdAt,
+      locked: postViews[i].locked,
+    }));
+    const rankedIds = await rankFeedPosts(viewerProfileId, HOME_FEED_SESSION_SEED, rankable);
+
+    const byId = new Map(postViews.map((view) => [view.id, view]));
+    const ranked = rankedIds.map((id) => byId.get(id)).filter((view): view is PostView => Boolean(view));
+    const includedIds = new Set(rankedIds);
+    const leftovers = postViews.filter((view) => !includedIds.has(view.id));
+    return [...ranked, ...leftovers];
+  } catch (error) {
+    console.warn("Feed ranking failed, falling back to chronological order.", error);
+    return postViews;
+  }
+}
+
 export async function getPublicFeedPosts(
   viewerProfileId: string | null,
 ): Promise<PostView[]> {
@@ -695,10 +739,11 @@ export async function getPublicFeedPosts(
     const access = await accessForSubscriberOnlyAuthors(posts, viewerProfileId);
     const subscribePrompts = await computeSubscribePrompts(posts, viewerProfileId);
     const liveStreamIds = await getLiveStreamIdsByProvider(collectPostAuthorIds(posts));
-    return posts.map((post) => ({
+    const postViews = posts.map((post) => ({
       ...toPostView(post, access, viewerProfileId, liveStreamIds),
       subscribePrompt: subscribePrompts.get(post.id) ?? null,
     }));
+    return await applyFeedRanking(viewerProfileId, posts, postViews);
   } catch (error) {
     if (isMissingPostArchiveError(error)) {
       console.warn(
