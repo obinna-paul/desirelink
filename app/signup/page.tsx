@@ -182,7 +182,7 @@ export default function SignupPage() {
                 Your account starts private.
               </h1>
               <p className="mt-5 max-w-md text-base leading-7 text-[#675965]">
-                Create access first. Then finish profile, verification, visibility, and preferences from one place.
+                Create access first. Then finish profile, verification, and visibility from one place.
               </p>
             </div>
 
@@ -317,8 +317,8 @@ export default function SignupPage() {
                     <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#8f285d]" aria-hidden="true" />
                     <p>
                       {values.profileType === "EXPLORER"
-                        ? "We will take you to profile settings next so you can add a photo, set visibility, and choose your preferences when you are ready."
-                        : "We will take you to profile settings next so you can add a photo, verify your identity, set visibility, and choose your preferences when you are ready."}
+                        ? "We will take you to profile settings next so you can add a photo and set visibility when you are ready."
+                        : "We will take you to profile settings next so you can add a photo, verify your identity, and set visibility when you are ready."}
                     </p>
                   </div>
                   {isTurnstileEnabled && (

@@ -120,7 +120,6 @@ export function ProfileView({
   canModerate = false,
   canFollow = false,
   isFollowing = false,
-  interests = [],
   reviewSummary,
   reviews,
   reviewableContexts = [],
@@ -149,7 +148,6 @@ export function ProfileView({
   canModerate?: boolean;
   canFollow?: boolean;
   isFollowing?: boolean;
-  interests?: string[];
   reviewSummary: ReviewSummary;
   reviews: ReviewData[];
   reviewableContexts?: ReviewableContext[];
@@ -274,19 +272,6 @@ export function ProfileView({
                 </span>
               )}
             </div>
-
-            {visibleFields.has("preferences") && interests.length > 0 && (
-              <div className="mt-2.5 flex flex-wrap gap-1.5">
-                {interests.map((interest) => (
-                  <span
-                    key={interest}
-                    className="rounded-full bg-accent-tint px-2.5 py-1 text-xs font-medium text-primary"
-                  >
-                    {interest}
-                  </span>
-                ))}
-              </div>
-            )}
 
             {profile.partner && (
               <p className="mt-2 text-xs text-muted-foreground">
