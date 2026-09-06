@@ -2,16 +2,17 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getAvailableNow } from "@/lib/availability";
+import {
+  getNearbyActiveSnapshot,
+  NEARBY_ACTIVE_RADIUS_KM,
+  type NearbyActiveSnapshot,
+} from "@/lib/availability";
 import { getLiveRingFeed } from "@/lib/live-streams";
 import { getHomeServiceListings } from "@/lib/service-listings";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { AvailableNowSidebar } from "@/components/home/available-now-sidebar";
 import { ExplorerDiscoveryPanel } from "@/components/home/explorer-discovery-panel";
 import { HomeOnlyQuickActions } from "@/components/layout/home-only-quick-actions";
-
-const BASE_NEARBY_MIN = 8;
-const BASE_NEARBY_MAX = 22;
 
 export async function RightRail() {
   const session = await getServerSession(authOptions);
@@ -24,6 +25,8 @@ export async function RightRail() {
           bio: true,
           city: true,
           country: true,
+          locationLat: true,
+          locationLng: true,
           openToChat: true,
           openToMeet: true,
           showInSearch: true,
@@ -36,13 +39,23 @@ export async function RightRail() {
     : null;
   const isProvider = viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false;
 
-  const [items, onlineCreators, serviceListings] = await Promise.all([
-    getAvailableNow(20, viewerProfile?.id),
+  const emptyNearbySnapshot: NearbyActiveSnapshot = {
+    locationReady: false,
+    onlineCount: 0,
+    radiusKm: NEARBY_ACTIVE_RADIUS_KM,
+    items: [],
+  };
+  const [nearbySnapshot, onlineCreators, serviceListings] = await Promise.all([
+    viewerProfile
+      ? getNearbyActiveSnapshot({
+          id: viewerProfile.id,
+          locationLat: viewerProfile.locationLat,
+          locationLng: viewerProfile.locationLng,
+        })
+      : Promise.resolve(emptyNearbySnapshot),
     !isProvider && viewerProfile ? getLiveRingFeed(viewerProfile.id, 4) : Promise.resolve([]),
     !isProvider && viewerProfile ? getHomeServiceListings(3) : Promise.resolve([]),
   ]);
-  const baseNearbyCount =
-    BASE_NEARBY_MIN + Math.floor(Math.random() * (BASE_NEARBY_MAX - BASE_NEARBY_MIN + 1));
 
   return (
     <aside
@@ -57,8 +70,7 @@ export async function RightRail() {
         />
       )}
       <AvailableNowSidebar
-        initialItems={items}
-        baseNearbyCount={baseNearbyCount}
+        initialSnapshot={nearbySnapshot}
         viewerProfileId={viewerProfile?.id ?? null}
       />
     </aside>

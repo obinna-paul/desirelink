@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import {
@@ -10,28 +10,38 @@ import {
   getPusherClient,
 } from "@/lib/pusher-client";
 import { AVAILABILITY_STATUS_LABELS } from "@/lib/availability-options";
-import type { AvailabilityFeedItem } from "@/lib/availability";
+import type { NearbyActiveSnapshot } from "@/lib/availability";
 
-const MAX_ITEMS = 20;
-const PRUNE_INTERVAL_MS = 30_000;
+const REFRESH_INTERVAL_MS = 30_000;
 
 export function AvailableNowSidebar({
-  initialItems,
-  baseNearbyCount,
+  initialSnapshot,
   viewerProfileId,
 }: {
-  initialItems: AvailabilityFeedItem[];
-  baseNearbyCount: number;
+  initialSnapshot: NearbyActiveSnapshot;
   viewerProfileId: string | null;
 }) {
-  const [items, setItems] = useState<AvailabilityFeedItem[]>(initialItems);
+  const [snapshot, setSnapshot] = useState(initialSnapshot);
+
+  const refresh = useCallback(async () => {
+    if (!viewerProfileId || document.visibilityState !== "visible") return;
+    try {
+      const response = await fetch("/api/availability/nearby", { cache: "no-store" });
+      if (!response.ok) return;
+      setSnapshot((await response.json()) as NearbyActiveSnapshot);
+    } catch {
+      // Keep the last accurate snapshot during a brief connection loss.
+    }
+  }, [viewerProfileId]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setItems((prev) => prev.filter((item) => new Date(item.expiresAt).getTime() > Date.now()));
-    }, PRUNE_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, []);
+    const interval = window.setInterval(() => void refresh(), REFRESH_INTERVAL_MS);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [refresh]);
 
   useEffect(() => {
     const client = getPusherClient();
@@ -39,26 +49,22 @@ export function AvailableNowSidebar({
 
     const channel = client.subscribe(AVAILABILITY_CHANNEL);
 
-    function upsert(data: AvailabilityFeedItem) {
-      if (data.id === viewerProfileId) return;
-      setItems((prev) => [data, ...prev.filter((item) => item.id !== data.id)].slice(0, MAX_ITEMS));
+    function refreshNearby() {
+      void refresh();
     }
 
-    function remove(data: { id: string }) {
-      setItems((prev) => prev.filter((item) => item.id !== data.id));
-    }
-
-    channel.bind(AVAILABILITY_STATUS_UPDATED_EVENT, upsert);
-    channel.bind(AVAILABILITY_STATUS_CLEARED_EVENT, remove);
+    channel.bind(AVAILABILITY_STATUS_UPDATED_EVENT, refreshNearby);
+    channel.bind(AVAILABILITY_STATUS_CLEARED_EVENT, refreshNearby);
 
     return () => {
-      channel.unbind(AVAILABILITY_STATUS_UPDATED_EVENT, upsert);
-      channel.unbind(AVAILABILITY_STATUS_CLEARED_EVENT, remove);
+      channel.unbind(AVAILABILITY_STATUS_UPDATED_EVENT, refreshNearby);
+      channel.unbind(AVAILABILITY_STATUS_CLEARED_EVENT, refreshNearby);
       client.unsubscribe(AVAILABILITY_CHANNEL);
     };
-  }, [viewerProfileId]);
+  }, [refresh, viewerProfileId]);
 
-  const nearbyCount = baseNearbyCount + items.length;
+  const { items, locationReady, onlineCount, radiusKm } = snapshot;
+  const peopleLabel = onlineCount === 1 ? "person" : "people";
 
   return (
     <>
@@ -68,20 +74,31 @@ export function AvailableNowSidebar({
           aria-hidden="true"
         />
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Active Now
+          Active nearby
         </h2>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        <span className="font-semibold text-foreground">{nearbyCount}</span> people near you are
-        currently active
-      </p>
-
-      {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No one has set a status yet. Be the first with the lightning bolt in the top bar.
+      {locationReady ? (
+        <p className="text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">{onlineCount}</span> {peopleLabel} within{" "}
+          {radiusKm} km {onlineCount === 1 ? "is" : "are"} online now
         </p>
       ) : (
+        <p className="text-xs leading-5 text-muted-foreground">
+          <Link href="/profile/edit#location" className="font-semibold text-foreground hover:underline">
+            Add your location
+          </Link>{" "}
+          to see who is online within {radiusKm} km.
+        </p>
+      )}
+
+      {locationReady && items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {onlineCount > 0
+            ? "Nearby members are online. Their availability notes will appear here when shared."
+            : "No one nearby is online right now."}
+        </p>
+      ) : locationReady ? (
         <ul className="flex flex-col gap-3">
           {items.map((item) => (
             <li key={item.id}>
@@ -103,7 +120,7 @@ export function AvailableNowSidebar({
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
     </>
   );
 }
