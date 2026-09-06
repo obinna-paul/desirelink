@@ -1,12 +1,10 @@
 import Link from "next/link";
-import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { Briefcase } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SignOutButton } from "@/components/layout/sign-out-button";
-import { TopBarSearch } from "@/components/layout/top-bar-search";
 import { AvailabilityQuickAction } from "@/components/layout/availability-quick-action";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -29,29 +27,23 @@ export async function TopBar() {
 
   return (
     <header className="sticky top-0 z-40 bg-card px-3 py-1.5 dark:backdrop-blur dark:supports-[backdrop-filter]:bg-card/90 md:flex md:h-14 md:items-center md:justify-between md:bg-card/95 md:px-7 md:py-0 md:backdrop-blur md:supports-[backdrop-filter]:bg-card/90">
-      <div className="flex flex-col gap-2 md:hidden">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-          <div className="flex items-center">
-            <Button asChild variant="ghost" size="icon" aria-label="Services">
-              <Link href="/services">
-                <Briefcase className="h-5 w-5" aria-hidden="true" />
-              </Link>
-            </Button>
-          </div>
-
-          <Link href="/" className="flex min-h-11 items-center justify-center" aria-label="udala home">
-            <span className="font-brand text-2xl font-semibold tracking-tight text-primary">udala</span>
-          </Link>
-
-          <div className="flex items-center justify-end gap-1">
-            <ThemeToggle />
-            <NotificationBell />
-          </div>
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 md:hidden">
+        <div className="flex items-center">
+          <Button asChild variant="ghost" size="icon" aria-label="Services">
+            <Link href="/services">
+              <Briefcase className="h-5 w-5" aria-hidden="true" />
+            </Link>
+          </Button>
         </div>
 
-        <Suspense fallback={<div className="h-11 w-full rounded-full bg-muted" />}>
-          <TopBarSearch className="w-full sm:w-full md:w-full" />
-        </Suspense>
+        <Link href="/" className="flex min-h-11 items-center justify-center" aria-label="udala home">
+          <span className="font-brand text-2xl font-semibold tracking-tight text-primary">udala</span>
+        </Link>
+
+        <div className="flex items-center justify-end gap-1">
+          <ThemeToggle />
+          <NotificationBell />
+        </div>
       </div>
 
       <div className="hidden w-full items-center justify-between md:flex">
@@ -63,9 +55,6 @@ export async function TopBar() {
         </Link>
 
         <div className="flex items-center gap-1 md:gap-2">
-          <Suspense fallback={<div className="h-9 w-28 sm:w-44 md:w-64" />}>
-            <TopBarSearch />
-          </Suspense>
           {profile && <AvailabilityQuickAction initialStatus={activeStatus} />}
           <ThemeToggle />
           <NotificationBell />
