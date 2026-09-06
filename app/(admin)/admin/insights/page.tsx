@@ -4,7 +4,14 @@ import Link from "next/link";
 
 import { authOptions } from "@/lib/auth";
 import { requireCapability } from "@/lib/admin/access";
-import { getRevenueTrend, getGrowthSummary, getAccountMilestones, INSIGHTS_RANGES, type InsightsRange } from "@/lib/admin/metrics";
+import {
+  getRevenueTrend,
+  getGrowthSummary,
+  getAccountMilestones,
+  getDiscoveryGuardrails,
+  INSIGHTS_RANGES,
+  type InsightsRange,
+} from "@/lib/admin/metrics";
 import { InsightsRevenueChart } from "@/components/admin/insights-revenue-chart";
 import { cn } from "@/lib/utils";
 
@@ -62,7 +69,12 @@ export default async function AdminInsightsPage({ searchParams }: { searchParams
     ? (searchParams!.range as InsightsRange)
     : "30d";
 
-  const [revenue, growth, milestones] = await Promise.all([getRevenueTrend(range), getGrowthSummary(range), getAccountMilestones()]);
+  const [revenue, growth, milestones, guardrails] = await Promise.all([
+    getRevenueTrend(range),
+    getGrowthSummary(range),
+    getAccountMilestones(),
+    getDiscoveryGuardrails(range),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -109,6 +121,54 @@ export default async function AdminInsightsPage({ searchParams }: { searchParams
           <MilestoneRow label="Published a post" value={milestones.profilesWithPosts} total={milestones.totalProfiles} />
           <MilestoneRow label="Listed a service" value={milestones.profilesWithServices} total={milestones.totalProfiles} />
           <MilestoneRow label="Earned funds" value={milestones.earningProfiles} total={milestones.totalProfiles} />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+        <div>
+          <h2 className="text-sm font-semibold">Discovery guardrails</h2>
+          <p className="text-xs text-muted-foreground">
+            Watched alongside growth, not optimized for directly - see the discovery/ranking plan.
+            Repeat-content and meaningful-discovery only reflect impressions still within the
+            ~45-day retention window, regardless of the range selected above.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Tile
+            label="Meaningful discovery"
+            value={`${guardrails.meaningfulDiscoveryRatePct}%`}
+            hint={`Of ${guardrails.activeViewers} active viewers, followed a new creator`}
+          />
+          <Tile
+            label="Follow → subscribe"
+            value={`${guardrails.followToSubscribeConversionPct}%`}
+            hint="Of new follows, also a subscriber"
+          />
+          <Tile
+            label="New-creator reach"
+            value={`${guardrails.newCreatorReachPct}%`}
+            hint="Impression share to creators new this period"
+          />
+          <Tile
+            label="Repeat-content rate"
+            value={`${guardrails.repeatContentRatePct}%`}
+            hint="Impressions on an already-seen creator"
+          />
+          <Tile
+            label="Creator-reach Gini"
+            value={guardrails.creatorReachGini}
+            hint="0 = evenly spread, 1 = concentrated"
+          />
+          <Tile
+            label="Top 1% creator share"
+            value={`${guardrails.top1PercentCreatorImpressionSharePct}%`}
+            hint="Impression share held by the top 1% of creators"
+          />
+          <Tile
+            label="Report rate"
+            value={guardrails.reportRatePer1000Impressions}
+            hint="Post reports per 1,000 impressions"
+          />
         </div>
       </div>
     </div>
