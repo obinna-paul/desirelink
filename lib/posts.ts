@@ -91,7 +91,7 @@ type RawPost = {
 
 type PostLockReason = "subscriber_only";
 
-/** A pitch to subscribe, shown on a free post as a lead-magnet pull toward the creator's
+/** A pitch to subscribe, shown on eligible free posts as a pull toward the creator's
  * paid tiers - see computeSubscribePrompts, used only by getPublicFeedPosts. */
 export type PostSubscribePrompt = {
   providerId: string;
@@ -153,7 +153,7 @@ export type PostView = {
    * see toLockedPreview. Null for an unlocked post, or a locked post with no media. */
   blurredPreview: LockedPostPreview | null;
   /** A subscribe pitch attached to this specific post - see PostSubscribePrompt. Only
-   * ever set by getPublicFeedPosts, on the first free post per creator in the feed. */
+   * ever set by getPublicFeedPosts on eligible free posts in the For You feed. */
   subscribePrompt: PostSubscribePrompt | null;
   viewCount: number;
   isPinned: boolean;
@@ -585,12 +585,10 @@ async function accessForSubscriberOnlyAuthors(
 }
 
 /**
- * Attaches a subscribe pitch to the first free post per creator in a feed page - a lead
- * magnet: a verified creator's free posts pull viewers toward their paid tiers. Skips a
- * creator entirely if they have no tiers, or if the viewer already holds (or has pending)
- * one of their tiers - there's nothing left to pitch. Tier state for every candidate
- * creator is fetched in one batch (getPublicTiersForCreators) rather than per-creator, so
- * this stays cheap regardless of how many distinct creators appear in the page.
+ * Attaches a subscribe pitch to every free post from an eligible verified creator in the
+ * For You feed. Skips a creator entirely if they have no available tiers or the viewer is
+ * already subscribed. Tier state is fetched once per creator in a single batch, then
+ * reused across all of that creator's posts.
  */
 async function computeSubscribePrompts(
   posts: RawPost[],
@@ -599,30 +597,31 @@ async function computeSubscribePrompts(
   const prompts = new Map<string, PostSubscribePrompt>();
   if (!viewerProfileId) return prompts;
 
-  const firstPostIdByCreator = new Map<string, string>();
+  const postIdsByCreator = new Map<string, string[]>();
   const usernameByCreator = new Map<string, string>();
 
   for (const post of posts) {
     if (post.isSubscriberOnly) continue;
     if (post.author.id === viewerProfileId) continue;
-    if (firstPostIdByCreator.has(post.author.id)) continue;
 
     const isVerifiedAny =
       post.author.isVerified || post.author.isVerifiedCreator || post.author.isVerifiedServiceProvider;
     if (!isVerifiedAny) continue;
 
-    firstPostIdByCreator.set(post.author.id, post.id);
+    const postIds = postIdsByCreator.get(post.author.id) ?? [];
+    postIds.push(post.id);
+    postIdsByCreator.set(post.author.id, postIds);
     usernameByCreator.set(post.author.id, post.author.username);
   }
 
-  if (firstPostIdByCreator.size === 0) return prompts;
+  if (postIdsByCreator.size === 0) return prompts;
 
   const tiersByCreator = await getPublicTiersForCreators(
-    Array.from(firstPostIdByCreator.keys()),
+    Array.from(postIdsByCreator.keys()),
     viewerProfileId,
   );
 
-  for (const [creatorId, postId] of Array.from(firstPostIdByCreator)) {
+  for (const [creatorId, postIds] of Array.from(postIdsByCreator)) {
     const tiers = tiersByCreator.get(creatorId) ?? [];
     const alreadyEngaged = tiers.some((tier) => tier.viewerState === "subscribed");
     if (alreadyEngaged) continue;
@@ -630,11 +629,13 @@ async function computeSubscribePrompts(
     const available = tiers.filter((tier) => tier.viewerState === "available");
     if (available.length === 0) continue;
 
-    prompts.set(postId, {
-      providerId: creatorId,
-      providerUsername: usernameByCreator.get(creatorId)!,
-      tiers: available,
-    });
+    for (const postId of postIds) {
+      prompts.set(postId, {
+        providerId: creatorId,
+        providerUsername: usernameByCreator.get(creatorId)!,
+        tiers: available,
+      });
+    }
   }
 
   return prompts;

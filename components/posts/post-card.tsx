@@ -16,7 +16,7 @@ import { PostCaption } from "@/components/posts/post-caption";
 import { PostDetailModal } from "@/components/posts/post-detail-modal";
 import { PostMediaCarousel } from "@/components/posts/post-media-carousel";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
-import { PostSubscribeChip } from "@/components/posts/post-subscribe-chip";
+import { PostSubscribeCta } from "@/components/posts/post-subscribe-cta";
 import { SubscribePlansDialog } from "@/components/profile/subscribe-plans-dialog";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { VerificationBadge } from "@/components/profile/verification-badge";
@@ -224,14 +224,6 @@ export function PostCard({
         </div>
       </div>
 
-      {/* subscribePrompt is also populated on a locked post (to drive LockedPostBody's own
-          Subscribe now button below) - the lead-magnet chip is only for a free post. */}
-      {post.subscribePrompt && !post.locked && (
-        <div className="px-3 md:px-4">
-          <PostSubscribeChip prompt={post.subscribePrompt} />
-        </div>
-      )}
-
       {post.locked ? (
         // Full-bleed, matching the media carousel's own edge-to-edge treatment below.
         <LockedPostBody
@@ -268,6 +260,16 @@ export function PostCard({
             />
           </div>
           {post.content && <PostCaption content={post.content} />}
+
+          {/* Let the free post demonstrate value before presenting the subscription ask. */}
+          {post.subscribePrompt && (
+            <div className="px-3 md:px-4">
+              <PostSubscribeCta
+                prompt={post.subscribePrompt}
+                creatorName={post.author.displayName}
+              />
+            </div>
+          )}
 
           <CommentsSheet
             open={detailOpen && (!isDesktop || post.mediaItems.length === 0)}
