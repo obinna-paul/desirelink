@@ -53,10 +53,13 @@ import {
 import { formatCents } from "@/lib/creator";
 import { getTierDiscountPercent } from "@/lib/tier-pricing";
 import { cn } from "@/lib/utils";
+import {
+  MAX_VIDEO_DURATION_SECONDS,
+  MAX_VIDEO_UPLOAD_BYTES,
+  VIDEO_UPLOAD_ACCEPT,
+} from "@/lib/video-upload-constraints";
 
 const MAX_IMAGE_FILE_SIZE = 30 * 1024 * 1024;
-const MAX_VIDEO_FILE_SIZE = 2 * 1024 * 1024 * 1024;
-const MAX_VIDEO_DURATION_SECONDS = 15 * 60;
 
 function formatFileSize(bytes: number) {
   if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
@@ -385,7 +388,7 @@ export function PostComposer({
           lastError = `Each image must be under ${MAX_IMAGE_FILE_SIZE / (1024 * 1024)}MB.`;
           continue;
         }
-        if (isVideo && workingFile.size > MAX_VIDEO_FILE_SIZE) {
+        if (isVideo && workingFile.size > MAX_VIDEO_UPLOAD_BYTES) {
           lastError = "Each video can be up to 2GB.";
           continue;
         }
@@ -936,7 +939,7 @@ export function PostComposer({
         <input
           ref={inputRef}
           type="file"
-          accept="image/*,video/*"
+          accept={`image/*,${VIDEO_UPLOAD_ACCEPT}`}
           multiple={postMode === "carousel"}
           disabled={uploading}
           className="hidden"

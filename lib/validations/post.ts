@@ -5,6 +5,7 @@ import {
   POST_DISPLAY_ASPECT_RATIOS,
   POST_MEDIA_TYPES,
 } from "@/lib/post-shared";
+import { MAX_VIDEO_DURATION_SECONDS } from "@/lib/video-upload-constraints";
 
 const postMediaCropSchema = z.object({
   zoom: z.number().min(1).max(3),
@@ -19,7 +20,7 @@ export const postMediaItemSchema = z.object({
   type: z.enum(POST_MEDIA_TYPES),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
-  durationSeconds: z.number().positive().optional(),
+  durationSeconds: z.number().positive().max(MAX_VIDEO_DURATION_SECONDS).optional(),
   displayAspectRatio: z.enum(POST_DISPLAY_ASPECT_RATIOS).optional(),
   crop: postMediaCropSchema.optional(),
 });

@@ -127,9 +127,14 @@ const MEDIA_TYPES_BY_EXTENSION: Record<string, string> = {
   flv: "video/x-flv",
   wmv: "video/x-ms-wmv",
   ts: "video/mp2t",
+  mts: "video/mp2t",
+  m2ts: "video/mp2t",
+  amv: "video/x-amv",
+  vod: "video/mpeg",
   mpeg: "video/mpeg",
   mpg: "video/mpeg",
   "3gp": "video/3gpp",
+  "3g2": "video/3gpp2",
 };
 
 /** A last-resort hint for mobile gallery providers that expose a cloud placeholder before

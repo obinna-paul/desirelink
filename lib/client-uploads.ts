@@ -13,6 +13,13 @@
 
 import * as tus from "tus-js-client";
 
+import {
+  getBunnyUploadTransportOrder,
+  inferVideoContentType,
+  MAX_VIDEO_DURATION_SECONDS,
+  type BunnyUploadTransport,
+} from "@/lib/video-upload-constraints";
+
 const FIRST_PARTY_UPLOAD_MAX_BYTES = 3.5 * 1024 * 1024;
 const BUNNY_MOBILE_TUS_ENDPOINT = "/api/upload/bunny-tus";
 
@@ -271,6 +278,7 @@ type BunnyUploadAuth = {
   videoId: string;
   authorizationSignature: string;
   authorizationExpire: number;
+  contentType?: string;
 };
 
 /** How many times a dropped connection gets to reconnect and resume before giving up for
@@ -312,6 +320,7 @@ type TusResponseLike = {
 function describeTusFailure(error: unknown): {
   retryable: boolean;
   message: string;
+  status?: number;
 } {
   const response = (error as { originalResponse?: TusResponseLike } | null)?.originalResponse;
   let status: number | undefined;
@@ -327,6 +336,7 @@ function describeTusFailure(error: unknown): {
   if (!status || status === 0) {
     return {
       retryable: true,
+      status,
       message: browserIsOffline()
         ? "The upload is waiting for your connection to return."
         : "The video service could not be reached. The upload will resume automatically.",
@@ -336,6 +346,7 @@ function describeTusFailure(error: unknown): {
   if (status === 408 || status === 409 || status === 423 || status === 425 || status === 429 || status >= 500) {
     return {
       retryable: true,
+      status,
       message:
         status === 429
           ? "The video service is busy. The upload will resume automatically."
@@ -346,6 +357,7 @@ function describeTusFailure(error: unknown): {
   if (status === 401 || status === 403) {
     return {
       retryable: false,
+      status,
       message: "Video upload authorization was rejected. Please refresh the page and try again.",
     };
   }
@@ -353,6 +365,7 @@ function describeTusFailure(error: unknown): {
   if (status === 413) {
     return {
       retryable: false,
+      status,
       message: "This video is larger than the connected video library allows.",
     };
   }
@@ -360,14 +373,28 @@ function describeTusFailure(error: unknown): {
   if (status === 400 || status === 415 || /unsupported|invalid (?:file|video|format)/i.test(body)) {
     return {
       retryable: false,
+      status,
       message: "This video could not be decoded. Try a different export; MP4 works best.",
     };
   }
 
   return {
     retryable: false,
+    status,
     message: `The video service rejected this upload${status ? ` (${status})` : ""}. Please try another file.`,
   };
+}
+
+class BunnyTusTransportError extends Error {
+  constructor(
+    message: string,
+    readonly retryable: boolean,
+    readonly bytesUploaded: number,
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = "BunnyTusTransportError";
+  }
 }
 
 /** Uploads the raw file to Bunny Stream over TUS (resumable, chunked upload) using the
@@ -385,32 +412,60 @@ function describeTusFailure(error: unknown): {
 function uploadToBunnyViaTus(
   file: File,
   auth: BunnyUploadAuth,
+  transport: BunnyUploadTransport,
+  canSwitchTransport: boolean,
   onProgress?: (fraction: number) => void,
   onPhaseChange?: (phase: VideoUploadPhase) => void
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     let reconnectResumes = 0;
-    const useFirstPartyTransport = isLikelyMobileBrowser();
+    let bytesUploaded = 0;
+    let settled = false;
+    const useFirstPartyTransport = transport === "relay";
+    const contentType =
+      auth.contentType ?? inferVideoContentType(file.name, file.type) ?? "video/mp4";
 
     const upload = new tus.Upload(file, {
       endpoint: useFirstPartyTransport ? BUNNY_MOBILE_TUS_ENDPOINT : auth.tusEndpoint,
       chunkSize: useFirstPartyTransport ? BUNNY_MOBILE_CHUNK_SIZE : BUNNY_CHUNK_SIZE,
+      // Each authorization belongs to a newly-created Bunny video. Persisting its upload
+      // URL in Chrome's storage cannot safely resume a later attempt with a new video ID.
+      storeFingerprintForResuming: false,
       removeFingerprintOnSuccess: true,
       // A modest bump over tus-js-client's own default ([0, 1000, 3000, 5000], ~9s total) -
       // covers more of the "still connected but flaky" case automatically without leaving
       // anyone waiting minutes for something that isn't a real outage. With chunking above,
       // each of these retries only re-sends the failed 5MB chunk, not the whole file.
-      retryDelays: [0, 1000, 2000, 4000, 8000, 8000],
+      retryDelays:
+        transport === "direct" && canSwitchTransport
+          ? [0, 1000, 2500]
+          : [0, 1000, 2000, 4000, 8000, 8000],
       headers: {
         AuthorizationSignature: auth.authorizationSignature,
         AuthorizationExpire: String(auth.authorizationExpire),
         VideoId: auth.videoId,
         LibraryId: auth.libraryId,
       },
-      metadata: { filetype: file.type, title: file.name },
+      metadata: { filename: file.name, filetype: contentType, title: file.name },
       onError: (error) => {
+        if (settled) return;
         console.error("[uploads] Bunny TUS upload failed", error);
         const failure = describeTusFailure(error);
+
+        // If the provider has not accepted a single byte, a different network route is
+        // safer than repeatedly restarting the same failed browser handshake.
+        if (failure.retryable && bytesUploaded === 0 && canSwitchTransport) {
+          settled = true;
+          reject(
+            new BunnyTusTransportError(
+              failure.message,
+              failure.retryable,
+              bytesUploaded,
+              failure.status,
+            ),
+          );
+          return;
+        }
 
         if (failure.retryable && reconnectResumes < MAX_RECONNECT_RESUMES) {
           reconnectResumes += 1;
@@ -429,12 +484,26 @@ function uploadToBunnyViaTus(
         // debugging, meaningless and alarming as user-facing text. Surface a plain retry
         // message instead - reached only once reconnect resumes are exhausted, or the
         // failure wasn't about connectivity at all.
-        reject(new Error(failure.message));
+        settled = true;
+        reject(
+          new BunnyTusTransportError(
+            failure.message,
+            failure.retryable,
+            bytesUploaded,
+            failure.status,
+          ),
+        );
       },
-      onProgress: (bytesUploaded, bytesTotal) => {
-        if (bytesTotal > 0) onProgress?.(bytesUploaded / bytesTotal);
+      onProgress: (uploadedBytes, bytesTotal) => {
+        if (settled) return;
+        bytesUploaded = Math.max(bytesUploaded, uploadedBytes);
+        if (bytesTotal > 0) onProgress?.(uploadedBytes / bytesTotal);
       },
-      onSuccess: () => resolve(),
+      onSuccess: () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      },
     });
     upload.start();
   });
@@ -450,8 +519,8 @@ type BunnyReadyStatus = {
 
 /** Polls our status route until Bunny finishes transcoding, since playback needs the
  * rendition manifest that only exists once processing completes - there's no upload-only
- * outcome to fall back to here. Bounded generously (this app caps videos at 3 minutes /
- * 300MB, well within what Bunny's free H.264 encoding tier finishes quickly). `onProgress`
+ * outcome to fall back to here. Bounded generously for the app's 15-minute video cap.
+ * `onProgress`
  * gets Bunny's own 0-100 encodeProgress (as a 0-1 fraction, matching the upload phase's
  * convention) each time it moves, so a caller can show a real transcode meter. */
 async function pollBunnyVideoStatus(
@@ -550,12 +619,39 @@ export async function uploadVideoDirect(
 
   onPhaseChange?.("uploading");
   try {
-    await uploadToBunnyViaTus(
-      file,
-      auth,
-      (fraction) => onProgress?.(0.04 + fraction * 0.76),
-      onPhaseChange,
+    const transports = getBunnyUploadTransportOrder(
+      navigator.userAgent,
+      isLikelyMobileBrowser(),
     );
+    let uploaded = false;
+    let lastTransportError: unknown;
+
+    for (let index = 0; index < transports.length; index += 1) {
+      const transport = transports[index];
+      try {
+        await uploadToBunnyViaTus(
+          file,
+          auth,
+          transport,
+          index < transports.length - 1,
+          (fraction) => onProgress?.(0.04 + fraction * 0.76),
+          onPhaseChange,
+        );
+        uploaded = true;
+        break;
+      } catch (error) {
+        lastTransportError = error;
+        const canTryAlternate =
+          error instanceof BunnyTusTransportError &&
+          error.retryable &&
+          error.bytesUploaded === 0 &&
+          index < transports.length - 1;
+        if (!canTryAlternate) throw error;
+        onPhaseChange?.("retrying");
+      }
+    }
+
+    if (!uploaded) throw lastTransportError ?? new Error("Video upload failed.");
   } catch (error) {
     discardFailedBunnyVideo(auth);
     throw error;
@@ -566,6 +662,14 @@ export async function uploadVideoDirect(
   const status = await pollBunnyVideoStatus(auth.videoId, (fraction) =>
     onProgress?.(0.8 + fraction * 0.2),
   );
+
+  if (
+    typeof status.durationSeconds === "number" &&
+    status.durationSeconds > MAX_VIDEO_DURATION_SECONDS
+  ) {
+    discardFailedBunnyVideo(auth);
+    throw new TerminalUploadError("Videos must be 15 minutes or shorter.");
+  }
 
   return {
     url: status.url,
