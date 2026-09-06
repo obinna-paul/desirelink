@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -21,6 +21,9 @@ import { SubscribePlansDialog } from "@/components/profile/subscribe-plans-dialo
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { VerificationBadge } from "@/components/profile/verification-badge";
 import type { PostView } from "@/lib/posts";
+
+const VIEW_VISIBILITY_THRESHOLD = 0.5;
+const VIEW_DWELL_MS = 1_000;
 
 function LockedPostBody({
   postId,
@@ -102,8 +105,10 @@ export function PostCard({
   const [likePending, setLikePending] = useState(false);
   const [commentCount, setCommentCount] = useState(post.counts.comments);
   const [shareCount, setShareCount] = useState(post.counts.shares);
+  const [viewCount, setViewCount] = useState(post.viewCount);
   const [detailOpen, setDetailOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const cardRef = useRef<HTMLElement>(null);
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return `/posts/${post.id}`;
     return `${window.location.origin}/posts/${post.id}`;
@@ -116,6 +121,87 @@ export function PostCard({
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
+
+  useEffect(() => {
+    setViewCount(post.viewCount);
+  }, [post.id, post.viewCount]);
+
+  useEffect(() => {
+    const element = cardRef.current;
+    if (
+      !element ||
+      post.locked ||
+      post.viewerCanManage ||
+      typeof IntersectionObserver === "undefined"
+    ) {
+      return;
+    }
+
+    let dwellTimer: ReturnType<typeof setTimeout> | null = null;
+    let sufficientlyVisible = false;
+    let recorded = false;
+    let cancelled = false;
+    let attempts = 0;
+
+    const clearDwell = () => {
+      if (dwellTimer) clearTimeout(dwellTimer);
+      dwellTimer = null;
+    };
+
+    const recordView = async () => {
+      if (recorded || cancelled) return;
+      attempts += 1;
+
+      try {
+        const response = await fetch(`/api/posts/${post.id}/view`, {
+          method: "POST",
+          keepalive: true,
+        });
+        const body = await response.json().catch(() => null);
+        if (!response.ok) throw new Error("View tracking failed");
+
+        recorded = true;
+        if (!cancelled && typeof body?.count === "number") setViewCount(body.count);
+      } catch {
+        if (!cancelled && sufficientlyVisible && attempts < 2) {
+          dwellTimer = setTimeout(() => void recordView(), 5_000);
+        }
+      }
+    };
+
+    const scheduleDwell = () => {
+      clearDwell();
+      if (
+        recorded ||
+        !sufficientlyVisible ||
+        document.visibilityState !== "visible"
+      ) {
+        return;
+      }
+      dwellTimer = setTimeout(() => void recordView(), VIEW_DWELL_MS);
+    };
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        sufficientlyVisible = Boolean(
+          entry?.isIntersecting && entry.intersectionRatio >= VIEW_VISIBILITY_THRESHOLD,
+        );
+        scheduleDwell();
+      },
+      { threshold: [0, VIEW_VISIBILITY_THRESHOLD, 1] },
+    );
+
+    const handleVisibilityChange = () => scheduleDwell();
+    observer.observe(element);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      clearDwell();
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [post.id, post.locked, post.viewerCanManage]);
 
   async function sharePost() {
     const canShare = typeof navigator !== "undefined" && "share" in navigator;
@@ -169,7 +255,7 @@ export function PostCard({
   }
 
   return (
-    <article className="-mx-3 flex flex-col gap-3 bg-card pb-3 md:mx-0 md:gap-3 md:rounded-xl md:border md:pb-4 md:shadow-card">
+    <article ref={cardRef} className="-mx-3 flex flex-col gap-3 bg-card pb-3 md:mx-0 md:gap-3 md:rounded-xl md:border md:pb-4 md:shadow-card">
       <div className="flex items-center justify-between gap-2 px-3 pt-3 md:px-4 md:pt-4">
         {showAuthor ? (
           <Link
@@ -243,8 +329,8 @@ export function PostCard({
           <div className="flex items-center gap-1.5 px-3 pt-2 text-xs text-muted-foreground md:px-4">
             <Eye className="h-3.5 w-3.5" aria-hidden="true" />
             <span>
-              {post.viewCount.toLocaleString()}{" "}
-              {post.viewCount === 1 ? "view" : "views"}
+              {viewCount.toLocaleString()}{" "}
+              {viewCount === 1 ? "view" : "views"}
             </span>
           </div>
           <div className="px-3 md:px-4">

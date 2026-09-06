@@ -308,6 +308,7 @@ model Profile {
   postComments           PostComment[]
   postReactions          PostReaction[]
   postShares             PostShare[]
+  postImpressions        PostImpression[]
   blocksMade             Block[]               @relation("BlockBlocker")
   blocksReceived         Block[]               @relation("BlockBlocked")
   reportsMade            Report[]              @relation("ReportReporter")
@@ -580,11 +581,25 @@ model Post {
   reactions        PostReaction[]
   shares           PostShare[]
   unlocks          PostUnlock[]
+  impressions      PostImpression[]
 
   @@index([authorId])
   @@index([isArchived])
   @@index([postType])
   @@index([tierId])
+}
+
+model PostImpression {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  viewerId  String
+  viewer    Profile  @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, viewerId])
+  @@index([postId])
+  @@index([viewerId])
 }
 
 model PostComment {

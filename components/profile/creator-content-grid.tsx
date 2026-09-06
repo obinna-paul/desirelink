@@ -40,9 +40,6 @@ export function PostGridSection({
 
   function handleOpen(post: PostView) {
     setOpenPostId(post.id);
-    if (!post.locked) {
-      fetch(`/api/posts/${post.id}/view`, { method: "POST" }).catch(() => {});
-    }
   }
 
   return (
