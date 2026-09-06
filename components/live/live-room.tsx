@@ -7,16 +7,15 @@ import type { LocalVideoTrack } from "livekit-client";
 import type { PresenceChannel } from "pusher-js";
 import {
   ConnectionStateToast,
-  GridLayout,
   LiveKitRoom,
-  ParticipantTile,
   RoomAudioRenderer,
   TrackToggle,
   useConnectionState,
   useLocalParticipant,
-  useTracks,
+  useParticipantTracks,
+  VideoTrack,
 } from "@livekit/components-react";
-import { Gift, Heart, ListChecks, MessageCircle, Radio, Send, SwitchCamera, Users, X } from "lucide-react";
+import { ChevronRight, Gift, Heart, ListChecks, MessageCircle, Radio, Send, SwitchCamera, Users, VideoOff, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -62,6 +61,7 @@ type GiftEvent = { hearts: number; sender: { displayName: string; avatarUrl: str
 type CelebrationGift = GiftEvent & { id: number };
 
 type PresenceMemberInfo = { username?: string; displayName?: string; avatarUrl?: string };
+type PresenceMember = { id?: string; info?: PresenceMemberInfo };
 
 const CONTROL_PILL =
   "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition-colors";
@@ -84,12 +84,75 @@ function LiveBadge() {
   );
 }
 
-function VideoGrid() {
-  const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }]);
+function HostVideoStage({ hostIdentity, isHost }: { hostIdentity: string; isHost: boolean }) {
+  const tracks = useParticipantTracks([Track.Source.Camera], hostIdentity);
+  const cameraTrack = tracks[0];
+
+  if (!cameraTrack) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[#0b0b0b] text-center text-white">
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/[0.07] text-white/50">
+          <VideoOff className="h-6 w-6" aria-hidden="true" />
+        </span>
+        <div>
+          <p className="text-sm font-semibold">{isHost ? "Your camera is off" : "Waiting for the host"}</p>
+          <p className="mt-1 text-xs text-white/45">
+            {isHost ? "Turn it on when you're ready to continue." : "The video will appear here when the host is ready."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <GridLayout tracks={tracks} style={{ height: "100%" }}>
-      <ParticipantTile />
-    </GridLayout>
+    <VideoTrack
+      trackRef={cameraTrack}
+      playsInline
+      className="h-full w-full object-cover"
+    />
+  );
+}
+
+function PaidRequestButton({
+  options,
+  onClick,
+  compact = false,
+}: {
+  options: LiveRequestOptionView[];
+  onClick: () => void;
+  compact?: boolean;
+}) {
+  if (options.length === 0) return null;
+  const lowestPrice = Math.min(...options.map((option) => option.hearts));
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group flex min-h-12 w-full items-center gap-3 rounded-lg border border-fuchsia-300/25 bg-fuchsia-500 px-3.5 text-left text-white shadow-lg shadow-fuchsia-950/20 transition-[background-color,transform] hover:bg-fuchsia-400 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-200",
+        compact && "min-h-11 py-2",
+      )}
+    >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/15">
+        <Heart className="h-4 w-4" fill="currentColor" aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold leading-5">Make a paid request</span>
+        <span className="block truncate text-[11px] leading-4 text-white/75">
+          {options.length} {options.length === 1 ? "option" : "options"} available
+        </span>
+      </span>
+      <span className="shrink-0 text-right">
+        <span className="flex items-center justify-end gap-1 text-xs font-semibold tabular-nums">
+          <Heart className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true" />
+          {lowestPrice.toLocaleString()}+
+        </span>
+        <span className="mt-0.5 flex items-center justify-end text-[10px] text-white/70">
+          View menu <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -174,7 +237,7 @@ function HostControls({
 function ChatBubble({ entry, dense = false }: { entry: ChatEntry; dense?: boolean }) {
   if (entry.kind === "system") {
     return (
-      <p className={cn("text-center text-xs italic", dense ? "text-white/60" : "text-muted-foreground")}>
+      <p className={cn("text-center text-xs italic", dense ? "text-white/60" : "text-white/45")}>
         {entry.text}
       </p>
     );
@@ -183,14 +246,14 @@ function ChatBubble({ entry, dense = false }: { entry: ChatEntry; dense?: boolea
   return (
     <div className={cn("flex items-start gap-2", dense && "w-fit max-w-[88%] rounded-lg bg-black/40 px-2.5 py-1.5 backdrop-blur-sm")}>
       {!dense && (
-        <Avatar className="h-7 w-7 shrink-0 border border-white/20">
+        <Avatar className="h-7 w-7 shrink-0 border border-white/10">
           <AvatarImage src={entry.sender.avatarUrl} alt="" />
           <AvatarFallback className="text-[10px]">{entry.sender.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
       )}
-      <p className={cn("min-w-0 break-words", dense ? "text-sm" : "text-sm leading-snug")}>
+      <p className={cn("min-w-0 break-words", dense ? "text-sm" : "text-sm leading-snug text-white")}>
         <span className="font-semibold">{entry.sender.displayName}</span>{" "}
-        <span className={dense ? "" : "text-white/90"}>{entry.content}</span>
+        <span className={dense ? "" : "text-white/70"}>{entry.content}</span>
       </p>
     </div>
   );
@@ -240,6 +303,7 @@ export function LiveRoom({
   const [giftOpen, setGiftOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
   const [hostQueueOpen, setHostQueueOpen] = useState(false);
+  const [hostRequestAlert, setHostRequestAlert] = useState<LiveRequestView | null>(null);
   const [chatHidden, setChatHidden] = useState(false);
   const [giftQueue, setGiftQueue] = useState<CelebrationGift[]>([]);
   const [activeCelebration, setActiveCelebration] = useState<CelebrationGift | null>(null);
@@ -297,12 +361,19 @@ export function LiveRoom({
     const channelName = liveStreamChannelName(streamId);
     const channel = client.subscribe(channelName) as PresenceChannel;
 
-    const audienceCount = () => Math.max(0, channel.members.count - 1);
+    const audienceCount = () => {
+      let count = 0;
+      channel.members.each((member: PresenceMember) => {
+        if (member.id !== provider.id) count += 1;
+      });
+      return count;
+    };
     channel.bind("pusher:subscription_succeeded", () => setViewerCount(audienceCount()));
-    channel.bind("pusher:member_added", (member: { info?: PresenceMemberInfo }) => {
+    channel.bind("pusher:member_added", (member: PresenceMember) => {
       setViewerCount(audienceCount());
-      // Host-only: a per-viewer "joined" line would be noise in every viewer's own feed on any stream with real traffic.
-      if (isHost && member.info?.displayName) pushSystemEntry(`${member.info.displayName} joined`);
+      if (member.id !== provider.id && member.info?.displayName) {
+        pushSystemEntry(`${member.info.displayName} joined`);
+      }
     });
     channel.bind("pusher:member_removed", () => setViewerCount(audienceCount()));
 
@@ -341,7 +412,7 @@ export function LiveRoom({
       channel.unbind(LIVE_REQUEST_COMPLETED_EVENT, onRequestCompleted);
       client.unsubscribe(channelName);
     };
-  }, [streamId, isHost]);
+  }, [streamId, provider.id]);
 
   useEffect(() => {
     void fetch(`/api/live/${streamId}/requests`)
@@ -356,7 +427,10 @@ export function LiveRoom({
     if (!client) return;
     const channelName = isHost ? liveHostChannelName(streamId) : getUserChannelName(viewerProfileId);
     const channel = client.subscribe(channelName);
-    const onRequest = (request: LiveRequestView) => upsertRequest(request);
+    const onRequest = (request: LiveRequestView) => {
+      upsertRequest(request);
+      if (isHost && request.status === "pending") setHostRequestAlert(request);
+    };
     channel.bind(LIVE_REQUEST_CREATED_EVENT, onRequest);
     channel.bind(LIVE_REQUEST_UPDATED_EVENT, onRequest);
     return () => {
@@ -365,6 +439,12 @@ export function LiveRoom({
       client.unsubscribe(channelName);
     };
   }, [isHost, streamId, viewerProfileId]);
+
+  useEffect(() => {
+    if (!hostRequestAlert) return;
+    const timeout = window.setTimeout(() => setHostRequestAlert(null), 8000);
+    return () => window.clearTimeout(timeout);
+  }, [hostRequestAlert]);
 
   useEffect(() => {
     if (!confirmEnd) return;
@@ -425,7 +505,7 @@ export function LiveRoom({
         onChange={(e) => setContent(e.target.value)}
         placeholder="Send a message…"
         maxLength={300}
-        className="min-h-11 min-w-0 flex-1 rounded-full border border-white/20 bg-black/[0.35] px-4 py-2 text-sm text-white placeholder:text-white/50 focus:border-white/40 focus:outline-none lg:border-border lg:bg-secondary lg:text-foreground lg:placeholder:text-muted-foreground"
+        className="min-h-11 min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.08] px-4 py-2 text-sm text-white placeholder:text-white/45 focus:border-fuchsia-300/60 focus:outline-none"
       />
       <button type="submit" disabled={!content.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-black transition-colors hover:bg-white/[0.85] disabled:bg-white/10 disabled:text-white/30" aria-label="Send message">
         <Send className="h-4 w-4" aria-hidden="true" />
@@ -466,7 +546,7 @@ export function LiveRoom({
             "[&_.lk-toast]:!top-[calc(env(safe-area-inset-top)+4.5rem)] lg:[&_.lk-toast]:!top-16"
           )}
         >
-          <VideoGrid />
+          <HostVideoStage hostIdentity={provider.id} isHost={isHost} />
           <RoomAudioRenderer />
           <ConnectionStateToast />
           <ConnectionAnnouncer />
@@ -533,7 +613,34 @@ export function LiveRoom({
           <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
             {activeCelebration &&
               `${activeCelebration.sender.displayName} sent ${activeCelebration.hearts} hearts`}
+            {hostRequestAlert &&
+              `${hostRequestAlert.requester.displayName} requested ${hostRequestAlert.label} for ${hostRequestAlert.hearts} hearts`}
           </div>
+
+          {isHost && hostRequestAlert && (
+            <button
+              type="button"
+              onClick={() => {
+                setHostRequestAlert(null);
+                setHostQueueOpen(true);
+              }}
+              className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+4.75rem)] z-30 flex min-h-16 items-center gap-3 rounded-lg border border-fuchsia-300/30 bg-[#151515]/95 px-3.5 py-3 text-left text-white shadow-2xl backdrop-blur motion-safe:animate-in motion-safe:slide-in-from-top-3 lg:inset-x-auto lg:right-5 lg:top-20 lg:w-80"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fuchsia-500 text-white">
+                <Heart className="h-5 w-5" fill="currentColor" aria-hidden="true" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs text-white/55">
+                  {hostRequestAlert.requester.displayName} sent a request
+                </span>
+                <span className="mt-0.5 block truncate text-sm font-semibold">{hostRequestAlert.label}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1 text-sm font-semibold tabular-nums text-fuchsia-300">
+                <Heart className="h-4 w-4" fill="currentColor" aria-hidden="true" />
+                {hostRequestAlert.hearts.toLocaleString()}
+              </span>
+            </button>
+          )}
 
           {activeCelebration && (
             <div
@@ -556,7 +663,10 @@ export function LiveRoom({
           )}
 
           {heartsTotal > 0 && (
-            <div className="pointer-events-none absolute bottom-24 right-3 flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs tabular-nums lg:bottom-3">
+            <div className={cn(
+              "pointer-events-none absolute right-3 flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs tabular-nums lg:bottom-3",
+              !isHost && requestOptions.length > 0 ? "bottom-40" : "bottom-24",
+            )}>
               <Heart className="h-3.5 w-3.5 text-neon-pink" aria-hidden="true" fill="currentColor" />
               {heartsTotal.toLocaleString()}
             </div>
@@ -579,7 +689,10 @@ export function LiveRoom({
           {/* Mobile-only: chat fades over the video like a live ticker. Sits higher in landscape to clear the floating footer below. */}
           {!chatHidden && <div
             ref={tickerRef}
-            className="pointer-events-none absolute inset-x-0 bottom-24 flex max-h-48 flex-col items-start gap-1.5 overflow-hidden px-3 py-2 text-sm [mask-image:linear-gradient(to_top,black_72%,transparent)] landscape:max-h-28 lg:hidden"
+            className={cn(
+              "pointer-events-none absolute inset-x-0 flex max-h-48 flex-col items-start gap-1.5 overflow-hidden px-3 py-2 text-sm [mask-image:linear-gradient(to_top,black_72%,transparent)] landscape:max-h-28 lg:hidden",
+              !isHost && requestOptions.length > 0 ? "bottom-40" : "bottom-24",
+            )}
           >
             {messages.slice(-8).map((entry) => (
               <ChatBubble key={entry.id} entry={entry} dense />
@@ -590,48 +703,64 @@ export function LiveRoom({
         </div>
 
         {/* Mobile-only footer: controls, gifting, and the composer, stacked under the video in portrait. In landscape there's little vertical room, so it floats over the video instead of squeezing it. */}
-        <div className="absolute inset-x-0 bottom-0 z-20 flex items-end gap-2 bg-gradient-to-t from-black via-black/75 to-transparent px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-8 lg:hidden">
+        <div className="absolute inset-x-0 bottom-0 z-20 flex items-end gap-2 bg-gradient-to-t from-black via-black/80 to-transparent px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-8 lg:hidden">
           {isHost ? (
             <div className="flex w-full items-center justify-between gap-3">
               <HostControls initialCameraEnabled={initialCameraEnabled} initialMicEnabled={initialMicEnabled} />
-              <button type="button" onClick={() => setHostQueueOpen(true)} className="relative flex h-11 items-center gap-2 rounded-full bg-white px-4 text-xs font-semibold text-black" aria-label="Open request queue">
+              <button type="button" onClick={() => setHostQueueOpen(true)} className={cn("relative flex h-11 items-center gap-2 rounded-lg px-4 text-xs font-semibold", pendingRequestCount > 0 ? "bg-fuchsia-500 text-white" : "bg-white text-black")} aria-label="Open paid request queue">
                 <ListChecks className="h-4 w-4" aria-hidden="true" /> Requests
-                {pendingRequestCount > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-fuchsia-600 px-1 text-[10px] text-white">{pendingRequestCount}</span>}
+                {pendingRequestCount > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[10px] text-fuchsia-700">{pendingRequestCount}</span>}
               </button>
             </div>
           ) : (
-            <>
-              <button type="button" onClick={() => setChatHidden((current) => !current)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur" aria-label={chatHidden ? "Show live chat" : "Hide live chat"} aria-pressed={chatHidden}>
-                <MessageCircle className="h-5 w-5" aria-hidden="true" />
-              </button>
-              <button type="button" onClick={() => setGiftOpen(true)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur" aria-label="Send a gift">
-                <Gift className="h-5 w-5" aria-hidden="true" />
-              </button>
-              <button type="button" onClick={() => setRequestOpen(true)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur" aria-label="Make a request">
-                <ListChecks className="h-5 w-5" aria-hidden="true" />
-              </button>
-              {composer}
-            </>
+            <div className="flex w-full flex-col gap-2">
+              <PaidRequestButton options={requestOptions} onClick={() => setRequestOpen(true)} compact />
+              <div className="flex w-full items-end gap-2">
+                <button type="button" onClick={() => setChatHidden((current) => !current)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur" aria-label={chatHidden ? "Show live chat" : "Hide live chat"} aria-pressed={chatHidden}>
+                  <MessageCircle className="h-5 w-5" aria-hidden="true" />
+                </button>
+                <button type="button" onClick={() => setGiftOpen(true)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur" aria-label="Send a gift">
+                  <Gift className="h-5 w-5" aria-hidden="true" />
+                </button>
+                {composer}
+              </div>
+            </div>
           )}
         </div>
 
         {/* Desktop-only: a persistent side panel — chat history, gifting, and controls all stay visible next to the video. Flush against the viewport edge now that the room takes over the full screen. */}
-        <div className="hidden lg:flex lg:w-[340px] lg:shrink-0 lg:flex-col lg:overflow-hidden lg:border-l lg:border-border/60 lg:bg-background lg:text-foreground">
-          <div className="border-b border-border/60 px-3 py-2.5">
-            <div className="flex items-center justify-between"><p className="text-sm font-semibold">Live chat</p>{isHost && <button type="button" onClick={() => setHostQueueOpen(true)} className="relative flex h-9 items-center gap-2 rounded-lg px-2 text-xs font-medium hover:bg-secondary"><ListChecks className="h-4 w-4" aria-hidden="true" />Requests{pendingRequestCount > 0 && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">{pendingRequestCount}</span>}</button>}</div>
+        <div className="hidden lg:flex lg:w-[380px] lg:shrink-0 lg:flex-col lg:overflow-hidden lg:border-l lg:border-white/10 lg:bg-[#101010] lg:text-white xl:w-[420px]">
+          <div className="border-b border-white/10 px-4 py-3.5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-white">Live chat</p>
+                <p className="mt-0.5 text-xs text-white/45">{viewerCount ?? 0} watching</p>
+              </div>
+              {isHost && (
+                <button type="button" onClick={() => setHostQueueOpen(true)} className={cn("relative flex h-10 items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors", pendingRequestCount > 0 ? "bg-fuchsia-500 text-white" : "bg-white/[0.08] text-white/75 hover:bg-white/[0.12]")}>
+                  <ListChecks className="h-4 w-4" aria-hidden="true" /> Paid requests
+                  {pendingRequestCount > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1.5 text-[10px] text-fuchsia-700">{pendingRequestCount}</span>}
+                </button>
+              )}
+            </div>
           </div>
+          {!isHost && requestOptions.length > 0 && (
+            <div className="border-b border-white/10 bg-[#151515] p-3">
+              <PaidRequestButton options={requestOptions} onClick={() => setRequestOpen(true)} />
+            </div>
+          )}
           <div ref={sidebarScrollRef} className="flex flex-1 flex-col gap-3 overflow-y-auto px-3 py-3">
             {messages.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Messages will show up here.</p>
+              <p className="py-6 text-center text-sm text-white/40">Messages and audience activity will appear here.</p>
             ) : (
               messages.map((entry) => <ChatBubble key={entry.id} entry={entry} />)
             )}
           </div>
-          <div className="flex flex-col gap-2 border-t border-border/60 p-3">
+          <div className="flex flex-col gap-2 border-t border-white/10 bg-[#141414] p-3">
             {isHost && (
               <HostControls initialCameraEnabled={initialCameraEnabled} initialMicEnabled={initialMicEnabled} />
             )}
-            {!isHost && <div className="flex gap-2"><button type="button" onClick={() => setGiftOpen(true)} className="flex h-10 items-center gap-2 rounded-lg border border-border px-3 text-xs font-medium"><Gift className="h-4 w-4" aria-hidden="true" />Gift</button><button type="button" onClick={() => setRequestOpen(true)} className="flex h-10 items-center gap-2 rounded-lg border border-border px-3 text-xs font-medium"><ListChecks className="h-4 w-4" aria-hidden="true" />Request</button></div>}
+            {!isHost && <button type="button" onClick={() => setGiftOpen(true)} className="flex h-10 w-fit items-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-medium text-white/80 transition-colors hover:bg-white/[0.08]"><Gift className="h-4 w-4" aria-hidden="true" />Send a gift</button>}
             {composer}
           </div>
         </div>

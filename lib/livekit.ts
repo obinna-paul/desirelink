@@ -21,9 +21,9 @@ export function getLiveKitUrl(): string {
 }
 
 /**
- * Mints a room-scoped access token. Hosts get publish+subscribe; viewers get
- * subscribe-only plus data-channel publish, so they can send live chat
- * messages without being able to publish audio/video into the room.
+ * Mints a room-scoped access token. Hosts get publish+subscribe; audience
+ * members are subscribe-only. Live chat travels through the authenticated
+ * app API and Pusher, so viewers never need any LiveKit publishing rights.
  */
 export async function createLiveKitToken(options: {
   roomName: string;
@@ -39,7 +39,7 @@ export async function createLiveKitToken(options: {
     room: options.roomName,
     roomJoin: true,
     canPublish: options.canPublish,
-    canPublishData: true,
+    canPublishData: options.canPublish,
     canSubscribe: true,
   };
 
