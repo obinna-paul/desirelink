@@ -33,5 +33,7 @@ describe("PostSubscribeCta", () => {
     const subscribeButton = screen.getByRole("button", { name: /Subscribe/i });
     expect(subscribeButton).toHaveClass("h-11", "w-full", "rounded-[8px]");
     expect(subscribeButton).not.toHaveClass("rounded-full");
+    expect(document.querySelector(".lucide-crown")).toBeInTheDocument();
+    expect(document.querySelector(".lucide-sparkles")).not.toBeInTheDocument();
   });
 });

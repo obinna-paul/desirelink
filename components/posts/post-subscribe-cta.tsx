@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Check, LoaderCircle, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Crown, LoaderCircle } from "lucide-react";
 
 import { SubscribePlansDialog } from "@/components/profile/subscribe-plans-dialog";
 import { formatCents } from "@/lib/creator";
@@ -66,7 +66,7 @@ export function PostSubscribeCta({
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-5">
         <div className="flex min-w-0 items-start gap-2.5">
           <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
+            <Crown className="h-4 w-4" aria-hidden="true" />
           </span>
           <div className="min-w-0">
             <p className="text-sm font-semibold leading-5 text-foreground">

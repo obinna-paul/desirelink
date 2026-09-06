@@ -11,6 +11,7 @@ import {
   type RequiredTier,
 } from "@/lib/subscription-access";
 import { getPublicTiersForCreators, type PublicTierView } from "@/lib/tiers";
+import { selectSubscribePromptPostIds } from "@/lib/subscribe-prompt-frequency";
 
 const FEED_LIMIT = 30;
 const PROFILE_POSTS_LIMIT = 50;
@@ -585,10 +586,10 @@ async function accessForSubscriberOnlyAuthors(
 }
 
 /**
- * Attaches a subscribe pitch to every free post from an eligible verified creator in the
- * For You feed. Skips a creator entirely if they have no available tiers or the viewer is
- * already subscribed. Tier state is fetched once per creator in a single batch, then
- * reused across all of that creator's posts.
+ * Adds a restrained subscription cadence to the For You feed: once per creator, no more
+ * than three times in a feed load, with two ordinary posts between prompts. Creators with
+ * no available tier and viewers who already subscribe are skipped. Tier state remains one
+ * batched lookup for all candidate creators.
  */
 async function computeSubscribePrompts(
   posts: RawPost[],
@@ -597,7 +598,7 @@ async function computeSubscribePrompts(
   const prompts = new Map<string, PostSubscribePrompt>();
   if (!viewerProfileId) return prompts;
 
-  const postIdsByCreator = new Map<string, string[]>();
+  const candidateCreatorIds = new Set<string>();
   const usernameByCreator = new Map<string, string>();
 
   for (const post of posts) {
@@ -608,34 +609,45 @@ async function computeSubscribePrompts(
       post.author.isVerified || post.author.isVerifiedCreator || post.author.isVerifiedServiceProvider;
     if (!isVerifiedAny) continue;
 
-    const postIds = postIdsByCreator.get(post.author.id) ?? [];
-    postIds.push(post.id);
-    postIdsByCreator.set(post.author.id, postIds);
+    candidateCreatorIds.add(post.author.id);
     usernameByCreator.set(post.author.id, post.author.username);
   }
 
-  if (postIdsByCreator.size === 0) return prompts;
+  if (candidateCreatorIds.size === 0) return prompts;
 
   const tiersByCreator = await getPublicTiersForCreators(
-    Array.from(postIdsByCreator.keys()),
+    Array.from(candidateCreatorIds),
     viewerProfileId,
   );
 
-  for (const [creatorId, postIds] of Array.from(postIdsByCreator)) {
+  const availableTiersByCreator = new Map<string, PublicTierView[]>();
+  for (const creatorId of Array.from(candidateCreatorIds)) {
     const tiers = tiersByCreator.get(creatorId) ?? [];
     const alreadyEngaged = tiers.some((tier) => tier.viewerState === "subscribed");
     if (alreadyEngaged) continue;
 
     const available = tiers.filter((tier) => tier.viewerState === "available");
     if (available.length === 0) continue;
+    availableTiersByCreator.set(creatorId, available);
+  }
 
-    for (const postId of postIds) {
-      prompts.set(postId, {
-        providerId: creatorId,
-        providerUsername: usernameByCreator.get(creatorId)!,
-        tiers: available,
-      });
-    }
+  const selectedPostIds = selectSubscribePromptPostIds(
+    posts.map((post) => ({
+      id: post.id,
+      creatorId: post.author.id,
+      isFree: !post.isSubscriberOnly,
+      isEligible:
+        post.author.id !== viewerProfileId && availableTiersByCreator.has(post.author.id),
+    })),
+  );
+
+  for (const post of posts) {
+    if (!selectedPostIds.has(post.id)) continue;
+    prompts.set(post.id, {
+      providerId: post.author.id,
+      providerUsername: usernameByCreator.get(post.author.id)!,
+      tiers: availableTiersByCreator.get(post.author.id)!,
+    });
   }
 
   return prompts;
