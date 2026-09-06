@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { requireCapability } from "@/lib/admin/access";
 import { getHeldEscrowBookings, getPayoutHistory, getTransactionLedger, getHeartsEconomySummary } from "@/lib/admin/finance";
+import { getAdminTransactionSource } from "@/lib/admin/metric-helpers";
 import { FinanceView } from "@/components/admin/finance-view";
 
 export const dynamic = "force-dynamic";
@@ -68,6 +69,7 @@ export default async function AdminFinancePage() {
           amountCents: t.amountCents,
           status: t.status,
           provider: t.provider,
+          source: getAdminTransactionSource(t),
           escrowStatus: t.escrowStatus,
           createdAt: t.createdAt.toISOString(),
           profile: t.profile,

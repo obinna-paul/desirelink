@@ -1,14 +1,65 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { buildMetricBuckets, getAdminTransactionSource } from "@/lib/admin/metric-helpers";
 
-export async function getQueueCounts() {
-  const [verification, moderation, withdrawal] = await Promise.all([
-    prisma.verificationRequest.count({ where: { status: "pending" } }),
-    prisma.moderationQueue.count({ where: { status: "pending" } }),
-    prisma.walletWithdrawal.count({ where: { status: "pending" } }),
+export { INSIGHTS_RANGES, type InsightsRange } from "@/lib/admin/metric-helpers";
+import type { InsightsRange } from "@/lib/admin/metric-helpers";
+
+export type AdminQueueScope = {
+  verification: boolean;
+  moderation: boolean;
+  withdrawal: boolean;
+  support: boolean;
+};
+
+export async function getQueueCounts(scope: AdminQueueScope) {
+  const [verification, moderation, withdrawal, support] = await Promise.all([
+    scope.verification ? prisma.verificationRequest.count({ where: { status: "pending" } }) : 0,
+    scope.moderation ? prisma.moderationQueue.count({ where: { status: "pending" } }) : 0,
+    scope.withdrawal ? prisma.walletWithdrawal.count({ where: { status: "pending" } }) : 0,
+    scope.support ? prisma.supportTicket.count({ where: { status: "open" } }) : 0,
   ]);
-  return { verification, moderation, withdrawal, total: verification + moderation + withdrawal };
+  return {
+    verification,
+    moderation,
+    withdrawal,
+    support,
+    total: verification + moderation + withdrawal + support,
+  };
+}
+
+async function getPublishingProfileIdsSince(since?: Date) {
+  const createdAt = since ? { gte: since } : undefined;
+  const [posts, services, rooms, liveStreams] = await Promise.all([
+    prisma.post.findMany({
+      where: { isArchived: false, createdAt },
+      select: { authorId: true },
+      distinct: ["authorId"],
+    }),
+    prisma.serviceListing.findMany({
+      where: { createdAt },
+      select: { providerId: true },
+      distinct: ["providerId"],
+    }),
+    prisma.circle.findMany({
+      where: { createdAt },
+      select: { userId: true },
+      distinct: ["userId"],
+    }),
+    prisma.liveStream.findMany({
+      where: { createdAt },
+      select: { providerId: true },
+      distinct: ["providerId"],
+    }),
+  ]);
+
+  return new Set([
+    ...posts.map((item) => item.authorId),
+    ...services.map((item) => item.providerId),
+    ...rooms.map((item) => item.userId),
+    ...liveStreams.map((item) => item.providerId),
+  ]);
 }
 
 /** Cheap, direct-query snapshot for the landing dashboard - fine at today's scale. The
@@ -18,14 +69,14 @@ export async function getOverviewSnapshot() {
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const [signups24h, newCreators24h, revenue24h, heartsPurchased24h, suspensions7d, paidPayouts30d, failedPayouts30d, failedCharges7d] =
+  const [signups24h, publishingProfiles24h, grossPayments24h, heartsPurchased24h, suspensions7d, paidPayouts30d, failedPayouts30d, failedCharges7d] =
     await Promise.all([
-      prisma.user.count({ where: { createdAt: { gte: dayAgo } } }),
-      prisma.profile.count({ where: { profileType: "CREATOR", createdAt: { gte: dayAgo } } }),
+      prisma.profile.count({ where: { createdAt: { gte: dayAgo } } }),
+      getPublishingProfileIdsSince(dayAgo),
       prisma.transaction.aggregate({ where: { status: "succeeded", createdAt: { gte: dayAgo } }, _sum: { amountCents: true } }),
       prisma.heartPurchase.aggregate({ where: { status: "succeeded", createdAt: { gte: dayAgo } }, _sum: { hearts: true } }),
       prisma.profile.count({ where: { isSuspended: true, suspendedAt: { gte: weekAgo } } }),
-      prisma.walletWithdrawal.count({ where: { status: "paid", paidAt: { gte: monthAgo } } }),
+      prisma.walletWithdrawal.count({ where: { status: "paid", createdAt: { gte: monthAgo } } }),
       prisma.walletWithdrawal.count({ where: { status: "failed", createdAt: { gte: monthAgo } } }),
       prisma.transaction.count({ where: { status: "failed", createdAt: { gte: weekAgo } } }),
     ]);
@@ -34,8 +85,8 @@ export async function getOverviewSnapshot() {
 
   return {
     signups24h,
-    newCreators24h,
-    revenue24hCents: revenue24h._sum.amountCents ?? 0,
+    publishingProfiles24h: publishingProfiles24h.size,
+    grossPayments24hCents: grossPayments24h._sum.amountCents ?? 0,
     heartsPurchased24h: heartsPurchased24h._sum.hearts ?? 0,
     suspensions7d,
     payoutSuccessRate: totalPayouts30d > 0 ? Math.round((paidPayouts30d / totalPayouts30d) * 100) : null,
@@ -43,55 +94,24 @@ export async function getOverviewSnapshot() {
   };
 }
 
-export const INSIGHTS_RANGES = ["7d", "30d", "90d", "12mo"] as const;
-export type InsightsRange = (typeof INSIGHTS_RANGES)[number];
-
-const RANGE_DAYS: Record<InsightsRange, number> = { "7d": 7, "30d": 30, "90d": 90, "12mo": 365 };
-const BUCKET_DAYS: Record<InsightsRange, number> = { "7d": 1, "30d": 1, "90d": 7, "12mo": 30 };
-
-function bucketLabel(date: Date, range: InsightsRange) {
-  return range === "12mo"
-    ? date.toLocaleDateString(undefined, { month: "short" })
-    : date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function buildBuckets(range: InsightsRange) {
-  const bucketDays = BUCKET_DAYS[range];
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const rangeStart = new Date(now);
-  rangeStart.setDate(rangeStart.getDate() - RANGE_DAYS[range]);
-
-  const buckets: { start: Date; end: Date; label: string }[] = [];
-  let cursor = new Date(rangeStart);
-  while (cursor < now) {
-    const start = new Date(cursor);
-    const end = new Date(cursor);
-    end.setDate(end.getDate() + bucketDays);
-    buckets.push({ start, end: end > now ? now : end, label: bucketLabel(start, range) });
-    cursor = end;
-  }
-  return { buckets, rangeStart, now };
-}
-
 /** Revenue split by source, bucketed for a trend chart. A Transaction is classified by
- * which foreign key is set: subscriptionId/providerSubscriptionId -> subscriptions,
+ * which foreign key is set: subscriptionId/providerSubscriptionId/tierId -> subscriptions,
  * serviceBookingId -> services, neither -> hearts (the only other flow that creates a
  * Transaction row - see purchaseHearts in lib/hearts.ts). */
 export async function getRevenueTrend(range: InsightsRange) {
-  const { buckets, rangeStart } = buildBuckets(range);
+  const { buckets, rangeStart } = buildMetricBuckets(range);
 
   const transactions = await prisma.transaction.findMany({
     where: { status: "succeeded", createdAt: { gte: rangeStart } },
-    select: { createdAt: true, amountCents: true, subscriptionId: true, providerSubscriptionId: true, serviceBookingId: true },
+    select: { createdAt: true, amountCents: true, subscriptionId: true, providerSubscriptionId: true, tierId: true, serviceBookingId: true },
   });
 
   return buckets.map((bucket) => {
     const inBucket = transactions.filter((t) => t.createdAt >= bucket.start && t.createdAt < bucket.end);
-    const subscriptions = inBucket.filter((t) => t.subscriptionId || t.providerSubscriptionId).reduce((sum, t) => sum + t.amountCents, 0);
-    const services = inBucket.filter((t) => t.serviceBookingId).reduce((sum, t) => sum + t.amountCents, 0);
+    const subscriptions = inBucket.filter((t) => getAdminTransactionSource(t) === "Subscription").reduce((sum, t) => sum + t.amountCents, 0);
+    const services = inBucket.filter((t) => getAdminTransactionSource(t) === "Service booking").reduce((sum, t) => sum + t.amountCents, 0);
     const hearts = inBucket
-      .filter((t) => !t.subscriptionId && !t.providerSubscriptionId && !t.serviceBookingId)
+      .filter((t) => getAdminTransactionSource(t) === "Hearts purchase")
       .reduce((sum, t) => sum + t.amountCents, 0);
 
     return {
@@ -104,11 +124,11 @@ export async function getRevenueTrend(range: InsightsRange) {
 }
 
 export async function getGrowthSummary(range: InsightsRange) {
-  const { rangeStart } = buildBuckets(range);
+  const { rangeStart } = buildMetricBuckets(range);
 
-  const [signups, newCreators, activeUsers, payingProfiles] = await Promise.all([
-    prisma.user.count({ where: { createdAt: { gte: rangeStart } } }),
-    prisma.profile.count({ where: { profileType: "CREATOR", createdAt: { gte: rangeStart } } }),
+  const [signups, publishingProfiles, activeUsers, payingProfiles] = await Promise.all([
+    prisma.profile.count({ where: { createdAt: { gte: rangeStart } } }),
+    getPublishingProfileIdsSince(rangeStart),
     prisma.profile.count({ where: { lastActiveAt: { gte: rangeStart } } }),
     prisma.transaction.findMany({
       where: { status: "succeeded", createdAt: { gte: rangeStart } },
@@ -117,24 +137,54 @@ export async function getGrowthSummary(range: InsightsRange) {
     }),
   ]);
 
-  return { signups, newCreators, activeUsers, payingUsers: payingProfiles.length };
+  return { signups, publishingProfiles: publishingProfiles.size, activeUsers, payingUsers: payingProfiles.length };
 }
 
-/** A rough activation funnel from the fields the schema actually has - "everEarned" checks
- * current wallet balance > 0, which understates creators who've since withdrawn
- * everything. Good enough to see the shape of the drop-off, not a precise cohort count. */
-export async function getActivationFunnel() {
-  const [totalSignups, switchedToCreator, creatorsWithPost, creatorsEverEarned] = await Promise.all([
-    prisma.user.count(),
-    prisma.profile.count({ where: { profileType: "CREATOR" } }),
-    prisma.post.findMany({ where: { author: { profileType: "CREATOR" } }, select: { authorId: true }, distinct: ["authorId"] }),
-    prisma.profile.count({ where: { profileType: "CREATOR", walletBalanceCents: { gt: 0 } } }),
+/** Independent, all-time account milestones. These are deliberately not presented as a
+ * funnel: people can earn from services or gifts without first publishing a feed post. */
+export async function getAccountMilestones() {
+  const [totalProfiles, publishers, postAuthors, serviceProviders, fundedWallets, withdrawals, giftReceivers, completedLiveRequests, paidTransactions] =
+    await Promise.all([
+      prisma.profile.count(),
+      getPublishingProfileIdsSince(),
+      prisma.post.findMany({ where: { isArchived: false }, select: { authorId: true }, distinct: ["authorId"] }),
+      prisma.serviceListing.findMany({ select: { providerId: true }, distinct: ["providerId"] }),
+      prisma.profile.findMany({ where: { walletBalanceCents: { gt: 0 } }, select: { id: true } }),
+      prisma.walletWithdrawal.findMany({ select: { providerId: true }, distinct: ["providerId"] }),
+      prisma.gift.findMany({ select: { receiverId: true }, distinct: ["receiverId"] }),
+      prisma.liveRequest.findMany({ where: { status: "completed" }, select: { providerId: true }, distinct: ["providerId"] }),
+      prisma.transaction.findMany({
+        where: { status: "succeeded" },
+        select: {
+          escrowStatus: true,
+          subscription: { select: { creatorId: true } },
+          providerSubscription: { select: { providerId: true } },
+          tier: { select: { creatorId: true } },
+          serviceBooking: { select: { providerId: true } },
+        },
+      }),
+    ]);
+
+  const earningProfileIds = new Set([
+    ...fundedWallets.map((item) => item.id),
+    ...withdrawals.map((item) => item.providerId),
+    ...giftReceivers.map((item) => item.receiverId),
+    ...completedLiveRequests.map((item) => item.providerId),
   ]);
+  paidTransactions.forEach((transaction) => {
+    if (transaction.subscription?.creatorId) earningProfileIds.add(transaction.subscription.creatorId);
+    if (transaction.providerSubscription?.providerId) earningProfileIds.add(transaction.providerSubscription.providerId);
+    if (transaction.tier?.creatorId) earningProfileIds.add(transaction.tier.creatorId);
+    if (transaction.escrowStatus === "released" && transaction.serviceBooking?.providerId) {
+      earningProfileIds.add(transaction.serviceBooking.providerId);
+    }
+  });
 
   return {
-    totalSignups,
-    switchedToCreator,
-    postedAsCreator: creatorsWithPost.length,
-    everEarned: creatorsEverEarned,
+    totalProfiles,
+    publishingProfiles: publishers.size,
+    profilesWithPosts: postAuthors.length,
+    profilesWithServices: serviceProviders.length,
+    earningProfiles: earningProfileIds.size,
   };
 }

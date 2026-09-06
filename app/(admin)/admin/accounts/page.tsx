@@ -41,8 +41,9 @@ export default async function AdminAccountsPage({
       <div>
         <h1 className="text-lg font-semibold text-foreground">Accounts</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {totalCount} account{totalCount === 1 ? "" : "s"} total. Search by username, display name, or email, or
-          browse everything below.
+          {query
+            ? <>{totalCount} result{totalCount === 1 ? "" : "s"} for &ldquo;{query}&rdquo;.</>
+            : `${totalCount} account${totalCount === 1 ? "" : "s"} with completed profiles.`}
         </p>
       </div>
 

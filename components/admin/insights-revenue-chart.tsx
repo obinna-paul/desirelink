@@ -19,9 +19,14 @@ export function InsightsRevenueChart({ data }: { data: RevenuePoint[] }) {
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
-      <div className="flex items-baseline justify-between">
-        <h3 className="text-sm font-semibold">Revenue by source</h3>
-        <span className="text-sm font-semibold tabular-nums">{formatCents(totalCents)}</span>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold">Gross payments by source</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">Successful customer charges before creator earnings or refunds.</p>
+        </div>
+        <span className="text-sm font-semibold tabular-nums" aria-label={`Total ${formatCents(totalCents)}`}>
+          {formatCents(totalCents)}
+        </span>
       </div>
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -45,7 +50,7 @@ export function InsightsRevenueChart({ data }: { data: RevenuePoint[] }) {
         <summary className="flex min-h-11 cursor-pointer select-none items-center">View as table</summary>
         <div className="mt-2 overflow-x-auto">
           <table className="w-full min-w-[420px] border-collapse text-left">
-            <caption className="sr-only">Revenue by source and period</caption>
+            <caption className="sr-only">Gross payments by source and period</caption>
             <thead>
               <tr className="border-b border-border">
                 <th scope="col" className="py-1 pr-4 font-medium">Period</th>

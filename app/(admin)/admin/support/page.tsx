@@ -25,7 +25,11 @@ export default async function AdminSupportPage() {
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-lg font-semibold text-foreground">Support</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Messages sent through the help contact form.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {tickets.length === 0
+            ? "No open messages from the help contact form."
+            : `${tickets.length} open message${tickets.length === 1 ? "" : "s"} from the help contact form.`}
+        </p>
       </div>
 
       {tickets.length === 0 ? (

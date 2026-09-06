@@ -23,7 +23,6 @@ export type AccountRecordData = {
     displayName: string;
     avatarUrl: string;
     bio: string;
-    profileType: string;
     city: string;
     country: string;
     isVerified: boolean;
@@ -45,6 +44,8 @@ export type AccountRecordData = {
     premiumPostCount: number;
     subscriberCount: number;
     serviceListingCount: number;
+    roomCount: number;
+    liveStreamCount: number;
     reportsPendingAgainst: number;
     reportsMade: number;
     lifetimeWithdrawnCents: number;
@@ -55,6 +56,7 @@ export type AccountRecordData = {
     amountCents: number;
     status: string;
     provider: string;
+    source: string;
     createdAt: string;
   }[];
   pendingWithdrawals: {
@@ -125,6 +127,7 @@ export function AccountRecord({
   const [deleting, setDeleting] = useState(false);
 
   const { profile, stats } = detail;
+  const contentCount = stats.postCount + stats.serviceListingCount + stats.roomCount + stats.liveStreamCount;
 
   async function suspend() {
     if (!confirmSuspend) {
@@ -197,7 +200,7 @@ export function AccountRecord({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Avatar className="h-12 w-12 border border-border">
             <AvatarImage src={profile.avatarUrl} alt={profile.displayName} />
@@ -221,46 +224,51 @@ export function AccountRecord({
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              {profile.displayName} &middot; {profile.user.email} &middot; {profile.profileType.toLowerCase()} &middot; joined{" "}
+              {profile.displayName} &middot; {profile.user.email} &middot; joined{" "}
               {formatDistanceToNow(new Date(profile.createdAt), { addSuffix: true })}
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+              {contentCount === 0
+                ? "No published content"
+                : `${contentCount} content item${contentCount === 1 ? "" : "s"} across posts, services, rooms, and live streams`}
             </p>
           </div>
         </div>
 
-        {canModerate && (
-          <div className="flex shrink-0 gap-2">
-            {profile.isSuspended ? (
-              <Button type="button" size="sm" variant="outline" disabled={busy} onClick={reinstate} className="gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                {busy ? "Reinstating..." : "Reinstate"}
-              </Button>
-            ) : (
+        {(canModerate || canDelete) && (
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {canModerate &&
+              (profile.isSuspended ? (
+                <Button type="button" size="sm" variant="outline" disabled={busy} onClick={reinstate} className="gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  {busy ? "Reinstating..." : "Reinstate"}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={suspend}
+                  className="gap-1.5 text-destructive hover:text-destructive"
+                >
+                  <Ban className="h-3.5 w-3.5" aria-hidden="true" />
+                  {busy ? "Suspending..." : confirmSuspend ? "Confirm suspend" : "Suspend"}
+                </Button>
+              ))}
+            {canDelete && !showDeletePanel && (
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={busy}
-                onClick={suspend}
+                onClick={() => setShowDeletePanel(true)}
                 className="gap-1.5 text-destructive hover:text-destructive"
               >
-                <Ban className="h-3.5 w-3.5" aria-hidden="true" />
-                {busy ? "Suspending..." : confirmSuspend ? "Confirm suspend" : "Suspend"}
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                Delete account
               </Button>
             )}
           </div>
-        )}
-
-        {canDelete && !showDeletePanel && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => setShowDeletePanel(true)}
-            className="shrink-0 gap-1.5 text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-            Delete account
-          </Button>
         )}
       </div>
 
@@ -332,8 +340,8 @@ export function AccountRecord({
       {tab === "Overview" && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Wallet balance" value={formatCents(profile.walletBalanceCents)} />
-          <StatCard label="Hearts held" value={profile.heartsBalance} />
-          <StatCard label="Subscribers" value={stats.subscriberCount} />
+          <StatCard label="Hearts balance" value={profile.heartsBalance} />
+          <StatCard label="Active subscribers" value={stats.subscriberCount} />
           <StatCard label="Posts (premium)" value={`${stats.postCount} (${stats.premiumPostCount})`} />
           <StatCard label="Lifetime withdrawn" value={formatCents(stats.lifetimeWithdrawnCents)} />
           <StatCard label="Reports against" value={stats.reportsPendingAgainst} />
@@ -344,10 +352,12 @@ export function AccountRecord({
 
       {tab === "Content" && (
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatCard label="Posts" value={stats.postCount} />
             <StatCard label="Premium posts" value={stats.premiumPostCount} />
             <StatCard label="Service listings" value={stats.serviceListingCount} />
+            <StatCard label="Rooms" value={stats.roomCount} />
+            <StatCard label="Live streams" value={stats.liveStreamCount} />
           </div>
 
           <div>
@@ -421,7 +431,7 @@ export function AccountRecord({
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatCard label="Wallet balance" value={formatCents(profile.walletBalanceCents)} />
-            <StatCard label="Hearts held" value={profile.heartsBalance} />
+            <StatCard label="Hearts balance" value={profile.heartsBalance} />
             <StatCard label="Lifetime withdrawn" value={formatCents(stats.lifetimeWithdrawnCents)} />
             <StatCard label="Payouts made" value={stats.paidWithdrawalCount} />
           </div>
@@ -441,17 +451,23 @@ export function AccountRecord({
           )}
 
           <div>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recent transactions</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recent payments made</h3>
+            <p className="mb-2 mt-1 text-xs text-muted-foreground">
+              Successful and failed customer charges initiated by this account. These are not creator earnings.
+            </p>
             {detail.recentTransactions.length === 0 ? (
               <p className="text-sm text-muted-foreground">No transactions yet.</p>
             ) : (
               <ul className="flex flex-col gap-1.5">
                 {detail.recentTransactions.map((t) => (
                   <li key={t.id} className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm">
-                    <span className="tabular-nums">{formatCents(t.amountCents)}</span>
-                    <span className="text-xs capitalize text-muted-foreground">
-                      {t.provider} &middot; {t.status} &middot; {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}
-                    </span>
+                    <div>
+                      <p className="font-medium">{t.source}</p>
+                      <p className="text-xs capitalize text-muted-foreground">
+                        {t.provider} &middot; {t.status} &middot; {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}
+                      </p>
+                    </div>
+                    <span className="shrink-0 tabular-nums">{formatCents(t.amountCents)}</span>
                   </li>
                 ))}
               </ul>

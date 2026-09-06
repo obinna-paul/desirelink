@@ -18,12 +18,27 @@ export type AccountListRow = {
   username: string;
   displayName: string;
   avatarUrl: string;
-  profileType: string;
   isVerified: boolean;
   isVerifiedCreator: boolean;
   isSuspended: boolean;
   user: { email: string };
+  _count: { posts: number; serviceListings: number; circles: number; liveStreams: number };
 };
+
+function activitySummary(account: AccountListRow) {
+  const parts = [
+    account._count.posts ? `${account._count.posts} post${account._count.posts === 1 ? "" : "s"}` : null,
+    account._count.serviceListings
+      ? `${account._count.serviceListings} service${account._count.serviceListings === 1 ? "" : "s"}`
+      : null,
+    account._count.circles ? `${account._count.circles} room${account._count.circles === 1 ? "" : "s"}` : null,
+    account._count.liveStreams
+      ? `${account._count.liveStreams} stream${account._count.liveStreams === 1 ? "" : "s"}`
+      : null,
+  ].filter(Boolean);
+
+  return parts.length ? parts.join(" · ") : "No published content";
+}
 
 /**
  * One click + a native confirm() is deliberately less ceremony than the full account
@@ -65,7 +80,7 @@ export function AccountsList({ accounts, canDelete }: { accounts: AccountListRow
           <li key={account.id} className="flex items-center gap-2">
             <Link
               href={`/admin/accounts/${account.username}`}
-              className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-border/60 bg-card p-3 shadow-sm transition-colors hover:border-primary/40"
+              className="group flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-border/60 bg-card p-3 shadow-sm transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Avatar className="h-10 w-10 border border-border">
                 <AvatarImage src={account.avatarUrl} alt={account.displayName} />
@@ -84,8 +99,13 @@ export function AccountsList({ accounts, canDelete }: { accounts: AccountListRow
                 <p className="truncate text-xs text-muted-foreground">
                   {account.displayName} &middot; {account.user.email}
                 </p>
+                <p className="mt-0.5 truncate text-[11px] text-muted-foreground/80 sm:hidden">
+                  {activitySummary(account)}
+                </p>
               </div>
-              <span className="shrink-0 text-xs capitalize text-muted-foreground">{account.profileType.toLowerCase()}</span>
+              <span className="hidden max-w-56 shrink-0 truncate text-right text-xs text-muted-foreground sm:block">
+                {activitySummary(account)}
+              </span>
             </Link>
             {canDelete && (
               <Button

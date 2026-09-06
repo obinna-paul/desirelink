@@ -84,7 +84,7 @@ function WithdrawalRow({
           </div>
           {!revealed && (
             <Button type="button" size="sm" onClick={() => setRevealed(true)}>
-              Approve
+              Review payout
             </Button>
           )}
         </div>

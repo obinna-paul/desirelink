@@ -29,6 +29,7 @@ export type LedgerRow = {
   amountCents: number;
   status: string;
   provider: string;
+  source: string;
   escrowStatus: string | null;
   createdAt: string;
   profile: { username: string; displayName: string } | null;
@@ -195,7 +196,7 @@ export function FinanceView({
         (visibleEscrow.length === 0 ? (
           <div className="flex items-center gap-2 rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground">
             <CircleDollarSign className="mx-auto h-5 w-5" aria-hidden="true" />
-            <span className="mx-auto">No held escrow needs attention.</span>
+            <span className="mx-auto">No funds are currently held in escrow.</span>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -219,13 +220,20 @@ export function FinanceView({
         ) : (
           <ul className="flex flex-col gap-1.5">
             {payoutHistory.map((w) => (
-              <li key={w.id} className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm">
-                <span>{w.provider.username}</span>
-                <span className="tabular-nums">{formatCents(w.netAmountCents)}</span>
+              <li key={w.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-lg border border-border/60 px-3 py-2.5 text-sm sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">@{w.provider.username}</p>
+                  <p className="text-[11px] text-muted-foreground sm:hidden">
+                    Requested {formatDistanceToNow(new Date(w.createdAt), { addSuffix: true })}
+                  </p>
+                </div>
+                <span className="font-medium tabular-nums">{formatCents(w.netAmountCents)}</span>
                 <Badge variant={w.status === "paid" ? "trust" : w.status === "failed" ? "outline" : "outline"} className={cn(w.status === "failed" && "text-destructive")}>
                   {w.status}
                 </Badge>
-                <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(w.createdAt), { addSuffix: true })}</span>
+                <span className="hidden text-xs text-muted-foreground sm:block">
+                  {formatDistanceToNow(new Date(w.createdAt), { addSuffix: true })}
+                </span>
               </li>
             ))}
           </ul>
@@ -237,14 +245,21 @@ export function FinanceView({
         ) : (
           <ul className="flex flex-col gap-1.5">
             {transactions.map((t) => (
-              <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm">
-                <span className="min-w-0 truncate">{t.profile?.username ?? "—"}</span>
-                <span className="tabular-nums">{formatCents(t.amountCents)}</span>
-                <span className="text-xs capitalize text-muted-foreground">
-                  {t.provider} &middot; {t.status}
-                  {t.escrowStatus ? ` · escrow ${t.escrowStatus}` : ""}
+              <li key={t.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-lg border border-border/60 px-3 py-2.5 text-sm sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{t.source}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {t.profile ? `@${t.profile.username}` : "Deleted account"} &middot; {t.provider}
+                    {t.escrowStatus ? ` · escrow ${t.escrowStatus}` : ""}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium tabular-nums">{formatCents(t.amountCents)}</p>
+                  <p className="text-xs capitalize text-muted-foreground">{t.status}</p>
+                </div>
+                <span className="col-span-2 text-[11px] text-muted-foreground sm:col-span-1 sm:text-xs">
+                  {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}
                 </span>
-                <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}</span>
               </li>
             ))}
           </ul>
@@ -253,10 +268,10 @@ export function FinanceView({
       {tab === "Hearts" && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <StatCard label="Hearts purchased" value={hearts.heartsPurchased.toLocaleString()} />
-          <StatCard label="Revenue from hearts" value={formatCents(hearts.revenueFromHeartsCents)} />
+          <StatCard label="Gross hearts sales" value={formatCents(hearts.revenueFromHeartsCents)} />
           <StatCard label="Purchases" value={hearts.purchaseCount} />
           <StatCard label="Hearts gifted" value={hearts.heartsGifted.toLocaleString()} />
-          <StatCard label="Gift value" value={formatCents(hearts.giftValueCents)} />
+          <StatCard label="Value transferred in gifts" value={formatCents(hearts.giftValueCents)} />
           <StatCard label="Gifts sent" value={hearts.giftCount} />
         </div>
       )}

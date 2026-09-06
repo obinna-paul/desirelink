@@ -72,6 +72,7 @@ export type AuditLogFilters = {
   actorId?: string;
   targetType?: string;
   action?: AdminAuditAction;
+  actions?: AdminAuditAction[];
   cursor?: string;
   take?: number;
 };
@@ -83,7 +84,7 @@ export async function getAuditLog(filters: AuditLogFilters = {}) {
     where: {
       actorId: filters.actorId,
       targetType: filters.targetType,
-      action: filters.action,
+      action: filters.actions?.length ? { in: filters.actions } : filters.action,
     },
     orderBy: { createdAt: "desc" },
     take: take + 1,

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { formatDistanceToNow } from "date-fns";
+import Link from "next/link";
 
 import { authOptions } from "@/lib/auth";
 import { getAdminContext } from "@/lib/admin/access";
@@ -45,8 +46,13 @@ export default async function AdminInboxPage() {
 
   if (!canReviewVerification && !canModerate && !canManagePayouts) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground">
-        Nothing queued for your role yet.
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground">
+        <p>This role does not have a review queue in the admin inbox.</p>
+        {context.capabilities.has("manage_support_tickets") && (
+          <Link href="/admin/support" className="font-medium text-primary hover:underline">
+            Open support tickets
+          </Link>
+        )}
       </div>
     );
   }
@@ -55,7 +61,7 @@ export default async function AdminInboxPage() {
     canReviewVerification ? getPendingVerificationRequests() : Promise.resolve(null),
     canModerate ? getModerationQueue("pending") : Promise.resolve(null),
     canManagePayouts ? getPendingWithdrawals() : Promise.resolve(null),
-    getAuditLog({ take: 30 }),
+    getAuditLog({ take: 30, actions: DECISION_ACTIONS }),
   ]);
 
   const counts = {
@@ -64,15 +70,23 @@ export default async function AdminInboxPage() {
     withdrawal: withdrawals?.length ?? 0,
   };
   const total = counts.verification + counts.moderation + counts.withdrawal;
-
-  const historyItems = history.items.filter((entry) => DECISION_ACTIONS.includes(entry.action as AdminAuditAction));
+  const assignedQueueNames = [
+    canReviewVerification ? "verification" : null,
+    canModerate ? "reports" : null,
+    canManagePayouts ? "payouts" : null,
+  ].filter(Boolean);
+  const queueDescription = new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(
+    assignedQueueNames as string[],
+  );
 
   return (
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-lg font-semibold text-foreground">Inbox</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {total === 0 ? "Nothing waiting." : `${total} item${total === 1 ? "" : "s"} waiting across verification, reports, and payouts.`}
+          {total === 0
+            ? `Nothing waiting in ${queueDescription}.`
+            : `${total} item${total === 1 ? "" : "s"} waiting across ${queueDescription}.`}
         </p>
       </div>
 
@@ -82,11 +96,11 @@ export default async function AdminInboxPage() {
         moderationSection={moderationFlags ? <ModerationQueue initialItems={moderationFlags} /> : null}
         withdrawalSection={withdrawals ? <WithdrawalsQueue initialWithdrawals={withdrawals} /> : null}
         historySection={
-          historyItems.length === 0 ? (
+          history.items.length === 0 ? (
             <p className="text-sm text-muted-foreground">No decisions recorded yet.</p>
           ) : (
             <ul className="flex flex-col gap-2">
-              {historyItems.map((entry) => (
+              {history.items.map((entry) => (
                 <li key={entry.id} className="rounded-lg border border-border/60 p-3 text-sm">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{entry.action}</Badge>

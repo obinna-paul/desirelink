@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getAdminContext } from "@/lib/admin/access";
 import { getAccountDetail } from "@/lib/admin/accounts";
+import { getAdminTransactionSource } from "@/lib/admin/metric-helpers";
 import { AccountRecord, type AccountRecordData } from "@/components/admin/account-record";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,7 @@ export default async function AdminAccountDetailPage({
       amountCents: t.amountCents,
       status: t.status,
       provider: t.provider,
+      source: getAdminTransactionSource(t),
       createdAt: t.createdAt.toISOString(),
     })),
     pendingWithdrawals: detail.pendingWithdrawals.map((w) => ({

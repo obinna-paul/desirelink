@@ -9,13 +9,24 @@ import { formatCents } from "@/lib/creator";
 
 export const dynamic = "force-dynamic";
 
-function Tile({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
-  return (
-    <div className="rounded-xl border border-border/60 bg-card p-3.5">
+function Tile({ label, value, hint, href }: { label: string; value: string | number; hint?: string; href?: string }) {
+  const content = (
+    <>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
       {hint && <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>}
-    </div>
+    </>
+  );
+
+  return href ? (
+    <Link
+      href={href}
+      className="rounded-xl border border-border/60 bg-card p-3.5 transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {content}
+    </Link>
+  ) : (
+    <div className="rounded-xl border border-border/60 bg-card p-3.5">{content}</div>
   );
 }
 
@@ -30,7 +41,27 @@ export default async function AdminOverviewPage() {
     notFound();
   }
 
-  const [queueCounts, snapshot] = await Promise.all([getQueueCounts(), getOverviewSnapshot()]);
+  const queueScope = {
+    verification: context.capabilities.has("view_verification_media"),
+    moderation: context.capabilities.has("moderate_content"),
+    withdrawal: context.capabilities.has("manage_payouts"),
+    support: context.capabilities.has("manage_support_tickets"),
+  };
+  const [queueCounts, snapshot] = await Promise.all([getQueueCounts(queueScope), getOverviewSnapshot()]);
+  const queueTiles = [
+    queueScope.verification
+      ? { label: "ID checks", value: queueCounts.verification, href: "/admin/inbox" }
+      : null,
+    queueScope.moderation
+      ? { label: "Content reports", value: queueCounts.moderation, href: "/admin/inbox" }
+      : null,
+    queueScope.withdrawal
+      ? { label: "Payout requests", value: queueCounts.withdrawal, href: "/admin/inbox" }
+      : null,
+    queueScope.support
+      ? { label: "Support tickets", value: queueCounts.support, href: "/admin/support" }
+      : null,
+  ].filter((item): item is { label: string; value: number; href: string } => item !== null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -40,21 +71,16 @@ export default async function AdminOverviewPage() {
       </div>
 
       <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Needs attention</h2>
-          <Link href="/admin/inbox" className="text-xs font-medium text-primary hover:underline">
-            Open inbox &rarr;
-          </Link>
-        </div>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Needs attention</h2>
         {queueCounts.total === 0 ? (
           <div className="rounded-2xl border border-dashed border-border/60 bg-card p-6 text-center text-sm text-muted-foreground">
-            Inbox is clear.
+            Your assigned queues are clear.
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Tile label="Verification" value={queueCounts.verification} />
-            <Tile label="Reports" value={queueCounts.moderation} />
-            <Tile label="Payouts" value={queueCounts.withdrawal} />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {queueTiles.map((tile) => (
+              <Tile key={tile.label} {...tile} />
+            ))}
           </div>
         )}
       </section>
@@ -62,10 +88,10 @@ export default async function AdminOverviewPage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Last 24 hours</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Tile label="Signups" value={snapshot.signups24h} />
-          <Tile label="New creators" value={snapshot.newCreators24h} />
-          <Tile label="Revenue" value={formatCents(snapshot.revenue24hCents)} />
-          <Tile label="Hearts purchased" value={snapshot.heartsPurchased24h.toLocaleString()} />
+          <Tile label="Completed signups" value={snapshot.signups24h} hint="Profiles successfully created" />
+          <Tile label="Publishing profiles" value={snapshot.publishingProfiles24h} hint="Unique people who created content" />
+          <Tile label="Gross payments" value={formatCents(snapshot.grossPayments24hCents)} hint="Successful customer charges" />
+          <Tile label="Hearts purchased" value={snapshot.heartsPurchased24h.toLocaleString()} hint="Successful top-ups" />
         </div>
       </section>
 
@@ -73,11 +99,12 @@ export default async function AdminOverviewPage() {
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Platform health</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Tile
-            label="Payout success rate (30d)"
+            label="Settled payout success (30d)"
             value={snapshot.payoutSuccessRate === null ? "—" : `${snapshot.payoutSuccessRate}%`}
+            hint="Paid ÷ paid and failed requests opened in 30d"
           />
-          <Tile label="Failed charges (7d)" value={snapshot.failedCharges7d} />
-          <Tile label="Suspensions (7d)" value={snapshot.suspensions7d} />
+          <Tile label="Failed charges (7d)" value={snapshot.failedCharges7d} hint="Recorded payment failures" />
+          <Tile label="New suspensions (7d)" value={snapshot.suspensions7d} hint="Accounts suspended in the period" />
         </div>
       </section>
     </div>
