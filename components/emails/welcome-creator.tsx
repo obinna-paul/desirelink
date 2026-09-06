@@ -5,20 +5,15 @@ import { absoluteUrl } from "@/lib/site-config";
 
 export function WelcomeCreatorEmail({ firstName }: { firstName: string }) {
   return (
-    <EmailLayout preview={`You're in, ${firstName} — let's set up your creator profile`}>
+    <EmailLayout preview="Three things stand between you and your first subscriber">
       <Text style={eyebrow}>Welcome</Text>
-      <Text style={heading}>You&apos;re in, {firstName}</Text>
+      <Text style={heading}>Let&apos;s get you paid, {firstName}</Text>
       <Text style={paragraph}>
-        Three things turn a Udala profile into an income: your subscription tiers, a free post to pull people in,
-        and getting verified.
-      </Text>
-      <Text style={paragraph}>
-        Start with your tiers — decide what a subscriber gets and what it costs. Then post something free —
-        it&apos;s what shows up in the main feed and gives people a reason to subscribe. Verification comes after;
-        it&apos;s what puts the Subscribe button in front of people who aren&apos;t following you yet.
+        Set your tiers first — what someone gets, what it costs. Then post something free; that&apos;s what gets seen.
+        Verification comes last, once you&apos;re ready for strangers to find you.
       </Text>
       <EmailButton href={absoluteUrl("/creator-dashboard")}>Set up your tiers</EmailButton>
-      <Text style={{ ...muted, marginTop: 24 }}>— The Udala Team</Text>
+      <Text style={{ ...muted, marginTop: 24 }}>— Udala</Text>
     </EmailLayout>
   );
 }

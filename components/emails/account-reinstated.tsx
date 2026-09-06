@@ -5,11 +5,11 @@ import { absoluteUrl } from "@/lib/site-config";
 
 export function AccountReinstatedEmail() {
   return (
-    <EmailLayout preview="Your Udala account is active again.">
+    <EmailLayout preview="You're back">
       <Text style={eyebrow}>Account status</Text>
-      <Text style={heading}>Your account is active again</Text>
+      <Text style={heading}>You&apos;re back</Text>
       <Text style={paragraph}>
-        Good news — your account has been fully restored. Everything works exactly as it did before.
+        Your account&apos;s fully restored. Everything works like it did before.
       </Text>
       <EmailButton href={absoluteUrl("/")}>Back to Udala</EmailButton>
     </EmailLayout>

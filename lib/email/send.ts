@@ -55,11 +55,9 @@ type SendEmailInput = {
 };
 
 /**
- * Renders and sends one email through Resend, then logs the outcome - and never throws.
- * Every call site fires this without awaiting anything downstream of it (or awaits it but
- * ignores a throw), the same way safeConfirmPayment works for payment confirmation: a
- * subscription, a signup, a payout must all succeed or fail on their own terms, never on
- * whether an email happened to go out.
+ * Renders and sends one email through Resend, then logs the outcome without throwing.
+ * The boolean only tells lifecycle jobs whether Resend accepted the message, so they can
+ * retry later. The business action itself never depends on email delivery.
  */
 export async function sendEmail({
   to,
@@ -70,7 +68,7 @@ export async function sendEmail({
   from = "hey",
   replyTo,
   idempotencyKey,
-}: SendEmailInput): Promise<void> {
+}: SendEmailInput): Promise<boolean> {
   const sender = EMAIL_SENDERS[from];
   const resolvedReplyTo = replyTo ?? (from === "hey" ? EMAIL_SENDERS.help.address : undefined);
 
@@ -80,12 +78,12 @@ export async function sendEmail({
   } catch (error) {
     console.error(`[email] failed to render "${subject}" for ${to}`, error);
     await logEmail({ recipient: to, category, template, resendId: null, status: "failed", error: String(error) });
-    return;
+    return false;
   }
 
   if (!resend) {
     console.warn(`[email] RESEND_API_KEY not set - skipping "${subject}" to ${to}`);
-    return;
+    return false;
   }
 
   try {
@@ -106,15 +104,17 @@ export async function sendEmail({
         recipient: to, category, template,
         resendId: null, status: "failed", error: result.error.message,
       });
-      return;
+      return false;
     }
 
     await logEmail({
       recipient: to, category, template,
       resendId: result.data?.id ?? null, status: "sent", error: null,
     });
+    return true;
   } catch (error) {
     console.error(`[email] send failed for "${subject}" to ${to}`, error);
     await logEmail({ recipient: to, category, template, resendId: null, status: "failed", error: String(error) });
+    return false;
   }
 }

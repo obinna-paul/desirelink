@@ -8,8 +8,7 @@ export function AccountWarningEmail() {
       <Text style={eyebrow}>Safety</Text>
       <Text style={heading}>A warning about your account</Text>
       <Text style={paragraph}>
-        Recent activity on your account went against our community guidelines. This time it&apos;s a warning —
-        another one puts your account at risk of suspension.
+        Recent activity broke our community guidelines. This is a warning — another one risks suspension.
       </Text>
       <Text style={paragraph}>
         Questions:{" "}
@@ -17,7 +16,7 @@ export function AccountWarningEmail() {
           help@udala.pro
         </Link>
       </Text>
-      <Text style={muted}>— The Udala Team</Text>
+      <Text style={muted}>— Udala</Text>
     </EmailLayout>
   );
 }

@@ -7,9 +7,9 @@ export function PayoutCompletedEmail({ amountCents, date }: { amountCents: numbe
   return (
     <EmailLayout preview={`${formatCents(amountCents)} has landed in your account`}>
       <Text style={eyebrow}>Payout</Text>
-      <Text style={heading}>Your payout has landed</Text>
+      <Text style={heading}>Payout landed</Text>
       <Text style={paragraph}>
-        Confirmed — {formatCents(amountCents)} was sent to your account as of <strong>{date}</strong>.
+        {formatCents(amountCents)} was sent to your account on <strong>{date}</strong>.
       </Text>
     </EmailLayout>
   );

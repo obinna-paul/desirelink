@@ -182,7 +182,17 @@ type ExpiringSubscription = Prisma.ProviderSubscriptionGetPayload<{
   include: typeof expiringSubscriptionInclude;
 }>;
 
-async function notifySubscriptionEndingSoon(sub: ExpiringSubscription): Promise<void> {
+async function notifySubscriptionEndingSoon(sub: ExpiringSubscription): Promise<boolean> {
+  const delivered = await sendSubscriptionExpiryWarningEmail({
+    subscriptionId: sub.id,
+    subscriberEmail: sub.subscriber.user.email,
+    creatorName: sub.provider.displayName,
+    creatorUsername: sub.provider.username,
+    tierName: sub.tier.name,
+    endsAt: sub.endsAt,
+  });
+  if (!delivered) return false;
+
   await createNotification({
     recipientId: sub.subscriberId,
     actorId: sub.providerId,
@@ -191,16 +201,28 @@ async function notifySubscriptionEndingSoon(sub: ExpiringSubscription): Promise<
     body: `Resubscribe to keep your access to ${sub.provider.displayName}'s Premium content.`,
     href: `/profile/${sub.provider.username}`,
   });
-  await sendSubscriptionExpiryWarningEmail({
-    subscriberEmail: sub.subscriber.user.email,
-    creatorName: sub.provider.displayName,
-    creatorUsername: sub.provider.username,
-    tierName: sub.tier.name,
-    endsAt: sub.endsAt,
-  });
+  return true;
 }
 
-async function notifySubscriptionEnded(sub: ExpiringSubscription): Promise<void> {
+async function notifySubscriptionEnded(sub: ExpiringSubscription): Promise<boolean> {
+  const [fanDelivered, creatorDelivered] = await Promise.all([
+    sendSubscriptionEndedFanEmail({
+      subscriptionId: sub.id,
+      subscriberEmail: sub.subscriber.user.email,
+      creatorName: sub.provider.displayName,
+      creatorUsername: sub.provider.username,
+      endsAt: sub.endsAt,
+    }),
+    sendSubscriptionEndedCreatorEmail({
+      subscriptionId: sub.id,
+      creatorEmail: sub.provider.user.email,
+      fanName: sub.subscriber.displayName,
+      tierName: sub.tier.name,
+      endsAt: sub.endsAt,
+    }),
+  ]);
+  if (!fanDelivered || !creatorDelivered) return false;
+
   await Promise.all([
     createNotification({
       recipientId: sub.subscriberId,
@@ -218,19 +240,8 @@ async function notifySubscriptionEnded(sub: ExpiringSubscription): Promise<void>
       body: "Their access to your Premium content has ended.",
       href: "/creator-dashboard?tab=audience",
     }),
-    sendSubscriptionEndedFanEmail({
-      subscriberEmail: sub.subscriber.user.email,
-      creatorName: sub.provider.displayName,
-      creatorUsername: sub.provider.username,
-      endsAt: sub.endsAt,
-    }),
-    sendSubscriptionEndedCreatorEmail({
-      creatorEmail: sub.provider.user.email,
-      fanName: sub.subscriber.displayName,
-      tierName: sub.tier.name,
-      endsAt: sub.endsAt,
-    }),
   ]);
+  return true;
 }
 
 /**
@@ -252,7 +263,14 @@ async function processSubscriptionExpiry(
       data: { status: sub.cancelAtPeriodEnd ? "cancelled" : "expired" },
     });
     if (claimed.count === 0) return "skipped";
-    await notifySubscriptionEnded(sub);
+    const delivered = await notifySubscriptionEnded(sub);
+    if (!delivered) {
+      await prisma.providerSubscription.updateMany({
+        where: { id: sub.id, status: sub.cancelAtPeriodEnd ? "cancelled" : "expired" },
+        data: { status: "active" },
+      });
+      return "skipped";
+    }
     return "expired";
   }
 
@@ -267,7 +285,14 @@ async function processSubscriptionExpiry(
       data: { expiryWarningSentAt: now },
     });
     if (claimed.count === 0) return "skipped";
-    await notifySubscriptionEndingSoon(sub);
+    const delivered = await notifySubscriptionEndingSoon(sub);
+    if (!delivered) {
+      await prisma.providerSubscription.updateMany({
+        where: { id: sub.id, status: "active", expiryWarningSentAt: now },
+        data: { expiryWarningSentAt: null },
+      });
+      return "skipped";
+    }
     return "warned";
   }
 

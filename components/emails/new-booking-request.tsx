@@ -16,12 +16,12 @@ export function NewBookingRequestEmail({
   amountCents: number;
 }) {
   return (
-    <EmailLayout preview={`New booking request from ${customerName}`}>
+    <EmailLayout preview={`${customerName} wants to book you`}>
       <Text style={eyebrow}>Booking</Text>
       <Text style={heading}>New booking request</Text>
       <Text style={paragraph}>
         {customerName} requested <strong>{serviceName}</strong> for <strong>{requestedAt}</strong>.{" "}
-        {formatCents(amountCents)} is already held in escrow.
+        {formatCents(amountCents)} is already in escrow, waiting.
       </Text>
       <EmailButton href={absoluteUrl("/services/bookings")}>Accept or decline</EmailButton>
     </EmailLayout>

@@ -6,32 +6,32 @@ export type OtpEmailVariant = "signup" | "resend" | "password_reset" | "add_emai
 
 const COPY: Record<OtpEmailVariant, { subject: string; eyebrow: string; title: string; intro: string; footer: string }> = {
   add_email: {
-    subject: "Confirm your email for Udala",
+    subject: "Confirm your email",
     eyebrow: "Confirm your email",
     title: "Confirm this address",
-    intro: "Use this code to confirm this email address on your Udala account:",
-    footer: "If you didn't request this, you can safely ignore this email.",
+    intro: "Use this code to confirm this address on your account:",
+    footer: "Didn't request this? Ignore it.",
   },
   signup: {
-    subject: "Your Udala code: {code}",
+    subject: "Your code: {code}",
     eyebrow: "Verify your email",
     title: "Confirm it's you",
-    intro: "Welcome to Udala. Enter this code to verify your email and finish setting up your account:",
-    footer: "If you didn't try to sign up for Udala, you can ignore this email — no account gets created without it.",
+    intro: "Enter this to verify your email and finish setting up your account:",
+    footer: "Didn't try to sign up? Ignore this — no account gets created without the code.",
   },
   resend: {
-    subject: "Your new Udala code: {code}",
+    subject: "Your new code: {code}",
     eyebrow: "New code",
     title: "Here's your new code",
-    intro: "Your previous code no longer works. Use this one instead:",
-    footer: "If you didn't request this, you can safely ignore this email.",
+    intro: "Your last code expired. Use this one:",
+    footer: "Didn't request this? Ignore it.",
   },
   password_reset: {
-    subject: "Reset your Udala password",
+    subject: "Reset your password",
     eyebrow: "Reset your password",
     title: "Reset your password",
     intro: "Someone asked to reset the password on this account. If that was you, use this code:",
-    footer: "If you didn't request this, your password is still safe — just ignore this email.",
+    footer: "Didn't request this? Your password's untouched — just ignore this.",
   },
 };
 
@@ -43,7 +43,7 @@ export function OtpEmail({ variant, code, ttlMinutes }: { variant: OtpEmailVaria
   const copy = COPY[variant];
 
   return (
-    <EmailLayout preview={`Your code is ${code} — expires in ${ttlMinutes} minutes.`}>
+    <EmailLayout preview={otpEmailSubject(variant, code)}>
       <Text style={eyebrow}>{copy.eyebrow}</Text>
       <Text style={heading}>{copy.title}</Text>
       <Text style={paragraph}>{copy.intro}</Text>
@@ -53,7 +53,7 @@ export function OtpEmail({ variant, code, ttlMinutes }: { variant: OtpEmailVaria
         <br />
         {copy.footer}
       </Text>
-      <Text style={{ ...muted, marginTop: 20, color: colors.inkSoft }}>— The Udala Team</Text>
+      <Text style={{ ...muted, marginTop: 20, color: colors.inkSoft }}>— Udala</Text>
     </EmailLayout>
   );
 }

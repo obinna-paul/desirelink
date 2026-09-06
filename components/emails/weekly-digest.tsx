@@ -28,7 +28,7 @@ export function WeeklyDigestEmail(props: WeeklyDigestProps) {
         <Text style={eyebrow}>Your week</Text>
         <Text style={heading}>Your week on Udala</Text>
         <Text style={paragraph}>
-          This week: <strong>{props.likeCount}</strong> likes, <strong>{props.commentCount}</strong> comments,{" "}
+          <strong>{props.likeCount}</strong> likes, <strong>{props.commentCount}</strong> comments,{" "}
           <strong>{props.newSubscriberCount}</strong> new subscribers.
         </Text>
         {props.topPostCaption && (

@@ -59,7 +59,7 @@ export async function resolveSupportTicket(ticketId: string, actorId: string): P
     summary: `Resolved support ticket: ${ticket.subject}`,
   });
 
-  await sendSupportTicketResolvedEmail(ticket.email, ticket.subject);
+  await sendSupportTicketResolvedEmail(ticket.email, ticket.subject, ticket.id);
 
   return { ok: true };
 }

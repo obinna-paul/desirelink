@@ -5,19 +5,15 @@ import { absoluteUrl } from "@/lib/site-config";
 
 export function WelcomeExplorerEmail({ firstName, city }: { firstName: string; city: string | null }) {
   return (
-    <EmailLayout preview={`Welcome to Udala, ${firstName}`}>
+    <EmailLayout preview={`You're in, ${firstName}`}>
       <Text style={eyebrow}>Welcome</Text>
-      <Text style={heading}>Welcome to Udala, {firstName}</Text>
+      <Text style={heading}>You&apos;re in, {firstName}</Text>
       <Text style={paragraph}>
-        You&apos;re in. Udala is where you discover people and creators near you, follow the ones you like, and go live
-        together — all in one feed.
-      </Text>
-      <Text style={paragraph}>
-        A couple of things worth doing first: add a real photo (people take a profile more seriously with one)
-        {city ? `, and take a look at who's live right now near ${city}.` : "."}
+        Udala&apos;s where you find people worth following and go live with them. Add a photo, follow a few people, see
+        who&apos;s live.{city ? ` There's usually someone live near ${city} right now.` : ""}
       </Text>
       <EmailButton href={absoluteUrl("/profile/edit")}>Complete your profile</EmailButton>
-      <Text style={{ ...muted, marginTop: 24 }}>— The Udala Team</Text>
+      <Text style={{ ...muted, marginTop: 24 }}>— Udala</Text>
     </EmailLayout>
   );
 }

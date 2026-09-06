@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { creditProviderWallet } from "@/lib/wallet";
 import { sendPaymentFailedEmail, sendSubscriptionActivatedEmails } from "@/lib/email/billing-notifications";
 import { sendNewBookingRequestEmail } from "@/lib/email/booking-notifications";
+import { sendPayoutCompletedEmail, sendPayoutFailedEmail } from "@/lib/email/wallet-notifications";
 import {
   getPaymentCurrency,
   getPaymentProviderName,
@@ -32,6 +33,12 @@ type PaymentEventOutcome =
   | {
       kind: "provider_subscription_failed";
       subscriberId: string;
+      amountCents: number;
+    }
+  | {
+      kind: "payout_completed" | "payout_failed";
+      withdrawalId: string;
+      providerId: string;
       amountCents: number;
     };
 
@@ -346,20 +353,25 @@ async function handleServiceBookingEvent(event: WebhookEvent, db: Db): Promise<v
 async function handleWalletWithdrawalEvent(
   event: WebhookEvent,
   db: Db,
-): Promise<void> {
-  if (!event.reference) return;
+): Promise<PaymentEventOutcome | null> {
+  if (!event.reference) return null;
 
   const withdrawal = await db.walletWithdrawal.findFirst({
     where: { payoutReference: event.reference },
   });
-  if (!withdrawal || withdrawal.status !== "pending") return;
+  if (!withdrawal || withdrawal.status !== "pending") return null;
 
   if (event.type === "transfer.succeeded") {
     await db.walletWithdrawal.update({
       where: { id: withdrawal.id },
-      data: { status: "success", paidAt: new Date() },
+      data: { status: "paid", paidAt: new Date() },
     });
-    return;
+    return {
+      kind: "payout_completed",
+      withdrawalId: withdrawal.id,
+      providerId: withdrawal.providerId,
+      amountCents: withdrawal.netAmountCents,
+    };
   }
 
   // Failed or reversed: the money never left the platform balance (or came back), so refund the provider's wallet.
@@ -371,6 +383,12 @@ async function handleWalletWithdrawalEvent(
     where: { id: withdrawal.providerId },
     data: { walletBalanceCents: { increment: withdrawal.amountCents } },
   });
+  return {
+    kind: "payout_failed",
+    withdrawalId: withdrawal.id,
+    providerId: withdrawal.providerId,
+    amountCents: withdrawal.amountCents,
+  };
 }
 
 async function dispatch(
@@ -378,8 +396,7 @@ async function dispatch(
   db: Db,
 ): Promise<PaymentEventOutcome | null> {
   if (event.type === "transfer.succeeded" || event.type === "transfer.failed") {
-    await handleWalletWithdrawalEvent(event, db);
-    return null;
+    return handleWalletWithdrawalEvent(event, db);
   }
   if (event.type === "unknown" || event.type === "charge.pending") return null;
 
@@ -458,6 +475,15 @@ export async function processPaymentEvent(event: WebhookEvent): Promise<void> {
       outcome.subscriberId,
       "your subscription",
       outcome.amountCents,
+    );
+  } else if (outcome?.kind === "payout_completed") {
+    await sendPayoutCompletedEmail(outcome.providerId, outcome.amountCents, outcome.withdrawalId);
+  } else if (outcome?.kind === "payout_failed") {
+    await sendPayoutFailedEmail(
+      outcome.providerId,
+      outcome.amountCents,
+      "The bank transfer was not completed.",
+      outcome.withdrawalId,
     );
   }
 }

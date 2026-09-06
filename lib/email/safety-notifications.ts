@@ -12,7 +12,7 @@ export async function sendReportReceivedEmail(reporterId: string): Promise<void>
   if (!account) return;
   await sendEmail({
     to: account.user.email,
-    subject: "We've received your report",
+    subject: "Report received",
     react: ReportReceivedEmail(),
     category: "safety",
     template: "report-received",
@@ -24,7 +24,7 @@ export async function sendReportActionedEmail(reporterId: string): Promise<void>
   if (!account) return;
   await sendEmail({
     to: account.user.email,
-    subject: "An update on the report you submitted",
+    subject: "Update on your report",
     react: ReportActionedEmail(),
     category: "safety",
     template: "report-actioned",
@@ -44,7 +44,7 @@ export async function sendContentRemovedEmail(ownerId: string, contentType: stri
   const contentLabel = CONTENT_LABEL[contentType] ?? "post";
   await sendEmail({
     to: account.user.email,
-    subject: `A ${contentLabel} of yours was removed`,
+    subject: `A ${contentLabel} was removed`,
     react: ContentRemovedEmail({ contentLabel }),
     category: "safety",
     template: "content-removed",
@@ -56,7 +56,7 @@ export async function sendAccountWarningEmail(ownerId: string): Promise<void> {
   if (!account) return;
   await sendEmail({
     to: account.user.email,
-    subject: "A warning about your Udala account",
+    subject: "A warning about your account",
     react: AccountWarningEmail(),
     category: "safety",
     template: "account-warning",

@@ -16,13 +16,12 @@ export function NewSubscriberEmail({
   return (
     <EmailLayout preview={`${fanName} just subscribed to ${tierName}`}>
       <Text style={eyebrow}>New subscriber</Text>
-      <Text style={heading}>{fanName} just subscribed</Text>
+      <Text style={heading}>New subscriber 🎉</Text>
       <Text style={paragraph}>
-        {fanName} subscribed to <strong>{tierName}</strong> — {formatCents(amountCents)} is already in your Udala
-        wallet.
+        {fanName} just grabbed <strong>{tierName}</strong>. {formatCents(amountCents)} is sitting in your wallet.
       </Text>
       <EmailButton href={absoluteUrl("/creator-dashboard?tab=wallet")}>View your wallet</EmailButton>
-      <Text style={{ ...muted, marginTop: 24 }}>— The Udala Team</Text>
+      <Text style={{ ...muted, marginTop: 24 }}>— Udala</Text>
     </EmailLayout>
   );
 }

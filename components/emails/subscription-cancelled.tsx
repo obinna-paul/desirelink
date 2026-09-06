@@ -6,13 +6,12 @@ export function SubscriptionCancelledEmail({ creatorName, endsAt }: { creatorNam
   return (
     <EmailLayout preview={`You've cancelled your ${creatorName} subscription`}>
       <Text style={eyebrow}>Subscription</Text>
-      <Text style={heading}>You&apos;ve cancelled</Text>
+      <Text style={heading}>Cancelled</Text>
       <Text style={paragraph}>
-        Done — you won&apos;t be charged again for {creatorName}. You keep full access through{" "}
-        <strong>{endsAt}</strong>, since that month&apos;s already paid for.
+        Done, you won&apos;t be charged again. Access stays through <strong>{endsAt}</strong> — that month&apos;s paid for.
       </Text>
       <Text style={paragraph}>
-        Changed your mind? You can undo this any time before then from your subscriptions settings.
+        Change your mind before then and you can undo it in settings.
       </Text>
     </EmailLayout>
   );

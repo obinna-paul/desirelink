@@ -8,10 +8,9 @@ export function PaymentFailedEmail({ description, amountCents }: { description: 
   return (
     <EmailLayout preview={`We couldn't process your payment for ${description}`}>
       <Text style={eyebrow}>Payment</Text>
-      <Text style={heading}>Your payment didn&apos;t go through</Text>
+      <Text style={heading}>Payment didn&apos;t go through</Text>
       <Text style={paragraph}>
-        Your payment of {formatCents(amountCents)} for {description} didn&apos;t go through, so you weren&apos;t
-        charged.
+        {formatCents(amountCents)} for {description} didn&apos;t go through. You weren&apos;t charged.
       </Text>
       <EmailButton href={absoluteUrl("/")}>Try again</EmailButton>
     </EmailLayout>

@@ -6,15 +6,15 @@ export function PasswordChangedEmail({ device, timestamp }: { device: string; ti
   return (
     <EmailLayout preview="Your Udala password was just changed.">
       <Text style={eyebrow}>Security</Text>
-      <Text style={heading}>Your password was changed</Text>
+      <Text style={heading}>Password changed</Text>
       <Text style={paragraph}>
-        Your password was changed on <strong>{timestamp}</strong> from <strong>{device}</strong>.
+        Changed on <strong>{timestamp}</strong> from <strong>{device}</strong>.
       </Text>
-      <Text style={paragraph}>Nothing else to do — this is just a record for your own security.</Text>
+      <Text style={paragraph}>Just a record for you — nothing to do here.</Text>
       <Callout>
         Wasn&apos;t you?{" "}
         <Link href="mailto:help@udala.pro" style={{ color: colors.accent, fontWeight: 600 }}>
-          Contact help@udala.pro
+          Email help@udala.pro
         </Link>{" "}
         right away and we&apos;ll lock the account down.
       </Callout>

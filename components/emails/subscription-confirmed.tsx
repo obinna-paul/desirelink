@@ -18,19 +18,15 @@ export function SubscriptionConfirmedEmail({
   endsAt: string;
 }) {
   return (
-    <EmailLayout preview={`You're subscribed to ${creatorName}`}>
+    <EmailLayout preview={`You're in — ${creatorName}`}>
       <Text style={eyebrow}>Subscription</Text>
-      <Text style={heading}>You&apos;re subscribed to {creatorName}</Text>
+      <Text style={heading}>You&apos;re in — {creatorName}</Text>
       <Text style={paragraph}>
-        You&apos;re now on {creatorName}&apos;s <strong>{tierName}</strong> tier ({formatCents(priceCents)}/mo)
-        through <strong>{endsAt}</strong>.
+        You&apos;ve got <strong>{tierName}</strong> ({formatCents(priceCents)}/mo) through <strong>{endsAt}</strong>.
       </Text>
-      <Text style={paragraph}>
-        This is a one-month subscription and it doesn&apos;t renew on its own — we&apos;ll remind you a few days
-        before it ends if you&apos;d like to keep going.
-      </Text>
-      <EmailButton href={absoluteUrl(`/profile/${creatorUsername}`)}>See {creatorName}&apos;s premium posts</EmailButton>
-      <Text style={{ ...muted, marginTop: 24 }}>— The Udala Team</Text>
+      <Text style={paragraph}>One month, doesn&apos;t auto-renew. We&apos;ll ping you before it ends.</Text>
+      <EmailButton href={absoluteUrl(`/profile/${creatorUsername}`)}>See {creatorName}&apos;s posts</EmailButton>
+      <Text style={{ ...muted, marginTop: 24 }}>— Udala</Text>
     </EmailLayout>
   );
 }

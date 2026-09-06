@@ -44,7 +44,7 @@ export async function sendSubscriptionActivatedEmails(
   await Promise.all([
     sendEmail({
       to: subscriber.user.email,
-      subject: `You're subscribed to ${provider.displayName}`,
+      subject: `You're in — ${provider.displayName}`,
       react: SubscriptionConfirmedEmail({
         creatorName: provider.displayName,
         creatorUsername: provider.username,
@@ -58,7 +58,7 @@ export async function sendSubscriptionActivatedEmails(
     }),
     sendEmail({
       to: provider.user.email,
-      subject: `${subscriber.displayName} just subscribed to ${tier.name}`,
+      subject: "New subscriber 🎉",
       react: NewSubscriberEmail({ fanName: subscriber.displayName, tierName: tier.name, amountCents }),
       category: "billing",
       template: "new-subscriber",
@@ -66,7 +66,7 @@ export async function sendSubscriptionActivatedEmails(
     }),
     sendEmail({
       to: subscriber.user.email,
-      subject: `Your Udala receipt — ${tier.name}`,
+      subject: "Your receipt",
       react: SubscriptionReceiptEmail({
         creatorName: provider.displayName,
         tierName: tier.name,
@@ -82,15 +82,16 @@ export async function sendSubscriptionActivatedEmails(
 }
 
 export async function sendSubscriptionExpiryWarningEmail(params: {
+  subscriptionId: string;
   subscriberEmail: string;
   creatorName: string;
   creatorUsername: string;
   tierName: string;
   endsAt: Date;
-}): Promise<void> {
-  await sendEmail({
+}): Promise<boolean> {
+  return sendEmail({
     to: params.subscriberEmail,
-    subject: `Your ${params.creatorName} subscription ends in 3 days`,
+    subject: "Ends in 3 days",
     react: SubscriptionExpiryWarningEmail({
       creatorName: params.creatorName,
       creatorUsername: params.creatorUsername,
@@ -99,18 +100,20 @@ export async function sendSubscriptionExpiryWarningEmail(params: {
     }),
     category: "billing",
     template: "subscription-expiry-warning",
+    idempotencyKey: `subscription-expiry-warning/${params.subscriptionId}`,
   });
 }
 
 export async function sendSubscriptionEndedFanEmail(params: {
+  subscriptionId: string;
   subscriberEmail: string;
   creatorName: string;
   creatorUsername: string;
   endsAt: Date;
-}): Promise<void> {
-  await sendEmail({
+}): Promise<boolean> {
+  return sendEmail({
     to: params.subscriberEmail,
-    subject: `Your subscription to ${params.creatorName} has ended`,
+    subject: "That's it for now",
     react: SubscriptionEndedFanEmail({
       creatorName: params.creatorName,
       creatorUsername: params.creatorUsername,
@@ -118,18 +121,20 @@ export async function sendSubscriptionEndedFanEmail(params: {
     }),
     category: "billing",
     template: "subscription-ended-fan",
+    idempotencyKey: `subscription-ended-fan/${params.subscriptionId}`,
   });
 }
 
 export async function sendSubscriptionEndedCreatorEmail(params: {
+  subscriptionId: string;
   creatorEmail: string;
   fanName: string;
   tierName: string;
   endsAt: Date;
-}): Promise<void> {
-  await sendEmail({
+}): Promise<boolean> {
+  return sendEmail({
     to: params.creatorEmail,
-    subject: `${params.fanName}'s subscription to ${params.tierName} ended`,
+    subject: `${params.fanName} moved on`,
     react: SubscriptionEndedCreatorEmail({
       fanName: params.fanName,
       tierName: params.tierName,
@@ -137,6 +142,7 @@ export async function sendSubscriptionEndedCreatorEmail(params: {
     }),
     category: "billing",
     template: "subscription-ended-creator",
+    idempotencyKey: `subscription-ended-creator/${params.subscriptionId}`,
   });
 }
 
@@ -148,7 +154,7 @@ export async function sendPaymentFailedEmail(profileId: string, description: str
   if (!account) return;
   await sendEmail({
     to: account.user.email,
-    subject: `We couldn't process your payment for ${description}`,
+    subject: "Payment didn't go through",
     react: PaymentFailedEmail({ description, amountCents }),
     category: "billing",
     template: "payment-failed",
@@ -164,7 +170,7 @@ export async function sendSubscriptionCancelledEmail(subscriberId: string, provi
 
   await sendEmail({
     to: subscriber.user.email,
-    subject: `You've cancelled your ${provider.displayName} subscription`,
+    subject: "Cancelled",
     react: SubscriptionCancelledEmail({ creatorName: provider.displayName, endsAt: formatDate(endsAt) }),
     category: "billing",
     template: "subscription-cancelled",

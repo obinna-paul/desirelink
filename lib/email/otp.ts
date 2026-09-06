@@ -18,17 +18,18 @@ function generateCode(): string {
 /**
  * Issues a fresh 6-digit code for email+purpose, invalidating any code already
  * outstanding for that pair so only the most recently sent one can ever be redeemed.
- * Returns the raw code so the caller can email it - only its bcrypt hash is stored.
+ * Returns the raw code and row id so the caller can email it and remove the unusable
+ * row if delivery fails. Only the bcrypt hash is stored.
  */
-export async function issueOtp(email: string, purpose: OtpPurpose): Promise<string> {
+export async function issueOtp(email: string, purpose: OtpPurpose): Promise<{ code: string; id: string }> {
   const code = generateCode();
   const codeHash = await bcrypt.hash(code, 10);
   const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
 
   await prisma.emailOtp.deleteMany({ where: { email, purpose, consumedAt: null } });
-  await prisma.emailOtp.create({ data: { email, purpose, codeHash, expiresAt } });
+  const record = await prisma.emailOtp.create({ data: { email, purpose, codeHash, expiresAt }, select: { id: true } });
 
-  return code;
+  return { code, id: record.id };
 }
 
 export type VerifyOtpResult = { ok: true } | { ok: false; error: string };

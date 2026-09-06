@@ -14,12 +14,11 @@ export function EscrowReleasedEmail({
   amountCents: number;
 }) {
   return (
-    <EmailLayout preview={`${formatCents(amountCents)} released to your wallet`}>
+    <EmailLayout preview={`${formatCents(amountCents)} just hit your wallet`}>
       <Text style={eyebrow}>Booking</Text>
-      <Text style={heading}>Escrow released</Text>
+      <Text style={heading}>Paid ✓</Text>
       <Text style={paragraph}>
-        <strong>{serviceName}</strong> with {customerName} is complete — {formatCents(amountCents)} just moved from
-        escrow into your wallet.
+        <strong>{serviceName}</strong> with {customerName} is done. {formatCents(amountCents)} moved to your wallet.
       </Text>
       <EmailButton href={absoluteUrl("/creator-dashboard?tab=wallet")}>Request a payout</EmailButton>
     </EmailLayout>

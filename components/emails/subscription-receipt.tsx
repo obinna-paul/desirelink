@@ -20,7 +20,7 @@ export function SubscriptionReceiptEmail({
     <EmailLayout preview={`Your Udala receipt — ${tierName} (${formatCents(amountCents)})`}>
       <Text style={eyebrow}>Receipt</Text>
       <Text style={heading}>Your receipt</Text>
-      <Text style={paragraph}>
+      <Text style={{ ...paragraph, lineHeight: "28px" }}>
         <strong>Creator</strong> {creatorName}
         <br />
         <strong>Tier</strong> {tierName}

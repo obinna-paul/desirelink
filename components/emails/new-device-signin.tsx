@@ -8,14 +8,14 @@ export function NewDeviceSignInEmail({ device, timestamp }: { device: string; ti
     <EmailLayout preview={`New sign-in from ${device}`}>
       <Text style={eyebrow}>Security</Text>
       <Text style={heading}>New sign-in to your account</Text>
-      <Text style={paragraph}>We noticed a new sign-in to your Udala account:</Text>
+      <Text style={paragraph}>New sign-in to your account.</Text>
       <Callout>
         <strong>Device</strong> {device}
         <br />
         <strong>When</strong> {timestamp}
       </Callout>
       <Text style={paragraph}>If this was you, there&apos;s nothing to do.</Text>
-      <EmailButton href={absoluteUrl("/forgot-password")}>If this wasn&apos;t you, reset your password</EmailButton>
+      <EmailButton href={absoluteUrl("/forgot-password")}>Wasn&apos;t you? Reset your password</EmailButton>
     </EmailLayout>
   );
 }

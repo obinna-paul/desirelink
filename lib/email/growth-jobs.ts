@@ -16,6 +16,13 @@ function firstNameOf(name: string): string {
   return name.trim().split(/\s+/)[0] || "there";
 }
 
+function weekKeyFor(date: Date): string {
+  const monday = new Date(date);
+  monday.setUTCHours(0, 0, 0, 0);
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+  return monday.toISOString().slice(0, 10);
+}
+
 async function countNewCreatorsInCountry(country: string, sinceMs: number): Promise<number> {
   if (!country) return 0;
   return prisma.profile.count({
@@ -34,6 +41,7 @@ export async function runWeeklyDigest(): Promise<{ sent: number }> {
 
   const cutoffSend = new Date(Date.now() - DIGEST_INTERVAL_MS);
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const periodKey = weekKeyFor(new Date());
 
   const profiles = await prisma.profile.findMany({
     where: {
@@ -47,7 +55,6 @@ export async function runWeeklyDigest(): Promise<{ sent: number }> {
   let sent = 0;
 
   for (const profile of profiles) {
-    const firstName = firstNameOf(profile.user.name);
     const unsubscribeUrl = unsubscribeUrlFor(profile.id);
 
     if (profile.profileType === "CREATOR") {
@@ -67,9 +74,9 @@ export async function runWeeklyDigest(): Promise<{ sent: number }> {
         continue;
       }
 
-      await sendEmail({
+      const delivered = await sendEmail({
         to: profile.user.email,
-        subject: `Your week on Udala, ${firstName}: ${likeCount} likes, ${newSubscriberCount} new subscribers`,
+        subject: "Your week on Udala",
         react: WeeklyDigestEmail({
           variant: "creator",
           likeCount,
@@ -80,7 +87,9 @@ export async function runWeeklyDigest(): Promise<{ sent: number }> {
         }),
         category: "digest",
         template: "weekly-digest-creator",
+        idempotencyKey: `weekly-digest/${profile.id}/${periodKey}`,
       });
+      if (!delivered) continue;
     } else {
       const newCreatorCount = await countNewCreatorsInCountry(profile.country, 7 * 24 * 60 * 60 * 1000);
       if (newCreatorCount === 0) {
@@ -88,13 +97,15 @@ export async function runWeeklyDigest(): Promise<{ sent: number }> {
         continue;
       }
 
-      await sendEmail({
+      const delivered = await sendEmail({
         to: profile.user.email,
-        subject: `${firstName}, ${newCreatorCount} new creators joined this week`,
+        subject: "Your week on Udala",
         react: WeeklyDigestEmail({ variant: "explorer", newCreatorCount, unsubscribeUrl }),
         category: "digest",
         template: "weekly-digest-explorer",
+        idempotencyKey: `weekly-digest/${profile.id}/${periodKey}`,
       });
+      if (!delivered) continue;
     }
 
     await prisma.profile.update({ where: { id: profile.id }, data: { digestSentAt: new Date() } });
@@ -139,7 +150,7 @@ export async function runWinBack(): Promise<{ sent: number }> {
 
     const newCreatorCount = await countNewCreatorsInCountry(profile.country, NEW_CREATOR_WINDOW_MS);
 
-    await sendEmail({
+    const delivered = await sendEmail({
       to: profile.user.email,
       subject: `It's quiet without you, ${firstNameOf(profile.user.name)}`,
       react: WinBackEmail({
@@ -149,7 +160,9 @@ export async function runWinBack(): Promise<{ sent: number }> {
       }),
       category: "digest",
       template: "win-back",
+      idempotencyKey: `win-back/${profile.id}/${profile.lastActiveAt?.toISOString() ?? "never-active"}`,
     });
+    if (!delivered) continue;
 
     await prisma.profile.update({ where: { id: profile.id }, data: { winBackSentAt: new Date() } });
     sent += 1;
@@ -203,9 +216,9 @@ export async function runMonthlyEarningsSummary(): Promise<{ sent: number }> {
 
     const revenueCents = subs.reduce((total, sub) => total + sub.tier.priceCents, 0);
 
-    await sendEmail({
+    const delivered = await sendEmail({
       to: profile.user.email,
-      subject: `Your Udala earnings for ${lastMonthLabel}`,
+      subject: `Your ${lastMonthLabel} earnings`,
       react: MonthlyEarningsEmail({
         month: lastMonthLabel,
         newSubscriptionRevenueCents: revenueCents,
@@ -214,7 +227,9 @@ export async function runMonthlyEarningsSummary(): Promise<{ sent: number }> {
       }),
       category: "digest",
       template: "monthly-earnings",
+      idempotencyKey: `monthly-earnings/${profile.id}/${currentMonthKey}`,
     });
+    if (!delivered) continue;
 
     await prisma.profile.update({ where: { id: profile.id }, data: { earningsSummarySentForMonth: currentMonthKey } });
     sent += 1;

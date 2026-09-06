@@ -16,15 +16,15 @@ export function MonthlyEarningsEmail({
   unsubscribeUrl: string;
 }) {
   return (
-    <EmailLayout preview={`Your Udala earnings for ${month}`} unsubscribeUrl={unsubscribeUrl}>
+    <EmailLayout preview={`Your ${month} earnings`} unsubscribeUrl={unsubscribeUrl}>
       <Text style={eyebrow}>Monthly summary</Text>
-      <Text style={heading}>Your earnings for {month}</Text>
+      <Text style={heading}>Your {month} earnings</Text>
       <Text style={paragraph}>
         New subscription revenue: <strong>{formatCents(newSubscriptionRevenueCents)}</strong> from{" "}
-        <strong>{newSubscriberCount}</strong> new {newSubscriberCount === 1 ? "subscriber" : "subscribers"}.
+        <strong>{newSubscriberCount}</strong> new subscriber{newSubscriberCount === 1 ? "" : "s"}.
       </Text>
       <Text style={paragraph}>
-        This covers new subscriptions only — gifts, bookings, and renewals aren&apos;t counted here yet.
+        Gifts, bookings, and renewals aren&apos;t in this number yet.
       </Text>
       <EmailButton href={absoluteUrl("/creator-dashboard?tab=wallet")}>View your wallet</EmailButton>
     </EmailLayout>

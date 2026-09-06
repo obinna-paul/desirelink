@@ -106,7 +106,7 @@ export async function withdrawWalletBalance(
   const feeCents = 0;
   const netAmountCents = amountCents;
 
-  await prisma.$transaction([
+  const [, withdrawal] = await prisma.$transaction([
     prisma.profile.update({
       where: { id: providerId },
       data: { walletBalanceCents: { decrement: amountCents } },
@@ -122,7 +122,7 @@ export async function withdrawWalletBalance(
     }),
   ]);
 
-  await sendPayoutRequestedEmail(providerId, netAmountCents);
+  await sendPayoutRequestedEmail(providerId, netAmountCents, withdrawal.id);
 
   return {
     ok: true,
@@ -274,7 +274,7 @@ export async function markWithdrawalPaid(withdrawalId: string, actorId: string):
     summary: `Marked ${withdrawal.provider.displayName}'s withdrawal as paid (sent manually)`,
     metadata: { netAmountCents: withdrawal.netAmountCents },
   });
-  await sendPayoutCompletedEmail(withdrawal.providerId, withdrawal.netAmountCents);
+  await sendPayoutCompletedEmail(withdrawal.providerId, withdrawal.netAmountCents, withdrawal.id);
 
   return { ok: true };
 }
@@ -322,7 +322,7 @@ export async function markWithdrawalFailed(
       : `Marked ${withdrawal.provider.displayName}'s withdrawal as failed (wallet refunded)`,
     metadata: { amountCents: withdrawal.amountCents, reason },
   });
-  await sendPayoutFailedEmail(withdrawal.providerId, withdrawal.amountCents, reason.trim() || null);
+  await sendPayoutFailedEmail(withdrawal.providerId, withdrawal.amountCents, reason.trim() || null, withdrawal.id);
 
   return { ok: true };
 }

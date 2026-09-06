@@ -19,16 +19,16 @@ export function BookingCancelledEmail({
   reason: string | null;
 }) {
   return (
-    <EmailLayout preview={`Your booking for ${serviceName} was cancelled`}>
+    <EmailLayout preview={`${serviceName} was cancelled`}>
       <Text style={eyebrow}>Booking</Text>
       <Text style={heading}>Booking cancelled</Text>
       <Text style={paragraph}>
-        <strong>{serviceName}</strong> for <strong>{requestedAt}</strong> was cancelled{reason ? `: ${reason}` : "."}
+        <strong>{serviceName}</strong> for <strong>{requestedAt}</strong> is off{reason ? `: ${reason}` : "."}
       </Text>
       <Text style={paragraph}>
         {audience === "customer"
-          ? `${formatCents(amountCents)} is being refunded to you in full.`
-          : "No payment was ever released to you for this booking."}
+          ? `${formatCents(amountCents)} is on its way back to you.`
+          : "No payout was released for this one."}
       </Text>
     </EmailLayout>
   );

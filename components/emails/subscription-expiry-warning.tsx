@@ -15,16 +15,14 @@ export function SubscriptionExpiryWarningEmail({
   endsAt: string;
 }) {
   return (
-    <EmailLayout preview={`Your ${creatorName} subscription ends in 3 days`}>
+    <EmailLayout preview={`Your ${creatorName} sub ends in 3 days`}>
       <Text style={eyebrow}>Subscription</Text>
       <Text style={heading}>Ends in 3 days</Text>
       <Text style={paragraph}>
-        Your <strong>{tierName}</strong> subscription to {creatorName} ends on <strong>{endsAt}</strong> — it won&apos;t
-        renew by itself.
+        <strong>{tierName}</strong> with {creatorName} ends <strong>{endsAt}</strong>. Doesn&apos;t renew on its own.
       </Text>
-      <Text style={paragraph}>Want to keep your access to their premium posts? Resubscribe before then.</Text>
       <EmailButton href={absoluteUrl(`/profile/${creatorUsername}`)}>Resubscribe</EmailButton>
-      <Text style={{ ...muted, marginTop: 24 }}>— The Udala Team</Text>
+      <Text style={{ ...muted, marginTop: 24 }}>— Udala</Text>
     </EmailLayout>
   );
 }

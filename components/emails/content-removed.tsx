@@ -6,18 +6,18 @@ export function ContentRemovedEmail({ contentLabel }: { contentLabel: string }) 
   return (
     <EmailLayout preview={`A ${contentLabel} of yours was removed`}>
       <Text style={eyebrow}>Safety</Text>
-      <Text style={heading}>A {contentLabel} of yours was removed</Text>
+      <Text style={heading}>A {contentLabel} was removed</Text>
       <Text style={paragraph}>
-        Something you shared on Udala was removed for going against our community guidelines.
+        Something you posted was removed for going against our community guidelines.
       </Text>
       <Text style={paragraph}>
-        Think this was a mistake? Reply to{" "}
+        Think we got it wrong? Reply to{" "}
         <Link href="mailto:help@udala.pro" style={{ color: colors.accent, fontWeight: 600 }}>
           help@udala.pro
         </Link>
         .
       </Text>
-      <Text style={muted}>— The Udala Team</Text>
+      <Text style={muted}>— Udala</Text>
     </EmailLayout>
   );
 }

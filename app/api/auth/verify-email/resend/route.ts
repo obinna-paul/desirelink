@@ -20,6 +20,9 @@ export async function POST() {
     );
   }
 
-  await sendResendOtpEmail(email);
+  const delivered = await sendResendOtpEmail(email);
+  if (!delivered) {
+    return NextResponse.json({ error: "We couldn't send the code. Please try again." }, { status: 503 });
+  }
   return NextResponse.json({ ok: true }, { status: 200 });
 }

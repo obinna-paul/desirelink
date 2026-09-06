@@ -6,9 +6,9 @@ export function SupportTicketResolvedEmail({ subject }: { subject: string }) {
   return (
     <EmailLayout preview={`Re: ${subject} — resolved`}>
       <Text style={eyebrow}>Support</Text>
-      <Text style={heading}>Marked as resolved</Text>
+      <Text style={heading}>Marked resolved</Text>
       <Text style={paragraph}>
-        Marking this one resolved. If it comes up again, just reply here — same thread, same person.
+        Closing this one out. If it comes back, reply here — same thread, same person.
       </Text>
     </EmailLayout>
   );

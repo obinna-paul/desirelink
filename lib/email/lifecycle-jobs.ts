@@ -16,9 +16,8 @@ function firstNameOf(name: string): string {
 /**
  * Meant to run every 30 minutes (see vercel.json). Sends Paul's one-time personal note
  * a few hours after a user verifies their email, and never again - dedupe is
- * Profile.ceoNoteSentAt, set right after the send succeeds (or is skipped because
- * emailing failed - see the doc comment on sendEmail: it never throws, so this always
- * marks the attempt as made rather than retrying forever on a bad address).
+ * Profile.ceoNoteSentAt, set only after Resend accepts the message. Failed deliveries
+ * remain eligible for the next run.
  */
 export async function runCeoWelcomeNotes(): Promise<{ sent: number }> {
   const cutoff = new Date(Date.now() - CEO_NOTE_DELAY_MS);
@@ -32,22 +31,28 @@ export async function runCeoWelcomeNotes(): Promise<{ sent: number }> {
     take: BATCH_LIMIT,
   });
 
+  let sent = 0;
+
   for (const user of users) {
     if (!user.profile) continue;
 
-    await sendEmail({
+    const delivered = await sendEmail({
       to: user.email,
       subject: `Hey ${firstNameOf(user.name)}, it's Paul`,
       react: CeoNoteEmail({ firstName: firstNameOf(user.name), isCreator: user.profile.profileType === "CREATOR" }),
       category: "welcome",
       template: "ceo-note",
       from: "paul",
+      idempotencyKey: `ceo-note/${user.profile.id}`,
     });
 
-    await prisma.profile.update({ where: { id: user.profile.id }, data: { ceoNoteSentAt: new Date() } });
+    if (delivered) {
+      await prisma.profile.update({ where: { id: user.profile.id }, data: { ceoNoteSentAt: new Date() } });
+      sent += 1;
+    }
   }
 
-  return { sent: users.length };
+  return { sent };
 }
 
 /**
@@ -73,21 +78,27 @@ export async function runProfileNudges(): Promise<{ sent: number }> {
     take: BATCH_LIMIT,
   });
 
+  let sent = 0;
+
   for (const user of users) {
     if (!user.profile) continue;
 
     const missingField = user.profile.avatarUrl === "" ? "a profile photo" : "a bio";
 
-    await sendEmail({
+    const delivered = await sendEmail({
       to: user.email,
-      subject: `Your profile is still missing something, ${firstNameOf(user.name)}`,
-      react: ProfileNudgeEmail({ firstName: firstNameOf(user.name), missingField }),
+      subject: `You're missing ${missingField}`,
+      react: ProfileNudgeEmail({ missingField }),
       category: "welcome",
       template: "profile-nudge",
+      idempotencyKey: `profile-nudge/${user.profile.id}`,
     });
 
-    await prisma.profile.update({ where: { id: user.profile.id }, data: { profileNudgeSentAt: new Date() } });
+    if (delivered) {
+      await prisma.profile.update({ where: { id: user.profile.id }, data: { profileNudgeSentAt: new Date() } });
+      sent += 1;
+    }
   }
 
-  return { sent: users.length };
+  return { sent };
 }

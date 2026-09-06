@@ -3,17 +3,17 @@ import { Text } from "@react-email/components";
 import { EmailButton, EmailLayout, eyebrow, heading, muted, paragraph } from "@/components/emails/layout";
 import { absoluteUrl } from "@/lib/site-config";
 
-export function ProfileNudgeEmail({ firstName, missingField }: { firstName: string; missingField: string }) {
+export function ProfileNudgeEmail({ missingField }: { missingField: string }) {
   return (
-    <EmailLayout preview={`Your profile is still missing ${missingField}`}>
+    <EmailLayout preview="Takes two minutes to fix">
       <Text style={eyebrow}>Profile</Text>
-      <Text style={heading}>Your profile is still missing something, {firstName}</Text>
+      <Text style={heading}>You&apos;re missing {missingField}</Text>
       <Text style={paragraph}>
-        Your Udala profile is still missing <strong>{missingField}</strong>. It&apos;s the first thing people see before
-        deciding to say hello — or subscribe.
+        Your profile&apos;s missing <strong>{missingField}</strong>. People decide fast — that&apos;s usually the first thing
+        they check.
       </Text>
-      <EmailButton href={absoluteUrl("/profile/edit")}>Finish your profile</EmailButton>
-      <Text style={{ ...muted, marginTop: 24 }}>— The Udala Team</Text>
+      <EmailButton href={absoluteUrl("/profile/edit")}>Fix it</EmailButton>
+      <Text style={{ ...muted, marginTop: 24 }}>— Udala</Text>
     </EmailLayout>
   );
 }

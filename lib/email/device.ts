@@ -64,19 +64,25 @@ export function recordDeviceAndMaybeAlert(userId: string, email: string, headers
         return;
       }
 
-      await prisma.knownDevice.create({ data: { userId, fingerprint } });
-      if (deviceCount === 0) return;
+      if (deviceCount === 0) {
+        await prisma.knownDevice.create({ data: { userId, fingerprint } });
+        return;
+      }
 
-      await sendEmail({
+      const delivered = await sendEmail({
         to: email,
-        subject: "New sign-in to your Udala account",
+        subject: "New sign-in",
         react: NewDeviceSignInEmail({
           device: describeUserAgent(userAgent),
           timestamp: new Date().toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" }),
         }),
         category: "auth",
         template: "new-device-signin",
+        idempotencyKey: `new-device-signin/${userId}/${fingerprint}`,
       });
+      if (delivered) {
+        await prisma.knownDevice.create({ data: { userId, fingerprint } });
+      }
     } catch (error) {
       console.error("[email] new-device check failed", error);
     }

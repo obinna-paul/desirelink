@@ -2,46 +2,53 @@ import "server-only";
 
 import { sendEmail } from "@/lib/email/send";
 import { getAccountByProfileId } from "@/lib/email/notifications";
-import { formatCents } from "@/lib/creator";
 import { PayoutRequestedEmail } from "@/components/emails/payout-requested";
 import { PayoutCompletedEmail } from "@/components/emails/payout-completed";
 import { PayoutFailedEmail } from "@/components/emails/payout-failed";
 
-export async function sendPayoutRequestedEmail(profileId: string, amountCents: number): Promise<void> {
+export async function sendPayoutRequestedEmail(profileId: string, amountCents: number, withdrawalId: string): Promise<void> {
   const account = await getAccountByProfileId(profileId);
   if (!account) return;
   await sendEmail({
     to: account.user.email,
-    subject: "Your payout request is in",
+    subject: "Payout request received",
     react: PayoutRequestedEmail({ amountCents }),
     category: "earnings",
     template: "payout-requested",
+    idempotencyKey: `payout-requested/${withdrawalId}`,
   });
 }
 
-export async function sendPayoutCompletedEmail(profileId: string, amountCents: number): Promise<void> {
+export async function sendPayoutCompletedEmail(profileId: string, amountCents: number, withdrawalId: string): Promise<void> {
   const account = await getAccountByProfileId(profileId);
   if (!account) return;
   await sendEmail({
     to: account.user.email,
-    subject: `${formatCents(amountCents)} has landed in your account`,
+    subject: "Payout landed",
     react: PayoutCompletedEmail({
       amountCents,
       date: new Date().toLocaleDateString("en-NG", { dateStyle: "medium" }),
     }),
     category: "earnings",
     template: "payout-completed",
+    idempotencyKey: `payout-completed/${withdrawalId}`,
   });
 }
 
-export async function sendPayoutFailedEmail(profileId: string, amountCents: number, reason: string | null): Promise<void> {
+export async function sendPayoutFailedEmail(
+  profileId: string,
+  amountCents: number,
+  reason: string | null,
+  withdrawalId: string,
+): Promise<void> {
   const account = await getAccountByProfileId(profileId);
   if (!account) return;
   await sendEmail({
     to: account.user.email,
-    subject: "Your Udala payout didn't go through",
+    subject: "Payout didn't go through",
     react: PayoutFailedEmail({ amountCents, reason }),
     category: "earnings",
     template: "payout-failed",
+    idempotencyKey: `payout-failed/${withdrawalId}`,
   });
 }

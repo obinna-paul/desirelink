@@ -7,15 +7,16 @@ import { SupportTicketResolvedEmail } from "@/components/emails/support-ticket-r
 export async function sendSupportTicketReceivedEmail(email: string, ticketId: string): Promise<void> {
   await sendEmail({
     to: email,
-    subject: `We've got your message — ${ticketId}`,
+    subject: "Got your message",
     react: SupportTicketReceivedEmail({ ticketId }),
     category: "support",
     template: "support-ticket-received",
     from: "help",
+    idempotencyKey: `support-ticket-received/${ticketId}`,
   });
 }
 
-export async function sendSupportTicketResolvedEmail(email: string, subject: string): Promise<void> {
+export async function sendSupportTicketResolvedEmail(email: string, subject: string, ticketId: string): Promise<void> {
   await sendEmail({
     to: email,
     subject: `Re: ${subject} — resolved`,
@@ -23,5 +24,6 @@ export async function sendSupportTicketResolvedEmail(email: string, subject: str
     category: "support",
     template: "support-ticket-resolved",
     from: "help",
+    idempotencyKey: `support-ticket-resolved/${ticketId}`,
   });
 }

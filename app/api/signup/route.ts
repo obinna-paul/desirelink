@@ -98,7 +98,7 @@ export async function POST(req: Request) {
     );
   }
 
-  await sendSignupOtpEmail(normalizedEmail);
+  const emailSent = await sendSignupOtpEmail(normalizedEmail);
 
-  return NextResponse.json({ success: true }, { status: 201 });
+  return NextResponse.json({ success: true, emailSent }, { status: 201 });
 }

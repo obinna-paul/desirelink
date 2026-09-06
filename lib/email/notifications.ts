@@ -18,54 +18,66 @@ function firstNameOf(name: string): string {
   return name.trim().split(/\s+/)[0] || "there";
 }
 
-export async function sendSignupOtpEmail(email: string): Promise<void> {
-  const code = await issueOtp(email, "signup");
-  await sendEmail({
+async function removeUndeliveredOtp(id: string): Promise<void> {
+  await prisma.emailOtp.deleteMany({ where: { id, consumedAt: null } });
+}
+
+export async function sendSignupOtpEmail(email: string): Promise<boolean> {
+  const { code, id } = await issueOtp(email, "signup");
+  const delivered = await sendEmail({
     to: email,
     subject: otpEmailSubject("signup", code),
     react: OtpEmail({ variant: "signup", code, ttlMinutes: OTP_TTL_MINUTES }),
     category: "auth",
     template: "otp-signup",
   });
+  if (!delivered) await removeUndeliveredOtp(id);
+  return delivered;
 }
 
-export async function sendResendOtpEmail(email: string): Promise<void> {
-  const code = await issueOtp(email, "signup");
-  await sendEmail({
+export async function sendResendOtpEmail(email: string): Promise<boolean> {
+  const { code, id } = await issueOtp(email, "signup");
+  const delivered = await sendEmail({
     to: email,
     subject: otpEmailSubject("resend", code),
     react: OtpEmail({ variant: "resend", code, ttlMinutes: OTP_TTL_MINUTES }),
     category: "auth",
     template: "otp-resend",
   });
+  if (!delivered) await removeUndeliveredOtp(id);
+  return delivered;
 }
 
-export async function sendPasswordResetOtpEmail(email: string): Promise<void> {
-  const code = await issueOtp(email, "password_reset");
-  await sendEmail({
+export async function sendPasswordResetOtpEmail(email: string): Promise<boolean> {
+  const { code, id } = await issueOtp(email, "password_reset");
+  const delivered = await sendEmail({
     to: email,
     subject: otpEmailSubject("password_reset", code),
     react: OtpEmail({ variant: "password_reset", code, ttlMinutes: OTP_TTL_MINUTES }),
     category: "auth",
     template: "otp-password-reset",
   });
+  if (!delivered) await removeUndeliveredOtp(id);
+  return delivered;
 }
 
-export async function sendAddEmailOtp(email: string): Promise<void> {
-  const code = await issueOtp(email, "add_email");
-  await sendEmail({
+export async function sendAddEmailOtp(email: string): Promise<boolean> {
+  const { code, id } = await issueOtp(email, "add_email");
+  const delivered = await sendEmail({
     to: email,
     subject: otpEmailSubject("add_email", code),
     react: OtpEmail({ variant: "add_email", code, ttlMinutes: OTP_TTL_MINUTES }),
     category: "auth",
     template: "otp-add-email",
   });
+  if (!delivered) await removeUndeliveredOtp(id);
+  return delivered;
 }
 
 export async function sendPasswordChangedEmail(email: string): Promise<void> {
   await sendEmail({
     to: email,
-    subject: "Your Udala password was changed",
+    subject: "Password changed",
     react: PasswordChangedEmail({
       device: "the Udala website",
       timestamp: new Date().toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" }),
@@ -89,7 +101,7 @@ export async function sendAccountSuspendedEmail(profileId: string): Promise<void
   if (!account) return;
   await sendEmail({
     to: account.user.email,
-    subject: "Your Udala account has been suspended",
+    subject: "Your account is suspended",
     react: AccountSuspendedEmail(),
     category: "safety",
     template: "account-suspended",
@@ -101,7 +113,7 @@ export async function sendAccountReinstatedEmail(profileId: string): Promise<voi
   if (!account) return;
   await sendEmail({
     to: account.user.email,
-    subject: "Your Udala account is active again",
+    subject: "You're back",
     react: AccountReinstatedEmail(),
     category: "safety",
     template: "account-reinstated",
@@ -113,7 +125,7 @@ export async function sendVerificationApprovedEmail(profileId: string): Promise<
   if (!account) return;
   await sendEmail({
     to: account.user.email,
-    subject: "You're verified on Udala",
+    subject: "You're verified",
     react: VerificationApprovedEmail({ username: account.username }),
     category: "welcome",
     template: "verification-approved",
@@ -125,7 +137,7 @@ export async function sendVerificationDeniedEmail(profileId: string, reason: str
   if (!account) return;
   await sendEmail({
     to: account.user.email,
-    subject: "About your Udala verification request",
+    subject: "About your verification",
     react: VerificationDeniedEmail({ reason }),
     category: "welcome",
     template: "verification-denied",
@@ -146,7 +158,7 @@ export async function sendWelcomeEmail(userId: string): Promise<void> {
   if (user.profile.profileType === "CREATOR") {
     await sendEmail({
       to: user.email,
-      subject: `You're in, ${firstName} — let's set up your creator profile`,
+      subject: `Let's get you paid, ${firstName}`,
       react: WelcomeCreatorEmail({ firstName }),
       category: "welcome",
       template: "welcome-creator",
@@ -154,7 +166,7 @@ export async function sendWelcomeEmail(userId: string): Promise<void> {
   } else {
     await sendEmail({
       to: user.email,
-      subject: `Welcome to Udala, ${firstName}`,
+      subject: `You're in, ${firstName}`,
       react: WelcomeExplorerEmail({ firstName, city: user.profile.city || null }),
       category: "welcome",
       template: "welcome-explorer",

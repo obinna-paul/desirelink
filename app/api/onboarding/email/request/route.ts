@@ -50,7 +50,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
   }
 
-  await sendAddEmailOtp(email);
+  const delivered = await sendAddEmailOtp(email);
+  if (!delivered) {
+    return NextResponse.json({ error: "We couldn't send the code. Please try again." }, { status: 503 });
+  }
 
   return NextResponse.json({ ok: true }, { status: 200 });
 }

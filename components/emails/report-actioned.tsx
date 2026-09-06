@@ -8,8 +8,7 @@ export function ReportActionedEmail() {
       <Text style={eyebrow}>Safety</Text>
       <Text style={heading}>An update on your report</Text>
       <Text style={paragraph}>
-        We looked into what you reported and took action in line with our community guidelines. Thanks for helping
-        keep Udala safe.
+        We reviewed what you reported and took action under our community guidelines. Thanks for flagging it.
       </Text>
     </EmailLayout>
   );

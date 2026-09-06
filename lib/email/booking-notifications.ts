@@ -29,7 +29,7 @@ export async function sendNewBookingRequestEmail(bookingId: string): Promise<voi
 
   await sendEmail({
     to: booking.provider.user.email,
-    subject: `New booking request from ${booking.customer.displayName}`,
+    subject: "New booking request",
     react: NewBookingRequestEmail({
       customerName: booking.customer.displayName,
       serviceName: booking.listing.title,
@@ -38,6 +38,7 @@ export async function sendNewBookingRequestEmail(bookingId: string): Promise<voi
     }),
     category: "bookings",
     template: "new-booking-request",
+    idempotencyKey: `new-booking-request/${bookingId}`,
   });
 }
 
@@ -47,7 +48,7 @@ export async function sendBookingConfirmedEmail(bookingId: string): Promise<void
 
   await sendEmail({
     to: booking.customer.user.email,
-    subject: `Your booking with ${booking.provider.displayName} is confirmed`,
+    subject: "Confirmed",
     react: BookingConfirmedEmail({
       providerName: booking.provider.displayName,
       serviceName: booking.listing.title,
@@ -56,6 +57,7 @@ export async function sendBookingConfirmedEmail(bookingId: string): Promise<void
     }),
     category: "bookings",
     template: "booking-confirmed",
+    idempotencyKey: `booking-confirmed/${bookingId}`,
   });
 }
 
@@ -65,7 +67,7 @@ export async function sendEscrowReleasedEmail(bookingId: string): Promise<void> 
 
   await sendEmail({
     to: booking.provider.user.email,
-    subject: `${booking.listing.title} — escrow released`,
+    subject: "Paid ✓",
     react: EscrowReleasedEmail({
       customerName: booking.customer.displayName,
       serviceName: booking.listing.title,
@@ -73,6 +75,7 @@ export async function sendEscrowReleasedEmail(bookingId: string): Promise<void> 
     }),
     category: "bookings",
     template: "escrow-released",
+    idempotencyKey: `escrow-released/${bookingId}`,
   });
 }
 
@@ -91,7 +94,7 @@ export async function sendBookingCancelledEmail(
 
   await sendEmail({
     to: recipient.user.email,
-    subject: `Your booking for ${booking.listing.title} was cancelled`,
+    subject: "Booking cancelled",
     react: BookingCancelledEmail({
       audience,
       serviceName: booking.listing.title,
@@ -101,5 +104,6 @@ export async function sendBookingCancelledEmail(
     }),
     category: "bookings",
     template: "booking-cancelled",
+    idempotencyKey: `booking-cancelled/${bookingId}/${audience}`,
   });
 }

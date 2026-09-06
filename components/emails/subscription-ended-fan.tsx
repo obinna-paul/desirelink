@@ -15,13 +15,13 @@ export function SubscriptionEndedFanEmail({
   return (
     <EmailLayout preview={`Your subscription to ${creatorName} has ended`}>
       <Text style={eyebrow}>Subscription</Text>
-      <Text style={heading}>Your subscription has ended</Text>
+      <Text style={heading}>That&apos;s it for now</Text>
       <Text style={paragraph}>
-        Your month with {creatorName} ended on <strong>{endsAt}</strong>. Their premium posts are locked again, but
-        everything you already saw stays exactly where it was.
+        Your month with {creatorName} wrapped <strong>{endsAt}</strong>. Premium&apos;s locked again, but what you already
+        saw isn&apos;t going anywhere.
       </Text>
       <EmailButton href={absoluteUrl(`/profile/${creatorUsername}`)}>Resubscribe</EmailButton>
-      <Text style={{ ...muted, marginTop: 24 }}>— The Udala Team</Text>
+      <Text style={{ ...muted, marginTop: 24 }}>— Udala</Text>
     </EmailLayout>
   );
 }
