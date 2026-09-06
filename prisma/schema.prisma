@@ -334,6 +334,8 @@ model Profile {
   blocksReceived         Block[]               @relation("BlockBlocked")
   following              Follow[]              @relation("FollowFollower")
   followers              Follow[]              @relation("FollowFollowing")
+  creatorAffinities      CreatorAffinity[]     @relation("CreatorAffinityViewer")
+  affinityFromViewers    CreatorAffinity[]     @relation("CreatorAffinityCreator")
   reportsMade            Report[]              @relation("ReportReporter")
   reportsReceived        Report[]              @relation("ReportReportedUser")
   circles                Circle[]
@@ -913,6 +915,29 @@ model PostQuality {
   updatedAt              DateTime @updatedAt
 
   @@index([quality])
+}
+
+/**
+ * Viewer-scoped, decayed engagement score toward one creator - Tier 2 scoring's affinity
+ * term reads this directly (two Map lookups per request, not a query per candidate). Rebuilt
+ * wholesale each cron run from raw event tables (Follow/PostReaction/PostComment/PostShare/
+ * SavedPost/PostUnlock/PostImpression) rather than upserted incrementally, the same
+ * full-rebuild pattern as refreshSearchIndex in lib/search-index.ts - see
+ * refreshCreatorAffinity in lib/creator-affinity.ts for exactly how affinity is derived,
+ * including why a current Follow relationship isn't decayed like the other signals.
+ */
+model CreatorAffinity {
+  id        String   @id @default(cuid())
+  viewerId  String
+  viewer    Profile  @relation("CreatorAffinityViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+  creatorId String
+  creator   Profile  @relation("CreatorAffinityCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  affinity  Float    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([viewerId, creatorId])
+  @@index([viewerId])
+  @@index([creatorId])
 }
 
 /**
