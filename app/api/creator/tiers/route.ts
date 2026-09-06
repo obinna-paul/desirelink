@@ -46,8 +46,24 @@ export async function POST(req: Request) {
     );
   }
 
-  const { name, description, priceNaira, tierType, maxSubscribers, isLimited } = parsed.data;
+  const {
+    name,
+    description,
+    priceNaira,
+    compareAtPriceNaira,
+    tierType,
+    maxSubscribers,
+    isLimited,
+  } = parsed.data;
   const priceCents = Math.round(priceNaira * 100);
+  const compareAtPriceCents =
+    compareAtPriceNaira === null ? null : Math.round(compareAtPriceNaira * 100);
+  if (compareAtPriceCents !== null && compareAtPriceCents <= priceCents) {
+    return NextResponse.json(
+      { error: "Original price must be higher than the current price" },
+      { status: 400 },
+    );
+  }
 
   const otherTiers = await prisma.creatorTier.findMany({
     where: { creatorId: profile.id },
@@ -64,6 +80,7 @@ export async function POST(req: Request) {
       name,
       description,
       priceCents,
+      compareAtPriceCents,
       tierType,
       maxSubscribers,
       isLimited,

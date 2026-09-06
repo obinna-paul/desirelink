@@ -29,7 +29,7 @@ export default async function CreatePage() {
     ? await prisma.creatorTier.findMany({
         where: { creatorId: profile.id },
         orderBy: { priceCents: "asc" },
-        select: { id: true, name: true, priceCents: true },
+        select: { id: true, name: true, priceCents: true, compareAtPriceCents: true },
       })
     : [];
 

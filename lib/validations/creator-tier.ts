@@ -20,9 +20,26 @@ export const creatorTierSchema = z.object({
     .number()
     .positive("Tier price must be greater than ₦0")
     .max(MAX_SAFE_PRICE_NAIRA, "Tier price is too large"),
+  compareAtPriceNaira: z
+    .number()
+    .positive("Original price must be greater than ₦0")
+    .max(MAX_SAFE_PRICE_NAIRA, "Original price is too large")
+    .nullable()
+    .default(null),
   tierType: z.enum(TIER_TYPE_VALUES),
   maxSubscribers: z.number().int().min(1).max(100000).nullable(),
   isLimited: z.boolean(),
+}).superRefine((tier, context) => {
+  if (
+    tier.compareAtPriceNaira !== null &&
+    tier.compareAtPriceNaira <= tier.priceNaira
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["compareAtPriceNaira"],
+      message: "Original price must be higher than the current price",
+    });
+  }
 });
 
 export type CreatorTierInput = z.infer<typeof creatorTierSchema>;

@@ -51,6 +51,7 @@ import {
   type VideoUploadPhase,
 } from "@/lib/client-uploads";
 import { formatCents } from "@/lib/creator";
+import { getTierDiscountPercent } from "@/lib/tier-pricing";
 import { cn } from "@/lib/utils";
 
 const MAX_IMAGE_FILE_SIZE = 30 * 1024 * 1024;
@@ -108,7 +109,12 @@ type FailedMediaUpload = {
 type PostMode = "single" | "carousel";
 type PostAccess = "free" | "premium";
 
-export type ComposerTier = { id: string; name: string; priceCents: number };
+export type ComposerTier = {
+  id: string;
+  name: string;
+  priceCents: number;
+  compareAtPriceCents: number | null;
+};
 
 const DEFAULT_DISPLAY_RATIO: PostDisplayAspectRatio = "square";
 
@@ -820,6 +826,9 @@ export function PostComposer({
             {tiers.map((tier) => (
               <option key={tier.id} value={tier.id}>
                 {tier.name} · {formatCents(tier.priceCents)}/mo
+                {getTierDiscountPercent(tier.priceCents, tier.compareAtPriceCents) !== null
+                  ? ` · ${getTierDiscountPercent(tier.priceCents, tier.compareAtPriceCents)}% off`
+                  : ""}
               </option>
             ))}
           </Select>

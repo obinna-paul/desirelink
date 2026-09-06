@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TierPrice } from "@/components/subscriptions/tier-price";
 import { cn } from "@/lib/utils";
-import { formatCents } from "@/lib/creator";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { TIER_TYPE_LABELS } from "@/lib/validations/creator-tier";
 import type { PublicTierView } from "@/lib/tiers";
@@ -146,11 +146,13 @@ export function SubscribePlansDialog({
 
                 return (
                   <div key={tier.id} className="rounded-xl border border-border/60 p-3.5">
-                    <div className="flex items-baseline justify-between gap-2">
+                    <div className="flex items-start justify-between gap-3">
                       <p className="min-w-0 truncate text-base font-bold">{tier.name}</p>
-                      <p className="shrink-0 text-sm font-semibold text-primary">
-                        {formatCents(tier.priceCents)}/mo
-                      </p>
+                      <TierPrice
+                        priceCents={tier.priceCents}
+                        compareAtPriceCents={tier.compareAtPriceCents}
+                        className="max-w-[55%] shrink-0 justify-end text-right"
+                      />
                     </div>
                     <p className="text-xs text-muted-foreground">{tierTypeLabel}</p>
                     {tier.description && (

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { formatCents } from "@/lib/creator";
+import { getTierDiscountPercent } from "@/lib/tier-pricing";
 import type { PublicTierView } from "@/lib/tiers";
 
 /** Shown on a live stream's host chip so a viewer can subscribe without hunting for the profile page. */
@@ -48,9 +49,22 @@ export function SubscribeChip({
   }
 
   if (singleTier) {
+    const discountPercent = getTierDiscountPercent(
+      singleTier.priceCents,
+      singleTier.compareAtPriceCents,
+    );
+
     return (
       <div className="flex flex-col items-start gap-1">
         {error && <p className="text-[10px] text-red-300">{error}</p>}
+        {discountPercent !== null && (
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-white/80">
+            <span className="line-through">{formatCents(singleTier.compareAtPriceCents!)}</span>
+            <span className="rounded-full bg-emerald-400/20 px-1.5 py-0.5 text-emerald-200">
+              {discountPercent}% off
+            </span>
+          </span>
+        )}
         <button
           type="button"
           disabled={pending}

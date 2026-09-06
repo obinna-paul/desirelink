@@ -9,6 +9,7 @@ export type PublicTierView = {
   name: string;
   description: string;
   priceCents: number;
+  compareAtPriceCents: number | null;
   tierType: string;
   isLimited: boolean;
   maxSubscribers: number | null;
@@ -132,6 +133,7 @@ export async function getPublicTiersForCreators(
       name: tier.name,
       description: tier.description,
       priceCents: tier.priceCents,
+      compareAtPriceCents: tier.compareAtPriceCents,
       tierType: tier.tierType,
       isLimited: tier.isLimited,
       maxSubscribers: tier.maxSubscribers,

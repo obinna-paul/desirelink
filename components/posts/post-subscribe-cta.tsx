@@ -4,7 +4,9 @@ import { useState } from "react";
 import { ArrowRight, Check, Crown, LoaderCircle } from "lucide-react";
 
 import { SubscribePlansDialog } from "@/components/profile/subscribe-plans-dialog";
+import { TierPrice } from "@/components/subscriptions/tier-price";
 import { formatCents } from "@/lib/creator";
+import { getTierDiscountPercent } from "@/lib/tier-pricing";
 import type { PostSubscribePrompt } from "@/lib/posts";
 
 const CTA_CLASSNAME =
@@ -21,6 +23,9 @@ export function PostSubscribeCta({
   const [error, setError] = useState<string | null>(null);
   const [subscribed, setSubscribed] = useState(false);
   const singleTier = prompt.tiers.length === 1 ? prompt.tiers[0] : null;
+  const singleTierDiscount = singleTier
+    ? getTierDiscountPercent(singleTier.priceCents, singleTier.compareAtPriceCents)
+    : null;
 
   async function subscribeToTier(tierId: string) {
     setPending(true);
@@ -75,6 +80,14 @@ export function PostSubscribeCta({
             <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
               Unlock premium posts and support {creatorName}&apos;s work.
             </p>
+            {singleTier && singleTierDiscount !== null && (
+              <TierPrice
+                priceCents={singleTier.priceCents}
+                compareAtPriceCents={singleTier.compareAtPriceCents}
+                className="mt-1.5"
+                currentClassName="text-xs"
+              />
+            )}
           </div>
         </div>
 

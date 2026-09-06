@@ -12,6 +12,7 @@ const prompt: PostSubscribePrompt = {
       name: "Premium",
       description: "Subscriber posts",
       priceCents: 500_000,
+      compareAtPriceCents: null,
       tierType: "standard",
       isLimited: false,
       maxSubscribers: null,
@@ -35,5 +36,26 @@ describe("PostSubscribeCta", () => {
     expect(subscribeButton).not.toHaveClass("rounded-full");
     expect(document.querySelector(".lucide-crown")).toBeInTheDocument();
     expect(document.querySelector(".lucide-sparkles")).not.toBeInTheDocument();
+  });
+
+  it("shows an optional original price and calculated discount", () => {
+    render(
+      <PostSubscribeCta
+        prompt={{
+          ...prompt,
+          tiers: [
+            {
+              ...prompt.tiers[0],
+              priceCents: 600_000,
+              compareAtPriceCents: 1_000_000,
+            },
+          ],
+        }}
+        creatorName="Amara Okafor"
+      />,
+    );
+
+    expect(screen.getByText("₦10,000.00")).toHaveClass("line-through");
+    expect(screen.getByText("40% off")).toBeInTheDocument();
   });
 });

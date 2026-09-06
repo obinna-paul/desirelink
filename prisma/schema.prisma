@@ -368,17 +368,18 @@ model PartnerInvite {
 // --- Creator monetization ---------------------------------------------------
 
 model CreatorTier {
-  id             String   @id @default(cuid())
-  creatorId      String
-  creator        Profile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  name           String
-  priceCents     Int
-  tierType       String   @default("beginner")
-  description    String
-  maxSubscribers Int?
-  isLimited      Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  creatorId           String
+  creator             Profile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  name                String
+  priceCents          Int
+  compareAtPriceCents Int?
+  tierType            String   @default("beginner")
+  description         String
+  maxSubscribers      Int?
+  isLimited           Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   subscriptions         Subscription[]
   providerSubscriptions ProviderSubscription[]

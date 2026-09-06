@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2, Users } from "lucide-react";
 
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
-import { formatCents } from "@/lib/creator";
+import { TierPrice } from "@/components/subscriptions/tier-price";
 import { DEFAULT_TIER_PRICE_CENTS, TIER_TYPE_VALUES, TIER_TYPE_LABELS } from "@/lib/validations/creator-tier";
 import type { CreatorTierInput } from "@/lib/validations/creator-tier";
 
@@ -19,6 +19,7 @@ type TierView = {
   name: string;
   description: string;
   priceCents: number;
+  compareAtPriceCents: number | null;
   tierType: string;
   maxSubscribers: number | null;
   isLimited: boolean;
@@ -29,6 +30,7 @@ type FormState = {
   name: string;
   description: string;
   priceNaira: string;
+  compareAtPriceNaira: string;
   tierType: string;
   isLimited: boolean;
   maxSubscribers: string;
@@ -38,6 +40,7 @@ const EMPTY_FORM: FormState = {
   name: "",
   description: "",
   priceNaira: (DEFAULT_TIER_PRICE_CENTS / 100).toString(),
+  compareAtPriceNaira: "",
   tierType: "beginner",
   isLimited: false,
   maxSubscribers: "",
@@ -48,6 +51,9 @@ function tierToForm(tier: TierView): FormState {
     name: tier.name,
     description: tier.description,
     priceNaira: (tier.priceCents / 100).toString(),
+    compareAtPriceNaira: tier.compareAtPriceCents
+      ? (tier.compareAtPriceCents / 100).toString()
+      : "",
     tierType: tier.tierType,
     isLimited: tier.isLimited,
     maxSubscribers: tier.maxSubscribers?.toString() ?? "",
@@ -65,21 +71,40 @@ function TierForm({
   onCancel?: () => void;
   onSubmit: (input: CreatorTierInput) => Promise<string | null>;
 }) {
+  const fieldId = useId();
   const [form, setForm] = useState(initial);
   const [status, setStatus] = useState<"idle" | "saving">("idle");
   const [error, setError] = useState<string | null>(null);
+  const compareAtPriceValue = form.compareAtPriceNaira.trim()
+    ? Number(form.compareAtPriceNaira)
+    : null;
+  const compareAtPriceError =
+    compareAtPriceValue !== null &&
+    (Number.isNaN(compareAtPriceValue) || compareAtPriceValue <= Number(form.priceNaira))
+      ? "Original price must be higher than the current price."
+      : null;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
 
     const priceNaira = Number(form.priceNaira);
+    const compareAtPriceNaira = form.compareAtPriceNaira.trim()
+      ? Number(form.compareAtPriceNaira)
+      : null;
     if (!form.name.trim()) {
       setError("Give this tier a name.");
       return;
     }
     if (Number.isNaN(priceNaira) || priceNaira <= 0) {
       setError("Enter a price greater than ₦0.");
+      return;
+    }
+    if (
+      compareAtPriceNaira !== null &&
+      (Number.isNaN(compareAtPriceNaira) || compareAtPriceNaira <= priceNaira)
+    ) {
+      setError("Original price must be higher than the current price.");
       return;
     }
     const maxSubscribers = form.isLimited ? Number(form.maxSubscribers) : null;
@@ -93,6 +118,7 @@ function TierForm({
       name: form.name.trim(),
       description: form.description.trim(),
       priceNaira,
+      compareAtPriceNaira,
       tierType: form.tierType as CreatorTierInput["tierType"],
       maxSubscribers,
       isLimited: form.isLimited,
@@ -109,21 +135,21 @@ function TierForm({
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="tier-name" className="text-xs font-medium text-muted-foreground">
+          <label htmlFor={`${fieldId}-name`} className="text-xs font-medium text-muted-foreground">
             Name
           </label>
           <Input
-            id="tier-name"
+            id={`${fieldId}-name`}
             value={form.name}
             onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
             placeholder="e.g. Subscriber"
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="tier-type" className="text-xs font-medium text-muted-foreground">
+          <label htmlFor={`${fieldId}-type`} className="text-xs font-medium text-muted-foreground">
             Type
           </label>
-          <Select id="tier-type" value={form.tierType} onChange={(event) => setForm((prev) => ({ ...prev, tierType: event.target.value }))}>
+          <Select id={`${fieldId}-type`} value={form.tierType} onChange={(event) => setForm((prev) => ({ ...prev, tierType: event.target.value }))}>
             {TIER_TYPE_VALUES.map((type) => (
               <option key={type} value={type}>
                 {TIER_TYPE_LABELS[type]}
@@ -134,11 +160,11 @@ function TierForm({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="tier-description" className="text-xs font-medium text-muted-foreground">
+        <label htmlFor={`${fieldId}-description`} className="text-xs font-medium text-muted-foreground">
           What subscribers get
         </label>
         <Textarea
-          id="tier-description"
+          id={`${fieldId}-description`}
           rows={2}
           className="resize-none rounded-2xl md:rounded-md"
           value={form.description}
@@ -147,19 +173,60 @@ function TierForm({
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="tier-price" className="text-xs font-medium text-muted-foreground">
-          Price per month
-        </label>
-        <Input
-          id="tier-price"
-          type="number"
-          min={0.01}
-          step="0.01"
-          value={form.priceNaira}
-          onChange={(event) => setForm((prev) => ({ ...prev, priceNaira: event.target.value }))}
-        />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={`${fieldId}-price`} className="text-xs font-medium text-muted-foreground">
+            Monthly price
+          </label>
+          <Input
+            id={`${fieldId}-price`}
+            type="number"
+            min={0.01}
+            step="0.01"
+            value={form.priceNaira}
+            onChange={(event) => setForm((prev) => ({ ...prev, priceNaira: event.target.value }))}
+          />
+          <p className="text-[11px] text-muted-foreground">This is what subscribers pay.</p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={`${fieldId}-compare-price`} className="text-xs font-medium text-muted-foreground">
+            Original price <span className="font-normal">(optional)</span>
+          </label>
+          <Input
+            id={`${fieldId}-compare-price`}
+            type="number"
+            min={0.01}
+            step="0.01"
+            value={form.compareAtPriceNaira}
+            aria-invalid={Boolean(compareAtPriceError)}
+            aria-describedby={`${fieldId}-compare-price-help`}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, compareAtPriceNaira: event.target.value }))
+            }
+            placeholder="Leave blank if not discounted"
+          />
+          <p
+            id={`${fieldId}-compare-price-help`}
+            className={`text-[11px] ${compareAtPriceError ? "text-destructive" : "text-muted-foreground"}`}
+          >
+            {compareAtPriceError ??
+              "Shown crossed out when it is higher than your monthly price."}
+          </p>
+        </div>
       </div>
+
+      {Number(form.priceNaira) > 0 &&
+        form.compareAtPriceNaira.trim() &&
+        Number(form.compareAtPriceNaira) > Number(form.priceNaira) && (
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-secondary/70 px-3 py-2.5">
+            <span className="text-xs font-medium text-muted-foreground">Subscriber preview</span>
+            <TierPrice
+              priceCents={Math.round(Number(form.priceNaira) * 100)}
+              compareAtPriceCents={Math.round(Number(form.compareAtPriceNaira) * 100)}
+              className="justify-end"
+            />
+          </div>
+        )}
 
       <label className="flex min-h-9 items-center gap-2 text-sm">
         <input
@@ -172,11 +239,11 @@ function TierForm({
       </label>
       {form.isLimited && (
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="tier-max" className="text-xs font-medium text-muted-foreground">
+          <label htmlFor={`${fieldId}-max`} className="text-xs font-medium text-muted-foreground">
             Max subscribers
           </label>
           <Input
-            id="tier-max"
+            id={`${fieldId}-max`}
             type="number"
             min={1}
             value={form.maxSubscribers}
@@ -245,7 +312,15 @@ export function PricingManager({ initialTiers }: { initialTiers: TierView[] }) {
     setTiers((prev) =>
       prev.map((tier) =>
         tier.id === id
-          ? { ...tier, ...input, priceCents: Math.round(input.priceNaira * 100) }
+          ? {
+              ...tier,
+              ...input,
+              priceCents: Math.round(input.priceNaira * 100),
+              compareAtPriceCents:
+                input.compareAtPriceNaira === null
+                  ? null
+                  : Math.round(input.compareAtPriceNaira * 100),
+            }
           : tier
       )
     );
@@ -299,7 +374,10 @@ export function PricingManager({ initialTiers }: { initialTiers: TierView[] }) {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold">{tier.name}</p>
-                  <span className="text-sm text-neon-cyan">{formatCents(tier.priceCents)}/mo</span>
+                  <TierPrice
+                    priceCents={tier.priceCents}
+                    compareAtPriceCents={tier.compareAtPriceCents}
+                  />
                   <span className="rounded-full border border-border/60 px-2 py-0.5 text-xs text-muted-foreground">
                     {TIER_TYPE_LABELS[tier.tierType as keyof typeof TIER_TYPE_LABELS] ?? tier.tierType}
                   </span>
@@ -312,7 +390,16 @@ export function PricingManager({ initialTiers }: { initialTiers: TierView[] }) {
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
-                <Button type="button" size="sm" variant="outline" className="w-full gap-1.5 sm:w-auto" onClick={() => setEditingId(tier.id)}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-1.5 sm:w-auto"
+                  onClick={() => {
+                    setCreating(false);
+                    setEditingId(tier.id);
+                  }}
+                >
                   <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Edit
                 </Button>
                 <Button
@@ -333,7 +420,15 @@ export function PricingManager({ initialTiers }: { initialTiers: TierView[] }) {
       {creating ? (
         <TierForm initial={EMPTY_FORM} submitLabel="Create tier" onCancel={tiers.length > 0 ? () => setCreating(false) : undefined} onSubmit={handleCreate} />
       ) : (
-        <Button type="button" variant="outline" className="w-full gap-1.5 sm:w-fit" onClick={() => setCreating(true)}>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full gap-1.5 sm:w-fit"
+          onClick={() => {
+            setEditingId(null);
+            setCreating(true);
+          }}
+        >
           <Plus className="h-4 w-4" aria-hidden="true" /> Add tier
         </Button>
       )}
