@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { flagContentIfNeeded } from "@/lib/moderation";
 import { getPostByIdForViewer } from "@/lib/posts";
+import { syncPostHashtags } from "@/lib/hashtags";
 import { prisma } from "@/lib/prisma";
 import { readJson } from "@/lib/security/request";
 import { updatePostSchema } from "@/lib/validations/post";
@@ -186,6 +187,12 @@ export async function PATCH(
     });
   } catch (error) {
     console.warn("[posts] moderation flagging failed after post edit", error);
+  }
+
+  try {
+    await syncPostHashtags(params.postId, parsed.data.content);
+  } catch (error) {
+    console.warn("[posts] hashtag extraction failed after post edit", error);
   }
 
   const post = await getPostByIdForViewer(params.postId, profile.id);
