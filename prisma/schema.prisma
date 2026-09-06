@@ -614,6 +614,7 @@ model Post {
   hashtags         PostHashtag[]
   feedback         PostFeedback[]
   savedByViewer    SavedPost[]
+  dailyStats       PostDailyStats[]
 
   @@index([authorId])
   @@index([isArchived])
@@ -856,6 +857,39 @@ model SavedPost {
   @@unique([viewerId, postId])
   @@index([viewerId])
   @@index([postId])
+}
+
+/**
+ * One row per (post, UTC day), written nightly by a rollup cron from that day's raw
+ * PostImpression/PostReaction/PostComment/PostShare/SavedPost/PostUnlock rows - see
+ * lib/post-daily-stats.ts. Ranking reads this, never raw impression rows.
+ * weightedEngagement follows the discovery/ranking plan's Tier 1 positive-signal weights,
+ * limited to the signals actually attributable to a specific post today: unlock 6 (this
+ * codebase's per-post subscribe-conversion signal, via PostUnlock), share 3, save 3,
+ * comment 2, like 1. Follow-from-post, profile-visit, video-completion, and
+ * caption-expand aren't tracked per-post yet, so they contribute nothing here.
+ */
+model PostDailyStats {
+  id                 String   @id @default(cuid())
+  postId             String
+  post               Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  /**
+   * Truncated to UTC midnight - the day this row summarizes.
+   */
+  date               DateTime
+  impressions        Int      @default(0)
+  likes              Int      @default(0)
+  comments           Int      @default(0)
+  shares             Int      @default(0)
+  saves              Int      @default(0)
+  unlocks            Int      @default(0)
+  weightedEngagement Float    @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([postId, date])
+  @@index([postId])
+  @@index([date])
 }
 
 /**
