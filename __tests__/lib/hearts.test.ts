@@ -1,7 +1,12 @@
 jest.mock("@/lib/prisma", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const prisma: any = {
-    profile: { findUnique: jest.fn(), update: jest.fn() },
+    profile: {
+      findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    },
     gift: { create: jest.fn() },
     verificationRequest: { findFirst: jest.fn() },
   };
@@ -19,7 +24,12 @@ import { PLATFORM_FEE_RATE } from "@/lib/wallet";
 import { prisma } from "@/lib/prisma";
 
 const mockPrisma = prisma as unknown as {
-  profile: { findUnique: jest.Mock; update: jest.Mock };
+  profile: {
+    findUnique: jest.Mock;
+    findUniqueOrThrow: jest.Mock;
+    update: jest.Mock;
+    updateMany: jest.Mock;
+  };
   gift: { create: jest.Mock };
   verificationRequest: { findFirst: jest.Mock };
 };
@@ -68,7 +78,9 @@ describe("settleGift", () => {
       displayName: "Sender",
       avatarUrl: "",
     });
-    mockPrisma.profile.update.mockResolvedValueOnce({ heartsBalance: 90 }).mockResolvedValueOnce({});
+    mockPrisma.profile.updateMany.mockResolvedValue({ count: 1 });
+    mockPrisma.profile.findUniqueOrThrow.mockResolvedValue({ heartsBalance: 90 });
+    mockPrisma.profile.update.mockResolvedValue({});
     mockPrisma.gift.create.mockResolvedValue({ id: "gift-1" });
 
     const result = await settleGift({ senderId: "a", receiverId: "b", hearts: 10, context: "profile" });
@@ -82,7 +94,11 @@ describe("settleGift", () => {
       giftId: "gift-1",
       sender: { username: "sender", displayName: "Sender", avatarUrl: "" },
     });
-    expect(mockPrisma.profile.update).toHaveBeenNthCalledWith(2, {
+    expect(mockPrisma.profile.updateMany).toHaveBeenCalledWith({
+      where: { id: "a", heartsBalance: { gte: 10 } },
+      data: { heartsBalance: { decrement: 10 } },
+    });
+    expect(mockPrisma.profile.update).toHaveBeenCalledWith({
       where: { id: "b" },
       data: { walletBalanceCents: { increment: expectedNetCents } },
     });
@@ -96,6 +112,26 @@ describe("settleGift", () => {
         context: "profile",
       },
     });
+  });
+
+  it("does not create or credit a gift when an overlapping send has already spent the balance", async () => {
+    mockPrisma.profile.findUnique.mockResolvedValue({
+      heartsBalance: 10,
+      username: "sender",
+      displayName: "Sender",
+      avatarUrl: "",
+    });
+    mockPrisma.profile.updateMany.mockResolvedValue({ count: 0 });
+
+    const result = await settleGift({ senderId: "a", receiverId: "b", hearts: 10, context: "profile" });
+
+    expect(result).toEqual({
+      ok: false,
+      status: 402,
+      error: "Not enough hearts. Buy more to keep sending gifts.",
+    });
+    expect(mockPrisma.profile.update).not.toHaveBeenCalled();
+    expect(mockPrisma.gift.create).not.toHaveBeenCalled();
   });
 });
 

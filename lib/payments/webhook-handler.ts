@@ -256,11 +256,17 @@ async function handleProviderTierEvent(
     await creditProviderWallet(pending.providerId, event.amountCents ?? 0, db);
     const conversionPostId = event.metadata.conversionPostId;
     if (conversionPostId) {
-      await db.postUnlock.upsert({
-        where: { postId_subscriberId: { postId: conversionPostId, subscriberId: pending.subscriberId } },
-        create: { postId: conversionPostId, subscriberId: pending.subscriberId },
-        update: {},
+      const conversionPost = await db.post.findFirst({
+        where: { id: conversionPostId, authorId: pending.providerId },
+        select: { id: true },
       });
+      if (conversionPost) {
+        await db.postUnlock.upsert({
+          where: { postId_subscriberId: { postId: conversionPost.id, subscriberId: pending.subscriberId } },
+          create: { postId: conversionPost.id, subscriberId: pending.subscriberId },
+          update: {},
+        });
+      }
     }
     if (pending.providerId !== pending.subscriberId) {
       try {

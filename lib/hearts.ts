@@ -59,16 +59,27 @@ export async function settleGift(params: {
 
   const valueCents = hearts * HEART_UNIT_PRICE_CENTS;
 
-  const [updatedSender, gift] = await prisma.$transaction(async (tx) => {
-    const updatedSender = await tx.profile.update({
-      where: { id: senderId },
+  const settlement = await prisma.$transaction(async (tx) => {
+    const debited = await tx.profile.updateMany({
+      where: { id: senderId, heartsBalance: { gte: hearts } },
       data: { heartsBalance: { decrement: hearts } },
+    });
+    if (debited.count !== 1) return null;
+
+    const updatedSender = await tx.profile.findUniqueOrThrow({
+      where: { id: senderId },
       select: { heartsBalance: true },
     });
     await creditProviderWallet(receiverId, valueCents, tx);
     const gift = await tx.gift.create({ data: { streamId, senderId, receiverId, hearts, valueCents, context } });
     return [updatedSender, gift] as const;
   });
+
+  if (!settlement) {
+    return { ok: false, status: 402, error: "Not enough hearts. Buy more to keep sending gifts." };
+  }
+
+  const [updatedSender, gift] = settlement;
 
   return {
     ok: true,
