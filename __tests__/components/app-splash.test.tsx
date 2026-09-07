@@ -5,6 +5,7 @@ import { AppSplash } from "@/components/splash/app-splash";
 describe("AppSplash", () => {
   beforeEach(() => {
     jest.useFakeTimers();
+    window.localStorage.clear();
   });
 
   afterEach(() => {
@@ -12,9 +13,10 @@ describe("AppSplash", () => {
       jest.runOnlyPendingTimers();
     });
     jest.useRealTimers();
+    window.localStorage.clear();
   });
 
-  it("renders the logo on a plain white, full-screen background", () => {
+  it("renders the logo on a plain white, full-screen background on a first-ever visit", () => {
     render(<AppSplash />);
 
     const overlay = screen.getByRole("presentation");
@@ -52,5 +54,46 @@ describe("AppSplash", () => {
     });
 
     expect(container.querySelector("img")).toBeInTheDocument();
+  });
+
+  it("persists that it's been seen once dismissed", () => {
+    render(<AppSplash />);
+
+    act(() => {
+      jest.advanceTimersByTime(3000);
+      jest.advanceTimersByTime(300);
+    });
+
+    expect(window.localStorage.getItem("udala:splash-seen")).toBe("1");
+  });
+
+  it("never renders again on a later mount (a page refresh or reopening the app)", () => {
+    window.localStorage.setItem("udala:splash-seen", "1");
+
+    render(<AppSplash />);
+
+    expect(screen.queryByRole("presentation")).not.toBeInTheDocument();
+  });
+
+  it("shows again if local storage is unavailable, but never throws", () => {
+    const realLocalStorage = window.localStorage;
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: () => {
+          throw new Error("storage disabled");
+        },
+        setItem: () => {
+          throw new Error("storage disabled");
+        },
+      },
+    });
+
+    try {
+      expect(() => render(<AppSplash />)).not.toThrow();
+      expect(screen.getByRole("presentation")).toBeInTheDocument();
+    } finally {
+      Object.defineProperty(window, "localStorage", { configurable: true, value: realLocalStorage });
+    }
   });
 });
