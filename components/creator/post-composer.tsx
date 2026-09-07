@@ -17,9 +17,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { UploadProgress } from "@/components/ui/upload-progress";
-import { Select } from "@/components/ui/select";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
 import { HashtagTextarea } from "@/components/creator/hashtag-textarea";
+import { TierPicker } from "@/components/creator/tier-picker";
 import { VideoFrameDialog } from "@/components/creator/video-frame-dialog";
 import { ProviderUpgradePrompt } from "@/components/settings/provider-upgrade-prompt";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
@@ -50,8 +50,6 @@ import {
   uploadVideoDirect,
   type VideoUploadPhase,
 } from "@/lib/client-uploads";
-import { formatCents } from "@/lib/creator";
-import { getTierDiscountPercent } from "@/lib/tier-pricing";
 import { cn } from "@/lib/utils";
 import {
   MAX_VIDEO_DURATION_SECONDS,
@@ -807,26 +805,13 @@ export function PostComposer({
         </div>
       )}
       {postAccess === "premium" && hasPricingTier && (
-        <div className="mt-4 flex flex-col gap-1.5">
-          <label htmlFor="post-tier" className="text-xs font-medium text-muted-foreground">
-            Which tier unlocks this post?
-          </label>
-          <Select
-            id="post-tier"
-            value={selectedTierId ?? ""}
-            onChange={(event) => setSelectedTierId(event.target.value || null)}
-          >
-            <option value="">Choose a tier</option>
-            {tiers.map((tier) => (
-              <option key={tier.id} value={tier.id}>
-                {tier.name} · {formatCents(tier.priceCents)}/mo
-                {getTierDiscountPercent(tier.priceCents, tier.compareAtPriceCents) !== null
-                  ? ` · ${getTierDiscountPercent(tier.priceCents, tier.compareAtPriceCents)}% off`
-                  : ""}
-              </option>
-            ))}
-          </Select>
-          <p className="text-xs text-muted-foreground">
+        <div className="mt-4">
+          <TierPicker
+            tiers={tiers}
+            value={selectedTierId}
+            onChange={setSelectedTierId}
+          />
+          <p className="mt-1.5 text-xs text-muted-foreground">
             Subscribers to this tier or higher will see this post.
           </p>
         </div>
