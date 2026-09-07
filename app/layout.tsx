@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { PwaInstallPrompt } from "@/components/pwa/pwa-install-prompt";
-import { AppSplash } from "@/components/splash/app-splash";
 import { DEFAULT_DESCRIPTION, DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL } from "@/lib/site-config";
 import { PRIVATE_ROBOTS } from "@/lib/seo";
 
@@ -42,7 +41,7 @@ export const metadata: Metadata = {
     "services marketplace",
   ],
   robots: PRIVATE_ROBOTS,
-  manifest: "/manifest-v3.json",
+  manifest: "/manifest-v4.json",
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -83,7 +82,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  viewportFit: "cover",
   themeColor: "#ffffff",
 };
 
@@ -107,7 +105,6 @@ export default function RootLayout({
         </Script>
       </head>
       <body className="antialiased">
-        <AppSplash />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} storageKey="udala-theme">
           <SessionProvider>
             {children}
