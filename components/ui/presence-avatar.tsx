@@ -43,6 +43,7 @@ export function PresenceRing({
   indicatorPosition = "top-right",
   indicatorSize = "h-3.5 w-3.5",
   liveIndicatorSize = "h-5 w-5",
+  showIndicator = true,
   className,
   children,
 }: {
@@ -54,6 +55,10 @@ export function PresenceRing({
   indicatorPosition?: "top-right" | "bottom-right";
   indicatorSize?: string;
   liveIndicatorSize?: string;
+  /** The ring's own color already communicates status - set false to skip the
+   * separate dot/badge entirely (e.g. a large avatar where a small floating dot
+   * reads as redundant clutter rather than useful signal). */
+  showIndicator?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -65,7 +70,7 @@ export function PresenceRing({
       className={cn("relative shrink-0 rounded-full ring-2", size, RING_CLASS[status], className)}
     >
       {children}
-      {status === "live" && (
+      {showIndicator && status === "live" && (
         <span
           data-presence-indicator="live"
           className={cn(
@@ -79,7 +84,7 @@ export function PresenceRing({
           <Radio className="relative h-[60%] w-[60%]" strokeWidth={2.5} />
         </span>
       )}
-      {status === "online" && (
+      {showIndicator && status === "online" && (
         <span
           data-presence-indicator="online"
           className={cn(

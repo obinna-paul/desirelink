@@ -32,6 +32,17 @@ describe("presence avatars", () => {
     expect(container.querySelector('[data-presence-indicator="live"]')).not.toBeInTheDocument();
   });
 
+  it("omits the indicator dot/badge when showIndicator is false, keeping only the ring color", () => {
+    const { container } = render(
+      <PresenceRing status="online" showIndicator={false}>
+        <span>Avatar</span>
+      </PresenceRing>,
+    );
+
+    expect(container.querySelector('[data-presence-indicator="online"]')).not.toBeInTheDocument();
+    expect(container.querySelector('[data-presence-status="online"]')).toHaveClass("ring-presence-online");
+  });
+
   it("routes a live profile directly into its active stream", () => {
     expect(
       getPresenceDestination({
