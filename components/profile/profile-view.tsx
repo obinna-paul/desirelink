@@ -206,7 +206,7 @@ export function ProfileView({
             </div>
           </div>
 
-          <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 md:ml-[9.5rem]">
+          <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1 md:ml-[9.5rem]">
             <h1 className="min-w-0 break-words font-heading text-xl font-semibold text-foreground sm:text-2xl md:text-3xl">
               {profile.displayName || profile.username}
             </h1>

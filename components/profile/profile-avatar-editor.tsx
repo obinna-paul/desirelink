@@ -85,8 +85,14 @@ export function ProfileAvatarEditor({
   }
 
   const avatarInner = (
-    <PresenceRing status={presenceStatus} size="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32">
-      <Avatar className="h-full w-full border-2 border-card bg-avatar-placeholder shadow-lift">
+    <PresenceRing
+      status={presenceStatus}
+      size="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32"
+      indicatorPosition="bottom-right"
+      indicatorSize="h-5 w-5 md:h-6 md:w-6"
+      liveIndicatorSize="h-7 w-7 md:h-8 md:w-8"
+    >
+      <Avatar className="h-full w-full bg-avatar-placeholder shadow-lift">
         <AvatarImage src={preview} alt={displayName} className="object-cover" />
         <AvatarFallback className="text-xl md:text-2xl">
           {displayName.slice(0, 2).toUpperCase()}
@@ -123,7 +129,7 @@ export function ProfileAvatarEditor({
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
             aria-label="Change profile photo"
-            className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full border-[3px] border-card bg-foreground text-background shadow-sm transition-colors hover:bg-foreground/85 disabled:opacity-60"
+            className="absolute bottom-0 left-0 flex h-10 w-10 items-center justify-center rounded-full border-[3px] border-card bg-foreground text-background shadow-sm transition-colors hover:bg-foreground/85 disabled:opacity-60"
           >
             {uploading ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
