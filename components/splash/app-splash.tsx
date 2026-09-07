@@ -11,7 +11,9 @@ const DISPLAY_MS = 3000;
 const FADE_MS = 300;
 
 export function AppSplash() {
-  const [visible, setVisible] = useState(false);
+  // Start covered so the app cannot paint between Android's native launch frame and
+  // Udala's greeting. The effect removes it immediately on desktop and repeat views.
+  const [visible, setVisible] = useState(true);
   const [fadingOut, setFadingOut] = useState(false);
   const dismissedRef = useRef(false);
 
@@ -23,17 +25,15 @@ export function AppSplash() {
     setTimeout(() => setVisible(false), FADE_MS);
   }
 
-  // Decided client-side only, after mount: the server has no sessionStorage (or a way
-  // to know the device) to check, so SSR always renders nothing here - the splash
-  // appears a beat after hydration on a real app open rather than in the initial HTML,
-  // and never appears at all on desktop, a refresh, a resume from background, or any
-  // other reload within the same browsing context - either way there's no server/client
-  // markup mismatch. This is a mobile-app-style greeting, not something a laptop
-  // browser tab needs - desktop just opens straight into the app, like before.
+  // The initial HTML contains the white greeting so home cannot flash during hydration.
+  // Once mounted, remove it immediately for desktop and repeat views; only a fresh mobile
+  // app context keeps it for the full greeting duration.
   useEffect(() => {
-    if (!isMobileDevice() || hasSeenSplash()) return;
+    if (!isMobileDevice() || hasSeenSplash()) {
+      setVisible(false);
+      return;
+    }
 
-    setVisible(true);
     const timer = window.setTimeout(dismiss, DISPLAY_MS);
     return () => window.clearTimeout(timer);
   }, []);
@@ -44,7 +44,7 @@ export function AppSplash() {
     <div
       role="presentation"
       onClick={dismiss}
-      className={`fixed inset-0 z-[200] flex items-center justify-center bg-white transition-opacity duration-300 ease-out ${fadingOut ? "pointer-events-none opacity-0" : "opacity-100"}`}
+      className={`fixed inset-0 z-[200] flex items-center justify-center bg-white transition-opacity duration-300 ease-out lg:hidden ${fadingOut ? "pointer-events-none opacity-0" : "opacity-100"}`}
     >
       <Image
         src="/images/splash-logo.png"
@@ -52,6 +52,7 @@ export function AppSplash() {
         width={626}
         height={720}
         priority
+        unoptimized
         className="h-auto w-48 sm:w-56 md:w-64"
       />
     </div>

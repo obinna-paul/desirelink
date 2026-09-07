@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     "services marketplace",
   ],
   robots: PRIVATE_ROBOTS,
-  manifest: "/manifest.json",
+  manifest: "/manifest-v3.json",
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: SITE_NAME,
   },
   openGraph: {

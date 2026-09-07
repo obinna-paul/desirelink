@@ -56,6 +56,50 @@ describe("prepareEditableImage", () => {
     expect(result.type).toBe("image/jpeg");
   });
 
+  it("normalizes through the application when mobile Chrome cannot decode a downloaded photo", async () => {
+    Object.defineProperty(globalThis, "createImageBitmap", {
+      configurable: true,
+      value: jest.fn().mockRejectedValue(new Error("decoder rejected file")),
+    });
+    const originalImage = window.Image;
+    window.Image = class {
+      naturalWidth = 0;
+      naturalHeight = 0;
+      src = "";
+      decode = jest.fn().mockRejectedValue(new Error("decoder rejected file"));
+    } as unknown as typeof Image;
+    const fetchSpy = jest.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/api/upload/profile-preview") && init?.method === "POST") {
+        return Response.json({
+          url: "https://res.cloudinary.com/example/image/upload/normalized.jpg",
+          publicId: "udala/profile-previews/user/photo",
+        });
+      }
+      if (url.startsWith("https://res.cloudinary.com/")) {
+        return new Response(new Blob(["normalized"], { type: "image/jpeg" }), { status: 200 });
+      }
+      if (url.endsWith("/api/upload/profile-preview") && init?.method === "DELETE") {
+        return Response.json({ deleted: true });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    try {
+      const result = await prepareEditableImage(jpegFile());
+
+      expect(result.type).toBe("image/jpeg");
+      expect(result.name).toBe("camera-photo.jpg");
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "/api/upload/profile-preview",
+        expect.objectContaining({ method: "POST" }),
+      );
+    } finally {
+      fetchSpy.mockRestore();
+      window.Image = originalImage;
+    }
+  });
+
   it("rejects non-image files before opening the crop dialog", async () => {
     const file = new File(["not an image"], "notes.txt", { type: "text/plain" });
 

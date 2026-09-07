@@ -27,6 +27,12 @@ const PURPOSES: Record<string, PurposeConfig> = {
     transformation: "c_limit,w_1600,h_1600",
     format: "jpg",
   },
+  "profile-image-normalize": {
+    folder: "udala/profile-previews",
+    resourceType: "image",
+    transformation: "c_limit,w_2400,h_2400,q_auto:good",
+    format: "jpg",
+  },
   "post-video": { folder: "udala/posts", resourceType: "video" },
   "message-image": { folder: "udala/messages", resourceType: "image", transformation: "c_limit,w_1800,h_1800" },
   // Cloudinary has no separate audio endpoint - audio uploads go through resource_type "video".
@@ -56,8 +62,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid upload purpose" }, { status: 400 });
   }
 
+  const folder =
+    purpose === "profile-image-normalize"
+      ? `${config.folder}/${session.user.id}`
+      : config.folder;
   const signed = createSignedUploadParams({
-    folder: config.folder,
+    folder,
     ...(config.transformation ? { transformation: config.transformation } : {}),
     ...(config.format ? { format: config.format } : {}),
   });

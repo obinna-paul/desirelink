@@ -112,9 +112,13 @@ export function withNormalizedMediaType(file: File, mediaType: string): File {
 const MEDIA_TYPES_BY_EXTENSION: Record<string, string> = {
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
+  jfif: "image/jpeg",
   png: "image/png",
   webp: "image/webp",
   gif: "image/gif",
+  bmp: "image/bmp",
+  tif: "image/tiff",
+  tiff: "image/tiff",
   avif: "image/avif",
   heic: "image/heic",
   heif: "image/heif",
