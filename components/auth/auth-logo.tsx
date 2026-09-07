@@ -29,18 +29,13 @@ export function AuthLogo({
       {!hideIcon && (
         <span
           className={cn(
-            "relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl",
+            "relative shrink-0 overflow-hidden rounded-xl bg-contain bg-center bg-no-repeat",
             variant === "dark" ? "bg-white/8" : "bg-[#f8edf3]",
             compact ? "h-11 w-11" : "h-12 w-12"
           )}
+          style={{ backgroundImage: `url(${logoUrl})` }}
           aria-hidden="true"
-        >
-          <span
-            className="absolute inset-0 bg-contain bg-center bg-no-repeat"
-            style={{ backgroundImage: `url(${logoUrl})` }}
-          />
-          <span className="font-brand text-lg font-semibold text-[#8f2ff0]">U</span>
-        </span>
+        />
       )}
       <span
         className={cn(
