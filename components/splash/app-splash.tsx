@@ -3,32 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
+import { hasSeenSplash, markSplashSeen } from "@/lib/app-splash-storage";
+import { isMobileDevice } from "@/lib/device";
+
 /** How long the splash stays on screen before fading into the app. */
 const DISPLAY_MS = 3000;
 const FADE_MS = 300;
-
-/** Persisted so the splash shows once, ever, per device - not on every refresh or
- * app reopen. Deliberately localStorage (survives across tabs/sessions), not
- * sessionStorage (which would still replay it on every fresh tab). */
-const STORAGE_KEY = "udala:splash-seen";
-
-function hasSeenSplash(): boolean {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY) === "1";
-  } catch {
-    // Private browsing or storage disabled - treat as unseen; showing the splash
-    // an extra time is harmless, silently failing to persist is not a bug to surface.
-    return false;
-  }
-}
-
-function markSplashSeen(): void {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, "1");
-  } catch {
-    // See hasSeenSplash - never let a storage failure block dismissal.
-  }
-}
 
 export function AppSplash() {
   const [visible, setVisible] = useState(false);
@@ -43,12 +23,15 @@ export function AppSplash() {
     setTimeout(() => setVisible(false), FADE_MS);
   }
 
-  // Decided client-side only, after mount: the server has no localStorage, so SSR
-  // always renders nothing here - a first-time visitor sees the splash appear a
-  // beat after hydration rather than in the initial HTML, and a returning visitor
-  // never sees it at all, with no server/client markup mismatch either way.
+  // Decided client-side only, after mount: the server has no sessionStorage (or a way
+  // to know the device) to check, so SSR always renders nothing here - the splash
+  // appears a beat after hydration on a real app open rather than in the initial HTML,
+  // and never appears at all on desktop, a refresh, a resume from background, or any
+  // other reload within the same browsing context - either way there's no server/client
+  // markup mismatch. This is a mobile-app-style greeting, not something a laptop
+  // browser tab needs - desktop just opens straight into the app, like before.
   useEffect(() => {
-    if (hasSeenSplash()) return;
+    if (!isMobileDevice() || hasSeenSplash()) return;
 
     setVisible(true);
     const timer = window.setTimeout(dismiss, DISPLAY_MS);

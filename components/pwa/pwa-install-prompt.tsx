@@ -6,6 +6,7 @@ import { Download, EllipsisVertical, Share, Smartphone, SquarePlus, X } from "lu
 
 import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/lib/use-focus-trap";
+import { isMobileDevice } from "@/lib/device";
 
 type InstallChoice = { outcome: "accepted" | "dismissed"; platform: string };
 
@@ -46,10 +47,6 @@ function isIosDevice(): boolean {
 
 function isAndroidDevice(): boolean {
   return /Android/i.test(navigator.userAgent);
-}
-
-function isMobileDevice(): boolean {
-  return /Android|iPad|iPhone|iPod|Mobile/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
 }
 
 export function PwaInstallPrompt() {
