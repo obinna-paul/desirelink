@@ -9,11 +9,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PresenceRing } from "@/components/ui/presence-avatar";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
 import { ImageViewerDialog } from "@/components/profile/image-viewer-dialog";
+import { EditableImageError, prepareEditableImage } from "@/lib/editable-image";
 import type { PresenceStatus } from "@/lib/presence";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const AVATAR_CROP_PRESETS = [{ id: "square", label: "Square", ratio: 1 }] as const;
-const CROP_SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"]);
 
 export function ProfileAvatarEditor({
   avatarUrl,
@@ -33,6 +32,7 @@ export function ProfileAvatarEditor({
   const [preview, setPreview] = useState(avatarUrl);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [showFullView, setShowFullView] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,27 +61,19 @@ export function ProfileAvatarEditor({
     }
   }
 
-  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
     if (inputRef.current) inputRef.current.value = "";
     setError(null);
-
-    if (!file.type.startsWith("image/")) {
-      setError("Choose a photo file.");
-      return;
+    setPreparing(true);
+    try {
+      setPendingFile(await prepareEditableImage(file));
+    } catch (error) {
+      setError(error instanceof EditableImageError ? error.message : "This photo could not be prepared. Try again.");
+    } finally {
+      setPreparing(false);
     }
-    if (file.size > MAX_FILE_SIZE) {
-      setError("Photo must be under 10 MB.");
-      return;
-    }
-
-    if (CROP_SUPPORTED_TYPES.has(file.type)) {
-      setPendingFile(file);
-      return;
-    }
-
-    void upload(file);
   }
 
   const avatarInner = (
@@ -125,11 +117,11 @@ export function ProfileAvatarEditor({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            disabled={uploading}
+            disabled={uploading || preparing}
             aria-label="Change profile photo"
             className="absolute bottom-0 left-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-foreground text-background shadow-sm transition-colors hover:bg-foreground/85 disabled:opacity-60"
           >
-            {uploading ? (
+            {uploading || preparing ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
             ) : (
               <Camera className="h-3.5 w-3.5" aria-hidden="true" />
@@ -142,7 +134,7 @@ export function ProfileAvatarEditor({
         <input
           ref={inputRef}
           type="file"
-          accept="image/*,.heic,.heif,.avif"
+          accept="image/*,.heic,.heif,.avif,.bmp"
           className="hidden"
           onChange={handleFileChange}
         />
@@ -168,7 +160,7 @@ export function ProfileAvatarEditor({
           }}
           onError={() => {
             setPendingFile(null);
-            setError("This photo couldn't be opened. Try a different one, or convert it to JPEG or PNG first.");
+            setError("The photo preview was interrupted. Choose the photo again to retry.");
           }}
         />
       )}

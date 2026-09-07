@@ -5,9 +5,9 @@ import { Camera, Loader2 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
+import { EditableImageError, prepareEditableImage } from "@/lib/editable-image";
 import { cn } from "@/lib/utils";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const AVATAR_CROP_PRESETS = [{ id: "square", label: "Square", ratio: 1 }] as const;
 
 export function AvatarUploader({
@@ -22,26 +22,24 @@ export function AvatarUploader({
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState(defaultUrl);
   const [uploading, setUploading] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (inputRef.current) inputRef.current.value = "";
 
     setError(null);
-
-    if (!file.type.startsWith("image/")) {
-      setError("Please choose an image file");
-      return;
+    setPreparing(true);
+    try {
+      setPendingFile(await prepareEditableImage(file));
+    } catch (error) {
+      setError(error instanceof EditableImageError ? error.message : "This photo could not be prepared. Try again.");
+    } finally {
+      setPreparing(false);
     }
-    if (file.size > MAX_FILE_SIZE) {
-      setError("Image must be under 5MB");
-      return;
-    }
-
-    setPendingFile(file);
-    if (inputRef.current) inputRef.current.value = "";
   }
 
   async function handleCropConfirm({ file }: { file: File; width: number; height: number }) {
@@ -80,7 +78,7 @@ export function AvatarUploader({
           <AvatarImage src={preview} alt="Avatar preview" />
           <AvatarFallback className="text-lg">{fallback}</AvatarFallback>
         </Avatar>
-        {uploading && (
+        {(uploading || preparing) && (
           <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/70">
             <Loader2 className="h-5 w-5 animate-spin text-neon-pink" />
           </div>
@@ -90,18 +88,18 @@ export function AvatarUploader({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          disabled={uploading}
+          disabled={uploading || preparing}
           className={cn(
             "inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:rounded-md"
           )}
         >
           <Camera className="h-4 w-4" />
-          {uploading ? "Uploading..." : "Change photo"}
+          {preparing ? "Preparing..." : uploading ? "Uploading..." : "Change photo"}
         </button>
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,.heic,.heif,.avif,.bmp"
           className="hidden"
           onChange={handleFileChange}
         />
@@ -116,6 +114,10 @@ export function AvatarUploader({
           title="Adjust your photo"
           onCancel={handleCropCancel}
           onConfirm={handleCropConfirm}
+          onError={() => {
+            setPendingFile(null);
+            setError("The photo preview was interrupted. Choose the photo again to retry.");
+          }}
         />
       )}
     </div>

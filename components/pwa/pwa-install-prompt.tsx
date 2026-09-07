@@ -212,7 +212,7 @@ export function PwaInstallPrompt() {
           className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.5rem)] z-[100] mx-auto flex max-w-md items-center gap-3 rounded-lg border border-white/10 bg-[#0a0a0b] p-2.5 pr-2 text-white shadow-[0_12px_35px_rgba(0,0,0,0.28)] motion-safe:animate-in motion-safe:slide-in-from-top-2 motion-safe:duration-300 lg:hidden"
         >
           <Image
-            src="/icons/icon-192x192.png"
+            src="/icons/udala-app-192-v2.png"
             width={44}
             height={44}
             alt=""

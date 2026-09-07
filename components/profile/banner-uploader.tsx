@@ -6,44 +6,37 @@ import { useRouter } from "next/navigation";
 import { Camera, ImagePlus, Loader2, Plus } from "lucide-react";
 
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
+import { EditableImageError, prepareEditableImage } from "@/lib/editable-image";
 import { cn } from "@/lib/utils";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const BANNER_CROP_PRESETS = [
   { id: "desktop", label: "Web 16:5", ratio: 16 / 5 },
   { id: "mobile", label: "Mobile 3:1", ratio: 3 },
 ] as const;
-const CROP_SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"]);
 
 export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState(bannerUrl);
   const [uploading, setUploading] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (inputRef.current) inputRef.current.value = "";
 
     setError(null);
-
-    if (!file.type.startsWith("image/")) {
-      setError("Please choose an image file");
-      return;
+    setPreparing(true);
+    try {
+      setPendingFile(await prepareEditableImage(file));
+    } catch (error) {
+      setError(error instanceof EditableImageError ? error.message : "This photo could not be prepared. Try again.");
+    } finally {
+      setPreparing(false);
     }
-    if (file.size > MAX_FILE_SIZE) {
-      setError("Image must be under 10 MB");
-      return;
-    }
-
-    if (CROP_SUPPORTED_TYPES.has(file.type)) {
-      setPendingFile(file);
-    } else {
-      void upload(file);
-    }
-    if (inputRef.current) inputRef.current.value = "";
   }
 
   async function upload(file: File) {
@@ -82,7 +75,7 @@ export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
 
   function handleCropError() {
     setPendingFile(null);
-    setError("This photo couldn't be opened. Try a different one, or convert it to JPEG or PNG first.");
+    setError("The banner preview was interrupted. Choose the photo again to retry.");
   }
 
   return (
@@ -110,7 +103,7 @@ export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
         <span className="hidden md:inline">16:5, 1600×500+</span>
       </p>
 
-      {uploading && (
+      {(uploading || preparing) && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/60">
           <Loader2 className="h-6 w-6 animate-spin text-neon-pink" aria-hidden="true" />
         </div>
@@ -119,7 +112,7 @@ export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        disabled={uploading}
+        disabled={uploading || preparing}
         className={cn(
           "absolute bottom-2 right-2 flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60",
           preview
@@ -138,7 +131,7 @@ export function BannerUploader({ bannerUrl }: { bannerUrl: string }) {
         )}
       </button>
 
-      <input ref={inputRef} type="file" accept="image/*,.heic,.heif,.avif" className="hidden" onChange={handleFileChange} />
+      <input ref={inputRef} type="file" accept="image/*,.heic,.heif,.avif,.bmp" className="hidden" onChange={handleFileChange} />
 
       {error && (
         <p role="alert" className="absolute bottom-3 left-3 max-w-[60%] rounded-lg bg-background/90 px-2.5 py-1.5 text-xs text-destructive">
