@@ -90,9 +90,10 @@ export function ReportDialog({
         <button
           type="button"
           onClick={openDialog}
-          className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-destructive hover:bg-destructive/10"
+          className="flex min-h-11 w-full items-center justify-start gap-3 rounded-lg px-3 text-left text-sm font-medium text-destructive hover:bg-destructive/10"
         >
-          <Flag className="h-4 w-4" aria-hidden="true" /> {label}
+          <Flag className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1 text-left leading-5">{label}</span>
         </button>
       ) : variant === "icon" ? (
         <button

@@ -36,12 +36,14 @@ function MenuRow({
       onClick={handleClick}
       disabled={state !== "idle"}
       className={cn(
-        "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-foreground hover:bg-accent",
+        "flex min-h-11 w-full items-center justify-start gap-3 rounded-lg px-3 text-left text-sm font-medium text-foreground hover:bg-accent",
         state === "done" && "text-muted-foreground",
       )}
     >
-      <Icon className="h-4 w-4" aria-hidden="true" />
-      {state === "done" ? doneLabel : label}
+      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1 text-left leading-5">
+        {state === "done" ? doneLabel : label}
+      </span>
     </button>
   );
 }
@@ -71,14 +73,14 @@ function SaveMenuRow({ postId, initiallySaved }: { postId: string; initiallySave
       type="button"
       onClick={handleClick}
       disabled={pending}
-      className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-foreground hover:bg-accent"
+      className="flex min-h-11 w-full items-center justify-start gap-3 rounded-lg px-3 text-left text-sm font-medium text-foreground hover:bg-accent"
     >
       {saved ? (
         <BookmarkCheck className="h-4 w-4" aria-hidden="true" />
       ) : (
         <Bookmark className="h-4 w-4" aria-hidden="true" />
       )}
-      {saved ? "Saved" : "Save"}
+      <span className="min-w-0 flex-1 text-left leading-5">{saved ? "Saved" : "Save"}</span>
     </button>
   );
 }
