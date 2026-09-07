@@ -6,11 +6,21 @@ const navigation = require("next/navigation") as {
   __setPathname: (pathname: string) => void;
 };
 
-function setDevice(userAgent: string, standalone = false) {
+function setDevice(
+  userAgent: string,
+  standalone = false,
+  installedRelatedApps?: Array<{ platform: string; url?: string }>,
+) {
   Object.defineProperty(navigator, "userAgent", { value: userAgent, configurable: true });
   Object.defineProperty(navigator, "platform", { value: "", configurable: true });
   Object.defineProperty(navigator, "maxTouchPoints", { value: 5, configurable: true });
   Object.defineProperty(navigator, "standalone", { value: standalone, configurable: true });
+  Object.defineProperty(navigator, "getInstalledRelatedApps", {
+    value: installedRelatedApps
+      ? jest.fn(async () => installedRelatedApps)
+      : undefined,
+    configurable: true,
+  });
   window.matchMedia = jest.fn().mockImplementation((query: string) => ({
     matches: standalone && query === "(display-mode: standalone)",
     media: query,
@@ -78,12 +88,37 @@ describe("PwaInstallPrompt", () => {
     expect(screen.queryByText("Keep Udala close")).not.toBeInTheDocument();
   });
 
-  it("does not show the authentication prompt on logged-in routes", () => {
+  it("prompts again on logged-in routes when Android reports the PWA was uninstalled", async () => {
     navigation.__setPathname("/messages");
-    setDevice("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile");
+    setDevice(
+      "Mozilla/5.0 (Linux; Android 15; Mobile) AppleWebKit/537.36 Chrome/140 Mobile",
+      false,
+      [],
+    );
 
     render(<PwaInstallPrompt />);
 
+    expect(await screen.findByText("Keep Udala close")).toBeInTheDocument();
+    expect(screen.getByText("Reinstall Udala from Chrome.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "How" }));
+    expect(screen.getByRole("dialog", { name: "Add Udala back to your phone" })).toBeInTheDocument();
+  });
+
+  it("does not prompt in Chrome when Android reports the PWA is installed", async () => {
+    setDevice(
+      "Mozilla/5.0 (Linux; Android 15; Mobile) AppleWebKit/537.36 Chrome/140 Mobile",
+      false,
+      [{ platform: "webapp", url: "/manifest.json" }],
+    );
+
+    render(<PwaInstallPrompt />);
+
+    await waitFor(() => {
+      expect(
+        (navigator as Navigator & { getInstalledRelatedApps: jest.Mock })
+          .getInstalledRelatedApps,
+      ).toHaveBeenCalledTimes(1);
+    });
     expect(screen.queryByText("Keep Udala close")).not.toBeInTheDocument();
   });
 });

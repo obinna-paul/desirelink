@@ -14,6 +14,12 @@
   "dir": "ltr",
   "categories": ["social", "entertainment", "lifestyle"],
   "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "/manifest.json"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Home",
