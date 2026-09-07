@@ -5,7 +5,7 @@ import { AppSplash } from "@/components/splash/app-splash";
 describe("AppSplash", () => {
   beforeEach(() => {
     jest.useFakeTimers();
-    window.localStorage.clear();
+    window.sessionStorage.clear();
   });
 
   afterEach(() => {
@@ -13,10 +13,10 @@ describe("AppSplash", () => {
       jest.runOnlyPendingTimers();
     });
     jest.useRealTimers();
-    window.localStorage.clear();
+    window.sessionStorage.clear();
   });
 
-  it("renders the logo on a plain white, full-screen background on a first-ever visit", () => {
+  it("renders the logo on a plain white, full-screen background on a real app open", () => {
     render(<AppSplash />);
 
     const overlay = screen.getByRole("presentation");
@@ -64,20 +64,23 @@ describe("AppSplash", () => {
       jest.advanceTimersByTime(300);
     });
 
-    expect(window.localStorage.getItem("udala:splash-seen")).toBe("1");
+    expect(window.sessionStorage.getItem("udala:splash-seen")).toBe("1");
   });
 
-  it("never renders again on a later mount (a page refresh or reopening the app)", () => {
-    window.localStorage.setItem("udala:splash-seen", "1");
+  it("does not render again within the same browsing context - a page refresh, or resuming from background", () => {
+    // sessionStorage survives a reload/remount within the same tab, which is exactly
+    // what a refresh or a background-then-resume looks like from the page's own
+    // perspective - this is what makes AppSplash skip itself in both cases.
+    window.sessionStorage.setItem("udala:splash-seen", "1");
 
     render(<AppSplash />);
 
     expect(screen.queryByRole("presentation")).not.toBeInTheDocument();
   });
 
-  it("shows again if local storage is unavailable, but never throws", () => {
-    const realLocalStorage = window.localStorage;
-    Object.defineProperty(window, "localStorage", {
+  it("shows again if session storage is unavailable, but never throws", () => {
+    const realSessionStorage = window.sessionStorage;
+    Object.defineProperty(window, "sessionStorage", {
       configurable: true,
       value: {
         getItem: () => {
@@ -93,7 +96,7 @@ describe("AppSplash", () => {
       expect(() => render(<AppSplash />)).not.toThrow();
       expect(screen.getByRole("presentation")).toBeInTheDocument();
     } finally {
-      Object.defineProperty(window, "localStorage", { configurable: true, value: realLocalStorage });
+      Object.defineProperty(window, "sessionStorage", { configurable: true, value: realSessionStorage });
     }
   });
 });
