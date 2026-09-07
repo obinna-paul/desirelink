@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
@@ -33,5 +33,19 @@ describe("navigation", () => {
     expect(screen.getByRole("link", { name: /discover/i })).toHaveAttribute("href", "/discover");
     expect(screen.getByRole("link", { name: /create/i })).toHaveAttribute("href", "/create");
     expect(screen.getByRole("link", { name: /messages/i })).toHaveAttribute("href", "/messages");
+    expect(screen.getByRole("link", { name: /messages/i })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("animates the selected mobile icon and preserves parent state on nested routes", () => {
+    navigation.__setPathname("/profile/edit");
+    render(<BottomNav />);
+
+    const profile = screen.getByRole("link", { name: /profile/i });
+    expect(profile).toHaveAttribute("aria-current", "page");
+    expect(profile.querySelector("svg")).toHaveClass("nav-icon-profile");
+
+    const discover = screen.getByRole("link", { name: /discover/i });
+    fireEvent.click(discover);
+    expect(discover.querySelector("svg")).toHaveClass("nav-icon-discover");
   });
 });

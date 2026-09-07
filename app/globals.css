@@ -218,6 +218,69 @@
     animation: chat-recording-wave 0.9s ease-in-out infinite alternate;
     transform-origin: center;
   }
+
+  .nav-icon-glyph {
+    transform-origin: center;
+  }
+
+  .nav-icon-home {
+    animation: nav-home-settle 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .nav-icon-discover {
+    animation: nav-discover-turn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .nav-icon-create {
+    animation: nav-create-turn 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .nav-icon-messages {
+    animation: nav-message-nod 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .nav-icon-profile {
+    animation: nav-profile-rise 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .nav-icon-settle {
+    animation: nav-icon-settle 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes nav-home-settle {
+  0% { transform: translateY(2px) scale(0.88); }
+  58% { transform: translateY(-1px) scale(1.06); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes nav-discover-turn {
+  0% { transform: rotate(-18deg) scale(0.92); }
+  62% { transform: rotate(7deg) scale(1.04); }
+  100% { transform: rotate(0) scale(1); }
+}
+
+@keyframes nav-create-turn {
+  0% { transform: rotate(-45deg) scale(0.9); }
+  68% { transform: rotate(8deg) scale(1.04); }
+  100% { transform: rotate(0) scale(1); }
+}
+
+@keyframes nav-message-nod {
+  0% { transform: translateY(1px) rotate(-5deg) scale(0.92); }
+  55% { transform: translateY(-1px) rotate(3deg) scale(1.04); }
+  100% { transform: translateY(0) rotate(0) scale(1); }
+}
+
+@keyframes nav-profile-rise {
+  0% { transform: translateY(2px) scale(0.9); }
+  60% { transform: translateY(-1px) scale(1.05); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes nav-icon-settle {
+  0% { transform: scale(0.92); opacity: 0.72; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 @keyframes chat-typing-bounce {
@@ -262,6 +325,15 @@
 
 
   .chat-recording-bar {
+    animation: none;
+  }
+
+  .nav-icon-home,
+  .nav-icon-discover,
+  .nav-icon-create,
+  .nav-icon-messages,
+  .nav-icon-profile,
+  .nav-icon-settle {
     animation: none;
   }
 }
