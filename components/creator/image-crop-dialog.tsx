@@ -46,6 +46,8 @@ export function ImageCropDialog({
   );
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
+  const [decodedBitmap, setDecodedBitmap] = useState<ImageBitmap | null>(null);
+  const canvasPreviewRef = useRef<HTMLCanvasElement>(null);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState<Offset>({ x: 0, y: 0 });
   const [frameWidth, setFrameWidth] = useState(0);
@@ -66,6 +68,7 @@ export function ImageCropDialog({
     let settled = false;
     const url = URL.createObjectURL(file);
     setImageUrl(url);
+    setDecodedBitmap(null);
 
     function decodeWithImgElement() {
       const img = new window.Image();
@@ -85,10 +88,13 @@ export function ImageCropDialog({
     // createImageBitmap decodes a noticeably broader range of formats and color profiles
     // (CMYK JPEGs, some HEIC/AVIF variants, unusual ICC profiles) more reliably than a
     // plain <img> element across browsers, and reports real dimensions without needing
-    // layout at all. Try it first, purely to confirm decodability and read the size - the
-    // pan/zoom preview below still renders through the <img> element either way. Fall back
-    // to the <img>-based attempt (not straight to onError) if it's unavailable or itself
-    // fails, since a handful of files decode one way but not the other.
+    // layout at all. Try it first. Critically, the pan/zoom preview below is then drawn
+    // from this SAME decoded bitmap (via canvas) rather than asking a separate <img> tag
+    // to redundantly decode the same blob - the two decoders don't always agree, and a
+    // file this succeeds on but a plain <img> can't paint used to leave a blank preview
+    // with an enabled confirm button instead of visibly failing. Fall back to the
+    // <img>-based attempt (not straight to onError) if createImageBitmap is unavailable
+    // or itself fails, since a handful of files decode one way but not the other.
     if (typeof createImageBitmap === "function") {
       createImageBitmap(file)
         .then((bitmap) => {
@@ -98,7 +104,7 @@ export function ImageCropDialog({
           }
           settled = true;
           setNaturalSize({ width: bitmap.width, height: bitmap.height });
-          bitmap.close();
+          setDecodedBitmap(bitmap);
         })
         .catch(() => {
           if (!cancelled) decodeWithImgElement();
@@ -150,6 +156,25 @@ export function ImageCropDialog({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Releases the previously decoded bitmap whenever it's replaced or the dialog unmounts -
+  // an ImageBitmap holds real decoded pixel memory that isn't freed by garbage collection alone.
+  useEffect(() => {
+    return () => {
+      decodedBitmap?.close();
+    };
+  }, [decodedBitmap]);
+
+  // Paints the bitmap once, at its natural size; pan/zoom is then just a CSS transform on
+  // this canvas, identical to how the <img> fallback below is transformed.
+  useEffect(() => {
+    if (!decodedBitmap) return;
+    const canvas = canvasPreviewRef.current;
+    if (!canvas) return;
+    canvas.width = decodedBitmap.width;
+    canvas.height = decodedBitmap.height;
+    canvas.getContext("2d")?.drawImage(decodedBitmap, 0, 0);
+  }, [decodedBitmap]);
 
   const preset = presets.find((option) => option.id === presetId) ?? presets[0];
   const isCroppable = preset.ratio !== null;
@@ -203,12 +228,24 @@ export function ImageCropDialog({
   }
 
   async function handleConfirm() {
-    if (!naturalSize || !imageUrl) return;
+    if (!naturalSize) return;
 
     try {
-      const img = new window.Image();
-      img.src = imageUrl;
-      await img.decode();
+      // Reuse the already-decoded bitmap when we have one, rather than asking a fresh
+      // <img> to redundantly decode the same blob a second time - the whole point of
+      // preferring createImageBitmap up front is that it's the more reliable decoder, so
+      // the final crop should draw from it too, not fall back to the less reliable one.
+      let source: CanvasImageSource;
+      if (decodedBitmap) {
+        source = decodedBitmap;
+      } else if (imageUrl) {
+        const img = new window.Image();
+        img.src = imageUrl;
+        await img.decode();
+        source = img;
+      } else {
+        throw new Error("no decoded image source available");
+      }
 
       let sx = 0;
       let sy = 0;
@@ -234,7 +271,7 @@ export function ImageCropDialog({
       canvas.height = outH;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("2d context unavailable");
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
+      ctx.drawImage(source, sx, sy, sw, sh, 0, 0, outW, outH);
 
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
       if (!blob) throw new Error("canvas produced no blob");
@@ -291,7 +328,23 @@ export function ImageCropDialog({
               cursor: isCroppable ? "grab" : "default",
             }}
           >
-            {imageUrl && naturalSize && frameWidth > 0 && (
+            {decodedBitmap && naturalSize && frameWidth > 0 && (
+              // Painted from the same bitmap createImageBitmap already decoded (see the
+              // draw effect above) - pan/zoom is purely this CSS transform, no redraw.
+              <canvas
+                ref={canvasPreviewRef}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
+                style={{
+                  width: naturalSize.width,
+                  height: naturalSize.height,
+                  transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px) scale(${displayScale})`,
+                }}
+              />
+            )}
+            {!decodedBitmap && imageUrl && naturalSize && frameWidth > 0 && (
+              // Fallback when createImageBitmap itself failed - the plain <img> path that
+              // did succeed (see decodeWithImgElement above) renders the preview here.
               // eslint-disable-next-line @next/next/no-img-element -- local blob preview with a live pan/zoom transform; next/image's wrapper doesn't fit this interaction and there's no remote optimization to gain
               <img
                 src={imageUrl}
