@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
 import { hasSeenSplash, markSplashSeen } from "@/lib/app-splash-storage";
+import { isMobileDevice } from "@/lib/device";
 
 /** How long the splash stays on screen before fading into the app. */
 const DISPLAY_MS = 3000;
@@ -22,13 +23,15 @@ export function AppSplash() {
     setTimeout(() => setVisible(false), FADE_MS);
   }
 
-  // Decided client-side only, after mount: the server has no sessionStorage, so SSR
-  // always renders nothing here - the splash appears a beat after hydration on a real
-  // app open rather than in the initial HTML, and never appears at all on a refresh,
-  // resume from background, or any other reload within the same browsing context -
-  // either way there's no server/client markup mismatch.
+  // Decided client-side only, after mount: the server has no sessionStorage (or a way
+  // to know the device) to check, so SSR always renders nothing here - the splash
+  // appears a beat after hydration on a real app open rather than in the initial HTML,
+  // and never appears at all on desktop, a refresh, a resume from background, or any
+  // other reload within the same browsing context - either way there's no server/client
+  // markup mismatch. This is a mobile-app-style greeting, not something a laptop
+  // browser tab needs - desktop just opens straight into the app, like before.
   useEffect(() => {
-    if (hasSeenSplash()) return;
+    if (!isMobileDevice() || hasSeenSplash()) return;
 
     setVisible(true);
     const timer = window.setTimeout(dismiss, DISPLAY_MS);

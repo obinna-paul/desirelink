@@ -2,10 +2,19 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import { AppSplash } from "@/components/splash/app-splash";
 
+const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148";
+const DESKTOP_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36";
+
+function setDevice(userAgent: string, maxTouchPoints = 0) {
+  Object.defineProperty(navigator, "userAgent", { value: userAgent, configurable: true });
+  Object.defineProperty(navigator, "maxTouchPoints", { value: maxTouchPoints, configurable: true });
+}
+
 describe("AppSplash", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     window.sessionStorage.clear();
+    setDevice(MOBILE_UA);
   });
 
   afterEach(() => {
@@ -98,5 +107,18 @@ describe("AppSplash", () => {
     } finally {
       Object.defineProperty(window, "sessionStorage", { configurable: true, value: realSessionStorage });
     }
+  });
+
+  it("never renders on a desktop/laptop browser - it's a mobile-app-style greeting only", () => {
+    setDevice(DESKTOP_UA);
+
+    render(<AppSplash />);
+
+    act(() => {
+      jest.advanceTimersByTime(0);
+    });
+
+    expect(screen.queryByRole("presentation")).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem("udala:splash-seen")).toBeNull();
   });
 });
