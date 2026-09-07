@@ -28,44 +28,65 @@ export function getPresenceDestination({
     : `/profile/${username}`;
 }
 
+const INDICATOR_POSITION = {
+  "top-right": { online: "-right-0.5 -top-0.5", live: "-right-1 -top-1" },
+  "bottom-right": { online: "-bottom-1 -right-1", live: "-bottom-1 -right-1" },
+} as const;
+
 /** The colored ring itself - offline/online/live are fixed tokens, independent of the
- * viewer's own account-type theme, so a ring means the same thing on every page. */
+ * viewer's own account-type theme, so a ring means the same thing on every page. The
+ * ring hugs its child with zero gap (no internal padding) so it reads as the avatar's
+ * own frame rather than a halo floating around it. */
 export function PresenceRing({
   status,
   size = "h-12 w-12",
+  indicatorPosition = "top-right",
+  indicatorSize = "h-3.5 w-3.5",
+  liveIndicatorSize = "h-5 w-5",
   className,
   children,
 }: {
   status: PresenceStatus;
   size?: string;
+  /** Bottom-right is the conventional spot for a presence dot - default stays
+   * top-right so existing small-avatar call sites (post cards, comment lists, the
+   * live ring row) render unchanged. */
+  indicatorPosition?: "top-right" | "bottom-right";
+  indicatorSize?: string;
+  liveIndicatorSize?: string;
   className?: string;
   children: React.ReactNode;
 }) {
+  const position = INDICATOR_POSITION[indicatorPosition];
+
   return (
     <div
       data-presence-status={status}
-      className={cn(
-        "relative shrink-0 rounded-full p-[2px] ring-2",
-        size,
-        RING_CLASS[status],
-        className,
-      )}
+      className={cn("relative shrink-0 rounded-full ring-2", size, RING_CLASS[status], className)}
     >
       {children}
       {status === "live" && (
         <span
           data-presence-indicator="live"
-          className="absolute -right-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-presence-live text-white ring-2 ring-card"
+          className={cn(
+            "absolute z-10 flex items-center justify-center rounded-full bg-presence-live text-white ring-2 ring-card",
+            position.live,
+            liveIndicatorSize,
+          )}
           aria-hidden="true"
         >
           <span className="absolute inset-0 animate-ping rounded-full bg-presence-live/45 motion-reduce:animate-none" />
-          <Radio className="relative h-3 w-3" strokeWidth={2.5} />
+          <Radio className="relative h-[60%] w-[60%]" strokeWidth={2.5} />
         </span>
       )}
       {status === "online" && (
         <span
           data-presence-indicator="online"
-          className="absolute -right-0.5 -top-0.5 z-10 h-3.5 w-3.5 rounded-full border-2 border-card bg-presence-online shadow-sm"
+          className={cn(
+            "absolute z-10 rounded-full border-2 border-card bg-presence-online shadow-sm",
+            position.online,
+            indicatorSize,
+          )}
           aria-hidden="true"
         />
       )}

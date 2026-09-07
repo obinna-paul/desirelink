@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { PwaInstallPrompt } from "@/components/pwa/pwa-install-prompt";
+import { AppSplash } from "@/components/splash/app-splash";
 import { DEFAULT_DESCRIPTION, DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL } from "@/lib/site-config";
 import { PRIVATE_ROBOTS } from "@/lib/seo";
 
@@ -108,6 +109,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body className="antialiased">
+        <AppSplash />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} storageKey="udala-theme">
           <SessionProvider>
             {children}
