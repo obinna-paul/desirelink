@@ -223,64 +223,94 @@
     transform-origin: center;
   }
 
+  .app-bottom-nav {
+    contain: layout paint;
+    overflow: hidden;
+    overflow: clip;
+  }
+
+  .nav-icon-halo {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    height: 2rem;
+    width: 2rem;
+    border-radius: 9999px;
+    background: hsl(var(--primary) / 0.16);
+    transform: translate(-50%, -50%) scale(0.55);
+    animation: nav-icon-halo 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    pointer-events: none;
+  }
+
   .nav-icon-home {
-    animation: nav-home-settle 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: nav-home-arrive 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   .nav-icon-discover {
-    animation: nav-discover-turn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: nav-discover-sweep 540ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   .nav-icon-create {
-    animation: nav-create-turn 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: nav-create-open 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   .nav-icon-messages {
-    animation: nav-message-nod 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: nav-message-pop 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   .nav-icon-profile {
-    animation: nav-profile-rise 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: nav-profile-presence 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   .nav-icon-settle {
-    animation: nav-icon-settle 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: nav-icon-settle 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 }
 
-@keyframes nav-home-settle {
-  0% { transform: translateY(2px) scale(0.88); }
-  58% { transform: translateY(-1px) scale(1.06); }
-  100% { transform: translateY(0) scale(1); }
+@keyframes nav-icon-halo {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.45); }
+  42% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.45); }
 }
 
-@keyframes nav-discover-turn {
-  0% { transform: rotate(-18deg) scale(0.92); }
-  62% { transform: rotate(7deg) scale(1.04); }
+@keyframes nav-home-arrive {
+  0% { transform: rotate(-8deg) scale(0.72); }
+  48% { transform: rotate(3deg) scale(1.16); }
+  72% { transform: rotate(-1deg) scale(0.96); }
   100% { transform: rotate(0) scale(1); }
 }
 
-@keyframes nav-create-turn {
-  0% { transform: rotate(-45deg) scale(0.9); }
-  68% { transform: rotate(8deg) scale(1.04); }
+@keyframes nav-discover-sweep {
+  0% { transform: rotate(-125deg) scale(0.72); }
+  55% { transform: rotate(18deg) scale(1.14); }
+  76% { transform: rotate(-6deg) scale(0.98); }
   100% { transform: rotate(0) scale(1); }
 }
 
-@keyframes nav-message-nod {
-  0% { transform: translateY(1px) rotate(-5deg) scale(0.92); }
-  55% { transform: translateY(-1px) rotate(3deg) scale(1.04); }
-  100% { transform: translateY(0) rotate(0) scale(1); }
+@keyframes nav-create-open {
+  0% { transform: rotate(-90deg) scale(0.68); }
+  55% { transform: rotate(12deg) scale(1.16); }
+  76% { transform: rotate(-4deg) scale(0.98); }
+  100% { transform: rotate(0) scale(1); }
 }
 
-@keyframes nav-profile-rise {
-  0% { transform: translateY(2px) scale(0.9); }
-  60% { transform: translateY(-1px) scale(1.05); }
-  100% { transform: translateY(0) scale(1); }
+@keyframes nav-message-pop {
+  0% { transform: rotate(-10deg) scale(0.7); }
+  50% { transform: rotate(6deg) scale(1.18); }
+  74% { transform: rotate(-2deg) scale(0.96); }
+  100% { transform: rotate(0) scale(1); }
+}
+
+@keyframes nav-profile-presence {
+  0% { transform: scaleX(0.72) scaleY(0.78); }
+  48% { transform: scaleX(1.14) scaleY(1.08); }
+  72% { transform: scaleX(0.97) scaleY(1.02); }
+  100% { transform: scale(1); }
 }
 
 @keyframes nav-icon-settle {
-  0% { transform: scale(0.92); opacity: 0.72; }
-  100% { transform: scale(1); opacity: 1; }
+  0% { transform: rotate(-7deg) scale(0.76); opacity: 0.7; }
+  58% { transform: rotate(3deg) scale(1.1); opacity: 1; }
+  100% { transform: rotate(0) scale(1); opacity: 1; }
 }
 
 @keyframes chat-typing-bounce {
@@ -333,7 +363,12 @@
   .nav-icon-create,
   .nav-icon-messages,
   .nav-icon-profile,
-  .nav-icon-settle {
+  .nav-icon-settle,
+  .nav-icon-halo {
     animation: none;
+  }
+
+  .nav-icon-halo {
+    display: none;
   }
 }

@@ -30,10 +30,20 @@ describe("navigation", () => {
     navigation.__setPathname("/messages");
     render(<BottomNav />);
 
+    expect(screen.getByRole("navigation", { name: /primary navigation/i })).toHaveClass(
+      "app-bottom-nav",
+      "h-[calc(4rem+env(safe-area-inset-bottom))]"
+    );
     expect(screen.getByRole("link", { name: /discover/i })).toHaveAttribute("href", "/discover");
     expect(screen.getByRole("link", { name: /create/i })).toHaveAttribute("href", "/create");
     expect(screen.getByRole("link", { name: /messages/i })).toHaveAttribute("href", "/messages");
     expect(screen.getByRole("link", { name: /messages/i })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: /messages/i }).querySelector("svg")).toHaveClass(
+      "nav-icon-messages"
+    );
+    expect(
+      screen.getByRole("link", { name: /messages/i }).querySelector(".nav-icon-halo")
+    ).toBeInTheDocument();
   });
 
   it("animates the selected mobile icon and preserves parent state on nested routes", () => {

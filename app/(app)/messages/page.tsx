@@ -59,8 +59,8 @@ export default async function MessagesPage({
     : "none";
 
   return (
-    <div className="-mx-4 -mt-4 md:mx-auto md:mt-0 md:max-w-6xl">
-      <div className="flex h-[calc(100dvh-8.25rem)] min-h-[520px] overflow-hidden border-y border-border/60 bg-card md:h-[calc(100vh-9.5rem)] md:min-h-[560px] md:rounded-lg md:border md:shadow-sm">
+    <div className="-mx-3 -mt-4 md:mx-auto md:mt-0 md:max-w-6xl">
+      <div className="flex h-[calc(100dvh-8.25rem)] min-h-0 overflow-hidden border-y border-border/60 bg-card md:h-[calc(100vh-9.5rem)] md:min-h-[560px] md:rounded-lg md:border md:shadow-sm">
         <div
           className={cn(
             "w-full shrink-0 border-r border-border/60 md:w-[320px]",

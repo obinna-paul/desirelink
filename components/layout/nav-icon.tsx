@@ -24,17 +24,21 @@ export function NavIcon({
   className?: string;
 }) {
   return (
-    <Icon
-      className={cn(
-        "nav-icon-glyph",
-        animate && (motionClassByHref[href] ?? "nav-icon-settle"),
-        active ? "text-primary" : "text-muted-foreground",
-        active && href === "/" && "fill-primary/10",
-        active && href === "/messages" && "fill-primary/10",
-        className,
-      )}
-      aria-hidden="true"
-      strokeWidth={active ? 2.25 : 2}
-    />
+    <span className="relative inline-flex items-center justify-center">
+      {animate && <span className="nav-icon-halo" aria-hidden="true" />}
+      <Icon
+        className={cn(
+          "nav-icon-glyph relative z-[1]",
+          animate && (motionClassByHref[href] ?? "nav-icon-settle"),
+          active ? "text-primary" : "text-muted-foreground",
+          active && href === "/" && "fill-primary/10",
+          active && href === "/messages" && "fill-primary/10",
+          active && href === "/profile" && "fill-primary/10",
+          className,
+        )}
+        aria-hidden="true"
+        strokeWidth={active ? 2.35 : 2}
+      />
+    </span>
   );
 }

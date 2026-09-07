@@ -26,7 +26,7 @@ export function BottomNav({
   return (
     <nav
       aria-label="Primary navigation"
-      className="fixed inset-x-0 bottom-0 z-40 flex min-h-16 items-center justify-around border-t border-border bg-card px-1 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] pt-1 shadow-[0_-10px_30px_rgba(35,25,15,0.08)] md:hidden"
+      className="app-bottom-nav fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-start justify-around border-t border-border bg-card px-1 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-10px_30px_rgba(35,25,15,0.08)] md:hidden"
     >
       {items.map((item) => {
         const active =
@@ -47,9 +47,9 @@ export function BottomNav({
                 [item.href]: (current[item.href] ?? 0) + 1,
               }));
             }}
-            className="group flex min-h-12 flex-1 flex-col items-center justify-center py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            className="group flex h-[3.75rem] flex-1 flex-col items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           >
-            <span className="flex flex-col items-center gap-0.5 px-2 py-1 transition-transform duration-150 ease-out group-active:scale-[0.96] motion-reduce:transform-none">
+            <span className="flex flex-col items-center gap-0.5 px-2 py-1 transition-transform duration-150 ease-out group-active:scale-[0.93] motion-reduce:transform-none">
               <span
                 className={cn(
                   "relative flex h-8 w-10 items-center justify-center rounded-full transition-[background-color,color] duration-200",
