@@ -26,7 +26,7 @@ export function BottomNav({
   return (
     <nav
       aria-label="Primary navigation"
-      className="app-bottom-nav fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-center justify-around border-t border-border bg-card px-1 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] pt-1 shadow-[0_-10px_30px_rgba(35,25,15,0.08)] md:hidden"
+      className="app-bottom-nav fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-center justify-around border-t border-border bg-card px-1 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-1 shadow-[0_-10px_30px_rgba(35,25,15,0.08)] md:hidden"
     >
       {items.map((item) => {
         const active =
