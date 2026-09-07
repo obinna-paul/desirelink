@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CheckCircle2, LifeBuoy, Mail, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,139 @@ export function HelpSupportSheet({ defaultEmail }: { defaultEmail: string }) {
     setDragOffset(0);
   }
 
+  const sheet = rendered ? (
+    <div className="fixed inset-0 z-[70]" aria-hidden={!open}>
+      <div
+        className={cn(
+          "absolute inset-0 bg-foreground/45 backdrop-blur-[1px] transition-opacity motion-reduce:transition-none",
+          visible ? "opacity-100 duration-300" : "opacity-0 duration-200"
+        )}
+        onClick={closeSheet}
+      />
+      <div
+        ref={sheetRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="help-support-title"
+        className={cn(
+          "absolute inset-x-0 bottom-0 flex max-h-[calc(100dvh-0.75rem)] flex-col overflow-hidden rounded-t-[22px] bg-card shadow-lift transition-transform motion-reduce:transition-none sm:inset-x-auto sm:bottom-4 sm:right-4 sm:max-h-[min(90dvh,52rem)] sm:w-full sm:max-w-md sm:rounded-[22px]",
+          visible ? "translate-y-0 duration-300 ease-out" : "translate-y-full duration-200 ease-in"
+        )}
+        style={dragState.current?.dragging ? { transform: `translateY(${dragOffset}px)`, transition: "none" } : undefined}
+      >
+        <div
+          className="flex shrink-0 cursor-grab touch-none flex-col items-center pb-1 pt-2.5 active:cursor-grabbing sm:hidden"
+          onPointerDown={handleDragStart}
+          onPointerMove={handleDragMove}
+          onPointerUp={handleDragEnd}
+          onPointerCancel={handleDragEnd}
+        >
+          <span className="h-1 w-9 rounded-full bg-border" aria-hidden="true" />
+        </div>
+
+        {status === "sent" ? (
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-10 text-center sm:py-10">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+              <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
+            </span>
+            <p className="font-heading text-lg font-semibold text-foreground">Message sent</p>
+            <p className="max-w-xs text-sm text-muted-foreground">
+              Thanks for reaching out — a real person will reply to {email || "your email"} within 24 hours,
+              usually much sooner.
+            </p>
+            <Button type="button" className="mt-2 min-w-32" onClick={closeSheet}>
+              Done
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-5 pb-4 pt-3 sm:pt-6">
+              <div className="mb-5 flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-tint text-primary">
+                  <LifeBuoy className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <h2 id="help-support-title" className="font-heading text-lg font-semibold text-foreground">
+                    Contact support
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Tell us what&apos;s going on — we reply within 24 hours, usually much sooner.
+                  </p>
+                </div>
+              </div>
+
+              <form id="help-support-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="help-email" className="text-xs font-medium text-muted-foreground">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Mail
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    <Input
+                      id="help-email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="bg-muted pl-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="help-subject" className="text-xs font-medium text-muted-foreground">
+                    Subject
+                  </label>
+                  <Input
+                    id="help-subject"
+                    required
+                    placeholder="What's this about?"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="help-message" className="text-xs font-medium text-muted-foreground">
+                    Message
+                  </label>
+                  <Textarea
+                    id="help-message"
+                    required
+                    rows={5}
+                    placeholder="Tell us what's going on..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                  />
+                </div>
+              </form>
+            </div>
+
+            <div className="shrink-0 border-t border-border bg-card px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:pb-4 sm:pt-4">
+              {error && (
+                <p role="alert" className="mb-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" form="help-support-form" disabled={status === "submitting"} className="min-h-11 w-full gap-1.5">
+                {status === "submitting" ? (
+                  "Sending..."
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" aria-hidden="true" /> Send message
+                  </>
+                )}
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  ) : null;
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -121,138 +255,7 @@ export function HelpSupportSheet({ defaultEmail }: { defaultEmail: string }) {
         <LifeBuoy className="h-4 w-4" aria-hidden="true" /> Help & Support
       </button>
 
-      {rendered && (
-        <div className="fixed inset-0 z-50" aria-hidden={!open}>
-          <div
-            className={cn(
-              "absolute inset-0 bg-foreground/45 backdrop-blur-[1px] transition-opacity motion-reduce:transition-none",
-              visible ? "opacity-100 duration-300" : "opacity-0 duration-200"
-            )}
-            onClick={closeSheet}
-          />
-          <div
-            ref={sheetRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="help-support-title"
-            className={cn(
-              "absolute inset-x-0 bottom-0 flex max-h-[90vh] flex-col overflow-hidden rounded-t-[22px] bg-card shadow-lift transition-transform motion-reduce:transition-none sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-full sm:max-w-md sm:rounded-[22px]",
-              visible ? "translate-y-0 duration-300 ease-out" : "translate-y-full duration-200 ease-in"
-            )}
-            style={dragState.current?.dragging ? { transform: `translateY(${dragOffset}px)`, transition: "none" } : undefined}
-          >
-            <div
-              className="flex shrink-0 cursor-grab touch-none flex-col items-center pb-1 pt-2.5 active:cursor-grabbing sm:hidden"
-              onPointerDown={handleDragStart}
-              onPointerMove={handleDragMove}
-              onPointerUp={handleDragEnd}
-              onPointerCancel={handleDragEnd}
-            >
-              <span className="h-1 w-9 rounded-full bg-border" aria-hidden="true" />
-            </div>
-
-            {status === "sent" ? (
-              <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-5 py-10 text-center">
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
-                  <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
-                </span>
-                <p className="font-heading text-lg font-semibold text-foreground">Message sent</p>
-                <p className="max-w-xs text-sm text-muted-foreground">
-                  Thanks for reaching out — a real person will reply to {email || "your email"} within 24 hours,
-                  usually much sooner.
-                </p>
-                <Button type="button" className="mt-2 min-w-32" onClick={closeSheet}>
-                  Done
-                </Button>
-              </div>
-            ) : (
-              <>
-                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-3 sm:pt-6">
-                  <div className="mb-5 flex items-start gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-tint text-primary">
-                      <LifeBuoy className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0">
-                      <h2 id="help-support-title" className="font-heading text-lg font-semibold text-foreground">
-                        Contact support
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Tell us what&apos;s going on — we reply within 24 hours, usually much sooner.
-                      </p>
-                    </div>
-                  </div>
-
-                  <form id="help-support-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-1.5">
-                      <label htmlFor="help-email" className="text-xs font-medium text-muted-foreground">
-                        Email
-                      </label>
-                      <div className="relative">
-                        <Mail
-                          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                          aria-hidden="true"
-                        />
-                        <Input
-                          id="help-email"
-                          type="email"
-                          required
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="bg-muted pl-9"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label htmlFor="help-subject" className="text-xs font-medium text-muted-foreground">
-                        Subject
-                      </label>
-                      <Input
-                        id="help-subject"
-                        required
-                        placeholder="What's this about?"
-                        value={subject}
-                        onChange={(e) => setSubject(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label htmlFor="help-message" className="text-xs font-medium text-muted-foreground">
-                        Message
-                      </label>
-                      <Textarea
-                        id="help-message"
-                        required
-                        rows={5}
-                        placeholder="Tell us what's going on..."
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                      />
-                    </div>
-                  </form>
-                </div>
-
-                <div className="shrink-0 border-t border-border px-5 py-4">
-                  {error && (
-                    <p role="alert" className="mb-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
-                      {error}
-                    </p>
-                  )}
-                  <Button type="submit" form="help-support-form" disabled={status === "submitting"} className="w-full gap-1.5">
-                    {status === "submitting" ? (
-                      "Sending..."
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4" aria-hidden="true" /> Send message
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {sheet ? createPortal(sheet, document.body) : null}
     </>
   );
 }
