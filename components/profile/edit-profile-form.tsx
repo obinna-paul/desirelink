@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
+import { UsernameEditor } from "@/components/profile/username-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -197,9 +198,11 @@ function SectionShell({
 export function EditProfileForm({
   profile,
   initialSection,
+  usernameChangedAt,
 }: {
   profile: Profile;
   initialSection?: EditableSectionId;
+  usernameChangedAt: string | null;
 }) {
   const router = useRouter();
   const [isDesktop, setIsDesktop] = useState(false);
@@ -420,7 +423,8 @@ export function EditProfileForm({
 
     return (
       <SectionShell title="Basics" description="The public identity people see before they interact with you.">
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-5">
+          <UsernameEditor initialUsername={profile.username} lastChangedAt={usernameChangedAt} />
           <FieldWrapper label="Display name" htmlFor="displayName" error={errors.displayName?.message}>
             <Input id="displayName" {...register("displayName")} />
           </FieldWrapper>

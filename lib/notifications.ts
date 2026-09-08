@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 // "message" was retired as a creatable kind - existing rows still carry it, but
 // getNotifications excludes them and no code should produce new ones (messages surface
 // as the Messages nav badge instead - see getUnreadConversationCount in lib/messages.ts).
-export type NotificationKind = "like" | "comment" | "reply" | "rsvp" | "subscription" | "review" | "booking" | "live" | "verification";
+export type NotificationKind = "like" | "comment" | "reply" | "mention" | "rsvp" | "subscription" | "review" | "booking" | "live" | "verification";
 
 function isMissingNotificationSchema(error: unknown) {
   return (

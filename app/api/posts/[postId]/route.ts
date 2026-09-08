@@ -10,6 +10,8 @@ import { deleteSearchDocument, syncPostSearchDocument } from "@/lib/search";
 import { prisma } from "@/lib/prisma";
 import { readJson } from "@/lib/security/request";
 import { updatePostSchema } from "@/lib/validations/post";
+import { extractMentionUsernames } from "@/lib/mentions";
+import { notifyMentionedProfiles } from "@/lib/mention-notifications";
 
 function isMissingPostArchiveError(error: unknown): boolean {
   const target =
@@ -29,7 +31,7 @@ const MAX_PINNED_POSTS = 3;
 async function getCurrentProfile(userId: string) {
   return prisma.profile.findUnique({
     where: { userId },
-    select: { id: true, isSuspended: true },
+    select: { id: true, displayName: true, isSuspended: true },
   });
 }
 
@@ -205,6 +207,23 @@ export async function PATCH(
     await syncPostSearchDocument(updatedPost);
   } catch (error) {
     console.warn("[posts] discovery indexing failed after post edit", error);
+  }
+
+  const previousMentions = new Set(extractMentionUsernames(owned.post.content));
+  const addedMentions = extractMentionUsernames(parsed.data.content).filter(
+    (username) => !previousMentions.has(username),
+  );
+  if (addedMentions.length > 0) {
+    await notifyMentionedProfiles({
+      actorId: profile.id,
+      actorDisplayName: profile.displayName,
+      content: parsed.data.content,
+      context: "post",
+      href: `/posts/${params.postId}`,
+      usernames: addedMentions,
+    }).catch((error) => {
+      console.warn("[posts] mention notifications failed after post edit", error);
+    });
   }
 
   const post = await getPostByIdForViewer(params.postId, profile.id);

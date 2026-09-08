@@ -13,6 +13,7 @@ import type { PresenceStatus } from "@/lib/presence";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { CommentComposer, CommentsList, usePostComments } from "@/components/posts/post-comments-shared";
+import { SocialText } from "@/components/posts/social-text";
 import { VerificationBadge, type VerificationBadgeProfile } from "@/components/profile/verification-badge";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { cn } from "@/lib/utils";
@@ -222,7 +223,7 @@ export function PostDetailModal({
                       {author.username}
                       <VerificationBadge profile={author} />
                     </Link>{" "}
-                    {caption}
+                    <SocialText content={caption} />
                   </p>
                 </div>
               </div>

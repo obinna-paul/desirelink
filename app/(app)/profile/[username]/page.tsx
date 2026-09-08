@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
+import { Prisma } from "@prisma/client";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -17,14 +18,37 @@ import { isProviderProfileType } from "@/lib/provider-types";
 import { getOwnPresenceStatus, getPresenceStatus } from "@/lib/presence";
 import { absoluteUrl, SITE_NAME } from "@/lib/site-config";
 import { PRIVATE_ROBOTS, PUBLIC_ROBOTS, seoDescription, serializeJsonLd } from "@/lib/seo";
+import { normalizeUsername } from "@/lib/username-format";
+
+async function resolveProfileUsername(username: string) {
+  const normalized = normalizeUsername(username);
+  const direct = await prisma.profile.findUnique({
+    where: { username: normalized },
+    select: { id: true, username: true },
+  });
+  if (direct) return direct;
+
+  try {
+    const alias = await prisma.usernameAlias.findUnique({
+      where: { username: normalized },
+      select: { profile: { select: { id: true, username: true } } },
+    });
+    return alias?.profile ?? null;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") return null;
+    throw error;
+  }
+}
 
 export async function generateMetadata({
   params,
 }: {
   params: { username: string };
 }): Promise<Metadata> {
+  const resolved = await resolveProfileUsername(params.username);
+  if (!resolved) return { title: "Profile not found" };
   const profile = await prisma.profile.findUnique({
-    where: { username: params.username },
+    where: { id: resolved.id },
     select: {
       username: true,
       displayName: true,
@@ -81,8 +105,12 @@ export default async function PublicProfilePage({
 }) {
   const session = await getServerSession(authOptions);
 
+  const resolved = await resolveProfileUsername(params.username);
+  if (!resolved) notFound();
+  if (resolved.username !== params.username) redirect(`/profile/${resolved.username}`);
+
   const profile = await prisma.profile.findUnique({
-    where: { username: params.username },
+    where: { id: resolved.id },
     include: {
       partner: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
     },

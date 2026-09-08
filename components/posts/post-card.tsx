@@ -95,6 +95,7 @@ export function PostCard({
   showAuthor = true,
   surface = "unknown",
   position,
+  openCommentsInitially = false,
 }: {
   post: PostView;
   showAuthor?: boolean;
@@ -104,6 +105,8 @@ export function PostCard({
   surface?: string;
   /** This card's index within the list it's rendered in, for the same reason. */
   position?: number;
+  /** Opens the post detail comments when arriving from a comment or mention notification. */
+  openCommentsInitially?: boolean;
 }) {
   const timeAgo = formatDistanceToNow(new Date(post.createdAt), {
     addSuffix: true,
@@ -115,7 +118,7 @@ export function PostCard({
   const [commentCount, setCommentCount] = useState(post.counts.comments);
   const [shareCount, setShareCount] = useState(post.counts.shares);
   const [viewCount, setViewCount] = useState(post.viewCount);
-  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(openCommentsInitially);
   const [isDesktop, setIsDesktop] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
   const shareUrl = useMemo(() => {

@@ -73,7 +73,13 @@ export async function generateMetadata({
   };
 }
 
-export default async function PostDetailPage({ params }: { params: { id: string } }) {
+export default async function PostDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { comments?: string };
+}) {
   const viewerProfileId = await getViewerProfileId();
   const [post, searchState] = await Promise.all([
     getPostByIdForViewer(params.id, viewerProfileId),
@@ -138,7 +144,11 @@ export default async function PostDetailPage({ params }: { params: { id: string 
           dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
         />
       )}
-      <PostCard post={post} surface="post_detail" />
+      <PostCard
+        post={post}
+        surface="post_detail"
+        openCommentsInitially={searchParams.comments === "1"}
+      />
     </div>
   );
 }

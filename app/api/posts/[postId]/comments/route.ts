@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { readJson } from "@/lib/security/request";
 import { createNotification } from "@/lib/notifications";
 import { getLiveStreamIdsByProvider, getPresenceStatus, type PresenceStatus } from "@/lib/presence";
+import { notifyMentionedProfiles } from "@/lib/mention-notifications";
 
 const commentSchema = z.object({
   content: z.string().trim().min(1, "Comment can't be empty").max(1000, "Comments must be 1000 characters or fewer"),
@@ -292,15 +293,31 @@ export async function POST(req: Request, { params }: { params: { postId: string 
   });
 
   const notificationRecipient = parentAuthorId ?? post.authorId;
-  await createNotification({
-    recipientId: notificationRecipient,
-    actorId: profile.id,
-    type: parentAuthorId ? "reply" : "comment",
-    title: parentAuthorId
-      ? `${profile.displayName} replied to your comment`
-      : `${profile.displayName} commented on your post`,
-    body: comment.content.length > 90 ? `${comment.content.slice(0, 87)}...` : comment.content,
-    href: `/profile/${post.author.username}`,
+  const commentHref = `/posts/${params.postId}?comments=1#comment-${comment.id}`;
+  const notificationResults = await Promise.allSettled([
+    createNotification({
+      recipientId: notificationRecipient,
+      actorId: profile.id,
+      type: parentAuthorId ? "reply" : "comment",
+      title: parentAuthorId
+        ? `${profile.displayName} replied to your comment`
+        : `${profile.displayName} commented on your post`,
+      body: comment.content.length > 90 ? `${comment.content.slice(0, 87)}...` : comment.content,
+      href: commentHref,
+    }),
+    notifyMentionedProfiles({
+      actorId: profile.id,
+      actorDisplayName: profile.displayName,
+      content: comment.content,
+      context: "comment",
+      href: commentHref,
+      excludeRecipientIds: [notificationRecipient],
+    }),
+  ]);
+  notificationResults.forEach((result) => {
+    if (result.status === "rejected") {
+      console.warn("[post-comments] notification delivery failed", result.reason);
+    }
   });
 
   const count = await prisma.postComment.count({ where: { postId: params.postId } });

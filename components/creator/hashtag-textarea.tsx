@@ -8,14 +8,24 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { Hash, Loader2, TrendingUp } from "lucide-react";
+import { AtSign, Hash, Loader2, TrendingUp } from "lucide-react";
 
+import {
+  MentionSuggestionMenu,
+  useMentionSuggestions,
+  type MentionSuggestion,
+} from "@/components/mentions/mention-suggestions";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getActiveHashtag,
   replaceActiveHashtag,
   type ActiveHashtag,
 } from "@/lib/hashtag-input";
+import {
+  getActiveMention,
+  replaceActiveMention,
+  type ActiveMention,
+} from "@/lib/mentions";
 import { cn } from "@/lib/utils";
 
 type HashtagSuggestion = {
@@ -40,13 +50,27 @@ export function HashtagTextarea({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const nextCaretRef = useRef<number | null>(null);
   const [activeHashtag, setActiveHashtag] = useState<ActiveHashtag | null>(null);
+  const [activeMention, setActiveMention] = useState<ActiveMention | null>(null);
   const [suggestions, setSuggestions] = useState<HashtagSuggestion[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const activeQuery = activeHashtag?.query;
+  const {
+    suggestions: mentionSuggestions,
+    loading: mentionLoading,
+    setSuggestions: setMentionSuggestions,
+  } = useMentionSuggestions(activeMention?.query);
 
-  const updateActiveHashtag = useCallback((nextValue: string, caret: number) => {
-    setActiveHashtag(getActiveHashtag(nextValue, caret));
+  const updateActiveToken = useCallback((nextValue: string, caret: number) => {
+    const hashtag = getActiveHashtag(nextValue, caret);
+    const mention = getActiveMention(nextValue, caret);
+    if (mention && (!hashtag || mention.start >= hashtag.start)) {
+      setActiveMention(mention);
+      setActiveHashtag(null);
+    } else {
+      setActiveHashtag(hashtag);
+      setActiveMention(null);
+    }
     setHighlightedIndex(0);
   }, []);
 
@@ -56,8 +80,8 @@ export function HashtagTextarea({
     nextCaretRef.current = null;
     textareaRef.current?.focus();
     textareaRef.current?.setSelectionRange(caret, caret);
-    updateActiveHashtag(value, caret);
-  }, [updateActiveHashtag, value]);
+    updateActiveToken(value, caret);
+  }, [updateActiveToken, value]);
 
   useEffect(() => {
     if (activeQuery === undefined) {
@@ -102,23 +126,37 @@ export function HashtagTextarea({
     setSuggestions([]);
   }
 
+  function chooseMention(suggestion: MentionSuggestion) {
+    if (!activeMention) return;
+    const replacement = replaceActiveMention(value, activeMention, suggestion.username);
+    nextCaretRef.current = replacement.caret;
+    onValueChange(replacement.value.slice(0, maxLength));
+    onContentEdited?.();
+    setActiveMention(null);
+    setMentionSuggestions([]);
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (!activeHashtag || suggestions.length === 0) return;
+    const activeSuggestions = activeMention ? mentionSuggestions : suggestions;
+    if ((!activeHashtag && !activeMention) || activeSuggestions.length === 0) return;
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setHighlightedIndex((current) => (current + 1) % suggestions.length);
+      setHighlightedIndex((current) => (current + 1) % activeSuggestions.length);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       setHighlightedIndex((current) =>
-        current === 0 ? suggestions.length - 1 : current - 1,
+        current === 0 ? activeSuggestions.length - 1 : current - 1,
       );
     } else if (event.key === "Enter" || event.key === "Tab") {
       event.preventDefault();
-      chooseSuggestion(suggestions[highlightedIndex]);
+      if (activeMention) chooseMention(mentionSuggestions[highlightedIndex]);
+      else chooseSuggestion(suggestions[highlightedIndex]);
     } else if (event.key === "Escape") {
       event.preventDefault();
       setActiveHashtag(null);
+      setActiveMention(null);
       setSuggestions([]);
+      setMentionSuggestions([]);
     }
   }
 
@@ -138,7 +176,22 @@ export function HashtagTextarea({
     onContentEdited?.();
   }
 
-  const menuOpen = Boolean(activeHashtag && (loading || suggestions.length > 0));
+  function insertMention() {
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? value.length;
+    const end = textarea?.selectionEnd ?? start;
+    const needsSpace = start > 0 && !/\s/.test(value[start - 1] ?? "");
+    const insertion = `${needsSpace ? " " : ""}@`;
+    const nextValue = `${value.slice(0, start)}${insertion}${value.slice(end)}`.slice(0, maxLength);
+    const caret = Math.min(start + insertion.length, nextValue.length);
+    nextCaretRef.current = caret;
+    onValueChange(nextValue);
+    onContentEdited?.();
+  }
+
+  const hashtagMenuOpen = Boolean(activeHashtag && (loading || suggestions.length > 0));
+  const mentionMenuOpen = Boolean(activeMention && activeMention.query.length > 0);
+  const menuOpen = hashtagMenuOpen || mentionMenuOpen;
 
   return (
     <div className="relative mt-2">
@@ -160,23 +213,37 @@ export function HashtagTextarea({
         onChange={(event) => {
           onValueChange(event.target.value);
           onContentEdited?.();
-          updateActiveHashtag(event.target.value, event.target.selectionStart);
+          updateActiveToken(event.target.value, event.target.selectionStart);
         }}
         onClick={(event) =>
-          updateActiveHashtag(event.currentTarget.value, event.currentTarget.selectionStart)
+          updateActiveToken(event.currentTarget.value, event.currentTarget.selectionStart)
         }
         onBlur={() => {
-          window.setTimeout(() => setActiveHashtag(null), 100);
+          window.setTimeout(() => {
+            setActiveHashtag(null);
+            setActiveMention(null);
+          }, 100);
         }}
         onKeyUp={(event) => {
           if (["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(event.key)) return;
-          updateActiveHashtag(event.currentTarget.value, event.currentTarget.selectionStart);
+          updateActiveToken(event.currentTarget.value, event.currentTarget.selectionStart);
         }}
         onKeyDown={handleKeyDown}
         className="min-h-28 resize-none rounded-[8px] border-border/80 bg-background/45 px-3.5 py-3 text-base leading-6 shadow-none focus-visible:bg-card md:text-sm"
       />
 
-      {menuOpen && (
+      {mentionMenuOpen && (
+        <MentionSuggestionMenu
+          id={listboxId}
+          suggestions={mentionSuggestions}
+          loading={mentionLoading}
+          highlightedIndex={highlightedIndex}
+          onHighlight={setHighlightedIndex}
+          onSelect={chooseMention}
+        />
+      )}
+
+      {hashtagMenuOpen && (
         <div
           id={listboxId}
           role="listbox"
@@ -221,15 +288,25 @@ export function HashtagTextarea({
         </div>
       )}
 
-      <div className="mt-1.5 flex min-h-8 items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={insertHashtag}
-          className="inline-flex min-h-8 items-center gap-1.5 rounded-[6px] px-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Hash className="h-3.5 w-3.5" aria-hidden="true" />
-          Hashtag
-        </button>
+      <div className="mt-1.5 flex min-h-11 items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={insertMention}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-[6px] px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <AtSign className="h-3.5 w-3.5" aria-hidden="true" />
+            Mention
+          </button>
+          <button
+            type="button"
+            onClick={insertHashtag}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-[6px] px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Hash className="h-3.5 w-3.5" aria-hidden="true" />
+            Hashtag
+          </button>
+        </div>
         {value.length > 0 && (
           <span className="text-[11px] tabular-nums text-muted-foreground">
             {value.length}/{maxLength}

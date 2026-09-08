@@ -12,6 +12,7 @@ import { createPostSchema } from "@/lib/validations/post";
 import { readJson } from "@/lib/security/request";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { hasIdentityOnFile } from "@/lib/verification";
+import { notifyMentionedProfiles } from "@/lib/mention-notifications";
 
 function isMissingSchemaError(
   error: unknown,
@@ -202,6 +203,16 @@ export async function POST(req: Request) {
       );
     }
   }
+
+  await notifyMentionedProfiles({
+    actorId: profile.id,
+    actorDisplayName: profile.displayName,
+    content: post.content,
+    context: "post",
+    href: `/posts/${post.id}`,
+  }).catch((error) => {
+    console.warn("[posts] mention notifications failed after post creation", error);
+  });
 
   let hydrated = null;
   try {

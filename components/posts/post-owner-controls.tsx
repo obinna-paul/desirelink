@@ -15,7 +15,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { HashtagTextarea } from "@/components/creator/hashtag-textarea";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { cn } from "@/lib/utils";
 
@@ -330,12 +330,11 @@ export function PostOwnerControls({
             </div>
 
             <form onSubmit={saveEdit} className="flex flex-col gap-4">
-              <Textarea
+              <HashtagTextarea
+                id={`edit-post-${postId}`}
                 value={content}
-                onChange={(event) => setContent(event.target.value)}
+                onValueChange={setContent}
                 maxLength={2000}
-                rows={6}
-                className="min-h-40 resize-none rounded-2xl text-base sm:text-sm"
               />
               <label className="flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background/50 px-3 py-2">
                 <span>

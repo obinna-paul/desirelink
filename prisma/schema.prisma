@@ -345,6 +345,7 @@ model Profile {
   serviceBookingsAsCustomer       ServiceBooking[]       @relation("ServiceBookingCustomer")
   notificationsReceived           Notification[]         @relation("NotificationRecipient")
   notificationsActed              Notification[]         @relation("NotificationActor")
+  usernameAliases                 UsernameAlias[]
 
   liveStreams          LiveStream[]        @relation("LiveStreamProvider")
   liveRequestPresets   LiveRequestPreset[] @relation("LiveRequestPresetProvider")
@@ -572,6 +573,21 @@ model Notification {
 
   @@index([recipientId, createdAt])
   @@index([recipientId, readAt])
+}
+
+/**
+ * Previous usernames remain reserved so profile links and historical @mentions keep
+ * reaching the same person after a username change. The newest row also records when
+ * the profile last changed its username for the one-month cooldown.
+ */
+model UsernameAlias {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  username  String   @unique
+  changedAt DateTime @default(now())
+
+  @@index([profileId, changedAt])
 }
 
 // --- Creator posts -------------------------------------------------------

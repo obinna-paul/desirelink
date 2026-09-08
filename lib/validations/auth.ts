@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { USERNAME_PATTERN } from "@/lib/username";
+import { USERNAME_PATTERN } from "@/lib/username-format";
 
 export const ACCOUNT_TYPE_VALUES = ["EXPLORER", "CREATOR"] as const;
 
@@ -8,7 +8,10 @@ export const usernameFieldSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .regex(USERNAME_PATTERN, "3-20 characters: lowercase letters, numbers, underscores only");
+  .regex(
+    USERNAME_PATTERN,
+    "Use 3-20 lowercase letters, numbers, periods, or underscores; periods cannot be first or last",
+  );
 
 export const signupSchema = z
   .object({

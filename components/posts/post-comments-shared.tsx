@@ -6,6 +6,8 @@ import { formatDistanceToNow } from "date-fns";
 import { Loader2, Send, User } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MentionInput } from "@/components/mentions/mention-input";
+import { SocialText } from "@/components/posts/social-text";
 import { getPresenceDestination, PresenceRing } from "@/components/ui/presence-avatar";
 import { Badge } from "@/components/ui/badge";
 import { ReportDialog } from "@/components/safety/report-dialog";
@@ -27,7 +29,7 @@ function CommentText({ content }: { content: string }) {
 
   return (
     <p className="mt-0.5 whitespace-pre-wrap text-[14.5px] leading-6 text-foreground">
-      {displayText}
+      <SocialText content={displayText} />
       {isLong && !expanded && "… "}
       {isLong && (
         <button
@@ -92,7 +94,7 @@ function CommentThread({
   }
 
   return (
-    <li>
+    <li id={`comment-${comment.id}`}>
       <div className="flex gap-2.5">
         <Link
           href={getPresenceDestination({
@@ -140,10 +142,10 @@ function CommentThread({
 
           {replying && (
             <form onSubmit={submitReply} className="mt-2 flex items-center gap-2">
-              <input
+              <MentionInput
                 ref={replyInputRef}
                 value={reply}
-                onChange={(event) => setReply(event.target.value)}
+                onValueChange={setReply}
                 maxLength={1000}
                 placeholder={`Reply to ${comment.author.displayName}...`}
                 className="h-9 min-w-0 flex-1 rounded-full border border-border bg-muted px-3.5 text-sm outline-none focus-visible:border-primary/60"
@@ -294,6 +296,18 @@ export function CommentsList({
   sentinelRef: React.RefObject<HTMLLIElement>;
   onReplyPosted: (newCount?: number) => void;
 }) {
+  const mentionScrollAttemptedRef = useRef(false);
+
+  useEffect(() => {
+    if (mentionScrollAttemptedRef.current || comments.length === 0 || typeof window === "undefined") return;
+    const targetId = window.location.hash.slice(1);
+    if (!targetId.startsWith("comment-")) return;
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    mentionScrollAttemptedRef.current = true;
+    window.requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, [comments]);
+
   if (loadingInitial) {
     return (
       <div className="flex items-center justify-center py-10">
@@ -398,12 +412,13 @@ export function CommentComposer({
             <User className="h-4 w-4" aria-hidden="true" />
           </AvatarFallback>
         </Avatar>
-        <input
+        <MentionInput
           ref={inputRef}
           value={comment}
-          onChange={(event) => setComment(event.target.value)}
+          onValueChange={setComment}
           maxLength={1000}
           placeholder="Add a comment..."
+          placement="top"
           className="h-11 min-w-0 flex-1 rounded-full border border-border bg-muted px-4 text-sm outline-none focus-visible:border-primary/60"
         />
         <button
