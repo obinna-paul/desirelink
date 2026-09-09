@@ -26,7 +26,9 @@ import { VerificationRequestCard } from "@/components/verification/verification-
 import { PostVideoPlayer } from "@/components/posts/post-video-player";
 import {
   MAX_POST_MEDIA_ITEMS,
+  IMAGE_CROP_PRESETS,
   POST_DISPLAY_RATIO_OPTIONS,
+  isPostDisplayAspectRatio,
   type PostDisplayAspectRatio,
   type PostMediaItem,
   type VideoCrop,
@@ -102,10 +104,13 @@ type PendingMediaReview = {
   metadataDetected: boolean;
   imagePurpose?: "post-image" | "post-image-normalize";
 };
-type FailedMediaUpload = {
+type PreparedMediaReview = {
   pending: PendingMediaReview;
   adjustedFile?: File;
   crop?: VideoCrop;
+};
+type FailedMediaUpload = PreparedMediaReview & {
+  remaining: PreparedMediaReview[];
 };
 type PostMode = "single" | "carousel";
 type PostAccess = "free" | "premium";
@@ -180,6 +185,7 @@ export function PostComposer({
   const [showPiiWarning, setShowPiiWarning] = useState(false);
   const [piiAcknowledged, setPiiAcknowledged] = useState(false);
   const [reviewQueue, setReviewQueue] = useState<PendingMediaReview[]>([]);
+  const [preparedReviews, setPreparedReviews] = useState<PreparedMediaReview[]>([]);
   const [failedUpload, setFailedUpload] = useState<FailedMediaUpload | null>(null);
 
   useFocusTrap(showPiiWarning, piiDialogRef);
@@ -228,6 +234,16 @@ export function PostComposer({
   const mediaLimit = postMode === "single" ? 1 : MAX_POST_MEDIA_ITEMS;
   const canAddMedia = mediaItems.length < mediaLimit;
   const activeReview = reviewQueue[0];
+  const reviewPosition = reviewQueue.length > 0
+    ? {
+        index: preparedReviews.length + 1,
+        total: preparedReviews.length + reviewQueue.length,
+      }
+    : undefined;
+  const canChooseReviewFrame = mediaItems.length === 0 && reviewPosition?.index === 1;
+  const reviewImagePresets = canChooseReviewFrame
+    ? IMAGE_CROP_PRESETS
+    : IMAGE_CROP_PRESETS.filter((preset) => preset.id === displayAspectRatio);
 
   function setDisplayAspectRatio(value: PostDisplayAspectRatio) {
     setDisplayAspectRatioState(value);
@@ -315,6 +331,32 @@ export function PostComposer({
       setUploadingPhase(null);
       setUploadingProgress(null);
     }
+  }
+
+  async function uploadReviewedMedia(items: PreparedMediaReview[]) {
+    for (let index = 0; index < items.length; index += 1) {
+      const item = items[index];
+      const succeeded = await uploadFile(item.pending, item.adjustedFile, item.crop);
+      if (!succeeded) {
+        setFailedUpload({ ...item, remaining: items.slice(index + 1) });
+        return;
+      }
+    }
+  }
+
+  function completeMediaReview(item: PreparedMediaReview) {
+    const remainingReviews = reviewQueue.slice(1);
+    const completedReviews = [...preparedReviews, item];
+
+    if (remainingReviews.length > 0) {
+      setPreparedReviews(completedReviews);
+      setReviewQueue(remainingReviews);
+      return;
+    }
+
+    setPreparedReviews([]);
+    setReviewQueue([]);
+    void uploadReviewedMedia(completedReviews);
   }
 
   async function handleFiles(event: React.ChangeEvent<HTMLInputElement>) {
@@ -438,19 +480,18 @@ export function PostComposer({
     event.target.value = "";
   }
 
-  async function handleCropConfirm({ file }: { file: File }) {
+  function handleCropConfirm({ file }: { file: File }) {
     const pending = reviewQueue[0];
     if (!pending || pending.kind !== "image") return;
-    const succeeded = await uploadFile(pending, file);
-    if (succeeded) setReviewQueue((prev) => prev.slice(1));
-    else setFailedUpload({ pending, adjustedFile: file });
+    completeMediaReview({ pending, adjustedFile: file });
   }
 
   function handleCropCancel() {
-    setReviewQueue((prev) => prev.slice(1));
+    setPreparedReviews([]);
+    setReviewQueue([]);
   }
 
-  async function handleCropError() {
+  function handleCropError() {
     const pending = reviewQueue[0];
     if (!pending || pending.kind !== "image") return;
 
@@ -459,12 +500,10 @@ export function PostComposer({
     // that's a client-side preview limitation, not a reason to reject the upload.
     // Cloudinary decodes a much broader range of formats server-side than a browser can,
     // so upload the original file uncropped rather than forcing a different one.
-    const succeeded = await uploadFile(pending);
-    if (succeeded) setReviewQueue((prev) => prev.slice(1));
-    else setFailedUpload({ pending });
+    completeMediaReview({ pending });
   }
 
-  async function handleVideoFrameConfirm({
+  function handleVideoFrameConfirm({
     crop,
   }: {
     crop: VideoCrop;
@@ -474,16 +513,15 @@ export function PostComposer({
   }) {
     const pending = reviewQueue[0];
     if (!pending || pending.kind !== "video") return;
-    const succeeded = await uploadFile(pending, undefined, crop);
-    if (succeeded) setReviewQueue((prev) => prev.slice(1));
-    else setFailedUpload({ pending, crop });
+    completeMediaReview({ pending, crop });
   }
 
   function handleVideoFrameCancel() {
-    setReviewQueue((prev) => prev.slice(1));
+    setPreparedReviews([]);
+    setReviewQueue([]);
   }
 
-  async function handleVideoFrameError() {
+  function handleVideoFrameError() {
     const pending = reviewQueue[0];
     if (!pending || pending.kind !== "video") return;
 
@@ -492,13 +530,12 @@ export function PostComposer({
     // that's a client-side preview limitation, not a reason to reject an otherwise valid
     // upload. Upload the original file as-is with no custom crop rather than forcing the
     // person to find a different file or re-export it.
-    const succeeded = await uploadFile(pending);
-    if (succeeded) setReviewQueue((prev) => prev.slice(1));
-    else setFailedUpload({ pending });
+    completeMediaReview({ pending });
   }
 
   async function retryFailedUpload() {
     if (!failedUpload) return;
+    const remaining = failedUpload.remaining;
     const succeeded = await uploadFile(
       failedUpload.pending,
       failedUpload.adjustedFile,
@@ -506,13 +543,14 @@ export function PostComposer({
     );
     if (!succeeded) return;
     setFailedUpload(null);
-    setReviewQueue((prev) => prev.slice(1));
+    if (remaining.length > 0) void uploadReviewedMedia(remaining);
   }
 
   function removeFailedUpload() {
+    const remaining = failedUpload?.remaining ?? [];
     setFailedUpload(null);
     setError(null);
-    setReviewQueue((prev) => prev.slice(1));
+    if (remaining.length > 0) void uploadReviewedMedia(remaining);
   }
 
   function removeMedia(url: string) {
@@ -624,7 +662,7 @@ export function PostComposer({
     <fieldset>
       <legend className="text-sm font-semibold text-foreground">Frame</legend>
       <p className="mt-1 text-xs leading-5 text-muted-foreground">
-        Choose how your photos and videos will appear in the feed.
+        Choose once for the whole post. You can also change it while reviewing your media.
       </p>
       <div className="mt-3 grid grid-cols-4 items-end gap-1 sm:flex sm:gap-8">
         {POST_DISPLAY_RATIO_OPTIONS.map((option) => {
@@ -1092,8 +1130,6 @@ export function PostComposer({
               )}
               {!uploading && failedUploadPanel}
 
-              {frameControls}
-
               {writingField}
               {accessControls}
               {publishControls}
@@ -1177,8 +1213,14 @@ export function PostComposer({
         <ImageCropDialog
           key={`${activeReview.file.name}-${activeReview.file.lastModified}-${activeReview.file.size}`}
           file={activeReview.file}
-          title="Adjust photo"
+          title={reviewPosition && reviewPosition.total > 1 ? "Adjust carousel" : "Adjust photo"}
           initialPresetId={displayAspectRatio}
+          selectedPresetId={displayAspectRatio}
+          presets={reviewImagePresets}
+          position={reviewPosition}
+          onPresetChange={(presetId) => {
+            if (isPostDisplayAspectRatio(presetId)) setDisplayAspectRatio(presetId);
+          }}
           onCancel={handleCropCancel}
           onConfirm={handleCropConfirm}
           onError={handleCropError}
@@ -1190,7 +1232,21 @@ export function PostComposer({
           <VideoFrameDialog
             key={`${activeReview.file.name}-${activeReview.file.lastModified}-${activeReview.file.size}`}
             file={activeReview.file}
+            title={reviewPosition && reviewPosition.total > 1 ? "Adjust carousel" : "Adjust video"}
             ratio={selectedRatio}
+            ratioOptions={
+              canChooseReviewFrame
+                ? POST_DISPLAY_RATIO_OPTIONS.map((option) => ({
+                    id: option.value,
+                    label: option.helper,
+                  }))
+                : undefined
+            }
+            selectedRatioId={displayAspectRatio}
+            position={reviewPosition}
+            onRatioChange={(ratioId) => {
+              if (isPostDisplayAspectRatio(ratioId)) setDisplayAspectRatio(ratioId);
+            }}
             onCancel={handleVideoFrameCancel}
             onConfirm={handleVideoFrameConfirm}
             onError={handleVideoFrameError}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, X } from "lucide-react";
+import { ArrowRight, Check, X } from "lucide-react";
 
 import { IMAGE_CROP_PRESETS } from "@/lib/post-shared";
 import { cn } from "@/lib/utils";
@@ -49,6 +49,9 @@ export function ImageCropDialog({
   onError,
   presets = IMAGE_CROP_PRESETS,
   initialPresetId,
+  selectedPresetId,
+  onPresetChange,
+  position,
   shape = "square",
   title = "Adjust photo",
 }: {
@@ -59,12 +62,18 @@ export function ImageCropDialog({
   onError?: () => void;
   presets?: readonly CropPreset[];
   initialPresetId?: string;
+  selectedPresetId?: string;
+  onPresetChange?: (presetId: string) => void;
+  position?: { index: number; total: number };
   shape?: "square" | "circle";
   title?: string;
 }) {
-  const [presetId, setPresetId] = useState<string>(() =>
+  const [internalPresetId, setInternalPresetId] = useState<string>(() =>
     presets.some((preset) => preset.id === initialPresetId) ? initialPresetId! : presets[0].id
   );
+  const presetId = presets.some((preset) => preset.id === selectedPresetId)
+    ? selectedPresetId!
+    : internalPresetId;
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
   const [decodedBitmap, setDecodedBitmap] = useState<ImageBitmap | null>(null);
@@ -212,6 +221,11 @@ export function ImageCropDialog({
     setOffset({ x: 0, y: 0 });
   }, [presetId]);
 
+  function selectPreset(nextPresetId: string) {
+    setInternalPresetId(nextPresetId);
+    onPresetChange?.(nextPresetId);
+  }
+
   function baseScaleFor(zoomLevel: number) {
     if (!naturalSize || !frameWidth) return zoomLevel;
     return Math.max(frameWidth / naturalSize.width, frameHeight / naturalSize.height) * zoomLevel;
@@ -337,17 +351,34 @@ export function ImageCropDialog({
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
-          <h2 id="crop-dialog-title" className="text-sm font-semibold">
-            {title}
-          </h2>
+          <div className="text-center">
+            <h2 id="crop-dialog-title" className="text-sm font-semibold">
+              {title}
+            </h2>
+            {position && position.total > 1 && (
+              <p className="mt-0.5 text-[11px] font-medium text-white/55">
+                {position.index} of {position.total}
+              </p>
+            )}
+          </div>
           <button
             type="button"
             onClick={handleConfirm}
             disabled={!naturalSize}
-            aria-label="Use photo"
+            aria-label={
+              !position
+                ? "Use photo"
+                : position.index < position.total
+                  ? "Adjust next item"
+                  : "Finish adjustments"
+            }
             className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 disabled:opacity-40"
           >
-            <Check className="h-5 w-5" aria-hidden="true" />
+            {position && position.index < position.total ? (
+              <ArrowRight className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <Check className="h-5 w-5" aria-hidden="true" />
+            )}
           </button>
         </div>
 
@@ -424,7 +455,7 @@ export function ImageCropDialog({
                 <button
                   key={option.id}
                   type="button"
-                  onClick={() => setPresetId(option.id)}
+                  onClick={() => selectPreset(option.id)}
                   aria-pressed={presetId === option.id}
                   className={cn(
                     "relative min-h-11 px-1 text-xs font-semibold transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:origin-center after:scale-x-0 after:bg-white after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white motion-reduce:transition-none motion-reduce:after:transition-none",
@@ -437,6 +468,11 @@ export function ImageCropDialog({
                 </button>
               ))}
             </div>
+          )}
+          {position && position.total > 1 && (
+            <p className="text-center text-[11px] text-white/40">
+              One frame applies to the whole carousel.
+            </p>
           )}
         </div>
       </div>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, X } from "lucide-react";
+import { ArrowRight, Check, X } from "lucide-react";
 
 import type { VideoCrop } from "@/lib/post-shared";
+import { cn } from "@/lib/utils";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 
 type Offset = { x: number; y: number };
@@ -24,6 +25,10 @@ export function VideoFrameDialog({
   onCancel,
   onConfirm,
   onError,
+  ratioOptions,
+  selectedRatioId,
+  onRatioChange,
+  position,
   title = "Adjust video",
 }: {
   file: File;
@@ -32,6 +37,10 @@ export function VideoFrameDialog({
   onConfirm: (result: { crop: VideoCrop; width: number; height: number; durationSeconds: number }) => void;
   /** Called when the browser can't decode this file (e.g. an unsupported codec/container), or metadata never loads within a reasonable time — otherwise the dialog is stuck forever with a disabled confirm button and no feedback. */
   onError?: () => void;
+  ratioOptions?: readonly { id: string; label: string }[];
+  selectedRatioId?: string;
+  onRatioChange?: (ratioId: string) => void;
+  position?: { index: number; total: number };
   title?: string;
 }) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -100,6 +109,11 @@ export function VideoFrameDialog({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    setZoom(1);
+    setOffset({ x: 0, y: 0 });
+  }, [ratio]);
 
   function handleLoadedMetadata() {
     if (cancelledRef.current) return;
@@ -185,17 +199,34 @@ export function VideoFrameDialog({
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
-          <h2 id="video-frame-dialog-title" className="text-sm font-semibold">
-            {title}
-          </h2>
+          <div className="text-center">
+            <h2 id="video-frame-dialog-title" className="text-sm font-semibold">
+              {title}
+            </h2>
+            {position && position.total > 1 && (
+              <p className="mt-0.5 text-[11px] font-medium text-white/55">
+                {position.index} of {position.total}
+              </p>
+            )}
+          </div>
           <button
             type="button"
             onClick={handleConfirm}
             disabled={!naturalSize}
-            aria-label="Use video"
+            aria-label={
+              !position
+                ? "Use video"
+                : position.index < position.total
+                  ? "Adjust next item"
+                  : "Finish adjustments"
+            }
             className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 disabled:opacity-40"
           >
-            <Check className="h-5 w-5" aria-hidden="true" />
+            {position && position.index < position.total ? (
+              <ArrowRight className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <Check className="h-5 w-5" aria-hidden="true" />
+            )}
           </button>
         </div>
 
@@ -239,6 +270,26 @@ export function VideoFrameDialog({
         </div>
 
         <div className="relative z-10 flex flex-col gap-4 border-t border-white/10 bg-black/70 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 shadow-[0_-8px_24px_rgba(0,0,0,0.45)] backdrop-blur-sm">
+          {ratioOptions && ratioOptions.length > 1 && (
+            <div className="flex items-center justify-center gap-7">
+              {ratioOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => onRatioChange?.(option.id)}
+                  aria-pressed={selectedRatioId === option.id}
+                  className={cn(
+                    "relative min-h-11 px-1 text-xs font-semibold transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:origin-center after:scale-x-0 after:bg-white after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white motion-reduce:transition-none motion-reduce:after:transition-none",
+                    selectedRatioId === option.id
+                      ? "text-white after:scale-x-100"
+                      : "text-white/50 hover:text-white/80",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
           <input
             type="range"
             min={1}
@@ -250,6 +301,11 @@ export function VideoFrameDialog({
             className="w-full accent-primary"
           />
           <p className="text-center text-xs text-white/55">Drag to reposition, use the slider to zoom</p>
+          {position && position.total > 1 && (
+            <p className="text-center text-[11px] text-white/40">
+              One frame applies to the whole carousel.
+            </p>
+          )}
         </div>
       </div>
     </div>
