@@ -7,13 +7,34 @@ import { IMAGE_CROP_PRESETS } from "@/lib/post-shared";
 import { cn } from "@/lib/utils";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 
-const OUTPUT_MAX_DIMENSION = 1440;
+// Keep enough source detail for high-density phones and desktop lightboxes. The cropper
+// never upscales: smaller originals retain their native dimensions.
+const OUTPUT_MAX_EDGE_PX = 3072;
+const OUTPUT_JPEG_QUALITY = 0.95;
+// Keep framed images on the reliable first-party mobile upload path in client-uploads.ts.
+const OUTPUT_MAX_BYTES = 3.4 * 1024 * 1024;
 /** Widest the frame is ever allowed to render, matching the old `max-w-md` cap on desktop. */
 const MAX_FRAME_WIDTH_PX = 448;
 
 type Offset = { x: number; y: number };
 type DragState = { pointerId: number; startX: number; startY: number; startOffset: Offset } | null;
 type CropPreset = { id: string; label: string; ratio: number | null };
+
+function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob | null> {
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+}
+
+function drawScaledCanvas(source: HTMLCanvasElement, scale: number): HTMLCanvasElement {
+  const output = document.createElement("canvas");
+  output.width = Math.max(1, Math.round(source.width * scale));
+  output.height = Math.max(1, Math.round(source.height * scale));
+  const context = output.getContext("2d");
+  if (!context) throw new Error("2d context unavailable");
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(source, 0, 0, output.width, output.height);
+  return output;
+}
 
 /**
  * Instagram-style "pick a ratio, then pan/zoom to fit" cropper. The image
@@ -264,22 +285,38 @@ export function ImageCropDialog({
         sh = frameHeight / scale;
       }
 
-      const outW = Math.max(1, Math.min(OUTPUT_MAX_DIMENSION, Math.round(sw)));
-      const outH = Math.max(1, Math.round(outW / (sw / sh)));
-      const canvas = document.createElement("canvas");
+      const outputScale = Math.min(1, OUTPUT_MAX_EDGE_PX / Math.max(sw, sh));
+      const outW = Math.max(1, Math.round(sw * outputScale));
+      const outH = Math.max(1, Math.round(sh * outputScale));
+      let canvas = document.createElement("canvas");
       canvas.width = outW;
       canvas.height = outH;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("2d context unavailable");
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
       ctx.drawImage(source, sx, sy, sw, sh, 0, 0, outW, outH);
 
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+      let blob = await canvasToJpeg(canvas, OUTPUT_JPEG_QUALITY);
       if (!blob) throw new Error("canvas produced no blob");
+
+      // Most photos remain at 95%. Exceptionally detailed/noisy images are reduced in small
+      // steps so mobile reliability is preserved without applying a blanket low-quality export.
+      for (const quality of [0.92, 0.89]) {
+        if (blob.size <= OUTPUT_MAX_BYTES) break;
+        blob = await canvasToJpeg(canvas, quality);
+        if (!blob) throw new Error("canvas produced no blob");
+      }
+      while (blob.size > OUTPUT_MAX_BYTES && Math.max(canvas.width, canvas.height) > 1280) {
+        canvas = drawScaledCanvas(canvas, 0.9);
+        blob = await canvasToJpeg(canvas, 0.92);
+        if (!blob) throw new Error("canvas produced no blob");
+      }
 
       onConfirm({
         file: new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" }),
-        width: outW,
-        height: outH,
+        width: canvas.width,
+        height: canvas.height,
       });
     } catch {
       onError?.();

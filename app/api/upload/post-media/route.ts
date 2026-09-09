@@ -60,7 +60,6 @@ export async function POST(req: Request) {
       folder: "udala/posts",
       contentType: file.type,
       resourceType: isVideo ? "video" : "image",
-      transformation: isVideo ? undefined : [{ width: 1600, height: 1600, crop: "limit" }],
     });
 
     return NextResponse.json(

@@ -114,6 +114,7 @@ export function PostGridTile({
             alt={`Post by ${post.author.displayName}`}
             fill
             sizes={TILE_SIZES}
+            quality={88}
             className="object-cover"
           />
         )

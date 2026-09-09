@@ -1005,6 +1005,7 @@ export function PostComposer({
                       alt={`Post media preview ${activeMediaIndex + 1}`}
                       fill
                       sizes="(min-width: 1024px) 52vw, 100vw"
+                      quality={92}
                       className="object-cover"
                     />
                   ) : null}
@@ -1035,6 +1036,7 @@ export function PostComposer({
                           alt=""
                           fill
                           sizes="4rem"
+                          quality={90}
                           className="object-cover"
                         />
                       )}

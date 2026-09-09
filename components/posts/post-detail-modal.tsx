@@ -140,6 +140,7 @@ export function PostDetailModal({
                   alt={`Post by ${author.displayName}${media.length > 1 ? `, image ${activeIndex + 1} of ${media.length}` : ""}`}
                   fill
                   sizes="(min-width: 935px) 555px, 60vw"
+                  quality={94}
                   className="object-contain"
                 />
               )}

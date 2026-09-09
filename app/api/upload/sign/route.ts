@@ -20,11 +20,13 @@ type PurposeConfig = {
 const PURPOSES: Record<string, PurposeConfig> = {
   "verification-selfie": { folder: "udala/verification/selfies", resourceType: "video" },
   "verification-id": { folder: "udala/verification/ids", resourceType: "image" },
-  "post-image": { folder: "udala/posts", resourceType: "image", transformation: "c_limit,w_1600,h_1600" },
+  // Normal post images are already framed client-side. Store those bytes without another
+  // lossy incoming transformation; responsive delivery is handled by next/image.
+  "post-image": { folder: "udala/posts", resourceType: "image" },
   "post-image-normalize": {
     folder: "udala/posts",
     resourceType: "image",
-    transformation: "c_limit,w_1600,h_1600",
+    transformation: "c_limit,w_4096,h_4096,q_auto:best",
     format: "jpg",
   },
   "profile-image-normalize": {

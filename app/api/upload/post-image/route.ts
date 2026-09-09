@@ -46,7 +46,6 @@ export async function POST(req: Request) {
       buffer,
       folder: "udala/posts",
       contentType: file.type,
-      transformation: [{ width: 1600, height: 1600, crop: "limit" }],
     });
 
     return NextResponse.json({ url }, { status: 200 });

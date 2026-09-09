@@ -155,6 +155,7 @@ export function PostMediaCarousel({
                 alt={media.length > 1 ? `${imageAlt} ${index + 1} of ${media.length}` : imageAlt}
                 fill
                 sizes="(min-width: 1536px) 48rem, (min-width: 640px) 40rem, 100vw"
+                quality={92}
                 className="object-cover"
               />
             )}
