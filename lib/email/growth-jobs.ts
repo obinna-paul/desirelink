@@ -30,6 +30,15 @@ async function countNewCreatorsInCountry(country: string, sinceMs: number): Prom
   });
 }
 
+/** The Seeker-relevant equivalent of countNewCreatorsInCountry - other Seekers newly
+ *  available to meet, rather than new content creators to subscribe to. */
+async function countNewSeekersInCountry(country: string, sinceMs: number): Promise<number> {
+  if (!country) return 0;
+  return prisma.profile.count({
+    where: { profileType: "SEEKER", country, createdAt: { gte: new Date(Date.now() - sinceMs) } },
+  });
+}
+
 /**
  * Meant to run weekly (see vercel.json). Only sends to accounts with
  * Profile.marketingEmailsEnabled - the one Phase 5 category that isn't transactional -
@@ -90,6 +99,22 @@ export async function runWeeklyDigest(): Promise<{ sent: number }> {
         idempotencyKey: `weekly-digest/${profile.id}/${periodKey}`,
       });
       if (!delivered) continue;
+    } else if (profile.profileType === "SEEKER") {
+      const newPeopleCount = await countNewSeekersInCountry(profile.country, 7 * 24 * 60 * 60 * 1000);
+      if (newPeopleCount === 0) {
+        await prisma.profile.update({ where: { id: profile.id }, data: { digestSentAt: new Date() } });
+        continue;
+      }
+
+      const delivered = await sendEmail({
+        to: profile.user.email,
+        subject: "Your week on Udala",
+        react: WeeklyDigestEmail({ variant: "seeker", newPeopleCount, unsubscribeUrl }),
+        category: "digest",
+        template: "weekly-digest-seeker",
+        idempotencyKey: `weekly-digest/${profile.id}/${periodKey}`,
+      });
+      if (!delivered) continue;
     } else {
       const newCreatorCount = await countNewCreatorsInCountry(profile.country, 7 * 24 * 60 * 60 * 1000);
       if (newCreatorCount === 0) {
@@ -136,6 +161,7 @@ export async function runWinBack(): Promise<{ sent: number }> {
     select: {
       id: true,
       country: true,
+      profileType: true,
       lastActiveAt: true,
       winBackSentAt: true,
       user: { select: { email: true, name: true } },
@@ -148,14 +174,19 @@ export async function runWinBack(): Promise<{ sent: number }> {
   for (const profile of profiles) {
     if (profile.winBackSentAt && profile.lastActiveAt && profile.winBackSentAt >= profile.lastActiveAt) continue;
 
-    const newCreatorCount = await countNewCreatorsInCountry(profile.country, NEW_CREATOR_WINDOW_MS);
+    const audience = profile.profileType === "SEEKER" ? "people" : "creators";
+    const count =
+      audience === "people"
+        ? await countNewSeekersInCountry(profile.country, NEW_CREATOR_WINDOW_MS)
+        : await countNewCreatorsInCountry(profile.country, NEW_CREATOR_WINDOW_MS);
 
     const delivered = await sendEmail({
       to: profile.user.email,
       subject: `It's quiet without you, ${firstNameOf(profile.user.name)}`,
       react: WinBackEmail({
         firstName: firstNameOf(profile.user.name),
-        newCreatorCount,
+        count,
+        audience,
         unsubscribeUrl: unsubscribeUrlFor(profile.id),
       }),
       category: "digest",
