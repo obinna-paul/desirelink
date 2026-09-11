@@ -7,6 +7,7 @@ import { Download, EllipsisVertical, Share, Smartphone, SquarePlus, X } from "lu
 import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { isMobileDevice } from "@/lib/device";
+import { clearInstallCompleted, hasCompletedInstall, markInstallCompleted } from "@/lib/pwa-install-storage";
 
 type InstallChoice = { outcome: "accepted" | "dismissed"; platform: string };
 
@@ -65,6 +66,38 @@ export function PwaInstallPrompt() {
 
     let cancelled = false;
 
+    // Authoritative once set - see lib/pwa-install-storage for why this is checked ahead of
+    // getInstalledRelatedApps()/beforeinstallprompt, which can both go quiet after a manifest
+    // change even though the app is still installed. There's no "appuninstalled" event to keep
+    // this flag honest going forward, so still double-check live in the background (Android
+    // only - getInstalledRelatedApps is the only live signal available) and clear it if the app
+    // genuinely isn't installed anymore, rather than trusting a stale flag forever.
+    if (hasCompletedInstall()) {
+      setInstallEvent(null);
+      setPlatform(null);
+      setDismissedForVisit(true);
+
+      const getInstalledRelatedApps = (navigator as NavigatorWithRelatedApps).getInstalledRelatedApps;
+      if (isAndroidDevice() && getInstalledRelatedApps) {
+        getInstalledRelatedApps
+          .call(navigator)
+          .then((relatedApps) => {
+            if (cancelled) return;
+            const stillInstalled = relatedApps.some((app) => app.platform === "webapp");
+            if (!stillInstalled) {
+              clearInstallCompleted();
+              setPlatform("android");
+              setDismissedForVisit(false);
+              if (window.__udalaInstallPrompt) setInstallEvent(window.__udalaInstallPrompt);
+            }
+          })
+          .catch(() => {});
+      }
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const revealCapturedPrompt = () => {
       if (window.__udalaInstallPrompt) {
         setInstallEvent(window.__udalaInstallPrompt);
@@ -80,6 +113,7 @@ export function PwaInstallPrompt() {
       setDismissedForVisit(false);
     };
     const handleInstalled = () => {
+      markInstallCompleted();
       window.__udalaInstallPrompt = null;
       setInstallEvent(null);
       setPlatform(null);
@@ -114,6 +148,7 @@ export function PwaInstallPrompt() {
 
         const isInstalled = relatedApps.some((app) => app.platform === "webapp");
         if (isInstalled) {
+          markInstallCompleted();
           setInstallEvent(null);
           setPlatform(null);
           return;
