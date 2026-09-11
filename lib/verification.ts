@@ -10,6 +10,7 @@ import { sendVerificationApprovedEmail, sendVerificationDeniedEmail } from "@/li
 export const VERIFICATION_REQUEST_TYPES = [
   "creator",
   "service_provider",
+  "member",
 ] as const;
 export type VerificationRequestType =
   (typeof VERIFICATION_REQUEST_TYPES)[number];
@@ -55,6 +56,7 @@ export async function submitVerificationRequest(
     where: { id: profileId },
     select: {
       profileType: true,
+      isVerified: true,
       isVerifiedCreator: true,
       isVerifiedServiceProvider: true,
     },
@@ -63,7 +65,10 @@ export async function submitVerificationRequest(
     return { ok: false, status: 404, error: "Profile not found" };
   }
 
-  if (!isProviderProfileType(profile.profileType)) {
+  // "member" is general identity verification (e.g. to unlock messaging) available to
+  // every account type; "creator"/"service_provider" additionally require a creator
+  // account, since they gate creator-only features (premium posts, service listings).
+  if (requestType !== "member" && !isProviderProfileType(profile.profileType)) {
     return {
       ok: false,
       status: 403,
@@ -83,6 +88,13 @@ export async function submitVerificationRequest(
       ok: false,
       status: 400,
       error: "You're already a verified service provider",
+    };
+  }
+  if (requestType === "member" && profile.isVerified) {
+    return {
+      ok: false,
+      status: 400,
+      error: "You're already verified",
     };
   }
 
@@ -220,9 +232,10 @@ export type ReviewVerificationResult =
   | { ok: true }
   | { ok: false; status: number; error: string };
 
-const VERIFICATION_FIELD: Record<
-  VerificationRequestType,
-  "isVerifiedCreator" | "isVerifiedServiceProvider"
+/** "member" has no dedicated field - approving it just sets the general isVerified
+ *  flag below, which is all messaging (and hasIdentityOnFile generally) checks. */
+const VERIFICATION_FIELD: Partial<
+  Record<VerificationRequestType, "isVerifiedCreator" | "isVerifiedServiceProvider">
 > = {
   creator: "isVerifiedCreator",
   service_provider: "isVerifiedServiceProvider",
@@ -288,7 +301,9 @@ export async function approveVerificationRequest(
       data: {
         isVerified: true,
         verificationPending: false,
-        [VERIFICATION_FIELD[request.requestType]]: true,
+        ...(VERIFICATION_FIELD[request.requestType]
+          ? { [VERIFICATION_FIELD[request.requestType]!]: true }
+          : {}),
       },
     }),
   ]);

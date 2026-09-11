@@ -8,6 +8,12 @@ export const ACCOUNT_TYPE_OPTIONS: { value: ProfileType; label: string; descript
       "Interact with creators, subscribe to their content, and patronize services. Comes with a wallet for spending hearts.",
   },
   {
+    value: "SEEKER",
+    label: "Seeker",
+    description:
+      "Looking for a real connection - dating, casual, or a fling. Browse and message people; not here for premium content or spending on creators.",
+  },
+  {
     value: "CREATOR",
     label: "Creator",
     description:

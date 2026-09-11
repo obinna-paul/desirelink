@@ -75,6 +75,16 @@
     --accent-tint-border: 64 33% 71%;
   }
 
+  /* Seeker surfaces use an orange accent instead of the purple brand default */
+  .theme-seeker {
+    --primary: 30 85% 45%;
+    --ring: 30 85% 45%;
+    --secondary: 32 80% 91%;
+    --accent-soft: 28 70% 62%;
+    --accent-tint: 32 80% 91%;
+    --accent-tint-border: 30 65% 78%;
+  }
+
   .theme-plum {
     --primary: 320 24% 39%;
     --ring: 320 24% 39%;
@@ -138,6 +148,15 @@
     --accent-soft: 66 24% 66%;
     --accent-tint: 64 18% 16%;
     --accent-tint-border: 64 20% 28%;
+  }
+
+  .dark .theme-seeker {
+    --primary: 28 75% 55%;
+    --ring: 28 75% 55%;
+    --secondary: 28 40% 18%;
+    --accent-soft: 28 55% 62%;
+    --accent-tint: 28 40% 18%;
+    --accent-tint-border: 28 35% 30%;
   }
 
   .dark .theme-plum {

@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import type { ConversationMedia, ConversationMediaType } from "@/lib/message-types";
 import { prisma } from "@/lib/prisma";
 import { sendMessage } from "@/lib/messages";
+import { hasIdentityOnFile } from "@/lib/verification";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -18,6 +19,16 @@ export async function POST(req: Request) {
   });
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  }
+
+  if (!(await hasIdentityOnFile(profile.id))) {
+    return NextResponse.json(
+      {
+        error: "Verify your identity before sending messages.",
+        code: "IDENTITY_VERIFICATION_REQUIRED",
+      },
+      { status: 403 },
+    );
   }
 
   const body = await req.json().catch(() => null);
