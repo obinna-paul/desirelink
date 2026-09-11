@@ -37,11 +37,13 @@ describe("PwaInstallPrompt", () => {
   beforeEach(() => {
     navigation.__setPathname("/login");
     window.__udalaInstallPrompt = null;
+    window.localStorage.clear();
   });
 
   afterEach(() => {
     window.__udalaInstallPrompt = null;
     document.body.style.overflow = "";
+    window.localStorage.clear();
   });
 
   it("uses the browser install prompt on Android and hides after the choice", async () => {
@@ -120,5 +122,29 @@ describe("PwaInstallPrompt", () => {
       ).toHaveBeenCalledTimes(1);
     });
     expect(screen.queryByText("Keep Udala close")).not.toBeInTheDocument();
+    await waitFor(() => expect(window.localStorage.getItem("udala:pwa-installed")).toBe("1"));
+  });
+
+  it("never re-prompts once a completed install is recorded locally, even without asking Android again", () => {
+    window.localStorage.setItem("udala:pwa-installed", "1");
+    setDevice("Mozilla/5.0 (Linux; Android 15; Mobile) AppleWebKit/537.36 Chrome/140 Mobile");
+
+    render(<PwaInstallPrompt />);
+
+    expect(screen.queryByText("Keep Udala close")).not.toBeInTheDocument();
+  });
+
+  it("clears a stale local install record and prompts again once Android confirms it was actually uninstalled", async () => {
+    window.localStorage.setItem("udala:pwa-installed", "1");
+    setDevice(
+      "Mozilla/5.0 (Linux; Android 15; Mobile) AppleWebKit/537.36 Chrome/140 Mobile",
+      false,
+      [],
+    );
+
+    render(<PwaInstallPrompt />);
+
+    expect(await screen.findByText("Keep Udala close")).toBeInTheDocument();
+    expect(window.localStorage.getItem("udala:pwa-installed")).toBeNull();
   });
 });
