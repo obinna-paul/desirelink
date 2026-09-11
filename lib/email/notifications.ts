@@ -8,6 +8,7 @@ import { PasswordChangedEmail } from "@/components/emails/password-changed";
 import { AccountSuspendedEmail } from "@/components/emails/account-suspended";
 import { AccountReinstatedEmail } from "@/components/emails/account-reinstated";
 import { WelcomeExplorerEmail } from "@/components/emails/welcome-explorer";
+import { WelcomeSeekerEmail } from "@/components/emails/welcome-seeker";
 import { WelcomeCreatorEmail } from "@/components/emails/welcome-creator";
 import { VerificationApprovedEmail } from "@/components/emails/verification-approved";
 import { VerificationDeniedEmail } from "@/components/emails/verification-denied";
@@ -162,6 +163,14 @@ export async function sendWelcomeEmail(userId: string): Promise<void> {
       react: WelcomeCreatorEmail({ firstName }),
       category: "welcome",
       template: "welcome-creator",
+    });
+  } else if (user.profile.profileType === "SEEKER") {
+    await sendEmail({
+      to: user.email,
+      subject: `You're in, ${firstName}`,
+      react: WelcomeSeekerEmail({ firstName, city: user.profile.city || null }),
+      category: "welcome",
+      template: "welcome-seeker",
     });
   } else {
     await sendEmail({

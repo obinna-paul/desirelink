@@ -47,6 +47,7 @@ import { getPusherClient } from "@/lib/pusher-client";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { uploadMediaDirectToCloudinary } from "@/lib/client-uploads";
+import { VerificationRequestCard } from "@/components/verification/verification-request-card";
 import { cn } from "@/lib/utils";
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
@@ -129,6 +130,7 @@ export function ChatWindow({
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [showIdentityGate, setShowIdentityGate] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -497,6 +499,10 @@ export function ChatWindow({
     setSending(false);
 
     if (!response.ok) {
+      if (body?.code === "IDENTITY_VERIFICATION_REQUIRED") {
+        setShowIdentityGate(true);
+        return;
+      }
       setError(body?.error ?? "Couldn't send your message. Try again.");
       return;
     }
@@ -697,7 +703,21 @@ export function ChatWindow({
           </div>
         )}
         <input ref={fileInputRef} type="file" accept="image/*,video/mp4,video/webm,video/quicktime" className="sr-only" onChange={handleMediaSelected} />
-        {recording ? (
+        {showIdentityGate ? (
+          <div className="mx-auto max-w-3xl">
+            <VerificationRequestCard
+              requestType="member"
+              isVerified={false}
+              latestStatus={null}
+              heading="Verify your identity to send messages."
+              skipRefresh
+              onSubmitted={() => {
+                setShowIdentityGate(false);
+                void sendMessagePayload();
+              }}
+            />
+          </div>
+        ) : recording ? (
           <div className="mx-auto flex min-h-12 max-w-3xl items-center gap-2 rounded-2xl bg-[hsl(var(--chat-composer))] px-2 py-1.5">
             <button type="button" onClick={() => finishRecording(false)} aria-label="Cancel voice note" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-[hsl(var(--chat-canvas))]">
               <X className="h-4 w-4" aria-hidden="true" />

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isProviderProfileType } from "@/lib/provider-types";
+import { getAccountThemeClass } from "@/lib/account-theme";
 import { AppShell } from "@/components/layout/app-shell";
 import { CreatorWelcomeModal } from "@/components/creator/creator-welcome-modal";
 
@@ -34,10 +35,13 @@ export default async function AppGroupLayout({
   }
   const isProvider = profile ? isProviderProfileType(profile.profileType) : false;
   const showCreatorWelcome = isProvider && !!profile && !profile.creatorWelcomeShownAt;
+  const accountThemeClass = profile ? getAccountThemeClass(profile.profileType) : "theme-olive";
 
   return (
     <>
-      <AppShell isProvider={isProvider} viewerProfileId={profile?.id ?? null}>{children}</AppShell>
+      <AppShell isProvider={isProvider} accountThemeClass={accountThemeClass} viewerProfileId={profile?.id ?? null}>
+        {children}
+      </AppShell>
       {showCreatorWelcome && <CreatorWelcomeModal profileHref={`/profile/${profile!.username}`} />}
     </>
   );

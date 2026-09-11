@@ -82,6 +82,7 @@ enum MessageMediaType {
 enum VerificationRequestType {
   creator
   service_provider
+  member
 }
 
 enum VerificationRequestStatus {
@@ -92,6 +93,7 @@ enum VerificationRequestStatus {
 
 enum ProfileType {
   EXPLORER
+  SEEKER
   CREATOR
 }
 

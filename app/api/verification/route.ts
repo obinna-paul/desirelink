@@ -3,7 +3,12 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getMyVerificationRequests, isVerificationRequestType, submitVerificationRequest } from "@/lib/verification";
+import {
+  getMyVerificationRequests,
+  isVerificationRequestType,
+  submitVerificationRequest,
+  VERIFICATION_REQUEST_TYPES,
+} from "@/lib/verification";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -43,7 +48,10 @@ export async function POST(req: Request) {
   const selfieUrl = typeof body?.selfieUrl === "string" ? body.selfieUrl : "";
 
   if (!isVerificationRequestType(requestType)) {
-    return NextResponse.json({ error: "requestType must be 'creator', 'host', or 'service_provider'" }, { status: 400 });
+    return NextResponse.json(
+      { error: `requestType must be one of: ${VERIFICATION_REQUEST_TYPES.map((type) => `'${type}'`).join(", ")}` },
+      { status: 400 },
+    );
   }
 
   const result = await submitVerificationRequest(profile.id, requestType, govIdUrl, selfieUrl);

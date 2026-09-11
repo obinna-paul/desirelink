@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { ShieldCheck } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -36,11 +34,8 @@ export default async function VerificationPage() {
     profile.isVerifiedServiceProvider;
   const isProvider = isProviderProfileType(profile.profileType);
 
-  let latestStatus: "pending" | "approved" | "denied" | null = null;
-  if (isProvider) {
-    const requests = await getMyVerificationRequests(profile.id);
-    latestStatus = requests[0]?.status ?? null;
-  }
+  const requests = await getMyVerificationRequests(profile.id);
+  const latestStatus: "pending" | "approved" | "denied" | null = requests[0]?.status ?? null;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -58,17 +53,14 @@ export default async function VerificationPage() {
           latestStatus={latestStatus}
         />
       ) : (
-        <div className="flex items-start gap-3 rounded-2xl border border-dashed border-border/60 bg-card p-4 shadow-sm md:rounded-xl md:shadow-none">
-          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <div className="text-sm text-muted-foreground">
-            <p>
-              Identity verification is for creator accounts listing services or posting premium content.
-            </p>
-            <Link href="/settings/account-type" className="mt-2 inline-block font-medium text-foreground hover:underline">
-              Switch to a creator account
-            </Link>
-          </div>
-        </div>
+        <VerificationRequestCard
+          requestType="member"
+          isVerified={isVerified}
+          latestStatus={latestStatus}
+          heading="Verify your identity to send messages."
+          verifiedLabel="You're verified."
+          verifiedBadgeLabel="Verified"
+        />
       )}
     </div>
   );

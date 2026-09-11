@@ -35,10 +35,10 @@ export async function PATCH(req: Request) {
 
   if (parsed.data.profileType && parsed.data.profileType !== currentProfile.profileType) {
     const isValidUpgrade =
-      currentProfile.profileType === "EXPLORER" && isProviderProfileType(parsed.data.profileType);
+      !isProviderProfileType(currentProfile.profileType) && isProviderProfileType(parsed.data.profileType);
     if (!isValidUpgrade) {
       return NextResponse.json(
-        { error: "Only switching from Explorer to a creator account type is allowed" },
+        { error: "Only switching to a creator account type is allowed" },
         { status: 400 }
       );
     }

@@ -7,15 +7,18 @@ import { PresencePing } from "@/components/layout/presence-ping";
 export function AppShell({
   children,
   isProvider = false,
+  accountThemeClass = "theme-olive",
   viewerProfileId = null,
 }: {
   children: React.ReactNode;
   isProvider?: boolean;
+  /** CSS class for the viewer's own account-type accent color - see lib/account-theme.ts. */
+  accountThemeClass?: string;
   viewerProfileId?: string | null;
 }) {
   return (
     <div
-      className={`min-h-screen bg-background${isProvider ? "" : " theme-olive"}`}
+      className={`min-h-screen bg-background${accountThemeClass ? ` ${accountThemeClass}` : ""}`}
     >
       <PresencePing />
       <TopBar />

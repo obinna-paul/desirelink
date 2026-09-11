@@ -103,6 +103,8 @@ export function VerificationRequestCard({
   latestStatus,
   ineligibleMessage,
   heading = DEFAULT_HEADING,
+  verifiedLabel = "You're a verified creator.",
+  verifiedBadgeLabel = "Verified creator",
   skipRefresh = false,
   onSubmitted,
 }: {
@@ -114,6 +116,10 @@ export function VerificationRequestCard({
    * identification to go live." Defaults to a neutral heading for callers that show this
    * card as a general status view rather than gating one specific action. */
   heading?: string;
+  /** Shown once isVerified is true - override for non-creator verification (e.g. general
+   * "member" identity checks gating messaging), where "verified creator" would be wrong. */
+  verifiedLabel?: string;
+  verifiedBadgeLabel?: string;
   /** Skip the router.refresh() after submitting - use this when the parent holds
    * unsaved draft state (e.g. an in-progress post) that a server refetch would wipe.
    * The caller is responsible for tracking the new "identity on file" status itself,
@@ -223,8 +229,8 @@ export function VerificationRequestCard({
           aria-hidden="true"
         />
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span>You&rsquo;re a verified creator.</span>
-          <Badge variant="neon">Verified creator</Badge>
+          <span>{verifiedLabel}</span>
+          <Badge variant="neon">{verifiedBadgeLabel}</Badge>
         </div>
       </div>
     );

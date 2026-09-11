@@ -16,6 +16,11 @@ type WeeklyDigestProps =
       variant: "explorer";
       newCreatorCount: number;
       unsubscribeUrl: string;
+    }
+  | {
+      variant: "seeker";
+      newPeopleCount: number;
+      unsubscribeUrl: string;
     };
 
 export function WeeklyDigestEmail(props: WeeklyDigestProps) {
@@ -37,6 +42,19 @@ export function WeeklyDigestEmail(props: WeeklyDigestProps) {
           </Text>
         )}
         <EmailButton href={absoluteUrl("/create")}>Post something new</EmailButton>
+      </EmailLayout>
+    );
+  }
+
+  if (props.variant === "seeker") {
+    return (
+      <EmailLayout preview={`${props.newPeopleCount} new people joined this week`} unsubscribeUrl={props.unsubscribeUrl}>
+        <Text style={eyebrow}>Your week</Text>
+        <Text style={heading}>Your week on Udala</Text>
+        <Text style={paragraph}>
+          <strong>{props.newPeopleCount}</strong> new people joined this week.
+        </Text>
+        <EmailButton href={absoluteUrl("/discover")}>See who&apos;s new</EmailButton>
       </EmailLayout>
     );
   }

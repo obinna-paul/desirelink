@@ -5,7 +5,7 @@ import type { ProfileType } from "@prisma/client";
 import { ACCOUNT_TYPE_OPTIONS } from "@/lib/account-types";
 import { cn } from "@/lib/utils";
 
-/** Signup's account-type step: a simple Explorer/Creator choice. */
+/** Signup's account-type step: Explorer, Seeker, or Creator. */
 export function AccountTypeStep({
   value,
   onChange,
@@ -14,7 +14,7 @@ export function AccountTypeStep({
   onChange: (value: ProfileType) => void;
 }) {
   return (
-    <div role="radiogroup" aria-label="How will you use udala?" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div role="radiogroup" aria-label="How will you use udala?" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {ACCOUNT_TYPE_OPTIONS.map((option) => (
         <button
           key={option.value}

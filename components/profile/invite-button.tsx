@@ -7,6 +7,7 @@ import { Check, Mail, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useFocusTrap } from "@/lib/use-focus-trap";
+import { VerificationRequestCard } from "@/components/verification/verification-request-card";
 
 type InviteOptions = {
   liveStreamId: string | null;
@@ -71,6 +72,7 @@ export function InviteButton({
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showIdentityGate, setShowIdentityGate] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useFocusTrap(open, dialogRef);
@@ -118,6 +120,10 @@ export function InviteButton({
 
     if (!res.ok) {
       const body = await res.json().catch(() => null);
+      if (body?.code === "IDENTITY_VERIFICATION_REQUIRED") {
+        setShowIdentityGate(true);
+        return;
+      }
       setError(body?.error ?? "Couldn't send that invite.");
       return;
     }
@@ -178,6 +184,18 @@ export function InviteButton({
 
             {loading ? (
               <p className="text-xs text-muted-foreground">Loading...</p>
+            ) : showIdentityGate ? (
+              <VerificationRequestCard
+                requestType="member"
+                isVerified={false}
+                latestStatus={null}
+                heading="Verify your identity to send messages."
+                skipRefresh
+                onSubmitted={() => {
+                  setShowIdentityGate(false);
+                  void sendInvite();
+                }}
+              />
             ) : (
               <div className="flex min-h-0 flex-1 flex-col gap-3">
                 <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
