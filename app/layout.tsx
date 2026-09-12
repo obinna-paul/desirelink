@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     "services marketplace",
   ],
   robots: PRIVATE_ROBOTS,
-  manifest: "/manifest-v4.json",
+  manifest: "/manifest.json",
   icons: {
     icon: [
       { url: "/favicon.ico" },
