@@ -9,7 +9,7 @@ const discoverFilters = {
   orientations: [],
   lastActive: "any" as const,
   verification: "any" as const,
-  radiusKm: 50,
+  radiusKm: null,
   availability: "any" as const,
   sort: "recommended" as const,
 };
@@ -38,6 +38,18 @@ describe("search filter panels", () => {
     fireEvent.click(screen.getByRole("combobox", { name: "Distance" }));
     expect(screen.getByRole("listbox", { name: "Distance" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Any distance" })).toBeInTheDocument();
+  });
+
+  it("resets Distance to Any distance instead of re-applying the default radius", () => {
+    render(<DiscoverFiltersPanel initialFilters={{ ...discoverFilters, radiusKm: 50 }} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Filters/ }));
+    expect(screen.getByRole("combobox", { name: "Distance" })).toHaveTextContent("Within 50 km");
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    expect(screen.getByRole("combobox", { name: "Distance" })).toHaveTextContent("Any distance");
   });
 
   it("keeps Service filters closed and does not filter verification by default", () => {
