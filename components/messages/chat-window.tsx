@@ -221,6 +221,16 @@ export function ChatWindow({
       );
     });
 
+    // The identity gate fills this same scrollable pane with a tall form rather than
+    // messages - jumping it to the "bottom" like a fresh message list would skip straight
+    // past the heading and land mid-form. Keep it pinned to the top instead, and leave the
+    // scroll-to-newest-message bookkeeping below untouched so it still runs correctly once
+    // the gate closes and real messages take over the pane.
+    if (showIdentityGate) {
+      container.scrollTop = 0;
+      return;
+    }
+
     if (!initialScrollDoneRef.current) {
       requestAnimationFrame(() => scrollToBottom("auto"));
       initialScrollDoneRef.current = true;
@@ -239,7 +249,7 @@ export function ChatWindow({
     }
     previousFirstMessageIdRef.current = nextFirstId;
     previousScrollHeightRef.current = container.scrollHeight;
-  }, [initialMessages, scrollToBottom]);
+  }, [initialMessages, scrollToBottom, showIdentityGate]);
 
   useEffect(() => {
     const client = getPusherClient();
@@ -621,7 +631,7 @@ export function ChatWindow({
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 md:px-6 md:py-5"
       >
         {showIdentityGate ? (
-          <div className="mx-auto flex h-full w-full max-w-md flex-col justify-center py-6">
+          <div className="mx-auto w-full max-w-md py-2">
             <VerificationRequestCard
               requestType="member"
               isVerified={false}
