@@ -116,10 +116,14 @@ type ViewerProfile = {
   locationLng: number;
 };
 
+// (0, 0) is the sentinel for "location never set" - a real GPS reading landing exactly
+// on Null Island is practically impossible, so treating it as "no location" is safe.
+function hasCoordinates(lat: number, lng: number): boolean {
+  return lat !== 0 || lng !== 0;
+}
+
 function hasUsableLocation(viewerProfile: ViewerProfile | null): viewerProfile is ViewerProfile {
-  return Boolean(
-    viewerProfile && (viewerProfile.locationLat !== 0 || viewerProfile.locationLng !== 0)
-  );
+  return Boolean(viewerProfile && hasCoordinates(viewerProfile.locationLat, viewerProfile.locationLng));
 }
 
 async function buildWhere(
@@ -250,8 +254,11 @@ export async function searchDiscoverProfiles(
 
   let withDistance = candidates.map((candidate) => ({
     ...candidate,
+    // A candidate who never set their own location can't be placed relative to the
+    // viewer - without this check they'd default to (0, 0) and show a fake, identical
+    // "distance" to every viewer instead of no distance at all.
     distanceKm:
-      viewerProfile && viewerHasLocation
+      viewerProfile && viewerHasLocation && hasCoordinates(candidate.locationLat, candidate.locationLng)
         ? haversineDistanceKm(viewerProfile.locationLat, viewerProfile.locationLng, candidate.locationLat, candidate.locationLng)
         : undefined,
   }));

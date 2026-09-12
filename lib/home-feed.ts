@@ -63,8 +63,14 @@ function excludeSelf(viewerProfile: ViewerProfile | null): Prisma.ProfileWhereIn
   return viewerProfile ? { NOT: { id: viewerProfile.id } } : {};
 }
 
+// (0, 0) is the sentinel for "location never set" - a real GPS reading landing exactly
+// on Null Island is practically impossible, so treating it as "no location" is safe.
+function hasCoordinates(lat: number, lng: number): boolean {
+  return lat !== 0 || lng !== 0;
+}
+
 function hasLocation(viewerProfile: ViewerProfile | null): viewerProfile is ViewerProfile {
-  return Boolean(viewerProfile && (viewerProfile.locationLat !== 0 || viewerProfile.locationLng !== 0));
+  return Boolean(viewerProfile && hasCoordinates(viewerProfile.locationLat, viewerProfile.locationLng));
 }
 
 export type HomeFeedResult = {
@@ -111,6 +117,10 @@ export async function getHomeFeed(
       });
 
       const withinRadius = candidates
+        // A candidate who never set their own location can't meaningfully be placed on
+        // a map - without this, they'd default to (0, 0) and either show a fake distance
+        // or accidentally read as "nearby" to a viewer who happens to be near Null Island.
+        .filter((candidate) => hasCoordinates(candidate.locationLat, candidate.locationLng))
         .map((candidate) => ({
           candidate,
           distanceKm: haversineDistanceKm(
