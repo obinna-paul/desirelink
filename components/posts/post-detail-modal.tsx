@@ -15,6 +15,8 @@ import { ReportDialog } from "@/components/safety/report-dialog";
 import { CommentComposer, CommentsList, usePostComments } from "@/components/posts/post-comments-shared";
 import { SocialText } from "@/components/posts/social-text";
 import { VerificationBadge, type VerificationBadgeProfile } from "@/components/profile/verification-badge";
+import { AccountTypeBadge } from "@/components/profile/account-type-badge";
+import type { ProfileType } from "@prisma/client";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { cn } from "@/lib/utils";
 import type { PostMediaItem } from "@/lib/post-shared";
@@ -50,6 +52,7 @@ export function PostDetailModal({
     username: string;
     displayName: string;
     avatarUrl: string;
+    profileType: ProfileType;
     presenceStatus: PresenceStatus;
     activeStreamId: string | null;
   } & VerificationBadgeProfile;
@@ -191,6 +194,7 @@ export function PostDetailModal({
               <div className="min-w-0">
                 <p className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold">
                   <span className="truncate">{author.username}</span>
+                  <AccountTypeBadge profileType={author.profileType} />
                   <VerificationBadge profile={author} />
                 </p>
                 <p className="text-xs text-muted-foreground">{timeAgo}</p>
@@ -222,6 +226,7 @@ export function PostDetailModal({
                       className="inline-flex items-center gap-1 font-semibold hover:text-primary"
                     >
                       {author.username}
+                      <AccountTypeBadge profileType={author.profileType} />
                       <VerificationBadge profile={author} />
                     </Link>{" "}
                     <SocialText content={caption} />

@@ -25,6 +25,7 @@ import {
 import { GiftPicker, type SendGiftOutcome } from "@/components/hearts/gift-picker";
 import { MessageBubble } from "@/components/messages/message-bubble";
 import { VerificationBadge } from "@/components/profile/verification-badge";
+import { AccountTypeBadge } from "@/components/profile/account-type-badge";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { BlockButton } from "@/components/safety/block-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -533,6 +534,7 @@ export function ChatWindow({
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-1">
                 <p className="truncate text-[15px] font-semibold leading-5">{counterpart.username}</p>
+                <AccountTypeBadge profileType={counterpart.profileType} />
                 <VerificationBadge profile={counterpart} />
                 {presence?.visible && presence.state === "online" && !counterpartTyping && <span className="h-2 w-2 shrink-0 rounded-full bg-[hsl(var(--chat-status))]" aria-label="Online" />}
               </div>

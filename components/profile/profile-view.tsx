@@ -28,6 +28,7 @@ import { SubscribePlansDialog } from "@/components/profile/subscribe-plans-dialo
 import { ShareProfileButton } from "@/components/profile/share-profile-button";
 import { SwipeableSection } from "@/components/profile/swipeable-section";
 import { VerificationBadge } from "@/components/profile/verification-badge";
+import { AccountTypeBadge } from "@/components/profile/account-type-badge";
 import type { PresenceStatus } from "@/lib/presence";
 import { ReviewDialog } from "@/components/reviews/review-dialog";
 import { ReviewsSection } from "@/components/reviews/reviews-section";
@@ -210,6 +211,7 @@ export function ProfileView({
             <h1 className="min-w-0 break-words font-heading text-xl font-semibold text-foreground sm:text-2xl md:text-3xl">
               {profile.displayName || profile.username}
             </h1>
+            <AccountTypeBadge profileType={profile.profileType} />
             <VerificationBadge profile={profile} />
           </div>
 

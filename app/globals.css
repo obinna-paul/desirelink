@@ -44,6 +44,13 @@
        avatar reads the same way (offline/online/live) no matter whose page it's on. */
     --presence-online: 145 68% 38%;
     --presence-live: 276 72% 45%;
+
+    /* Account-type badge colors (crown/compass/heart) - identify the PROFILE being
+       shown, so - like the presence colors above - these stay fixed regardless of the
+       viewer's own account theme instead of following .theme-olive/.theme-seeker. */
+    --account-creator: 276 72% 45%;
+    --account-explorer: 64 32% 36%;
+    --account-seeker: 30 85% 45%;
   }
 
   /* Explicit purple (brand) reset, for Provider-branded content nested inside an Explorer's olive-themed shell */
@@ -139,6 +146,10 @@
     --presence-live: 276 65% 58%;
     --shadow-card: 0 12px 28px hsl(0 0% 0% / 0.32);
     --shadow-lift: 0 12px 28px hsl(0 0% 0% / 0.46);
+
+    --account-creator: 276 65% 58%;
+    --account-explorer: 66 28% 46%;
+    --account-seeker: 28 75% 55%;
   }
 
   .dark .theme-olive {

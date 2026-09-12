@@ -12,6 +12,7 @@ import { getPresenceDestination, PresenceRing } from "@/components/ui/presence-a
 import { Badge } from "@/components/ui/badge";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { VerificationBadge } from "@/components/profile/verification-badge";
+import { AccountTypeBadge } from "@/components/profile/account-type-badge";
 import { cn } from "@/lib/utils";
 import type { PostCommentView } from "@/lib/posts";
 
@@ -118,6 +119,7 @@ function CommentThread({
               className="flex items-center gap-1 text-[13.5px] font-semibold hover:text-primary"
             >
               {comment.author.username}
+              <AccountTypeBadge profileType={comment.author.profileType} />
               <VerificationBadge profile={comment.author} />
             </Link>
             {isAuthor && (

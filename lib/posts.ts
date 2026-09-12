@@ -65,6 +65,7 @@ const commentAuthorSelect = {
   username: true,
   displayName: true,
   avatarUrl: true,
+  profileType: true,
   lastActiveAt: true,
   showActivityStatus: true,
   isVerified: true,
@@ -121,6 +122,7 @@ export type PostCommentView = {
     username: string;
     displayName: string;
     avatarUrl: string;
+    profileType: ProfileType;
     presenceStatus: PresenceStatus;
     activeStreamId: string | null;
     isVerified: boolean;
@@ -140,6 +142,7 @@ type RawComment = {
     username: string;
     displayName: string;
     avatarUrl: string;
+    profileType: ProfileType;
     lastActiveAt: Date | null;
     showActivityStatus: boolean;
     isVerified: boolean;
@@ -296,6 +299,7 @@ function toCommentView(comment: RawComment, liveStreamIds: Map<string, string>):
       username: comment.author.username,
       displayName: comment.author.displayName,
       avatarUrl: comment.author.avatarUrl,
+      profileType: comment.author.profileType,
       presenceStatus: getPresenceStatus(comment.author, liveStreamIds.has(comment.author.id)),
       activeStreamId: liveStreamIds.get(comment.author.id) ?? null,
       isVerified: comment.author.isVerified,
