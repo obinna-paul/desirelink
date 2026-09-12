@@ -4,9 +4,13 @@ import { EmailLayout, OtpCode, colors, eyebrow, heading, muted, paragraph } from
 
 export type OtpEmailVariant = "signup" | "resend" | "password_reset" | "add_email";
 
-const COPY: Record<OtpEmailVariant, { subject: string; eyebrow: string; title: string; intro: string; footer: string }> = {
+const COPY: Record<
+  OtpEmailVariant,
+  { subject: string; preview: string; eyebrow: string; title: string; intro: string; footer: string }
+> = {
   add_email: {
     subject: "Confirm your email",
+    preview: "Enter this code to confirm this address on your account",
     eyebrow: "Confirm your email",
     title: "Confirm this address",
     intro: "Use this code to confirm this address on your account:",
@@ -14,6 +18,7 @@ const COPY: Record<OtpEmailVariant, { subject: string; eyebrow: string; title: s
   },
   signup: {
     subject: "Your code: {code}",
+    preview: "Enter it to verify your email and finish setting up your account",
     eyebrow: "Verify your email",
     title: "Confirm it's you",
     intro: "Enter this to verify your email and finish setting up your account:",
@@ -21,6 +26,7 @@ const COPY: Record<OtpEmailVariant, { subject: string; eyebrow: string; title: s
   },
   resend: {
     subject: "Your new code: {code}",
+    preview: "Your last code expired — here's a fresh one",
     eyebrow: "New code",
     title: "Here's your new code",
     intro: "Your last code expired. Use this one:",
@@ -28,6 +34,7 @@ const COPY: Record<OtpEmailVariant, { subject: string; eyebrow: string; title: s
   },
   password_reset: {
     subject: "Reset your password",
+    preview: "Someone asked to reset the password on this account",
     eyebrow: "Reset your password",
     title: "Reset your password",
     intro: "Someone asked to reset the password on this account. If that was you, use this code:",
@@ -43,7 +50,7 @@ export function OtpEmail({ variant, code, ttlMinutes }: { variant: OtpEmailVaria
   const copy = COPY[variant];
 
   return (
-    <EmailLayout preview={otpEmailSubject(variant, code)}>
+    <EmailLayout preview={copy.preview}>
       <Text style={eyebrow}>{copy.eyebrow}</Text>
       <Text style={heading}>{copy.title}</Text>
       <Text style={paragraph}>{copy.intro}</Text>

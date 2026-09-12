@@ -6,7 +6,7 @@ import { absoluteUrl } from "@/lib/site-config";
 
 export function PayoutFailedEmail({ amountCents, reason }: { amountCents: number; reason: string | null }) {
   return (
-    <EmailLayout preview="Payout didn't go through">
+    <EmailLayout preview={`${formatCents(amountCents)} is back in your wallet — update your payout details`}>
       <Text style={eyebrow}>Payout</Text>
       <Text style={heading}>Payout didn&apos;t go through</Text>
       <Text style={paragraph}>

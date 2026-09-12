@@ -5,7 +5,7 @@ import { absoluteUrl } from "@/lib/site-config";
 
 export function NewDeviceSignInEmail({ device, timestamp }: { device: string; timestamp: string }) {
   return (
-    <EmailLayout preview={`New sign-in from ${device}`}>
+    <EmailLayout preview={`From ${device} — wasn't you? Reset your password`}>
       <Text style={eyebrow}>Security</Text>
       <Text style={heading}>New sign-in to your account</Text>
       <Text style={paragraph}>New sign-in to your account.</Text>

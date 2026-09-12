@@ -17,8 +17,9 @@ export function WinBackEmail({
   unsubscribeUrl: string;
 }) {
   const label = audience === "creators" ? "new creators" : "new people";
+  const preview = count > 0 ? `${count} ${label} have joined since you last checked in` : "There's a lot you've missed";
   return (
-    <EmailLayout preview={`It's quiet without you, ${firstName}`} unsubscribeUrl={unsubscribeUrl}>
+    <EmailLayout preview={preview} unsubscribeUrl={unsubscribeUrl}>
       <Text style={eyebrow}>We miss you</Text>
       <Text style={heading}>It&apos;s quiet without you, {firstName}</Text>
       <Text style={paragraph}>

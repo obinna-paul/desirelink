@@ -4,7 +4,7 @@ import { EmailLayout, eyebrow, heading, paragraph } from "@/components/emails/la
 
 export function ReportReceivedEmail() {
   return (
-    <EmailLayout preview="Report received">
+    <EmailLayout preview="Our safety team is reviewing it now">
       <Text style={eyebrow}>Safety</Text>
       <Text style={heading}>Report received</Text>
       <Text style={paragraph}>

@@ -5,7 +5,7 @@ import { absoluteUrl } from "@/lib/site-config";
 
 export function AccountReinstatedEmail() {
   return (
-    <EmailLayout preview="You're back">
+    <EmailLayout preview="Your account's fully restored — everything works like before">
       <Text style={eyebrow}>Account status</Text>
       <Text style={heading}>You&apos;re back</Text>
       <Text style={paragraph}>

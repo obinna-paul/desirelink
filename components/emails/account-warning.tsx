@@ -4,7 +4,7 @@ import { EmailLayout, colors, eyebrow, heading, muted, paragraph } from "@/compo
 
 export function AccountWarningEmail() {
   return (
-    <EmailLayout preview="A warning about your Udala account">
+    <EmailLayout preview="Another violation risks suspension">
       <Text style={eyebrow}>Safety</Text>
       <Text style={heading}>A warning about your account</Text>
       <Text style={paragraph}>

@@ -18,7 +18,7 @@ export function SubscriptionConfirmedEmail({
   endsAt: string;
 }) {
   return (
-    <EmailLayout preview={`You're in — ${creatorName}`}>
+    <EmailLayout preview={`${tierName} unlocked through ${endsAt}`}>
       <Text style={eyebrow}>Subscription</Text>
       <Text style={heading}>You&apos;re in — {creatorName}</Text>
       <Text style={paragraph}>

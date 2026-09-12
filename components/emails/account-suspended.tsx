@@ -4,7 +4,7 @@ import { EmailLayout, colors, eyebrow, heading, muted, paragraph } from "@/compo
 
 export function AccountSuspendedEmail() {
   return (
-    <EmailLayout preview="Your account is suspended">
+    <EmailLayout preview="We're reviewing a report against your account">
       <Text style={eyebrow}>Account status</Text>
       <Text style={heading}>Your account is suspended</Text>
       <Text style={paragraph}>

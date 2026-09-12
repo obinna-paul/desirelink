@@ -4,7 +4,7 @@ import { Callout, EmailLayout, colors, eyebrow, heading, paragraph } from "@/com
 
 export function PasswordChangedEmail({ device, timestamp }: { device: string; timestamp: string }) {
   return (
-    <EmailLayout preview="Your Udala password was just changed.">
+    <EmailLayout preview={`Changed on ${timestamp} from ${device} — wasn't you? Email us right away`}>
       <Text style={eyebrow}>Security</Text>
       <Text style={heading}>Password changed</Text>
       <Text style={paragraph}>

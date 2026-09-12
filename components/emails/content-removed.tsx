@@ -4,7 +4,7 @@ import { EmailLayout, colors, eyebrow, heading, muted, paragraph } from "@/compo
 
 export function ContentRemovedEmail({ contentLabel }: { contentLabel: string }) {
   return (
-    <EmailLayout preview={`A ${contentLabel} of yours was removed`}>
+    <EmailLayout preview="It went against our community guidelines">
       <Text style={eyebrow}>Safety</Text>
       <Text style={heading}>A {contentLabel} was removed</Text>
       <Text style={paragraph}>

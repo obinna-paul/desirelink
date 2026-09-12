@@ -5,7 +5,7 @@ import { absoluteUrl } from "@/lib/site-config";
 
 export function WelcomeSeekerEmail({ firstName, city }: { firstName: string; city: string | null }) {
   return (
-    <EmailLayout preview={`You're in, ${firstName}`}>
+    <EmailLayout preview="Someone worth meeting could be one message away">
       <Text style={eyebrow}>Welcome</Text>
       <Text style={heading}>You&apos;re in, {firstName}</Text>
       <Text style={paragraph}>

@@ -5,7 +5,7 @@ import { absoluteUrl } from "@/lib/site-config";
 
 export function VerificationApprovedEmail({ username }: { username: string }) {
   return (
-    <EmailLayout preview="You're verified">
+    <EmailLayout preview="Your badge is live — pitch your tiers right in the feed">
       <Text style={eyebrow}>Verification</Text>
       <Text style={heading}>You&apos;re verified</Text>
       <Text style={paragraph}>
