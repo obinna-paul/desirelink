@@ -57,11 +57,18 @@ export function InviteButton({
   recipientDisplayName,
   size = "default",
   className,
+  viewerHasIdentityOnFile = false,
 }: {
   recipientId: string;
   recipientDisplayName: string;
   size?: "default" | "sm";
   className?: string;
+  /** Whether the viewer has ever submitted identity verification (pending counts). Shows
+   * the verify-to-message gate immediately when the invite dialog opens, rather than
+   * waiting for a send attempt to fail first. Defaults to false (gate shown) - fail
+   * closed, so a call site that forgets to pass this never silently reopens messaging
+   * for the unverified. */
+  viewerHasIdentityOnFile?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -72,7 +79,7 @@ export function InviteButton({
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showIdentityGate, setShowIdentityGate] = useState(false);
+  const [showIdentityGate, setShowIdentityGate] = useState(!viewerHasIdentityOnFile);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useFocusTrap(open, dialogRef);
@@ -87,7 +94,7 @@ export function InviteButton({
   }, [open]);
 
   useEffect(() => {
-    if (!open || options || loading) return;
+    if (!open || options || loading || showIdentityGate) return;
     setLoading(true);
     fetch("/api/invite/options")
       .then((res) => (res.ok ? res.json() : null))
@@ -97,7 +104,7 @@ export function InviteButton({
         setSelection(data.liveStreamId ? "live" : "hi");
       })
       .finally(() => setLoading(false));
-  }, [open, options, loading]);
+  }, [open, options, loading, showIdentityGate]);
 
   useEffect(() => {
     if (!options) return;

@@ -126,6 +126,7 @@ export function ProfileView({
   presenceStatus = "offline",
   liveStreamId = null,
   viewerIsProvider = false,
+  viewerHasIdentityOnFile = false,
   viewerEmail = "",
 }: {
   profile: Profile & {
@@ -152,6 +153,10 @@ export function ProfileView({
   presenceStatus?: PresenceStatus;
   liveStreamId?: string | null;
   viewerIsProvider?: boolean;
+  /** Whether the viewer has ever submitted identity verification (pending counts) - shows
+   * InviteButton's verify-to-message gate immediately, rather than only after a send
+   * attempt fails. Defaults to false (gate shown): fail closed. */
+  viewerHasIdentityOnFile?: boolean;
   viewerEmail?: string;
 }) {
   const visibleSections = isProvider
@@ -394,6 +399,7 @@ export function ProfileView({
                     <InviteButton
                       recipientId={profile.id}
                       recipientDisplayName={profile.displayName}
+                      viewerHasIdentityOnFile={viewerHasIdentityOnFile}
                     />
                   )}
                   <OverflowMenu>

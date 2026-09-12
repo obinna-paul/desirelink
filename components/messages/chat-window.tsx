@@ -108,12 +108,18 @@ export function ChatWindow({
   initialMessages,
   blockRelationship = "none",
   viewerHeartsBalance = 0,
+  viewerHasIdentityOnFile = false,
 }: {
   viewerProfileId: string;
   counterpart: ConversationParticipant;
   initialMessages: ConversationMessage[];
   blockRelationship?: BlockRelationship;
   viewerHeartsBalance?: number;
+  /** Whether the viewer has ever submitted identity verification (pending counts). Shows
+   * the verify-to-message gate immediately on opening the chat, rather than waiting for a
+   * send attempt to fail first. Defaults to false (gate shown) - fail closed, so a call
+   * site that forgets to pass this never silently reopens messaging for the unverified. */
+  viewerHasIdentityOnFile?: boolean;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
@@ -131,7 +137,7 @@ export function ChatWindow({
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [showIdentityGate, setShowIdentityGate] = useState(false);
+  const [showIdentityGate, setShowIdentityGate] = useState(!viewerHasIdentityOnFile);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);

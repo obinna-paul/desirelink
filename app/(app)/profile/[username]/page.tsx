@@ -16,6 +16,7 @@ import { confirmProviderPayment } from "@/lib/providers";
 import { getProviderServiceListings } from "@/lib/service-listings";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { getOwnPresenceStatus, getPresenceStatus } from "@/lib/presence";
+import { hasIdentityOnFile } from "@/lib/verification";
 import { absoluteUrl, SITE_NAME } from "@/lib/site-config";
 import { PRIVATE_ROBOTS, PUBLIC_ROBOTS, seoDescription, serializeJsonLd } from "@/lib/seo";
 import { normalizeUsername } from "@/lib/username-format";
@@ -130,9 +131,10 @@ export default async function PublicProfilePage({
         })
       : null;
 
-  const blockRelationship = viewerProfile
-    ? await getBlockRelationship(viewerProfile.id, profile.id)
-    : "none";
+  const [blockRelationship, viewerHasIdentityOnFile] = await Promise.all([
+    viewerProfile ? getBlockRelationship(viewerProfile.id, profile.id) : Promise.resolve("none" as const),
+    viewerProfile ? hasIdentityOnFile(viewerProfile.id) : Promise.resolve(false),
+  ]);
 
   if (blockRelationship !== "none") {
     notFound();
@@ -241,6 +243,7 @@ export default async function PublicProfilePage({
         presenceStatus={presenceStatus}
         liveStreamId={activeStream?.id ?? null}
         viewerIsProvider={viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false}
+        viewerHasIdentityOnFile={viewerHasIdentityOnFile}
         viewerEmail={isOwner ? (session?.user?.email ?? "") : ""}
       />
     </div>
