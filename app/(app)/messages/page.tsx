@@ -7,6 +7,7 @@ import { ConversationList } from "@/components/messages/conversation-list";
 import { ChatWindow } from "@/components/messages/chat-window";
 import { getConversation, getConversations } from "@/lib/messages";
 import { getBlockRelationship } from "@/lib/block";
+import { hasIdentityOnFile } from "@/lib/verification";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +30,10 @@ export default async function MessagesPage({
     redirect("/login");
   }
 
-  const conversations = await getConversations(viewerProfile.id);
+  const [conversations, viewerHasIdentityOnFile] = await Promise.all([
+    getConversations(viewerProfile.id),
+    hasIdentityOnFile(viewerProfile.id),
+  ]);
 
   const counterpart = searchParams.with
     ? await prisma.profile.findUnique({
@@ -89,6 +93,7 @@ export default async function MessagesPage({
                 initialMessages={initialMessages}
                 blockRelationship={blockRelationship}
                 viewerHeartsBalance={viewerProfile.heartsBalance}
+                viewerHasIdentityOnFile={viewerHasIdentityOnFile}
               />
             </div>
           ) : (
