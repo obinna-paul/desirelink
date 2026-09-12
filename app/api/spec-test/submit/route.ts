@@ -33,14 +33,22 @@ export async function POST(req: Request) {
   const scores = scoreSpecTestAnswers(body.answers);
   const specType = resolveSpecType(scores);
 
-  const result = await prisma.specTestResult.create({
-    data: {
-      specType,
-      scores,
-      answers: body.answers,
-    },
-    select: { id: true },
-  });
+  try {
+    const result = await prisma.specTestResult.create({
+      data: {
+        specType,
+        scores,
+        answers: body.answers,
+      },
+      select: { id: true },
+    });
 
-  return NextResponse.json({ resultId: result.id }, { status: 201 });
+    return NextResponse.json({ resultId: result.id }, { status: 201 });
+  } catch (error) {
+    console.error("[spec-test] failed to save result", error);
+    return NextResponse.json(
+      { error: "Something went wrong saving your result. Please try again in a moment." },
+      { status: 500 },
+    );
+  }
 }
