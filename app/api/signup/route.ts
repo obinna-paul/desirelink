@@ -9,6 +9,7 @@ import { checkRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { getClientIp, readJson } from "@/lib/security/request";
 import { sendSignupOtpEmail } from "@/lib/email/notifications";
 import { isTurnstileConfigured, verifyTurnstileToken } from "@/lib/turnstile";
+import { linkSpecTestResultIfConsented } from "@/lib/spec-test";
 
 export async function POST(req: Request) {
   const body = await readJson(req);
@@ -58,7 +59,7 @@ export async function POST(req: Request) {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    await prisma.user.create({
+    const created = await prisma.user.create({
       data: {
         email: normalizedEmail,
         name,
@@ -80,7 +81,12 @@ export async function POST(req: Request) {
           },
         },
       },
+      include: { profile: { select: { id: true } } },
     });
+
+    if (created.profile) {
+      await linkSpecTestResultIfConsented(normalizedEmail, created.profile.id);
+    }
   } catch (error) {
     console.error("[signup] account creation failed", error);
 

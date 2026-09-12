@@ -381,6 +381,8 @@ export type SpecTestLead = {
   specType: SpecTypeKey;
   consentMarketing: boolean;
   createdAt: Date;
+  /** Set once this lead's email matched a new signup - see linkSpecTestResultIfConsented. */
+  joinedUsername: string | null;
 };
 
 /** Admin-facing view of everyone who gave an email to receive their result - see
@@ -396,14 +398,52 @@ export async function getSpecTestLeads(filters: { cursor?: string; take?: number
     orderBy: { createdAt: "desc" },
     take: take + 1,
     ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {}),
-    select: { id: true, email: true, specType: true, consentMarketing: true, createdAt: true },
+    select: {
+      id: true,
+      email: true,
+      specType: true,
+      consentMarketing: true,
+      createdAt: true,
+      profile: { select: { username: true } },
+    },
   });
 
   const hasMore = rows.length > take;
   const page = hasMore ? rows.slice(0, take) : rows;
 
   return {
-    items: page.map((row) => ({ ...row, email: row.email! }) as SpecTestLead),
+    items: page.map((row) => ({
+      id: row.id,
+      email: row.email!,
+      specType: row.specType as SpecTypeKey,
+      consentMarketing: row.consentMarketing,
+      createdAt: row.createdAt,
+      joinedUsername: row.profile?.username ?? null,
+    })),
     nextCursor: hasMore ? page[page.length - 1].id : null,
   };
+}
+
+/**
+ * Called right after a new account is created (see app/api/signup/route.ts and
+ * ensureProfileForAuthUser in lib/auth.ts) so a consenting Spec Test result finds its
+ * way to the account its taker went on to create. Deliberately does NOT feed
+ * recommendations/ranking - this codebase treats those as behavior-only by design (see
+ * lib/ranking/people-scoring.ts), so this is bookkeeping/attribution only for now, not a
+ * personalization signal. Matches only the newest unlinked, consenting result for the
+ * email, and never throws - a failure here must never block account creation.
+ */
+export async function linkSpecTestResultIfConsented(email: string, profileId: string): Promise<void> {
+  try {
+    const pending = await prisma.specTestResult.findFirst({
+      where: { email: { equals: email, mode: "insensitive" }, consentMarketing: true, profileId: null },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    if (!pending) return;
+
+    await prisma.specTestResult.update({ where: { id: pending.id }, data: { profileId } });
+  } catch (error) {
+    console.error("[spec-test] failed to link result to new profile", error);
+  }
 }

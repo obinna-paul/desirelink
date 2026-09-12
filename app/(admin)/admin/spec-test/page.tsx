@@ -5,7 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 
 import { authOptions } from "@/lib/auth";
 import { requireCapability } from "@/lib/admin/access";
-import { getSpecTestLeads, SPEC_TYPE_READINGS, type SpecTypeKey } from "@/lib/spec-test";
+import { getSpecTestLeads, SPEC_TYPE_READINGS } from "@/lib/spec-test";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
@@ -45,8 +45,13 @@ export default async function AdminSpecTestLeadsPage({ searchParams }: { searchP
                 className="flex flex-col gap-1.5 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm md:rounded-xl md:shadow-none"
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline">{SPEC_TYPE_READINGS[lead.specType as SpecTypeKey]?.name ?? lead.specType}</Badge>
+                  <Badge variant="outline">{SPEC_TYPE_READINGS[lead.specType]?.name ?? lead.specType}</Badge>
                   {lead.consentMarketing && <Badge>Marketing OK</Badge>}
+                  {lead.joinedUsername && (
+                    <Link href={`/profile/${lead.joinedUsername}`} className="text-xs font-medium text-primary hover:underline">
+                      Joined as @{lead.joinedUsername}
+                    </Link>
+                  )}
                   <span className="ml-auto text-xs text-muted-foreground" title={new Date(lead.createdAt).toISOString()}>
                     {formatDistanceToNow(new Date(lead.createdAt), { addSuffix: true })}
                   </span>
