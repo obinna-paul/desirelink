@@ -86,7 +86,7 @@ export function AddEmailForm() {
     // Refreshes this session's JWT (see lib/auth.ts's jwt callback, trigger === "update")
     // so session.user.email reflects the address just confirmed, not the old placeholder.
     await update();
-    router.push("/");
+    router.push("/profile/edit");
     router.refresh();
   }
 

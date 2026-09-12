@@ -31,7 +31,7 @@ export function AccountTypePickerForm() {
     }
 
     setStatus("success");
-    router.push("/");
+    router.push("/profile/edit");
     router.refresh();
   }
 
