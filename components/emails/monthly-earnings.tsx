@@ -16,7 +16,10 @@ export function MonthlyEarningsEmail({
   unsubscribeUrl: string;
 }) {
   return (
-    <EmailLayout preview={`Your ${month} earnings`} unsubscribeUrl={unsubscribeUrl}>
+    <EmailLayout
+      preview={`${formatCents(newSubscriptionRevenueCents)} from ${newSubscriberCount} new subscriber${newSubscriberCount === 1 ? "" : "s"}`}
+      unsubscribeUrl={unsubscribeUrl}
+    >
       <Text style={eyebrow}>Monthly summary</Text>
       <Text style={heading}>Your {month} earnings</Text>
       <Text style={paragraph}>

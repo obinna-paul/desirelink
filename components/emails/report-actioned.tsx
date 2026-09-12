@@ -4,7 +4,7 @@ import { EmailLayout, eyebrow, heading, paragraph } from "@/components/emails/la
 
 export function ReportActionedEmail() {
   return (
-    <EmailLayout preview="An update on the report you submitted">
+    <EmailLayout preview="We took action under our community guidelines">
       <Text style={eyebrow}>Safety</Text>
       <Text style={heading}>An update on your report</Text>
       <Text style={paragraph}>

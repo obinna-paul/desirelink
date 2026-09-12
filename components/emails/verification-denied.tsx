@@ -4,7 +4,7 @@ import { EmailLayout, colors, eyebrow, heading, muted, paragraph } from "@/compo
 
 export function VerificationDeniedEmail({ reason }: { reason: string }) {
   return (
-    <EmailLayout preview="We couldn't approve this one">
+    <EmailLayout preview={reason}>
       <Text style={eyebrow}>Verification</Text>
       <Text style={heading}>About your verification</Text>
       <Text style={paragraph}>
