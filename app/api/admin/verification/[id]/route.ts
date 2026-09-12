@@ -23,10 +23,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "A reason is required to deny verification" }, { status: 400 });
   }
 
-  const result =
-    action === "approve"
-      ? await approveVerificationRequest(params.id, session!.user.id)
-      : await denyVerificationRequest(params.id, session!.user.id, body.reason);
+  let result;
+  try {
+    result =
+      action === "approve"
+        ? await approveVerificationRequest(params.id, session!.user.id)
+        : await denyVerificationRequest(params.id, session!.user.id, body.reason);
+  } catch (error) {
+    console.error(`[admin verification] failed to ${action} request`, params.id, error);
+    return NextResponse.json(
+      { error: "Something went wrong updating this request. Check server logs for details." },
+      { status: 500 },
+    );
+  }
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
