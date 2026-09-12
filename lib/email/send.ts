@@ -15,7 +15,8 @@ export type EmailCategory =
   | "bookings"
   | "safety"
   | "support"
-  | "digest";
+  | "digest"
+  | "messages";
 
 function isMissingEmailLogSchema(error: unknown): boolean {
   return (

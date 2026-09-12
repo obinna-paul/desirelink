@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { triggerEvent } from "@/lib/pusher-server";
 import { isBlockedEitherWay } from "@/lib/block";
 import { flagContentIfNeeded } from "@/lib/moderation";
+import { notifyNewMessageByEmail } from "@/lib/email/messages";
 import {
   getConversationChannelName,
   getUserChannelName,
@@ -333,11 +334,22 @@ export async function sendMessage(
 
   // New messages surface as an unread-conversation count on the Messages nav icon
   // (see getUnreadConversationCount), not as a bell notification - the recipient's
-  // INBOX_UPDATED_EVENT subscription picks this up in real time.
+  // INBOX_UPDATED_EVENT subscription picks this up in real time. A throttled email
+  // (see notifyNewMessageByEmail) covers the case where they aren't actively watching.
   await Promise.all([
     triggerEvent(getConversationChannelName(senderId, recipientId), NEW_MESSAGE_EVENT, message),
     triggerEvent(getUserChannelName(recipientId), INBOX_UPDATED_EVENT, { fromProfileId: senderId }),
   ]);
+
+  notifyNewMessageByEmail({
+    messageId: message.id,
+    senderId,
+    senderUsername: message.sender.username,
+    senderDisplayName: message.sender.displayName,
+    recipientId,
+    content: message.content,
+    mediaType: message.mediaType,
+  });
 
   return { ok: true, message };
 }
