@@ -12,7 +12,6 @@ import { getServiceListingsByIds } from "@/lib/service-listings";
 import { logSearchInteraction, searchDocuments } from "@/lib/search";
 import { getHiddenCreatorIds, getNotInterestedPostIds } from "@/lib/content-feedback";
 import {
-  DEFAULT_RADIUS_KM,
   parseDiscoverFilters,
   searchDiscoverProfiles,
   type DiscoverSearchParams,
@@ -129,7 +128,7 @@ export default async function DiscoverPage({
     (filters.query ? 1 : 0) +
     filters.genders.length +
     filters.orientations.length +
-    (filters.radiusKm !== DEFAULT_RADIUS_KM ? 1 : 0) +
+    (filters.radiusKm !== null ? 1 : 0) +
     (filters.availability !== "any" ? 1 : 0) +
     (filters.sort !== "recommended" ? 1 : 0) +
     (filters.lastActive !== "any" ? 1 : 0) +

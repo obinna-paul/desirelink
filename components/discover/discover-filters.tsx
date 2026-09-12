@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
 import {
   AVAILABILITY_FILTER_OPTIONS,
-  DEFAULT_RADIUS_KM,
   DISCOVER_SORT_OPTIONS,
   LAST_ACTIVE_FILTER_OPTIONS,
   RADIUS_OPTIONS,
@@ -55,7 +54,7 @@ export function DiscoverFiltersPanel({
   const activeFilterCount =
     genders.length +
     orientations.length +
-    (radiusKm !== String(DEFAULT_RADIUS_KM) ? 1 : 0) +
+    (radiusKm !== "any" ? 1 : 0) +
     (availability !== "any" ? 1 : 0) +
     (sort !== "recommended" ? 1 : 0) +
     (lastActive !== "any" ? 1 : 0) +
@@ -80,7 +79,7 @@ export function DiscoverFiltersPanel({
     setOrientations([]);
     setLastActive("any");
     setVerification("any");
-    setRadiusKm(String(DEFAULT_RADIUS_KM));
+    setRadiusKm("any");
     setAvailability("any");
     setSort("recommended");
     router.push(initialFilters.query ? `/discover?q=${encodeURIComponent(initialFilters.query)}` : "/discover");

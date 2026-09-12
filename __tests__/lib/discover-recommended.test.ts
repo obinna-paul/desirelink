@@ -95,4 +95,16 @@ describe("searchDiscoverProfiles - recommended sort", () => {
 
     expect(profiles.map((p) => p.id)).toEqual(["near"]);
   });
+
+  it("does not exclude a distant profile when no radius filter was ever set, even for a viewer with a real location", async () => {
+    mockPrisma.profile.findMany.mockResolvedValue([
+      candidate("far", { locationLat: 40.7, locationLng: -74.0 }),
+      candidate("near", { locationLat: 6.5, locationLng: 3.3 }),
+    ]);
+
+    const filters = parseDiscoverFilters({});
+    const { profiles } = await searchDiscoverProfiles(filters, { id: "viewer-1", locationLat: 6.5, locationLng: 3.3 });
+
+    expect(profiles.map((p) => p.id).sort()).toEqual(["far", "near"]);
+  });
 });

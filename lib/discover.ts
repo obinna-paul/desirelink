@@ -94,7 +94,13 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
     verification: VERIFICATION_FILTER_OPTIONS.some((option) => option.value === verificationParam)
       ? (verificationParam as VerificationFilterValue)
       : "any",
-    radiusKm: radiusParam === "any" ? null : Number(radiusParam) || DEFAULT_RADIUS_KM,
+    // No radius param at all (first visit, or the filter panel's Reset) means "no distance
+    // filter" - it must stay distinct from an explicit, garbage radius value, which still
+    // falls back to DEFAULT_RADIUS_KM rather than silently disabling the filter.
+    radiusKm:
+      radiusParam === undefined || radiusParam === "any"
+        ? null
+        : Number(radiusParam) || DEFAULT_RADIUS_KM,
     availability: AVAILABILITY_FILTER_OPTIONS.some((option) => option.value === availabilityParam)
       ? (availabilityParam as AvailabilityFilterValue)
       : "any",

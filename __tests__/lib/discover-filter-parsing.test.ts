@@ -27,4 +27,14 @@ describe("search filter parsing", () => {
     expect(parseServiceFilters({ verified: "true" }).verifiedOnly).toBe(true);
     expect(parseServiceFilters({ verified: "false" }).verifiedOnly).toBe(false);
   });
+
+  it("applies no distance filter when radius is absent, distinguishing it from an explicit value", () => {
+    expect(parseDiscoverFilters({}).radiusKm).toBeNull();
+    expect(parseDiscoverFilters({ radius: "any" }).radiusKm).toBeNull();
+    expect(parseDiscoverFilters({ radius: "25" }).radiusKm).toBe(25);
+  });
+
+  it("falls back to the default radius only for a garbage explicit value, not a missing one", () => {
+    expect(parseDiscoverFilters({ radius: "not-a-number" }).radiusKm).toBe(50);
+  });
 });
