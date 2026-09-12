@@ -16,7 +16,8 @@ export type EmailCategory =
   | "safety"
   | "support"
   | "digest"
-  | "messages";
+  | "messages"
+  | "leads";
 
 function isMissingEmailLogSchema(error: unknown): boolean {
   return (

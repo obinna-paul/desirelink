@@ -343,6 +343,7 @@ model Profile {
   reviewsGiven           Review[]              @relation("ReviewReviewer")
   reviewsReceived        Review[]              @relation("ReviewReviewee")
   verificationRequests   VerificationRequest[]
+  specTestResults        SpecTestResult[]
   adminNotes             AdminNote[]
 
   providerSubscriptionsAsSub      ProviderSubscription[] @relation("ProviderSubscriptionSubscriber")
@@ -1168,6 +1169,33 @@ model VerificationRequest {
   @@index([profileId])
   @@index([status])
   @@index([requestType, status])
+}
+
+// --- Spec Test (lead-gen quiz) ----------------------------------------------
+
+/**
+ * One completed run of the public "Spec Test" quiz (see docs/spec-test-quiz.md).
+ * Anonymous by default - profileId/email/phone are only ever populated once the
+ * taker explicitly opts in, so a result can never be used to identify or market to
+ * someone who didn't ask for that.
+ */
+model SpecTestResult {
+  id               String   @id @default(cuid())
+  specType         String
+  /** The six attraction-dimension scores this result was computed from, kept for tuning. */
+  scores           Json
+  /** Raw answer choices, kept for future scoring/model iteration. */
+  answers          Json
+  email            String?
+  phone            String?
+  profileId        String?
+  profile          Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  /** Explicit opt-in required before a result can inform recommendations or marketing. */
+  consentMarketing Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  @@index([email])
+  @@index([profileId])
 }
 
 // --- Live streaming & gifting -------------------------------------------------

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CircleDollarSign, Images, Inbox, LayoutDashboard, LifeBuoy, LineChart, ScrollText, Shield, Users, type LucideIcon } from "lucide-react";
+import { CircleDollarSign, Images, Inbox, LayoutDashboard, LifeBuoy, LineChart, ScrollText, Shield, Sparkles, Users, type LucideIcon } from "lucide-react";
 
 import type { AdminRole } from "@/lib/admin/access";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/admin/content", label: "Content", icon: Images, requiresRole: ["MODERATOR", "SUPERADMIN"] },
   { href: "/admin/finance", label: "Finance", icon: CircleDollarSign, requiresRole: ["FINANCE", "SUPERADMIN"] },
   { href: "/admin/insights", label: "Insights", icon: LineChart, requiresRole: ["SUPERADMIN"] },
+  { href: "/admin/spec-test", label: "Spec Test leads", icon: Sparkles, requiresRole: ["SUPERADMIN"] },
   { href: "/admin/audit", label: "Audit log", icon: ScrollText, requiresRole: ["SUPERADMIN"] },
   { href: "/admin/roles", label: "Roles", icon: Shield, requiresRole: ["SUPERADMIN"] },
 ];

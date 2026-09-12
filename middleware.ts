@@ -58,6 +58,10 @@ export const config = {
     // Also excluded: api/live/[id]/status. It exposes only the scheduled/live/ended
     // state and lets an anonymous viewer's countdown turn into the live room without
     // forcing them to refresh the shared page manually.
-    "/((?!login|signup|landing|blog|help|offline|forgot-password|reset-password|unsubscribed|api/auth|api/signup|api/support|api/unsubscribe|api/cron|api/live/[^/]+/status(?:/|$)|_next/static|_next/image|icons/.*|profile/(?!edit(?:/|$))[^/]+|posts/[^/]+|services/(?!new(?:/|$)|bookings(?:/|$))[^/]+|live/(?!go(?:/|$))[^/]+|.*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|json|js|css|woff2?|txt|xml)$).+)",
+    //
+    // Also excluded: spec-test and api/spec-test - the whole point of the lead-gen
+    // quiz (intro, questions, and its shareable result page) is that it works for a
+    // logged-out visitor who followed a shared link, same reasoning as landing/blog.
+    "/((?!login|signup|landing|blog|help|offline|forgot-password|reset-password|unsubscribed|spec-test|api/auth|api/signup|api/support|api/unsubscribe|api/cron|api/spec-test|api/live/[^/]+/status(?:/|$)|_next/static|_next/image|icons/.*|profile/(?!edit(?:/|$))[^/]+|posts/[^/]+|services/(?!new(?:/|$)|bookings(?:/|$))[^/]+|live/(?!go(?:/|$))[^/]+|.*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|json|js|css|woff2?|txt|xml)$).+)",
   ],
 };

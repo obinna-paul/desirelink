@@ -12,6 +12,7 @@ import { generateUniqueUsername, isUsernameAvailable } from "@/lib/username";
 import { usernameFieldSchema } from "@/lib/validations/auth";
 import { recordDeviceAndMaybeAlert } from "@/lib/email/device";
 import { isPlaceholderEmail, placeholderEmailFor } from "@/lib/oauth-placeholder-email";
+import { linkSpecTestResultIfConsented } from "@/lib/spec-test";
 
 /** Every OAuth provider registered below - the signIn callback's belt-and-suspenders
  * profile-creation check (see createUser event) needs to recognize all of them. */
@@ -49,7 +50,7 @@ async function ensureProfileForAuthUser(user: {
   const displayName = user.name?.trim() || fallbackName;
   const username = await generateUniqueUsername(email);
 
-  await prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: user.id },
     data: {
       email,
@@ -78,7 +79,13 @@ async function ensureProfileForAuthUser(user: {
         },
       },
     },
+    include: { profile: { select: { id: true } } },
   });
+
+  // No-op for a placeholder (X) email - it can never match a real Spec Test submission.
+  if (updated.profile) {
+    await linkSpecTestResultIfConsented(email, updated.profile.id);
+  }
 }
 
 /**
