@@ -6,6 +6,7 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { Button } from "@/components/ui/button";
 import { ShareButton } from "@/components/ui/share-button";
+import { EmailCaptureForm } from "@/components/spec-test/email-capture-form";
 import { prisma } from "@/lib/prisma";
 import { SPEC_TYPE_READINGS, type SpecTypeKey } from "@/lib/spec-test";
 import { publicPageMetadata } from "@/lib/seo";
@@ -102,6 +103,11 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
           <p className="text-xs text-muted-foreground">
             Send this to someone who thinks they already know your spec.
           </p>
+
+          <div className="mt-4 w-full max-w-sm border-t border-border/60 pt-6">
+            <p className="mb-3 text-sm font-medium">Want a copy of this in your inbox?</p>
+            <EmailCaptureForm resultId={params.id} />
+          </div>
         </div>
       </main>
 

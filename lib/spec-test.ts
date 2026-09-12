@@ -1,5 +1,6 @@
 import "server-only";
 
+import { prisma } from "@/lib/prisma";
 import { SPEC_TEST_QUESTIONS, type SpecTestOptionKey } from "@/lib/spec-test-questions";
 
 export type { SpecTestOptionKey } from "@/lib/spec-test-questions";
@@ -373,3 +374,36 @@ export const SPEC_TYPE_READINGS: Record<SpecTypeKey, SpecTypeReading> = {
     attractionTruth: "You’re not looking for someone who turns your entire life upside down. You want someone who makes your existing life feel better to live.",
   },
 };
+
+export type SpecTestLead = {
+  id: string;
+  email: string;
+  specType: SpecTypeKey;
+  consentMarketing: boolean;
+  createdAt: Date;
+};
+
+/** Admin-facing view of everyone who gave an email to receive their result - see
+ *  app/(admin)/admin/spec-test/page.tsx. Rows without an email were never a lead. */
+export async function getSpecTestLeads(filters: { cursor?: string; take?: number } = {}): Promise<{
+  items: SpecTestLead[];
+  nextCursor: string | null;
+}> {
+  const take = Math.min(filters.take ?? 50, 200);
+
+  const rows = await prisma.specTestResult.findMany({
+    where: { email: { not: null } },
+    orderBy: { createdAt: "desc" },
+    take: take + 1,
+    ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {}),
+    select: { id: true, email: true, specType: true, consentMarketing: true, createdAt: true },
+  });
+
+  const hasMore = rows.length > take;
+  const page = hasMore ? rows.slice(0, take) : rows;
+
+  return {
+    items: page.map((row) => ({ ...row, email: row.email! }) as SpecTestLead),
+    nextCursor: hasMore ? page[page.length - 1].id : null,
+  };
+}

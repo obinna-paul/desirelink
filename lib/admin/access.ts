@@ -16,7 +16,8 @@ export type AdminCapability =
   | "manage_roles"
   | "view_audit_log"
   | "manage_support_tickets"
-  | "delete_accounts";
+  | "delete_accounts"
+  | "view_leads";
 
 const CAPABILITIES: Record<AdminRole, AdminCapability[]> = {
   SUPPORT: ["view_accounts", "write_notes", "manage_support_tickets"],
@@ -35,6 +36,7 @@ const CAPABILITIES: Record<AdminRole, AdminCapability[]> = {
     // Irreversible and touches financial history - unlike suspend (moderate_content),
     // deliberately not granted to MODERATOR/SUPPORT/FINANCE.
     "delete_accounts",
+    "view_leads",
   ],
 };
 
