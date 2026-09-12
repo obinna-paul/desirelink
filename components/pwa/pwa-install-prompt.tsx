@@ -66,38 +66,6 @@ export function PwaInstallPrompt() {
 
     let cancelled = false;
 
-    // Authoritative once set - see lib/pwa-install-storage for why this is checked ahead of
-    // getInstalledRelatedApps()/beforeinstallprompt, which can both go quiet after a manifest
-    // change even though the app is still installed. There's no "appuninstalled" event to keep
-    // this flag honest going forward, so still double-check live in the background (Android
-    // only - getInstalledRelatedApps is the only live signal available) and clear it if the app
-    // genuinely isn't installed anymore, rather than trusting a stale flag forever.
-    if (hasCompletedInstall()) {
-      setInstallEvent(null);
-      setPlatform(null);
-      setDismissedForVisit(true);
-
-      const getInstalledRelatedApps = (navigator as NavigatorWithRelatedApps).getInstalledRelatedApps;
-      if (isAndroidDevice() && getInstalledRelatedApps) {
-        getInstalledRelatedApps
-          .call(navigator)
-          .then((relatedApps) => {
-            if (cancelled) return;
-            const stillInstalled = relatedApps.some((app) => app.platform === "webapp");
-            if (!stillInstalled) {
-              clearInstallCompleted();
-              setPlatform("android");
-              setDismissedForVisit(false);
-              if (window.__udalaInstallPrompt) setInstallEvent(window.__udalaInstallPrompt);
-            }
-          })
-          .catch(() => {});
-      }
-      return () => {
-        cancelled = true;
-      };
-    }
-
     const revealCapturedPrompt = () => {
       if (window.__udalaInstallPrompt) {
         setInstallEvent(window.__udalaInstallPrompt);
@@ -174,7 +142,37 @@ export function PwaInstallPrompt() {
       }
     };
 
-    if (isStandaloneMode()) handleInstalled();
+    // Authoritative once set - see lib/pwa-install-storage for why this is checked ahead of
+    // getInstalledRelatedApps()/beforeinstallprompt, which can both go quiet after a manifest
+    // change even though the app is still installed. There's no "appuninstalled" event to keep
+    // this flag honest going forward, so still double-check live in the background (Android
+    // only - getInstalledRelatedApps is the only live signal available) and clear it if the app
+    // genuinely isn't installed anymore, rather than trusting a stale flag forever. The listeners
+    // registered below stay active either way, so a beforeinstallprompt that arrives after this
+    // check resolves (a real race - getInstalledRelatedApps is async) is still picked up instead
+    // of being lost for the rest of the visit.
+    if (hasCompletedInstall()) {
+      setInstallEvent(null);
+      setPlatform(null);
+      setDismissedForVisit(true);
+
+      const getInstalledRelatedApps = (navigator as NavigatorWithRelatedApps).getInstalledRelatedApps;
+      if (isAndroidDevice() && getInstalledRelatedApps) {
+        getInstalledRelatedApps
+          .call(navigator)
+          .then((relatedApps) => {
+            if (cancelled) return;
+            const stillInstalled = relatedApps.some((app) => app.platform === "webapp");
+            if (!stillInstalled) {
+              clearInstallCompleted();
+              setPlatform("android");
+              setDismissedForVisit(false);
+              revealCapturedPrompt();
+            }
+          })
+          .catch(() => {});
+      }
+    } else if (isStandaloneMode()) handleInstalled();
     else if (isIosDevice()) setPlatform("ios");
     else if (isAndroidDevice()) void refreshAndroidInstallState();
 
