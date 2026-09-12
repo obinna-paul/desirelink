@@ -21,6 +21,7 @@ import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { PostSubscribeCta } from "@/components/posts/post-subscribe-cta";
 import { SubscribePlansDialog } from "@/components/profile/subscribe-plans-dialog";
 import { VerificationBadge } from "@/components/profile/verification-badge";
+import { AccountTypeBadge } from "@/components/profile/account-type-badge";
 import type { PostView } from "@/lib/posts";
 
 const VIEW_VISIBILITY_THRESHOLD = 0.5;
@@ -303,6 +304,7 @@ export function PostCard({
             <div className="min-w-0">
               <p className="flex min-w-0 items-center gap-1 truncate text-sm font-medium">
                 <span className="truncate">{post.author.username}</span>
+                <AccountTypeBadge profileType={post.author.profileType} />
                 <VerificationBadge profile={post.author} />
               </p>
               <p className="text-xs text-muted-foreground">{timeAgo}</p>

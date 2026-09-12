@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { Prisma } from "@prisma/client";
+import { Prisma, type ProfileType } from "@prisma/client";
 import { z } from "zod";
 
 import { authOptions } from "@/lib/auth";
@@ -35,6 +35,7 @@ type CommentAuthor = {
   username: string;
   displayName: string;
   avatarUrl: string;
+  profileType: ProfileType;
   lastActiveAt: Date | null;
   showActivityStatus: boolean;
   isVerified: boolean;
@@ -56,6 +57,7 @@ function serializeComment(
       username: comment.author.username,
       displayName: comment.author.displayName,
       avatarUrl: comment.author.avatarUrl,
+      profileType: comment.author.profileType,
       presenceStatus: getPresenceStatus(comment.author, liveStreamIds.has(comment.author.id)),
       activeStreamId: liveStreamIds.get(comment.author.id) ?? null,
       isVerified: comment.author.isVerified,
@@ -97,6 +99,7 @@ function normalizeThread(
     username: string;
     displayName: string;
     avatarUrl: string;
+    profileType: ProfileType;
     presenceStatus: PresenceStatus;
     activeStreamId: string | null;
     isVerified: boolean;
@@ -115,6 +118,7 @@ function normalizeThread(
       username: node.author.username,
       displayName: node.author.displayName,
       avatarUrl: node.author.avatarUrl,
+      profileType: node.author.profileType,
       presenceStatus: getPresenceStatus(node.author, liveStreamIds.has(node.author.id)),
       activeStreamId: liveStreamIds.get(node.author.id) ?? null,
       isVerified: node.author.isVerified,
@@ -131,6 +135,7 @@ const AUTHOR_SELECT = {
   username: true,
   displayName: true,
   avatarUrl: true,
+  profileType: true,
   lastActiveAt: true,
   showActivityStatus: true,
   isVerified: true,

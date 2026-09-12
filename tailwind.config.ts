@@ -65,6 +65,11 @@ const config: Config = {
           online: "hsl(var(--presence-online))",
           live: "hsl(var(--presence-live))",
         },
+        account: {
+          creator: "hsl(var(--account-creator))",
+          explorer: "hsl(var(--account-explorer))",
+          seeker: "hsl(var(--account-seeker))",
+        },
         "avatar-placeholder": "hsl(var(--avatar-placeholder))",
         trust: "hsl(var(--trust))",
         "accent-soft": "hsl(var(--accent-soft))",
