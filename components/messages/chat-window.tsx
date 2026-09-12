@@ -49,6 +49,7 @@ import { isProviderProfileType } from "@/lib/provider-types";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { uploadMediaDirectToCloudinary } from "@/lib/client-uploads";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
+import { PublishToast } from "@/components/ui/publish-toast";
 import { cn } from "@/lib/utils";
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
@@ -138,6 +139,7 @@ export function ChatWindow({
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [showIdentityGate, setShowIdentityGate] = useState(!viewerHasIdentityOnFile);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -157,6 +159,7 @@ export function ChatWindow({
   const sendRecordedVoiceRef = useRef(false);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingDurationRef = useRef(0);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const blocked = blockRelationship !== "none";
   const counterpartIsProvider = isProviderProfileType(counterpart.profileType);
@@ -305,7 +308,14 @@ export function ChatWindow({
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
     recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
   }, [counterpart.id]);
+
+  function showConfirmation(message: string) {
+    setConfirmation(message);
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    dismissTimerRef.current = setTimeout(() => setConfirmation(null), 5000);
+  }
 
   function sendTypingState(isTyping: boolean) {
     fetch("/api/messages/typing", {
@@ -527,6 +537,7 @@ export function ChatWindow({
 
   return (
     <section className="chat-theme relative flex h-full min-h-0 flex-col overflow-hidden bg-[hsl(var(--chat-canvas))] text-foreground">
+      {confirmation && <PublishToast message={confirmation} />}
       <header className="relative z-20 flex min-h-[64px] shrink-0 items-center justify-between gap-2 border-b border-[hsl(var(--chat-border))] bg-[hsl(var(--chat-header)/0.96)] px-2 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur md:px-4 md:pt-2">
         <div className="flex min-w-0 items-center gap-1 md:gap-2">
           <Link href="/messages" aria-label="Back to messages" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[hsl(var(--chat-incoming))] md:hidden">
@@ -609,7 +620,22 @@ export function ChatWindow({
         }}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 md:px-6 md:py-5"
       >
-        {messages.length === 0 ? (
+        {showIdentityGate ? (
+          <div className="mx-auto flex h-full w-full max-w-md flex-col justify-center py-6">
+            <VerificationRequestCard
+              requestType="member"
+              isVerified={false}
+              latestStatus={null}
+              heading="Verify your identity to send messages."
+              skipRefresh
+              onSubmitted={() => {
+                setShowIdentityGate(false);
+                showConfirmation("You're verified — go ahead and message away.");
+                void sendMessagePayload();
+              }}
+            />
+          </div>
+        ) : messages.length === 0 ? (
           <div className="mx-auto flex h-full max-w-sm flex-col items-center justify-center px-6 text-center">
             <Avatar className="mb-4 h-16 w-16 border border-[hsl(var(--chat-border))]">
               <AvatarImage src={counterpart.avatarUrl} alt="" />
@@ -658,7 +684,7 @@ export function ChatWindow({
         </button>
       )}
 
-      {!blocked && messages.length === 0 && content.length === 0 && (
+      {!blocked && !showIdentityGate && messages.length === 0 && content.length === 0 && (
         <div className="shrink-0 border-t border-[hsl(var(--chat-border))] bg-[hsl(var(--chat-header))] px-3 py-2.5 md:px-5">
           <p className="mb-2 text-xs font-medium text-muted-foreground">Need an opener?</p>
           <div className="flex gap-2 overflow-x-auto pb-1">
@@ -671,6 +697,7 @@ export function ChatWindow({
         </div>
       )}
 
+      {!showIdentityGate && (
       <footer className="shrink-0 border-t border-[hsl(var(--chat-border))] bg-[hsl(var(--chat-header))] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 md:px-5 md:pb-4 md:pt-3">
         {error && <p role="alert" className="mx-auto mb-2 max-w-3xl text-xs text-destructive">{error}</p>}
         {uploadingMedia && (
@@ -711,21 +738,7 @@ export function ChatWindow({
           </div>
         )}
         <input ref={fileInputRef} type="file" accept="image/*,video/mp4,video/webm,video/quicktime" className="sr-only" onChange={handleMediaSelected} />
-        {showIdentityGate ? (
-          <div className="mx-auto max-w-3xl">
-            <VerificationRequestCard
-              requestType="member"
-              isVerified={false}
-              latestStatus={null}
-              heading="Verify your identity to send messages."
-              skipRefresh
-              onSubmitted={() => {
-                setShowIdentityGate(false);
-                void sendMessagePayload();
-              }}
-            />
-          </div>
-        ) : recording ? (
+        {recording ? (
           <div className="mx-auto flex min-h-12 max-w-3xl items-center gap-2 rounded-2xl bg-[hsl(var(--chat-composer))] px-2 py-1.5">
             <button type="button" onClick={() => finishRecording(false)} aria-label="Cancel voice note" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-[hsl(var(--chat-canvas))]">
               <X className="h-4 w-4" aria-hidden="true" />
@@ -775,6 +788,7 @@ export function ChatWindow({
           </div>
         )}
       </footer>
+      )}
 
       {actionMessage && (
         <div role="dialog" aria-modal="true" aria-label="Message actions" className="fixed inset-0 z-[75] flex items-end justify-center bg-black/45 p-3 backdrop-blur-[2px] md:items-center" onClick={() => setActionMessage(null)}>
