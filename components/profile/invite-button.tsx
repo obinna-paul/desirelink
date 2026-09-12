@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Mail, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { PublishToast } from "@/components/ui/publish-toast";
 import { cn } from "@/lib/utils";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
@@ -80,9 +81,23 @@ export function InviteButton({
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showIdentityGate, setShowIdentityGate] = useState(!viewerHasIdentityOnFile);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useFocusTrap(open, dialogRef);
+
+  useEffect(() => {
+    return () => {
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    };
+  }, []);
+
+  function showConfirmation(message: string) {
+    setConfirmation(message);
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    dismissTimerRef.current = setTimeout(() => setConfirmation(null), 5000);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -150,6 +165,7 @@ export function InviteButton({
 
   return (
     <div className={cn("min-w-0", className)}>
+      {confirmation && <PublishToast message={confirmation} />}
       <Button
         type="button"
         variant="outline"
@@ -172,12 +188,15 @@ export function InviteButton({
           <div
             ref={dialogRef}
             tabIndex={-1}
-            className="flex max-h-[85vh] w-full max-w-sm flex-col rounded-2xl border border-border/60 bg-card p-5 shadow-xl focus:outline-none"
+            className={cn(
+              "flex max-h-[85vh] w-full flex-col rounded-2xl border border-border/60 bg-card p-5 shadow-xl focus:outline-none",
+              showIdentityGate ? "max-w-md" : "max-w-sm"
+            )}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 id="invite-dialog-title" className="text-sm font-semibold">
-                Invite {recipientDisplayName}
+                {showIdentityGate ? "Verify your identity" : `Invite ${recipientDisplayName}`}
               </h2>
               <button
                 type="button"
@@ -192,17 +211,20 @@ export function InviteButton({
             {loading ? (
               <p className="text-xs text-muted-foreground">Loading...</p>
             ) : showIdentityGate ? (
-              <VerificationRequestCard
-                requestType="member"
-                isVerified={false}
-                latestStatus={null}
-                heading="Verify your identity to send messages."
-                skipRefresh
-                onSubmitted={() => {
-                  setShowIdentityGate(false);
-                  void sendInvite();
-                }}
-              />
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <VerificationRequestCard
+                  requestType="member"
+                  isVerified={false}
+                  latestStatus={null}
+                  heading="Verify your identity to send messages."
+                  skipRefresh
+                  onSubmitted={() => {
+                    setShowIdentityGate(false);
+                    showConfirmation("You're verified — go ahead and send your invite.");
+                    void sendInvite();
+                  }}
+                />
+              </div>
             ) : (
               <div className="flex min-h-0 flex-1 flex-col gap-3">
                 <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
