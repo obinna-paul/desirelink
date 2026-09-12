@@ -194,6 +194,12 @@ model Profile {
   // (unreachable) email since X's API never returns one - gates /onboarding/email the
   // same way usernameChosen gates /onboarding/username. Always true otherwise.
   emailChosen    Boolean @default(true)
+  // False only for a brand-new Google/X sign-in, whose profile was created with the
+  // hardcoded EXPLORER default rather than a user choice - gates /onboarding/account-type
+  // the same way usernameChosen/emailChosen gate their own steps. Always true for
+  // credential signups (which pick their type in the signup wizard itself) and for every
+  // returning sign-in on an existing profile.
+  accountTypeChosen Boolean @default(true)
   displayName    String
   bio            String
   avatarUrl      String

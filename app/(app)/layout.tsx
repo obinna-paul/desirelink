@@ -21,6 +21,7 @@ export default async function AppGroupLayout({
           id: true,
           profileType: true,
           usernameChosen: true,
+          accountTypeChosen: true,
           emailChosen: true,
           username: true,
           creatorWelcomeShownAt: true,
@@ -29,6 +30,9 @@ export default async function AppGroupLayout({
     : null;
   if (profile && !profile.usernameChosen) {
     redirect("/onboarding/username");
+  }
+  if (profile && !profile.accountTypeChosen) {
+    redirect("/onboarding/account-type");
   }
   if (profile && !profile.emailChosen) {
     redirect("/onboarding/email");

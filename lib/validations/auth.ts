@@ -73,3 +73,9 @@ export const addEmailConfirmSchema = z.object({
   code: otpCodeSchema,
 });
 export type AddEmailConfirmInput = z.infer<typeof addEmailConfirmSchema>;
+
+/** /onboarding/account-type - only reached on a brand-new OAuth sign-up. */
+export const chooseAccountTypeSchema = z.object({
+  profileType: z.enum(ACCOUNT_TYPE_VALUES),
+});
+export type ChooseAccountTypeInput = z.infer<typeof chooseAccountTypeSchema>;

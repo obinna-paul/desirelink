@@ -64,6 +64,7 @@ async function ensureProfileForAuthUser(user: {
           username,
           usernameChosen: false,
           emailChosen: !placeholder,
+          accountTypeChosen: false,
           displayName,
           bio: "",
           avatarUrl: user.image ?? "",
