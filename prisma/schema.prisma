@@ -564,6 +564,7 @@ model Message {
   @@index([senderId])
   @@index([recipientId])
   @@index([replyToId])
+  @@index([senderId, recipientId, readAt])
 }
 
 model Notification {
