@@ -303,6 +303,10 @@ export async function searchServiceListings(
   });
 
   const withinRadius = candidates
+    // A provider who never set their own location can't be placed relative to the
+    // viewer - without this they'd default to (0, 0) and could wrongly pass (or fail)
+    // the radius filter based on a fake distance instead of being excluded outright.
+    .filter((listing) => hasUsableLocation(listing.provider))
     .map((listing) => ({
       listing,
       distanceKm: haversineDistanceKm(
