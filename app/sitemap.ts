@@ -11,6 +11,7 @@ const MAX_ENTITIES_PER_TYPE = 5000;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/landing`, changeFrequency: "weekly", priority: 1 },
+    { url: `${SITE_URL}/spec-test`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${SITE_URL}/blog`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${SITE_URL}/help`, changeFrequency: "monthly", priority: 0.5 },
   ];
