@@ -1,11 +1,11 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import { ArrowRight } from "lucide-react";
 
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { Button } from "@/components/ui/button";
-import { FingerprintMark } from "@/components/spec-test/fingerprint-mark";
 import { AgeBadge } from "@/components/spec-test/age-badge";
 import { publicPageMetadata, serializeJsonLd } from "@/lib/seo";
 import { SITE_NAME, absoluteUrl } from "@/lib/site-config";
@@ -49,10 +49,17 @@ export default function SpecTestLandingPage() {
         </h1>
 
         <div
-          className="flex justify-center py-2 text-primary motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-700"
+          className="flex justify-center py-2 motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-700"
           style={{ animationDelay: "140ms" }}
         >
-          <FingerprintMark className="h-52 w-44 sm:h-60 sm:w-52" />
+          <Image
+            src="/images/spec-test-fingerprint.png"
+            alt=""
+            width={260}
+            height={260}
+            priority
+            className="h-56 w-56 sm:h-64 sm:w-64"
+          />
         </div>
 
         <p
