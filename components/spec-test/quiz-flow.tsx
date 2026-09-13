@@ -6,7 +6,7 @@ import { Check, Loader2, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ProgressRing } from "@/components/ui/progress-ring";
-import { SPEC_TEST_QUESTIONS, type SpecTestOptionKey } from "@/lib/spec-test-questions";
+import { SPEC_TEST_QUESTIONS, type SpecTestOptionKey } from "@/lib/spec-test/legacy-questions";
 import { cn } from "@/lib/utils";
 
 type Step = "age-gate" | "question" | "submitting";

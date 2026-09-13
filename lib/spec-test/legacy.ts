@@ -1,9 +1,9 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import { SPEC_TEST_QUESTIONS, type SpecTestOptionKey } from "@/lib/spec-test-questions";
+import { SPEC_TEST_QUESTIONS, type SpecTestOptionKey } from "@/lib/spec-test/legacy-questions";
 
-export type { SpecTestOptionKey } from "@/lib/spec-test-questions";
+export type { SpecTestOptionKey } from "@/lib/spec-test/legacy-questions";
 
 // See docs/spec-test-quiz.md for the full product design conversation this
 // implements: the six attraction dimensions, the ten scenario questions (each
