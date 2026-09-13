@@ -1,12 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { Button } from "@/components/ui/button";
-import { ShareButton } from "@/components/ui/share-button";
 import { EmailCaptureForm } from "@/components/spec-test/email-capture-form";
 import { prisma } from "@/lib/prisma";
 import { SPEC_TYPE_READINGS, type SpecTypeKey } from "@/lib/spec-test";
@@ -130,22 +129,15 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
           className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card p-6 text-center"
         >
           <p className="font-heading text-xl font-bold">Meet people who match your energy on Udala.</p>
-          <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row">
-            <Button asChild size="lg" className="flex-1">
-              <Link href="/signup">Join Udala</Link>
-            </Button>
-            <ShareButton
-              href={`/spec-test/result/${params.id}`}
-              title={`My spec is ${reading.name} - find yours on Udala.`}
-              label="Share my spec"
-              variant="outline"
-              size="default"
-              className="h-12 flex-1 text-[15px]"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Send this to someone who thinks they already know your spec.
-          </p>
+          <Button
+            asChild
+            className="h-14 w-full max-w-sm gap-2 rounded-full bg-gradient-to-r from-primary to-neon-pink text-base font-bold shadow-lift transition-transform hover:scale-[1.02] hover:opacity-95 active:scale-[0.99]"
+          >
+            <Link href="/signup">
+              Join Udala
+              <ArrowRight className="h-5 w-5" aria-hidden="true" />
+            </Link>
+          </Button>
 
           <div className="mt-2 w-full max-w-sm border-t border-border/60 pt-6">
             <p className="mb-3 text-sm font-medium">Want a copy of this in your inbox?</p>
