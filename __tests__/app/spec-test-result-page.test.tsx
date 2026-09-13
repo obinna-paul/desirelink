@@ -57,7 +57,13 @@ function v2Reading(overrides: Partial<Extract<SpecTestReading, { version: "v2" }
       headline: { name: "Quiet Fire", tagline: "Composed, private, observant and surprisingly intense." },
       secondaryInfluence: "Right behind it: Brilliant Tease - Intelligent, witty and mentally stimulating.",
       corePull: "Core reading paragraph.",
+      topMotives: [
+        { key: "intrigueSelectiveAccess", label: "Intrigue & Selective Access", copy: "Top motive signal one." },
+        { key: "cognitivePlay", label: "Cognitive Play", copy: "Top motive signal two." },
+        { key: "warmthResponsiveness", label: "Warmth & Responsiveness", copy: "Top motive signal three." },
+      ],
       whatItSaysAboutYou: "What it says about you paragraph.",
+      attachmentInsight: { label: "steadyUnderUncertainty", title: "Steady Under Uncertainty", copy: "Attachment insight paragraph." },
       datingLoop: [],
       strength: "Strength paragraph.",
       blindSpot: "Blind spot paragraph.",
@@ -87,7 +93,7 @@ describe("Spec Test result page", () => {
     expect(mockNotFound).toHaveBeenCalled();
   });
 
-  it("renders the v2 ten-section structure with the report's disclaimer", async () => {
+  it("renders the full v2 result structure with the report's disclaimer", async () => {
     mockGetReading.mockResolvedValue(v2Reading());
     const jsx = await SpecTestResultPage({ params: { id: "result-1" } });
     render(jsx);
@@ -95,7 +101,13 @@ describe("Spec Test result page", () => {
     expect(screen.getByText("Quiet Fire")).toBeInTheDocument();
     expect(screen.getByText("Composed, private, observant and surprisingly intense.")).toBeInTheDocument();
     expect(screen.getByText("Core reading paragraph.")).toBeInTheDocument();
+    expect(screen.getByText("Top motive signal one.")).toBeInTheDocument();
+    expect(screen.getByText("Top motive signal two.")).toBeInTheDocument();
+    expect(screen.getByText("Top motive signal three.")).toBeInTheDocument();
     expect(screen.getByText("What it says about you paragraph.")).toBeInTheDocument();
+    expect(screen.getByText("How you handle uncertainty")).toBeInTheDocument();
+    expect(screen.getByText("Steady Under Uncertainty")).toBeInTheDocument();
+    expect(screen.getByText("Attachment insight paragraph.")).toBeInTheDocument();
     expect(screen.getByText("Strength paragraph.")).toBeInTheDocument();
     expect(screen.getByText("Blind spot paragraph.")).toBeInTheDocument();
     expect(screen.getByText("Long-term fit paragraph.")).toBeInTheDocument();
@@ -106,6 +118,16 @@ describe("Spec Test result page", () => {
     // No dating-loop section when nothing converged, no split twist on a clear result.
     expect(screen.queryByText("Your likely dating loop")).not.toBeInTheDocument();
     expect(screen.queryByText(/Spark answers lean/)).not.toBeInTheDocument();
+  });
+
+  it("omits the attachment section when no attachment item was ever answered", async () => {
+    mockGetReading.mockResolvedValue(
+      v2Reading({ copy: { ...v2Reading().copy, attachmentInsight: null } }),
+    );
+    const jsx = await SpecTestResultPage({ params: { id: "result-1" } });
+    render(jsx);
+
+    expect(screen.queryByText("How you handle uncertainty")).not.toBeInTheDocument();
   });
 
   it("renders the dating-loop module only when a pattern flag actually converged", async () => {

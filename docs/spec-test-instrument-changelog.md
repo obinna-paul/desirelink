@@ -383,3 +383,47 @@ rendering pipeline rather than something that needed new plumbing.
 **No instrument version bump.** Option ids, loadings, centroids, and pattern-flag eligibility
 rules are unchanged - this is copy-only, same precedent as G2's tokenization pass (which also
 didn't bump the version on its own).
+
+## spec-v2.1 — Result depth expansion (two new modules)
+
+**Why.** Direct follow-up feedback: 24 answers were producing a result that felt shallow -
+one fixed archetype template plus a couple of one-line flags, when the engine actually
+computes a taker's own 7-motive vector and a 4-label attachment read (report §3 Layers A and
+C) and had simply never shown either. The voice rewrite above fixed *how* the result reads;
+this fixes how much of what the taker actually answered makes it into the result at all.
+
+**Two new modules, both built from data the engine already scores - no new questions, no new
+scoring, no schema change:**
+
+- **Your top signals** (report §10 item 2: "Why this pulls you in: three specific attraction
+  signals drawn from answers"). `composeSpecTestResult` now ranks the taker's own 7 motive
+  scores and surfaces the top 3 with a per-motive description
+  (`lib/spec-test/interpretation/signal-readings.ts`'s new `MOTIVE_READINGS`). Two takers who
+  land on the same primary archetype (identical `corePull`) can now see different top signals
+  if their underlying motive mix differs - a real personalization the templated archetype
+  copy alone could never provide. Rendered directly under "Why this pulls you in" on the
+  result page.
+- **How you handle uncertainty.** The attachment-response read (`AttachmentScore.label`) was
+  computed on every usable submission and stored, but never shown anywhere. New
+  `ATTACHMENT_READINGS` gives each of the four labels a title and a paragraph, framed per the
+  report's own safety boundary (§9: never a diagnosis, ordinary language only, never a
+  clinical attachment-theory term) - the same four labels `taxonomy.ts` has always declared
+  as the *only* ones this product may show. Rendered as its own section between "What it says
+  about you" and "Your likely dating loop"; omitted entirely on the rare row with no
+  attachment item answered (`attachmentInsight: null`).
+
+**Existing fields lengthened too.** `strength`, `blindSpot`, and `longTermFit` for all 8
+archetypes each gained one more concrete sentence - still a single paragraph each (no change
+to how the result page renders them), just more specific and less generic per archetype.
+
+**Both new modules go through the same rendering and safety pipeline as everything else.**
+`SpecTestResultCopy` gained `topMotives`/`attachmentInsight`; `results.ts`'s
+`renderResultCopy` renders both through the existing `{token}` gender pipeline; the gender
+symmetry/render test suite and the interpretation safety-lint test (banned clinical/ranking
+language) were both extended to cover the two new content dictionaries and pass without any
+changes to the pipeline itself - the new modules are a content addition that fits machinery
+already built for this, not new plumbing.
+
+**No instrument version bump, no schema change.** `motiveScores` and `attachment` were
+already computed and persisted for every usable v2 row (Phase 2/7 of the original v2
+rebuild) - this only adds a presentation layer over data that already existed.

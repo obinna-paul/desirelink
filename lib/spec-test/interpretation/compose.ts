@@ -10,8 +10,17 @@ import "server-only";
 
 import { ARCHETYPE_READINGS_V2 } from "@/lib/spec-test/interpretation/readings-v2";
 import { evaluatePatternFlags, type TriggeredPatternFlag } from "@/lib/spec-test/interpretation/pattern-flags";
+import { ATTACHMENT_READINGS, MOTIVE_READINGS } from "@/lib/spec-test/interpretation/signal-readings";
 import type { AttachmentScore } from "@/lib/spec-test/scoring/score";
-import type { ArchetypeKey, LensKey, MotiveKey, ResultConfidence } from "@/lib/spec-test/taxonomy";
+import {
+  MOTIVE_KEYS,
+  MOTIVE_LABELS,
+  type ArchetypeKey,
+  type AttachmentResponseLabel,
+  type LensKey,
+  type MotiveKey,
+  type ResultConfidence,
+} from "@/lib/spec-test/taxonomy";
 
 const CONFIDENCE_COPY: Record<Exclude<ResultConfidence, "low_signal">, string> = {
   clear: "Strong match",
@@ -30,6 +39,10 @@ export type ComposeInput = {
   partnershipPrimarySpec: ArchetypeKey;
 };
 
+export type TopMotiveSignal = { key: MotiveKey; label: string; copy: string };
+
+export type AttachmentInsight = { label: AttachmentResponseLabel; title: string; copy: string };
+
 export type SpecTestResultCopy = {
   primarySpec: ArchetypeKey;
   secondarySpec: ArchetypeKey;
@@ -38,7 +51,16 @@ export type SpecTestResultCopy = {
   secondaryInfluence: string;
   /** report §7 "Core pull" module. */
   corePull: string;
+  /** report §10 "Why this pulls you in: three specific attraction signals drawn from
+   *  answers" - the taker's own three highest-scoring motives, not the fixed archetype copy
+   *  above. Always exactly 3 (there are always 7 scored motives to rank), ties broken by
+   *  MOTIVE_KEYS order for a deterministic result. */
+  topMotives: TopMotiveSignal[];
   whatItSaysAboutYou: string;
+  /** The taker's attachment-response read (report §3 Layer C) in ordinary language - null
+   *  only when no attachment item was answered (see scoreAttachment). Never a diagnosis;
+   *  always one of the four ATTACHMENT_RESPONSE_LABELS. */
+  attachmentInsight: AttachmentInsight | null;
   /** report §7 "Dating loop" module - only the flags whose conditions actually converged. */
   datingLoop: TriggeredPatternFlag[];
   strength: string;
@@ -50,6 +72,22 @@ export type SpecTestResultCopy = {
   /** report §7/§10 "who pulls you in vs who works for you" - present only on a split result. */
   sparkPartnershipTwist: { sparkSpec: ArchetypeKey; sparkName: string; partnershipSpec: ArchetypeKey; partnershipName: string; copy: string } | null;
 };
+
+/** The taker's own top 3 motives by score, each paired with MOTIVE_READINGS' description -
+ *  see the SpecTestResultCopy.topMotives doc comment for why this is separate from the fixed
+ *  per-archetype coreReading. */
+function topMotiveSignals(motiveScores: Record<MotiveKey, number>): TopMotiveSignal[] {
+  return [...MOTIVE_KEYS]
+    .sort((a, b) => motiveScores[b] - motiveScores[a])
+    .slice(0, 3)
+    .map((key) => ({ key, label: MOTIVE_LABELS[key], copy: MOTIVE_READINGS[key] }));
+}
+
+function attachmentInsight(attachment: AttachmentScore | null): AttachmentInsight | null {
+  if (!attachment) return null;
+  const reading = ATTACHMENT_READINGS[attachment.label];
+  return { label: attachment.label, title: reading.title, copy: reading.copy };
+}
 
 export function composeSpecTestResult(input: ComposeInput): SpecTestResultCopy {
   const primary = ARCHETYPE_READINGS_V2[input.primarySpec];
@@ -80,7 +118,9 @@ export function composeSpecTestResult(input: ComposeInput): SpecTestResultCopy {
     headline: { name: primary.name, tagline: primary.tagline },
     secondaryInfluence: `Right behind it: ${secondary.name} - ${secondary.tagline}`,
     corePull: primary.coreReading,
+    topMotives: topMotiveSignals(input.motiveScores),
     whatItSaysAboutYou: primary.whatItSaysAboutYou,
+    attachmentInsight: attachmentInsight(input.attachment),
     datingLoop,
     strength: primary.strength,
     blindSpot: primary.blindSpot,

@@ -78,7 +78,13 @@ describe("sendSpecTestResultEmail", () => {
         headline: { name: "Quiet Fire", tagline: "Composed, private, observant and surprisingly intense." },
         secondaryInfluence: "Right behind it: Brilliant Tease - Intelligent, witty and mentally stimulating.",
         corePull: "Core reading paragraph.",
+        topMotives: [
+          { key: "intrigueSelectiveAccess", label: "Intrigue & Selective Access", copy: "Top motive signal one." },
+          { key: "cognitivePlay", label: "Cognitive Play", copy: "Top motive signal two." },
+          { key: "warmthResponsiveness", label: "Warmth & Responsiveness", copy: "Top motive signal three." },
+        ],
         whatItSaysAboutYou: "What it says about you paragraph.",
+        attachmentInsight: { label: "steadyUnderUncertainty", title: "Steady Under Uncertainty", copy: "Attachment insight paragraph." },
         datingLoop: [],
         strength: "Strength paragraph.",
         blindSpot: "Blind spot paragraph.",
