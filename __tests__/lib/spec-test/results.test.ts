@@ -1,0 +1,93 @@
+jest.mock("@/lib/prisma", () => ({
+  prisma: { specTestResult: { findUnique: jest.fn() } },
+}));
+
+import { prisma } from "@/lib/prisma";
+import { getSpecTestReading } from "@/lib/spec-test/results";
+import { decideSpecTestResult } from "@/lib/spec-test/scoring/decide";
+import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
+import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
+import { SPEC_TYPE_READINGS } from "@/lib/spec-test/legacy";
+import type { SpecTestResponseV2 } from "@/lib/spec-test/response";
+
+const mockPrisma = prisma as unknown as { specTestResult: { findUnique: jest.Mock } };
+
+function baselineResponses(): SpecTestResponseV2[] {
+  return SPEC_TEST_ITEMS_V2.map((item, index) => {
+    const optionIndex = index % 4;
+    return {
+      itemId: item.id,
+      optionId: item.options[optionIndex].id,
+      presentedIndex: optionIndex,
+      elapsedMs: 2500 + index * 40,
+    };
+  });
+}
+
+describe("getSpecTestReading - v2 round-trip", () => {
+  it("reads back a v2 row into the same primary/secondary/confidence the engine produced", async () => {
+    const responses = baselineResponses();
+    const decision = decideSpecTestResult(SPEC_TEST_ITEMS_V2, responses);
+    if (decision.quality !== "usable") throw new Error("fixture expected a usable decision");
+
+    // Mirrors exactly what app/api/spec-test/submit/route.ts writes for a v2 row.
+    mockPrisma.specTestResult.findUnique.mockResolvedValue({
+      id: "result-1",
+      specType: decision.primarySpec,
+      instrumentVersion: INSTRUMENT_VERSION,
+      secondarySpec: decision.secondarySpec,
+      motiveScores: { motives: decision.motiveScores, facets: decision.motiveFacets },
+      lenses: decision.lenses,
+      attachment: decision.attachment,
+      sparkSpec: decision.sparkPrimarySpec,
+      partnershipSpec: decision.partnershipPrimarySpec,
+      patternFlags: [],
+      resultConfidence: decision.confidence,
+    });
+
+    const reading = await getSpecTestReading("result-1");
+    expect(reading).not.toBeNull();
+    if (reading?.version !== "v2") throw new Error("expected a v2 reading");
+
+    expect(reading.primarySpec).toBe(decision.primarySpec);
+    expect(reading.secondarySpec).toBe(decision.secondarySpec);
+    expect(reading.confidence).toBe(decision.confidence);
+    expect(reading.motiveScores).toEqual(decision.motiveScores);
+    expect(reading.motiveFacets).toEqual(decision.motiveFacets);
+    expect(reading.lenses).toEqual(decision.lenses);
+    expect(reading.attachment).toEqual(decision.attachment);
+    expect(reading.sparkSpec).toBe(decision.sparkPrimarySpec);
+    expect(reading.partnershipSpec).toBe(decision.partnershipPrimarySpec);
+  });
+});
+
+describe("getSpecTestReading - legacy v1 rows", () => {
+  it("renders the original v1 reading unchanged for a legacy row", async () => {
+    mockPrisma.specTestResult.findUnique.mockResolvedValue({
+      id: "legacy-1",
+      specType: "quiet_fire",
+      instrumentVersion: "spec-v1",
+      secondarySpec: null,
+      motiveScores: null,
+      lenses: null,
+      attachment: null,
+      sparkSpec: null,
+      partnershipSpec: null,
+      patternFlags: [],
+      resultConfidence: null,
+    });
+
+    const reading = await getSpecTestReading("legacy-1");
+    expect(reading).toEqual({
+      version: "v1",
+      id: "legacy-1",
+      specType: "quiet_fire",
+      reading: SPEC_TYPE_READINGS.quiet_fire,
+    });
+  });
+
+  it("returns null for a missing row", async () => {
+    mockPrisma.specTestResult.findUnique.mockResolvedValue(null);
+    expect(await getSpecTestReading("nope")).toBeNull();
+  });
+});

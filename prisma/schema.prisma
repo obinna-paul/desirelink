@@ -1174,28 +1174,66 @@ model VerificationRequest {
 // --- Spec Test (lead-gen quiz) ----------------------------------------------
 
 /**
- * One completed run of the public "Spec Test" quiz (see docs/spec-test-quiz.md).
- * Anonymous by default - profileId/email/phone are only ever populated once the
- * taker explicitly opts in, so a result can never be used to identify or market to
- * someone who didn't ask for that.
+ * One completed run of the public "Spec Test" quiz. v1 rows (docs/spec-test-quiz.md) and v2
+ * rows (docs/spec-test-research.md, docs/spec-test-v2-implementation-plan.md) share this
+ * table - `instrumentVersion` says which scored the row, so a legacy result keeps rendering
+ * exactly as it always has while v2 fields stay null on it. See
+ * docs/spec-test-v2-implementation-plan.md §5 for the field-by-field rationale.
+ *
+ * Anonymous by default - profileId/email are only ever populated once the taker explicitly
+ * opts in, so a result can never be used to identify or market to someone who didn't ask for
+ * that. A low-signal v2 submission is never persisted here at all (see the submit route) -
+ * every row that exists names a real primary spec.
  */
 model SpecTestResult {
-  id               String   @id @default(cuid())
-  specType         String
-  /** The six attraction-dimension scores this result was computed from, kept for tuning. */
-  scores           Json
-  /** Raw answer choices, kept for future scoring/model iteration. */
-  answers          Json
-  email            String?
-  phone            String?
-  profileId        String?
-  profile          Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  id                String   @id @default(cuid())
+  /** Primary spec, written by both v1 and v2 so every existing reader keeps working. */
+  specType          String
+  /** Which instrument scored this row. Existing rows default to "spec-v1" on migration. */
+  instrumentVersion String   @default("spec-v1")
+
+  /** v1: the six raw dimension scores. v2: the internal 8-dimension scoring vector, kept for
+   *  calibration but not read back by anything yet. */
+  scores            Json
+  /** v1: { questionId: "A" }. v2: the full per-item response array (item, option, presented
+   *  position, elapsed ms) - see lib/spec-test/response.ts. */
+  answers           Json
+
+  // --- v2 only; null on legacy rows ---
+  secondarySpec     String?
+  /** { motives: Record<MotiveKey, number>, facets: { containedDepthPrivacy, aestheticSelectivity } }. */
+  motiveScores      Json?
+  /** 0-100 per interpretive lens (docs/spec-test-research.md §3 Layer B). */
+  lenses            Json?
+  /** { anxiety, avoidance, label } from lib/spec-test/scoring/score.ts's scoreAttachment. */
+  attachment        Json?
+  /** The Spark-only and Partnership-only primary spec, populated whenever confidence is
+   *  "split" (and computed either way) - lets the result page render "who pulls you in vs
+   *  who works for you" without recomputing from the raw answers. */
+  sparkSpec         String?
+  partnershipSpec   String?
+  /** Conditional dating-history flags (report §7, e.g. "ambiguity_amplification") that gate
+   *  interpretation copy - populated by the Phase 4 interpretation engine, not by submit. */
+  patternFlags      String[] @default([])
+  /** clear | blend | split. Never "low_signal" here - see the submit route. */
+  resultConfidence  String?
+  /** Always "usable" for a persisted v2 row - kept as a column rather than assumed so a
+   *  later change to what counts as usable doesn't require touching old rows. */
+  responseQuality   String?
+  /** Optional relationship-context answers (report §5 "Context" section). Interpretation
+   *  only - never scored, never required. */
+  contextAnswers    Json?
+
+  email             String?
+  profileId         String?
+  profile           Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
   /** Explicit opt-in required before a result can inform recommendations or marketing. */
-  consentMarketing Boolean  @default(false)
-  createdAt        DateTime @default(now())
+  consentMarketing  Boolean  @default(false)
+  createdAt         DateTime @default(now())
 
   @@index([email])
   @@index([profileId])
+  @@index([instrumentVersion, specType])
 }
 
 // --- Live streaming & gifting -------------------------------------------------
