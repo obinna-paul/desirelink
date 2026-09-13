@@ -73,7 +73,7 @@ const OAUTH_PROVIDER_LABELS: Record<string, string> = {
  *  if the list is empty (shouldn't happen for a passwordless account, but never block the
  *  email over it). */
 function describeOAuthProviders(providerIds: string[]): string {
-  const labels = [...new Set(providerIds.map((id) => OAUTH_PROVIDER_LABELS[id] ?? id))];
+  const labels = Array.from(new Set(providerIds.map((id) => OAUTH_PROVIDER_LABELS[id] ?? id)));
   if (labels.length === 0) return "Google or X";
   if (labels.length === 1) return labels[0];
   return labels.join(" or ");
