@@ -8,8 +8,8 @@ function hoursAgo(hours: number): Date {
 }
 
 describe("SCORE_WEIGHTS", () => {
-  it("uses creator, topic, quality, and recency signals without renormalizing", () => {
-    expect(SCORE_WEIGHTS).toEqual({ affinity: 0.35, topic: 0.2, quality: 0.3, recency: 0.15 });
+  it("uses creator, type, topic, quality, and recency signals without renormalizing", () => {
+    expect(SCORE_WEIGHTS).toEqual({ affinity: 0.3, type: 0.15, topic: 0.15, quality: 0.25, recency: 0.15 });
   });
 });
 
@@ -73,65 +73,86 @@ describe("recencyTerm", () => {
 describe("scorePost", () => {
   it("degrades gracefully to quality + recency for a viewer with zero affinity", () => {
     const result = scorePost(
-      { id: "post-1", authorId: "author-1", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(36), isLocked: false },
+      { id: "post-1", authorId: "author-1", authorProfileType: "EXPLORER", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(36), isLocked: false },
       NOW,
     );
 
     // affinity=0, quality=0, recency=0.5 -> score = 0.15*0.5 = 0.075
-    expect(result).toEqual({ score: 0.075, affinity: 0, topic: 0, quality: 0, recency: 0.5, penalty: 0 });
+    expect(result).toEqual({ score: 0.075, affinity: 0, type: 0, topic: 0, quality: 0, recency: 0.5, penalty: 0 });
   });
 
-  it("combines all three terms for an engaged viewer and a fresh, high-quality post", () => {
+  it("combines all terms for an engaged viewer and a fresh, high-quality post", () => {
     const result = scorePost(
-      { id: "post-2", authorId: "author-2", rawAffinity: 20, rawTopicAffinity: 0, rawQuality: 1, publishedAt: NOW, isLocked: false },
+      { id: "post-2", authorId: "author-2", authorProfileType: "EXPLORER", rawAffinity: 20, rawTopicAffinity: 0, rawQuality: 1, publishedAt: NOW, isLocked: false },
       NOW,
     );
 
-    // 0.35*0.5 + 0.30*0.5 + 0.15*1 = 0.175 + 0.15 + 0.15 = 0.475
-    expect(result).toEqual({ score: 0.475, affinity: 0.5, topic: 0, quality: 0.5, recency: 1, penalty: 0 });
+    // 0.3*0.5 + 0.25*0.5 + 0.15*1 = 0.15 + 0.125 + 0.15 = 0.425
+    expect(result).toMatchObject({ affinity: 0.5, type: 0, topic: 0, quality: 0.5, recency: 1, penalty: 0 });
+    expect(result.score).toBeCloseTo(0.425, 10);
   });
 
   it("uses hashtag affinity as a real ranking signal", () => {
     const result = scorePost(
-      { id: "post-topic", authorId: "author", rawAffinity: 0, rawTopicAffinity: 8, rawQuality: 0, publishedAt: NOW, isLocked: false },
+      { id: "post-topic", authorId: "author", authorProfileType: "EXPLORER", rawAffinity: 0, rawTopicAffinity: 8, rawQuality: 0, publishedAt: NOW, isLocked: false },
       NOW,
     );
 
     expect(result.topic).toBe(0.5);
-    expect(result.score).toBeCloseTo(0.25, 10);
+    // 0.15*0.5 + 0.15*1 = 0.075 + 0.15 = 0.225
+    expect(result.score).toBeCloseTo(0.225, 10);
+  });
+
+  it("uses the viewer's/author's profile type as a real ranking signal", () => {
+    const noType = scorePost(
+      { id: "post-type", authorId: "author", authorProfileType: "SEEKER", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: NOW, isLocked: false },
+      NOW,
+      null,
+    );
+    const matchedType = scorePost(
+      { id: "post-type", authorId: "author", authorProfileType: "SEEKER", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: NOW, isLocked: false },
+      NOW,
+      "SEEKER",
+    );
+
+    expect(noType.type).toBe(0);
+    expect(matchedType.type).toBe(1);
+    // no-type: 0.15*1(recency) = 0.15; matched: 0.15*1(type) + 0.15*1(recency) = 0.3
+    expect(noType.score).toBeCloseTo(0.15, 10);
+    expect(matchedType.score).toBeCloseTo(0.3, 10);
   });
 
   it("fully penalizes locked content for a viewer with zero affinity toward that creator", () => {
     const result = scorePost(
-      { id: "post-3", authorId: "author-3", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: NOW, isLocked: true },
+      { id: "post-3", authorId: "author-3", authorProfileType: "EXPLORER", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: NOW, isLocked: true },
       NOW,
     );
 
     // recency=1 -> 0.15*1 = 0.15; penalty = 0.15*(1-0) = 0.15 -> score cancels to 0
-    expect(result).toEqual({ score: 0, affinity: 0, topic: 0, quality: 0, recency: 1, penalty: 0.15 });
+    expect(result).toEqual({ score: 0, affinity: 0, type: 0, topic: 0, quality: 0, recency: 1, penalty: 0.15 });
   });
 
   it("scales the locked penalty down as affinity for that creator grows", () => {
     const result = scorePost(
-      { id: "post-4", authorId: "author-4", rawAffinity: 20, rawTopicAffinity: 0, rawQuality: 0, publishedAt: NOW, isLocked: true },
+      { id: "post-4", authorId: "author-4", authorProfileType: "EXPLORER", rawAffinity: 20, rawTopicAffinity: 0, rawQuality: 0, publishedAt: NOW, isLocked: true },
       NOW,
     );
 
     // affinity=0.5 -> penalty = 0.15*(1-0.5) = 0.075
-    // score = 0.35*0.5 + 0 + 0.15*1 - 0.075 = 0.175 + 0.15 - 0.075 = 0.25
+    // score = 0.3*0.5 + 0 + 0.15*1 - 0.075 = 0.15 + 0.15 - 0.075 = 0.225
     expect(result.affinity).toBe(0.5);
     expect(result.quality).toBe(0);
     expect(result.recency).toBe(1);
     expect(result.penalty).toBeCloseTo(0.075, 10);
-    expect(result.score).toBeCloseTo(0.25, 10);
+    expect(result.score).toBeCloseTo(0.225, 10);
   });
 });
 
 describe("scoreCandidates", () => {
   it("sorts descending by score", () => {
     const posts = [
-      { id: "low", authorId: "a", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(72), isLocked: false },
-      { id: "high", authorId: "b", rawAffinity: 20, rawTopicAffinity: 0, rawQuality: 1, publishedAt: NOW, isLocked: false },
+      { id: "low", authorId: "a", authorProfileType: "EXPLORER" as const, rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(72), isLocked: false },
+      { id: "high", authorId: "b", authorProfileType: "EXPLORER" as const, rawAffinity: 20, rawTopicAffinity: 0, rawQuality: 1, publishedAt: NOW, isLocked: false },
     ];
 
     const ranked = scoreCandidates(posts, NOW);
@@ -141,13 +162,24 @@ describe("scoreCandidates", () => {
 
   it("breaks a tied score by publishedAt, newest first", () => {
     const posts = [
-      { id: "older", authorId: "a", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(10), isLocked: false },
-      { id: "newer", authorId: "a", rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(10), isLocked: false },
+      { id: "older", authorId: "a", authorProfileType: "EXPLORER" as const, rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(10), isLocked: false },
+      { id: "newer", authorId: "a", authorProfileType: "EXPLORER" as const, rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: hoursAgo(10), isLocked: false },
     ];
     posts[1].publishedAt = new Date(posts[0].publishedAt.getTime() + 1);
 
     const ranked = scoreCandidates(posts, NOW);
 
     expect(ranked.map((p) => p.id)).toEqual(["newer", "older"]);
+  });
+
+  it("threads the viewer's profile type through to every candidate", () => {
+    const posts = [
+      { id: "seeker-post", authorId: "a", authorProfileType: "SEEKER" as const, rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: NOW, isLocked: false },
+      { id: "creator-post", authorId: "b", authorProfileType: "CREATOR" as const, rawAffinity: 0, rawTopicAffinity: 0, rawQuality: 0, publishedAt: NOW, isLocked: false },
+    ];
+
+    const ranked = scoreCandidates(posts, NOW, "SEEKER");
+
+    expect(ranked.map((p) => p.id)).toEqual(["seeker-post", "creator-post"]);
   });
 });

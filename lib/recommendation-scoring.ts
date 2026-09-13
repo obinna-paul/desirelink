@@ -1,17 +1,23 @@
 /**
  * Tier 2 of the discovery/ranking plan's scoring: pure, in-memory, request-time functions
- * over precomputed inputs (creator affinity, hashtag affinity, and post quality). No Prisma import
- * on purpose - retrieval (lib/ranking/engine.ts, added later) fetches the bounded candidate
- * set and the viewer's affinity map once, this module only ranks what it's handed.
+ * over precomputed inputs (creator affinity, hashtag affinity, and post quality). No Prisma
+ * client import on purpose - retrieval (lib/ranking/engine.ts, added later) fetches the
+ * bounded candidate set and the viewer's affinity map once, this module only ranks what
+ * it's handed. (The ProfileType *type* import below is erased at compile time, so it
+ * doesn't count as a runtime Prisma dependency.)
  *
  * Hashtags now provide the topic term from recent behavior, without asking the viewer to
  * maintain a preference profile. Tag stuffing is neutralized when signals are recorded.
  */
+import type { ProfileType } from "@prisma/client";
+
+import { typeTerm } from "@/lib/ranking/type-priority";
 
 export const SCORE_WEIGHTS = {
-  affinity: 0.35,
-  topic: 0.2,
-  quality: 0.3,
+  affinity: 0.3,
+  type: 0.15,
+  topic: 0.15,
+  quality: 0.25,
   recency: 0.15,
 } as const;
 
@@ -65,6 +71,7 @@ export function recencyTerm(publishedAt: Date, now: Date = new Date()): number {
 export type RankablePost = {
   id: string;
   authorId: string;
+  authorProfileType: ProfileType;
   /** CreatorAffinity.affinity for (viewer, this post's author); 0 if no row exists. */
   rawAffinity: number;
   /** Behavioral affinity toward this post's hashtags; 0 when it has no relevant tags. */
@@ -78,16 +85,24 @@ export type RankablePost = {
 export type ScoreBreakdown = {
   score: number;
   affinity: number;
+  type: number;
   topic: number;
   quality: number;
   recency: number;
   penalty: number;
 };
 
-/** Scores one candidate post for one viewer. Pure - every input the plan's affinity/quality/
- * recency/penalty terms need is passed in, nothing is fetched here. */
-export function scorePost(input: RankablePost, now: Date = new Date()): ScoreBreakdown {
+/** Scores one candidate post for one viewer. Pure - every input the plan's affinity/type/
+ * quality/recency/penalty terms need is passed in, nothing is fetched here.
+ * viewerProfileType is null for a viewer with no profile (or none looked up), which - same
+ * as every other term here - degrades to a neutral 0 rather than a special case. */
+export function scorePost(
+  input: RankablePost,
+  now: Date = new Date(),
+  viewerProfileType: ProfileType | null = null,
+): ScoreBreakdown {
   const affinity = affinityTerm(input.rawAffinity);
+  const type = typeTerm(viewerProfileType, input.authorProfileType);
   const topic = topicAffinityTerm(input.rawTopicAffinity);
   const quality = qualityTerm(input.rawQuality);
   const recency = recencyTerm(input.publishedAt, now);
@@ -95,12 +110,13 @@ export function scorePost(input: RankablePost, now: Date = new Date()): ScoreBre
 
   const score =
     SCORE_WEIGHTS.affinity * affinity +
+    SCORE_WEIGHTS.type * type +
     SCORE_WEIGHTS.topic * topic +
     SCORE_WEIGHTS.quality * quality +
     SCORE_WEIGHTS.recency * recency -
     penalty;
 
-  return { score, affinity, topic, quality, recency, penalty };
+  return { score, affinity, type, topic, quality, recency, penalty };
 }
 
 export type ScoredPost = RankablePost & ScoreBreakdown;
@@ -108,9 +124,13 @@ export type ScoredPost = RankablePost & ScoreBreakdown;
 /** Scores every candidate and sorts descending by score, with a deterministic tiebreak on
  * publishedAt (newest first) - mirrors the tiebreak-on-updatedAt convention already
  * established in lib/recommendations.ts's getPersonalizedRecommendations. */
-export function scoreCandidates(posts: RankablePost[], now: Date = new Date()): ScoredPost[] {
+export function scoreCandidates(
+  posts: RankablePost[],
+  now: Date = new Date(),
+  viewerProfileType: ProfileType | null = null,
+): ScoredPost[] {
   return posts
-    .map((post) => ({ ...post, ...scorePost(post, now) }))
+    .map((post) => ({ ...post, ...scorePost(post, now, viewerProfileType) }))
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return b.publishedAt.getTime() - a.publishedAt.getTime();

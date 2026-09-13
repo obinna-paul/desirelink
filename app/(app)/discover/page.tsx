@@ -38,7 +38,7 @@ export default async function DiscoverPage({
 
   const viewerProfile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, displayName: true, locationLat: true, locationLng: true },
+    select: { id: true, displayName: true, profileType: true, locationLat: true, locationLng: true },
   });
 
   const filters = parseDiscoverFilters(searchParams);

@@ -77,7 +77,7 @@ describe("isInRankingHoldout", () => {
 
 describe("rankFeedPosts", () => {
   it("returns an empty list without touching prisma when there are no candidates", async () => {
-    const result = await rankFeedPosts("viewer-1", HOME_FEED_SESSION_SEED, [], NOW);
+    const result = await rankFeedPosts("viewer-1", null, HOME_FEED_SESSION_SEED, [], NOW);
 
     expect(result).toEqual([]);
     expect(mockPrisma.creatorAffinity.findMany).not.toHaveBeenCalled();
@@ -89,8 +89,9 @@ describe("rankFeedPosts", () => {
 
     const result = await rankFeedPosts(
       "viewer-1",
+      null,
       HOME_FEED_SESSION_SEED,
-      [{ id: "p1", authorId: "A", createdAt: NOW, locked: false }],
+      [{ id: "p1", authorId: "A", authorProfileType: "EXPLORER" as const, createdAt: NOW, locked: false }],
       NOW,
     );
 
@@ -108,13 +109,13 @@ describe("rankFeedPosts", () => {
     ]);
 
     const posts = [
-      { id: "p1", authorId: "A", createdAt: NOW, locked: false },
-      { id: "p2", authorId: "B", createdAt: NOW, locked: false },
+      { id: "p1", authorId: "A", authorProfileType: "EXPLORER" as const, createdAt: NOW, locked: false },
+      { id: "p2", authorId: "B", authorProfileType: "EXPLORER" as const, createdAt: NOW, locked: false },
     ];
 
-    const result = await rankFeedPosts("viewer-1", HOME_FEED_SESSION_SEED, posts, NOW);
+    const result = await rankFeedPosts("viewer-1", null, HOME_FEED_SESSION_SEED, posts, NOW);
 
-    // p1: affinity 0.5, quality 0.5, recency 1 -> 0.475. p2: affinity 0, quality 0.5, recency 1 -> 0.3.
+    // p1: affinity 0.5, quality 0.5, recency 1 -> 0.425. p2: affinity 0, quality 0.5, recency 1 -> 0.275.
     expect(result).toEqual(["p1", "p2"]);
     expect(mockPrisma.creatorAffinity.findMany).toHaveBeenCalledWith({
       where: { viewerId: "viewer-1", creatorId: { in: ["A", "B"] } },
@@ -143,10 +144,10 @@ describe("rankFeedPosts", () => {
     );
 
     const posts = [
-      { id: "p-other", authorId: "B", createdAt: NOW, locked: false },
-      { id: "p-topic", authorId: "A", createdAt: NOW, locked: false },
+      { id: "p-other", authorId: "B", authorProfileType: "EXPLORER" as const, createdAt: NOW, locked: false },
+      { id: "p-topic", authorId: "A", authorProfileType: "EXPLORER" as const, createdAt: NOW, locked: false },
     ];
-    const result = await rankFeedPosts("viewer-1", HOME_FEED_SESSION_SEED, posts, NOW);
+    const result = await rankFeedPosts("viewer-1", null, HOME_FEED_SESSION_SEED, posts, NOW);
 
     expect(result[0]).toBe("p-topic");
   });
@@ -156,11 +157,11 @@ describe("rankFeedPosts", () => {
     mockPrisma.postQuality.findMany.mockResolvedValue([]);
 
     const posts = [
-      { id: "locked", authorId: "stranger", createdAt: NOW, locked: true },
-      { id: "unlocked", authorId: "other", createdAt: NOW, locked: false },
+      { id: "locked", authorId: "stranger", authorProfileType: "EXPLORER" as const, createdAt: NOW, locked: true },
+      { id: "unlocked", authorId: "other", authorProfileType: "EXPLORER" as const, createdAt: NOW, locked: false },
     ];
 
-    const result = await rankFeedPosts("viewer-1", HOME_FEED_SESSION_SEED, posts, NOW);
+    const result = await rankFeedPosts("viewer-1", null, HOME_FEED_SESSION_SEED, posts, NOW);
 
     expect(result).toEqual(["unlocked"]);
   });

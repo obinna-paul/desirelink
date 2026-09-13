@@ -1,4 +1,4 @@
-import type { AvailabilityStatusType, Prisma } from "@prisma/client";
+import type { AvailabilityStatusType, Prisma, ProfileType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
@@ -112,6 +112,7 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
 
 type ViewerProfile = {
   id: string;
+  profileType: ProfileType;
   locationLat: number;
   locationLng: number;
 };

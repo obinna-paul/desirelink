@@ -1,8 +1,13 @@
+import type { ProfileType } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm } from "@/lib/home-feed";
 import { affinityTerm } from "@/lib/recommendation-scoring";
+import { seededTiebreak } from "@/lib/ranking/slate";
+import { bucketStartFor } from "@/lib/feed-slate";
+import { typeTerm } from "@/lib/ranking/type-priority";
 
-export { affinityTerm };
+export { affinityTerm, typeTerm };
 
 /** Same distance buckets as lib/recommendations.ts's scoreProximity and
  * lib/live-streams.ts's own locality term, normalized to [0, 1] here so it combines cleanly
@@ -60,6 +65,7 @@ export async function getAffinityByCreator(viewerId: string, creatorIds: string[
 
 export type RecommendableProfile = {
   id: string;
+  profileType: ProfileType;
   locationLat: number;
   locationLng: number;
   createdAt: Date;
@@ -69,26 +75,57 @@ export type RecommendableProfile = {
   isVerifiedServiceProvider: boolean;
 };
 
-/** Reweighted after the shared-topics term was removed (there's no self-reported interest
- * taxonomy anymore - see the discovery/ranking plan's move to activity-only signals).
- * Affinity absorbs most of the freed weight, since behavioral affinity is now the strongest
- * available personalization signal. */
+/** Reweighted to make room for the type term below. Affinity still leads since behavioral
+ * affinity is the strongest available personalization signal; type is the second-strongest
+ * since (unlike locality/trust/novelty) it's read directly off the viewer, not just the
+ * candidate, so it varies the order between viewers even before any interaction history
+ * exists. */
 const PEOPLE_WEIGHTS = {
-  affinity: 0.5,
-  locality: 0.2,
-  trust: 0.2,
+  affinity: 0.4,
+  type: 0.2,
+  locality: 0.15,
+  trust: 0.15,
   novelty: 0.1,
 };
 
+/** Score values are continuous, so exact ties are rare - quantizing into steps this wide
+ * groups "close enough" candidates into the same rank tier so they still shuffle together
+ * (see the seeded tiebreak below), rather than only ever shuffling literal floating-point
+ * ties. */
+const SCORE_TIER_STEP = 0.05;
+
 /**
- * Ranks candidate profiles for a "people, not posts" discovery surface (Discover, the
- * creators directory): affinity, locality, trust, novelty - all derived from behavior, never
- * self-reported interests. Returns candidate ids in ranked order; graceful degradation is
- * structural for an anonymous or signal-less viewer (affinity/locality both fall to 0),
- * never a special case.
+ * Orders candidates by score into discrete tiers, then shuffles within each tier using a
+ * hash seeded from (seed, id) - stable for a given seed (so it doesn't reshuffle on every
+ * request) but different per seed. Ranking still dominates: shuffling only ever reorders
+ * candidates the score already considered equivalent, never crosses a tier boundary.
+ */
+function rankWithSeededShuffle(scored: { id: string; score: number }[], seed: string): string[] {
+  return scored
+    .slice()
+    .sort((a, b) => {
+      const tierDiff = Math.round(b.score / SCORE_TIER_STEP) - Math.round(a.score / SCORE_TIER_STEP);
+      if (tierDiff !== 0) return tierDiff;
+      return seededTiebreak(seed, a.id) - seededTiebreak(seed, b.id);
+    })
+    .map((entry) => entry.id);
+}
+
+/**
+ * Ranks candidate profiles for a "people, not posts" discovery surface (Discover): affinity,
+ * profile type, locality, trust, novelty - all either behavioral or read directly off the
+ * viewer, never self-reported interests. Returns candidate ids in ranked order.
+ *
+ * Two viewers with zero interaction history and no location set still see different orders,
+ * not identical ones: type already varies by the viewer's own profileType, and same-tier
+ * candidates (typically everyone tied on type+trust+novelty for a signal-less viewer) are
+ * shuffled via a hash seeded on (viewer, this 15-minute bucket) - stable for that viewer for
+ * that window (so a page reload doesn't reshuffle mid-browse), refreshed automatically every
+ * ~15 minutes rather than staying frozen on the same order forever, and different for every
+ * other viewer.
  */
 export async function rankRecommendedProfiles(
-  viewer: { id: string; locationLat: number; locationLng: number } | null,
+  viewer: { id: string; profileType: ProfileType | null; locationLat: number; locationLng: number } | null,
   candidates: RecommendableProfile[],
   now: Date = new Date(),
 ): Promise<string[]> {
@@ -98,21 +135,25 @@ export async function rankRecommendedProfiles(
   const affinityByCreator = viewer
     ? await getAffinityByCreator(viewer.id, candidateIds)
     : new Map<string, number>();
+  const seed = `discover:${viewer?.id ?? "anon"}:${bucketStartFor(now).getTime()}`;
 
-  return candidates
-    .map((candidate) => {
-      const score =
-        PEOPLE_WEIGHTS.affinity * affinityTerm(affinityByCreator.get(candidate.id) ?? 0) +
-        PEOPLE_WEIGHTS.locality * localityTerm(viewer, candidate) +
-        PEOPLE_WEIGHTS.trust * trustTerm(candidate) +
-        PEOPLE_WEIGHTS.novelty * noveltyTerm(candidate.createdAt, now);
-      return { id: candidate.id, score };
-    })
-    .sort((a, b) => b.score - a.score)
-    .map((entry) => entry.id);
+  const scored = candidates.map((candidate) => {
+    const score =
+      PEOPLE_WEIGHTS.affinity * affinityTerm(affinityByCreator.get(candidate.id) ?? 0) +
+      PEOPLE_WEIGHTS.type * typeTerm(viewer?.profileType ?? null, candidate.profileType) +
+      PEOPLE_WEIGHTS.locality * localityTerm(viewer, candidate) +
+      PEOPLE_WEIGHTS.trust * trustTerm(candidate) +
+      PEOPLE_WEIGHTS.novelty * noveltyTerm(candidate.createdAt, now);
+    return { id: candidate.id, score };
+  });
+
+  return rankWithSeededShuffle(scored, seed);
 }
 
-export type RecommendableCreator = Omit<RecommendableProfile, "locationLat" | "locationLng">;
+// Not Omit<RecommendableProfile, ...> - the creator-directory formula below never reads
+// profileType (only Discover's rankRecommendedProfiles does), so it shouldn't force every
+// caller of rankRecommendedCreators to fetch and supply it too.
+export type RecommendableCreator = Omit<RecommendableProfile, "locationLat" | "locationLng" | "profileType">;
 
 /** Same reweighting rationale as PEOPLE_WEIGHTS above, applied to the (already
  * locality-free) creator-directory formula. */
