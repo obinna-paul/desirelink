@@ -14,16 +14,13 @@ import { getClientIp, readJson } from "@/lib/security/request";
 /**
  * Accepts two request shapes on one endpoint:
  *
- * - legacy v1: `{ answers: { [questionId]: "A"|"B"|"C"|"D" } }` - unchanged behavior, kept so
- *   the live quiz (components/spec-test/quiz-flow.tsx, not yet rewritten) keeps working.
- * - v2: `{ instrumentVersion, responses: SpecTestResponseV2[], contextAnswers? }` - the new
- *   engine from docs/spec-test-v2-implementation-plan.md Phase 1/2. Not yet called by any UI;
- *   Phase 3 wires the rewritten quiz wizard to it.
- *
- * Per the plan §15, the two paths are meant to be short-lived together: once Phase 3 ships
- * the v2 quiz wizard, the legacy branch (and the v1-only quiz-flow.tsx it serves) can be
- * retired in the same change that flips the switch, rather than leaving takers on a
- * half-migrated instrument in the meantime.
+ * - legacy v1: `{ answers: { [questionId]: "A"|"B"|"C"|"D" } }` - unchanged behavior. Nothing
+ *   in this codebase sends this anymore (components/spec-test/quiz-flow.tsx was rewritten in
+ *   Phase 3 to send the v2 shape below), but the branch is kept as a compatibility safety net
+ *   rather than deleted outright - see that Phase 3 commit's own note on why.
+ * - v2: `{ instrumentVersion, responses: SpecTestResponseV2[], contextAnswers? }` - the engine
+ *   from docs/spec-test-v2-implementation-plan.md Phases 1-4, the only shape the live quiz
+ *   wizard sends.
  */
 
 const QUESTION_IDS = new Set(specTestQuestionIds());
@@ -51,6 +48,14 @@ async function submitLegacy(answers: SpecTestAnswers): Promise<NextResponse> {
 }
 
 const GENERIC_V2_ERROR = "Answer set does not match this version of the quiz.";
+
+/** Share of new v2 results reserved as a hold-out sample a future psychometric refit can
+ *  validate on without having been fit on it (report §8 Phase 3; plan §12). */
+const HOLDOUT_RATE = 0.2;
+
+function assignDataSplit(): "development" | "holdout" {
+  return Math.random() < HOLDOUT_RATE ? "holdout" : "development";
+}
 
 /** Increments the one counter that lets the admin dashboard compute a real low-signal rate
  *  (plan §11) - a low-signal submission never becomes its own SpecTestResult row, so without
@@ -150,6 +155,7 @@ async function submitV2(payload: z.infer<typeof v2PayloadSchema>): Promise<NextR
       attachment: decision.attachment === null ? Prisma.JsonNull : decision.attachment,
       sparkSpec: decision.sparkPrimarySpec,
       partnershipSpec: decision.partnershipPrimarySpec,
+      dataSplit: assignDataSplit(),
       // Persisted as a snapshot for admin analytics only - the result page (Phase 5) always
       // recomputes the live set from motiveScores/lenses/attachment via compose.ts, so a
       // future change to these rules applies retroactively without a backfill here.

@@ -98,6 +98,7 @@ describe("POST /api/spec-test/submit - v2 payload", () => {
     expect(data.responseQuality).toBe("usable");
     expect(Array.isArray(data.answers)).toBe(true);
     expect(data.answers).toHaveLength(SPEC_TEST_ITEMS_V2.length);
+    expect(["development", "holdout"]).toContain(data.dataSplit);
 
     expect(mockPrisma.specTestInstrumentStat.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { instrumentVersion: INSTRUMENT_VERSION }, update: { submittedCount: { increment: 1 } } }),

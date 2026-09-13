@@ -9,6 +9,8 @@ import {
   getSpecTestLeads,
   getSpecTestTypeDistribution,
   getSpecTestConfidenceMix,
+  getSpecTestItemAnalytics,
+  getSpecTestDataSplitCounts,
   SPEC_TYPE_READINGS,
   INSTRUMENT_VERSION,
 } from "@/lib/spec-test";
@@ -38,10 +40,12 @@ export default async function AdminSpecTestLeadsPage({ searchParams }: { searchP
     notFound();
   }
 
-  const [{ items, nextCursor }, typeDistribution, confidenceMix] = await Promise.all([
+  const [{ items, nextCursor }, typeDistribution, confidenceMix, dataSplit, itemAnalytics] = await Promise.all([
     getSpecTestLeads({ take: 50, cursor: searchParams?.cursor }),
     getSpecTestTypeDistribution(),
     getSpecTestConfidenceMix(INSTRUMENT_VERSION),
+    getSpecTestDataSplitCounts(INSTRUMENT_VERSION),
+    getSpecTestItemAnalytics(INSTRUMENT_VERSION),
   ]);
 
   return (
@@ -102,13 +106,52 @@ export default async function AdminSpecTestLeadsPage({ searchParams }: { searchP
                   </span>
                 </li>
               </ul>
-              <p className="text-[11px] text-muted-foreground/70">{confidenceMix.totalAttempts} total submit attempts.</p>
+              <p className="text-[11px] text-muted-foreground/70">
+                {confidenceMix.totalAttempts} total submit attempts &middot; {dataSplit.development} development /{" "}
+                {dataSplit.holdout} hold-out
+              </p>
             </>
           )}
           {/* Quiz drop-off by section (plan §11) isn't shown here - it needs a beacon
               recording partial progress before submit, which doesn't exist yet. See
               lib/spec-test/admin-stats.ts's file comment. */}
         </section>
+      </div>
+
+      <div>
+        <h2 className="mb-2 text-sm font-semibold text-foreground">
+          Item analytics <span className="font-normal text-muted-foreground">({INSTRUMENT_VERSION})</span>
+        </h2>
+        {itemAnalytics.every((row) => row.answeredCount === 0 && row.skippedCount === 0) ? (
+          <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:shadow-none">
+            No v2 responses yet.
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-border/60 bg-card shadow-sm">
+            <table className="w-full min-w-[640px] text-left text-xs">
+              <thead>
+                <tr className="border-b border-border/60 text-muted-foreground">
+                  <th className="px-3 py-2 font-medium">Item</th>
+                  <th className="px-3 py-2 font-medium">Answered</th>
+                  <th className="px-3 py-2 font-medium">Skip rate</th>
+                  <th className="px-3 py-2 font-medium">Median time</th>
+                  <th className="px-3 py-2 font-medium">Position spread (1-4)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itemAnalytics.map((row) => (
+                  <tr key={row.itemId} className="border-b border-border/40 last:border-0">
+                    <td className="px-3 py-2 font-medium text-foreground">{row.itemId}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{row.answeredCount}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{formatPercent(row.skipRate)}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{(row.medianElapsedMs / 1000).toFixed(1)}s</td>
+                    <td className="px-3 py-2 text-muted-foreground">{row.positionCounts.join(" / ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div>

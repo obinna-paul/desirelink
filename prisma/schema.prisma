@@ -1212,8 +1212,11 @@ model SpecTestResult {
    *  who works for you" without recomputing from the raw answers. */
   sparkSpec         String?
   partnershipSpec   String?
-  /** Conditional dating-history flags (report §7, e.g. "ambiguity_amplification") that gate
-   *  interpretation copy - populated by the Phase 4 interpretation engine, not by submit. */
+  /** Conditional dating-history flags (report §7, e.g. "ambiguity_amplification") that
+   *  converged at submission time - an admin-analytics snapshot only. Rendering never reads
+   *  this: the result page always recomputes the live set from motiveScores/lenses/
+   *  attachment via lib/spec-test/interpretation/compose.ts, so a later change to the rules
+   *  applies retroactively without touching old rows. */
   patternFlags      String[] @default([])
   /** clear | blend | split. Never "low_signal" here - see the submit route. */
   resultConfidence  String?
@@ -1223,6 +1226,9 @@ model SpecTestResult {
   /** Optional relationship-context answers (report §5 "Context" section). Interpretation
    *  only - never scored, never required. */
   contextAnswers    Json?
+  /** development | holdout, assigned at submission (~80/20) - lets a future psychometric
+   *  refit validate on data it never fit on (report §8 Phase 3; plan §12 "Hold-out tagging"). */
+  dataSplit         String   @default("development")
 
   email             String?
   profileId         String?

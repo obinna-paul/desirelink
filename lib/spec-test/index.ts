@@ -27,3 +27,10 @@ export {
   type SpecTypeDistributionRow,
   type ConfidenceMix,
 } from "@/lib/spec-test/admin-stats";
+export {
+  getSpecTestItemAnalytics,
+  getSpecTestDataSplitCounts,
+  type ItemAnalytics,
+  type ItemOptionAnalytics,
+  type DataSplitCounts,
+} from "@/lib/spec-test/calibration";
