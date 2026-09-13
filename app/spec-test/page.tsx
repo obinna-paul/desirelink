@@ -38,13 +38,18 @@ export default function SpecTestLandingPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
       <PublicHeader minimal badge={<AgeBadge />} dense />
 
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-2.5 overflow-hidden px-5 py-1 sm:gap-4 sm:px-8">
-        <p className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
+      {/* Every size/gap below is a percentage of viewport height (dvh), lifted directly
+          from the approved mockup's own proportions (measured against its ~732px-tall
+          reference frame) - not centered as a small block with dead space around it,
+          but laid out top-down the same way the mockup is, so it fills the screen the
+          same way on a short phone as on a tall one. */}
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col overflow-hidden px-6 pt-[4.8dvh] sm:px-8">
+        <p className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 text-[clamp(0.65rem,1.6dvh,0.8rem)] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           The Spec Test
         </p>
 
         <h1
-          className="font-heading text-[1.65rem] font-semibold leading-[1.12] tracking-tight text-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 sm:text-5xl"
+          className="mt-[2.4dvh] font-heading text-[clamp(1.85rem,5.6dvh,3.25rem)] font-semibold leading-[1.12] tracking-tight text-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
           style={{ animationDelay: "60ms" }}
         >
           You have <em className="italic text-primary">a type.</em> Even if you can&apos;t
@@ -52,7 +57,7 @@ export default function SpecTestLandingPage() {
         </h1>
 
         <div
-          className="flex justify-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-700"
+          className="mt-[4.1dvh] flex justify-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-700"
           style={{ animationDelay: "140ms" }}
         >
           <Image
@@ -61,12 +66,12 @@ export default function SpecTestLandingPage() {
             width={260}
             height={260}
             priority
-            className="h-24 w-24 sm:h-40 sm:w-40"
+            className="h-[clamp(6rem,22.5dvh,12rem)] w-[clamp(6rem,22.5dvh,12rem)]"
           />
         </div>
 
         <p
-          className="text-center text-[13px] leading-snug text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 sm:text-base sm:leading-relaxed"
+          className="mt-[2.6dvh] text-center text-[clamp(0.85rem,1.9dvh,1.05rem)] leading-snug text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
           style={{ animationDelay: "200ms" }}
         >
           Answer 10 carefully designed questions to uncover the traits, energy and little
@@ -75,7 +80,7 @@ export default function SpecTestLandingPage() {
 
         <Button
           asChild
-          className="h-11 w-full gap-2 rounded-full text-xs font-bold uppercase tracking-[0.1em] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 sm:h-14 sm:text-sm"
+          className="mt-[3.5dvh] h-[clamp(2.75rem,7.3dvh,3.5rem)] w-full gap-2 rounded-full text-[clamp(0.75rem,1.7dvh,0.9rem)] font-bold uppercase tracking-[0.1em] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
           style={{ animationDelay: "260ms" }}
         >
           <Link href="/spec-test/quiz">
@@ -85,14 +90,14 @@ export default function SpecTestLandingPage() {
         </Button>
 
         <p
-          className="text-center text-xs text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
+          className="mt-[2.1dvh] text-center text-[clamp(0.75rem,1.6dvh,0.875rem)] text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
           style={{ animationDelay: "320ms" }}
         >
           Free &middot; Private &middot; About 4 minutes
         </p>
 
-        <div className="border-t border-border/60 pt-2.5 text-center sm:pt-4">
-          <p className="text-xs text-muted-foreground">
+        <div className="mt-[3.5dvh] border-t border-border/60 pt-[2.2dvh] text-center">
+          <p className="text-[clamp(0.75rem,1.6dvh,0.875rem)] text-muted-foreground">
             A playful, research-informed reading of your attraction pattern.
           </p>
         </div>
