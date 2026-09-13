@@ -7,6 +7,7 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { Button } from "@/components/ui/button";
 import { EmailCaptureForm } from "@/components/spec-test/email-capture-form";
+import { AgeBadge } from "@/components/spec-test/age-badge";
 import { prisma } from "@/lib/prisma";
 import { SPEC_TYPE_READINGS, type SpecTypeKey } from "@/lib/spec-test";
 import { publicPageMetadata } from "@/lib/seo";
@@ -73,11 +74,11 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
 
   return (
     <div className="flex min-h-screen flex-col">
-      <PublicHeader minimal />
+      <PublicHeader minimal badge={<AgeBadge />} />
 
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-10 px-4 py-12 sm:px-8">
         <div className="flex flex-col items-center gap-3 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-500">
-          <span className={cn("flex h-16 w-16 items-center justify-center rounded-full", accent.badge)}>
+          <span className={cn("flex h-16 w-16 items-center justify-center rounded-full shadow-card", accent.badge)}>
             <Sparkles className={cn("h-8 w-8", accent.icon)} aria-hidden="true" />
           </span>
           <p className={cn("inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide", accent.badge)}>
@@ -118,7 +119,7 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
           ))}
         </RevealSection>
 
-        <RevealSection delayMs={320} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <RevealSection delayMs={320} className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-5 shadow-card">
           <h2 className="font-heading text-lg font-semibold">What actually works for you</h2>
           <p className="text-[15px] leading-relaxed text-muted-foreground">{reading.whatWorksForYou}</p>
           <p className="font-heading text-[15px] font-semibold italic">&ldquo;{reading.attractionTruth}&rdquo;</p>
@@ -126,7 +127,7 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
 
         <RevealSection
           delayMs={380}
-          className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card p-6 text-center"
+          className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-card p-6 text-center shadow-card"
         >
           <p className="font-heading text-xl font-bold">Meet people who match your energy on Udala.</p>
           <Button

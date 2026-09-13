@@ -1,16 +1,18 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { Button } from "@/components/ui/button";
+import { FingerprintMark } from "@/components/spec-test/fingerprint-mark";
+import { AgeBadge } from "@/components/spec-test/age-badge";
 import { publicPageMetadata, serializeJsonLd } from "@/lib/seo";
 import { SITE_NAME, absoluteUrl } from "@/lib/site-config";
 
 const PAGE_TITLE = "The Spec Test | Udala";
 const PAGE_DESCRIPTION =
-  "We'll guess your spec in about four minutes - not just what they look like, but the energy, habits, and personality that pull you in.";
+  "You have a type, even if you can't describe it. Answer 10 carefully designed questions to uncover the traits, energy and little behaviours you're naturally drawn to.";
 
 export const metadata: Metadata = publicPageMetadata({
   title: PAGE_TITLE,
@@ -29,43 +31,61 @@ export default function SpecTestLandingPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-[#f7f4ee] dark:bg-background">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
-      <PublicHeader minimal />
+      <PublicHeader minimal badge={<AgeBadge />} />
 
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center gap-8 px-4 py-16 text-center sm:px-8">
-        <span className="flex h-20 w-20 items-center justify-center rounded-full bg-accent-tint motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-500">
-          <Sparkles className="h-10 w-10 text-primary" aria-hidden="true" />
-        </span>
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-8 px-5 py-10 sm:px-8 sm:py-14">
+        <p className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          The Spec Test
+        </p>
+
+        <h1
+          className="font-heading text-4xl font-semibold leading-[1.1] tracking-tight text-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 sm:text-6xl"
+          style={{ animationDelay: "60ms" }}
+        >
+          You have <em className="italic text-primary">a type.</em> Even if you can&apos;t
+          describe it.
+        </h1>
 
         <div
-          className="flex flex-col gap-3 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
-          style={{ animationDelay: "80ms" }}
+          className="flex justify-center py-2 text-primary motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-700"
+          style={{ animationDelay: "140ms" }}
         >
-          <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-5xl">
-            We&apos;ll guess your spec in four minutes.
-          </h1>
-          <p className="text-base text-muted-foreground sm:text-lg">
-            Not just what they look like - the energy, habits, and personality that pull you in.
-            A playful, research-informed reading of your attraction pattern.
-          </p>
+          <FingerprintMark className="h-52 w-44 sm:h-60 sm:w-52" />
         </div>
+
+        <p
+          className="text-center text-base leading-relaxed text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+          style={{ animationDelay: "200ms" }}
+        >
+          Answer 10 carefully designed questions to uncover the traits, energy and little
+          behaviours you&apos;re naturally drawn to&mdash;and what they reveal about you.
+        </p>
 
         <Button
           asChild
-          size="lg"
-          className="w-full max-w-xs motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
-          style={{ animationDelay: "160ms" }}
+          className="h-14 w-full gap-2 rounded-full text-sm font-bold uppercase tracking-[0.1em] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+          style={{ animationDelay: "260ms" }}
         >
-          <Link href="/spec-test/quiz">Find My Spec</Link>
+          <Link href="/spec-test/quiz">
+            Discover My Spec
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
         </Button>
 
         <p
-          className="text-xs text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
-          style={{ animationDelay: "220ms" }}
+          className="text-center text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
+          style={{ animationDelay: "320ms" }}
         >
-          Free, anonymous, and about 10 quick questions. For adults 18 and over.
+          Free &middot; Private &middot; About 4 minutes
         </p>
+
+        <div className="border-t border-border/60 pt-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            A playful, research-informed reading of your attraction pattern.
+          </p>
+        </div>
       </main>
 
       <PublicFooter />
