@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { forgotPasswordSchema } from "@/lib/validations/auth";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { getClientIp, readJson } from "@/lib/security/request";
-import { sendPasswordResetOtpEmail } from "@/lib/email/notifications";
+import { sendOAuthPasswordResetAttemptEmail, sendPasswordResetOtpEmail } from "@/lib/email/notifications";
 import { isTurnstileConfigured, verifyTurnstileToken } from "@/lib/turnstile";
 
 /**
@@ -36,9 +36,27 @@ export async function POST(req: Request) {
     );
   }
 
-  const user = await prisma.user.findUnique({ where: { email }, select: { passwordHash: true } });
-  if (user?.passwordHash) {
-    await sendPasswordResetOtpEmail(email);
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, passwordHash: true },
+    });
+
+    if (user?.passwordHash) {
+      await sendPasswordResetOtpEmail(email);
+    } else if (user) {
+      // No password to reset - this account was created via Google/X. Emailing the
+      // owner what to do instead (rather than silently sending nothing) is what turns
+      // "I tried forgot password and got no code" into something fixable, without
+      // revealing anything to a stranger: only the inbox's real owner ever sees it.
+      const accounts = await prisma.account.findMany({ where: { userId: user.id }, select: { provider: true } });
+      await sendOAuthPasswordResetAttemptEmail(
+        email,
+        accounts.map((account) => account.provider),
+      );
+    }
+  } catch (error) {
+    console.error("[forgot-password] failed to process request", error);
   }
 
   return NextResponse.json({ ok: true }, { status: 200 });
