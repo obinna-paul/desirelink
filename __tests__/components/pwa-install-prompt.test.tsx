@@ -82,6 +82,19 @@ describe("PwaInstallPrompt", () => {
     expect(screen.queryByText("Keep Udala close")).not.toBeInTheDocument();
   });
 
+  it("never prompts on the Spec Test funnel, even mid-visit while a prompt is captured", async () => {
+    navigation.__setPathname("/spec-test/quiz");
+    setDevice("Mozilla/5.0 (Linux; Android 15; Mobile) AppleWebKit/537.36 Chrome/140 Mobile");
+    window.__udalaInstallPrompt = new Event("beforeinstallprompt") as Event & {
+      prompt: () => Promise<void>;
+      userChoice: Promise<{ outcome: "accepted"; platform: string }>;
+    };
+
+    render(<PwaInstallPrompt />);
+
+    await waitFor(() => expect(screen.queryByText("Keep Udala close")).not.toBeInTheDocument());
+  });
+
   it("never prompts inside the installed standalone app", () => {
     setDevice("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile", true);
 
