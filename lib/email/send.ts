@@ -19,6 +19,32 @@ export type EmailCategory =
   | "messages"
   | "leads";
 
+/**
+ * Resend's free plan caps us at 100 emails/day, so only these categories are allowed to
+ * actually send - everything else (welcome emails, digest/win-back/monthly-earnings/
+ * ceo-note/profile-nudge cron jobs) is logged as "skipped" instead. "welcome" stays out of
+ * this set on purpose: verification-denied is allowed by template name below, but the rest
+ * of that category (welcome-creator/seeker/explorer, verification-approved, ceo-note,
+ * profile-nudge) is not.
+ */
+const ENABLED_EMAIL_CATEGORIES: ReadonlySet<EmailCategory> = new Set<EmailCategory>([
+  "auth",
+  "billing",
+  "earnings",
+  "bookings",
+  "safety",
+  "support",
+  "messages",
+  "leads",
+]);
+
+/** Individually allowed templates whose category is otherwise disabled. */
+const ENABLED_EMAIL_TEMPLATES: ReadonlySet<string> = new Set(["verification-denied"]);
+
+function isEmailEnabled(category: EmailCategory, template: string): boolean {
+  return ENABLED_EMAIL_CATEGORIES.has(category) || ENABLED_EMAIL_TEMPLATES.has(template);
+}
+
 function isMissingEmailLogSchema(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -32,7 +58,7 @@ async function logEmail(entry: {
   category: EmailCategory;
   template: string;
   resendId: string | null;
-  status: "sent" | "failed";
+  status: "sent" | "failed" | "skipped";
   error: string | null;
 }) {
   try {
@@ -71,6 +97,12 @@ export async function sendEmail({
   replyTo,
   idempotencyKey,
 }: SendEmailInput): Promise<boolean> {
+  if (!isEmailEnabled(category, template)) {
+    console.log(`[email] skipping "${subject}" to ${to} - "${template}" (${category}) is disabled`);
+    await logEmail({ recipient: to, category, template, resendId: null, status: "skipped", error: null });
+    return false;
+  }
+
   const sender = EMAIL_SENDERS[from];
   const resolvedReplyTo = replyTo ?? (from === "hey" ? EMAIL_SENDERS.help.address : undefined);
 
