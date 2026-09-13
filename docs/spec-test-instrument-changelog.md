@@ -245,3 +245,37 @@ the chosen gender and form without re-showing the gender step (verified against 
 tokenized item's rendered text, not just the stored value); a resumed draft never re-asks
 gender; and the two forms are proven to differ only in their substituted terms, never in the
 underlying template.
+
+## spec-v2.1 — Phase G5 (result surfaces)
+
+**Verification pass, as the plan expected.** The result page
+(`app/spec-test/result/[id]/page.tsx`) and the result email
+(`components/emails/spec-test-result.tsx` via `lib/email/spec-test-notifications.ts`) both
+already consumed `getSpecTestReading`'s `copy` output before this phase even started - G3 put
+the rendering inside `results.ts` specifically so both surfaces would inherit it automatically.
+Read both files end-to-end to confirm neither one reaches around `results.ts` for raw,
+unrendered strings anywhere (e.g. by importing `readings-v2.ts` or `compose.ts` directly) -
+they don't. No code change was needed in either file for this phase.
+
+**Share card, verified rather than assumed.** The plan flagged
+`app/spec-test/result/[id]/opengraph-image.tsx` as "likely no change" but asked for
+verification, not an assumption. It reads exactly two fields: `copy.headline.name` (an
+archetype's proper noun, never templated - readings-v2.ts's `name` field has no `{token}` in
+it for any of the eight archetypes) and `copy.headline.tagline` (templated in principle, since
+`renderResultCopy` does call `renderTerms` on it, but authored with no gendered referent for
+every archetype). Added a new test file,
+`__tests__/lib/spec-test/gender/result-surfaces.test.ts`, asserting this directly and more
+strictly than the existing cross-form symmetry test: every tagline renders **byte-identical**
+to its own un-rendered source string under both `male_user` and `female_user` - not just
+"symmetric once normalized," but literally unchanged - so the share card needs no per-form
+branch and none was added.
+
+**Long-term partner guidance stays behavioural.** `longTermFit`
+(`ARCHETYPE_READINGS_V2[key].longTermFit`, report §4 "Long-term partner brief") is templated
+the same way as every other reading field - "the {person} who..." - so gender only ever swaps
+which word fills the referent slot. The substance of the brief (what kind of steadiness,
+initiative, or communication style the reading recommends) comes entirely from the taker's
+motive/lens scores computed in `compose.ts`, completely gender-oblivious per the G1 boundary
+guarantee - gender was never able to change the advice itself, only who it's worded to be about.
+
+**2 new tests.** No production code changed.
