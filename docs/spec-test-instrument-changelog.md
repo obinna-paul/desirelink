@@ -344,3 +344,42 @@ This closes Phase G6, the last phase in
 [`docs/spec-test-gender-implementation-plan.md`](./spec-test-gender-implementation-plan.md).
 Every phase (G1-G6) shipped in the sequence the plan laid out, each with its own commit and
 its own full test/typecheck/lint pass before landing.
+
+## spec-v2.1 — Reading copy voice rewrite
+
+**Why.** Direct user feedback on a live result ("Soft Landing"): the archetype prose read as
+generic, clinical, and confusing rather than fun - sentences like "Your attraction system
+relaxes when care is unmistakable" and "Relief can masquerade as compatibility" are accurate
+descriptions but not something anyone recognizes themselves in or wants to share. That prose
+had been transcribed close to verbatim from `docs/spec-test-research.md` §4's "Provisional
+narrative library" - a research document's voice, not a consumer quiz's.
+
+**What changed.** All six narrative fields (`coreReading`, `whatItSaysAboutYou`, `strength`,
+`blindSpot`, `longTermFit`, `growthPrompt`) for all eight archetypes in
+`lib/spec-test/interpretation/readings-v2.ts`, the eight "dating loop" pattern-flag copy
+strings in `lib/spec-test/interpretation/pattern-flags.ts`, and the spark/partnership "twist"
+template in `lib/spec-test/interpretation/compose.ts` - rewritten in second person, with
+concrete scenarios and images ("texts to check you got home safe" instead of "your attraction
+system relaxes when care is unmistakable"), aiming for "a sharp friend describing you
+accurately" rather than a clinical abstract.
+
+**What didn't change.** The underlying claim for each archetype - what it means, which motive
+pattern it represents (`lib/spec-test/scoring/archetypes.ts`), which pattern-flag rule fires
+when (`evaluate` functions in pattern-flags.ts, untouched) - none of that moved. This is a
+delivery/voice rewrite of existing, already-accurate content, not new psychological claims.
+The pattern-flag copy keeps the report's required epistemic hedge ("may have", "may
+sometimes") in every line - a stronger sentence, not a stronger claim. Archetype names and
+taglines are untouched (the taglines were already short and doing their job; the paragraphs
+underneath them weren't).
+
+**Gender rendering.** Every gendered referent in the new copy still goes through the same
+`{token}` vocabulary from Phase G2, with the same verb-agreement discipline (no bare
+`{they}`/`{them}` as the subject of a present-tense finite verb). Verified by the existing
+gender symmetry/render test suite (`__tests__/lib/spec-test/gender/*`) and
+`results.test.ts` - both suites pass unchanged against the new content with zero test
+modifications required, confirming the rewrite is a content swap that fits the existing
+rendering pipeline rather than something that needed new plumbing.
+
+**No instrument version bump.** Option ids, loadings, centroids, and pattern-flag eligibility
+rules are unchanged - this is copy-only, same precedent as G2's tokenization pass (which also
+didn't bump the version on its own).

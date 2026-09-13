@@ -1,11 +1,23 @@
 import "server-only";
 
-// server-only. Per-archetype narrative fragments transcribed from docs/spec-test-research.md
-// §4 "Provisional narrative library for the current eight Specs" - these supersede the v1
-// copy inlined in lib/spec-test/legacy.ts's SPEC_TYPE_READINGS for any v2 result. Taglines
-// are reused from the v1 readings rather than re-authored: the report doesn't restate a
-// short tagline per archetype in §4 (it only gives full paragraphs), and the v1 one-liners
-// already frame the same eight archetype names accurately.
+// server-only. Per-archetype narrative content for the eight Specs.
+//
+// Rewritten (post-launch, following direct user feedback: the original prose - transcribed
+// close to verbatim from docs/spec-test-research.md §4's "Provisional narrative library" -
+// read like a research abstract, not a fun personality quiz. "Your attraction system relaxes
+// when care is unmistakable" is accurate; it's also not something anyone screenshots. This
+// pass keeps every claim the report actually supports for each archetype (the same
+// centroids/motive story - see lib/spec-test/scoring/archetypes.ts - nothing here changes what
+// an archetype MEANS) but re-authors the delivery in second person, with concrete images and
+// scenarios instead of clinical vocabulary, aiming for "a smart friend who gets it" rather
+// than "a psychometric abstract." Taglines are untouched - short adjective lists were already
+// doing their job and are reused from the v1 readings in lib/spec-test/legacy.ts.
+//
+// Gendered referents use the {token} vocabulary from docs/spec-test-gender-implementation-plan.md
+// Phase G2 - see lib/spec-test/gender/terms.ts and render.ts. The verb-agreement rule from that
+// phase still applies: a bare {they}/{them} token is never the subject of a present-tense
+// finite verb (neutral "they" takes a plural verb, "she"/"he" takes singular) - use "the
+// {person}" as the subject, or a modal/passive/past-tense construction, instead.
 
 import { SPEC_TYPE_READINGS } from "@/lib/spec-test/legacy";
 import type { ArchetypeKey } from "@/lib/spec-test/taxonomy";
@@ -34,118 +46,118 @@ export const ARCHETYPE_READINGS_V2: Record<ArchetypeKey, ArchetypeReadingV2> = {
     name: "Quiet Fire",
     tagline: SPEC_TYPE_READINGS.quiet_fire.tagline,
     coreReading:
-      "You notice the {person} who does not spend the whole room trying to be noticed. {Their} restraint reads as self-command; {their} privacy suggests there is more to discover. You are not attracted to emptiness. You are attracted to compression—emotion, desire or intelligence that seems powerful precisely because it is not spilling everywhere.",
+      "You clock the {person} who isn't performing before you clock the one who is - the type who says less than everyone else in the room and somehow ends up the one you remember. That restraint doesn't read as boring to you. It reads as power. You're not chasing mystery for its own sake; you're chasing the feeling that there's a lot happening under a very calm surface.",
     whatItSaysAboutYou:
-      "You are sensitive to small signals: a held gaze, a precise sentence, the difference between shyness and confidence. Loud performance can make you suspicious. You want access that feels earned, because earned access feels more meaningful than attention freely distributed to everyone.",
+      "You catch signals other people miss - a look that lingers half a second too long, a text that's exactly the right length and no more. Loud, over-the-top declarations make you suspicious rather than swept off your feet. You want to feel like you earned your way in, because access handed out to everyone doesn't feel like anything at all.",
     strength:
-      "You can appreciate subtle {people} without demanding constant performance. You often recognize depth others overlook and may be capable of loyalty that is quiet but intense.",
+      "You know how to sit with a quiet {person} and actually see {them} - most people don't have the patience for that. You're capable of a loyalty that doesn't announce itself but doesn't waver, either.",
     blindSpot:
-      "You can mistake emotional opacity for emotional depth. Some people are private because they are discerning; others are simply unavailable, conflict-avoidant or unwilling to communicate. Mystery should eventually become knowledge.",
+      "Here's the trap: not every quiet {person} is deep. Some are genuinely thoughtful. Others are just avoidant, bad at communicating, or not that into you and too conflict-averse to say so. Mystery makes a great opening line - it's a bad long-term personality if it never turns into anything you actually know.",
     longTermFit:
-      "The strongest fit is self-possessed and emotionally consistent: a {person} who respects privacy without making intimacy a guessing game, reveals {themself} gradually but answers direct questions, and can hold intensity without using silence as power.",
-    growthPrompt: "Do not ask only, “How strongly do I feel?” Ask, “What has the {person} consistently shown me?”",
+      "You want someone steady enough to trust and self-possessed enough to keep surprising you: a {person} who protects {their} privacy without turning basic honesty into a scavenger hunt, opens up gradually instead of on command, and can hold real intensity without using silence as a weapon.",
+    growthPrompt: "Stop asking how strong the pull feels. Start asking what the {person} has actually shown you, on purpose, more than once.",
   },
   soft_landing: {
     key: "soft_landing",
     name: "Soft Landing",
     tagline: SPEC_TYPE_READINGS.soft_landing.tagline,
     coreReading:
-      "Your attraction system relaxes when care is unmistakable. You notice the {person} who remembers details, checks that you arrived safely, makes affection feel natural, and creates room for emotion without turning it into a problem to solve. For you, tenderness is not the consolation prize after chemistry; tenderness can be chemistry.",
+      "You melt a little when someone just... remembers things. Texts to check you got home safe. Notices you're off before you say a word. You don't need grand gestures - you need the small, unglamorous, repeated proof that someone's actually paying attention. For you, being taken care of isn't the consolation prize for missing chemistry. It IS the chemistry.",
     whatItSaysAboutYou:
-      "You are highly responsive to emotional climate. You likely read tone, consistency and consideration as signs of seriousness. Even when you enjoy excitement, you do not want to audition indefinitely for a place in {personPoss} life.",
+      "You read a room emotionally before you read it any other way. Tone, follow-through, whether someone remembers what you said last week - that's your real test for whether this is going somewhere. You can enjoy the exciting stuff too, but you're not signing up to audition forever for a spot in {personPoss} life.",
     strength:
-      "You understand that love is enacted in small, repeated moments. You are often capable of warmth, repair and reassurance, and you may help {people} feel safe enough to become more honest.",
+      "You get that love mostly happens in small, repeated moments, not big ones. You're often the person who makes someone else feel safe enough to finally be honest - that's rarer than it sounds.",
     blindSpot:
-      "Relief can masquerade as compatibility. After inconsistency, basic kindness can feel extraordinary. Warmth matters, but it must coexist with boundaries, accountability, desire and adult self-responsibility.",
+      "Watch for this: after enough inconsistency, basic decency can start to feel like the love of your life. Being nice to you is the floor, not the ceiling. Warmth without boundaries, follow-through, and actual desire behind it is just... nice. On its own, that's not enough.",
     longTermFit:
-      "Choose a {person} with warmth and backbone: affectionate, emotionally available, able to apologize, but capable of managing {their} own life. The right {person} receives your care without making your care the entire structure holding {them} up.",
-    growthPrompt: "The safest love is not the one that needs you most; it is the one in which both people can give and receive.",
+      "Find someone warm AND sturdy - affectionate, emotionally present, able to say sorry and mean it, but also fully capable of running {their} own life. The right {person} lets you take care of {them} without your care becoming the only thing holding the relationship up.",
+    growthPrompt: "The safest love isn't the one that needs you the most. It's the one where you're both allowed to need something.",
   },
   electric_charmer: {
     key: "electric_charmer",
     name: "Electric Charmer",
     tagline: SPEC_TYPE_READINGS.electric_charmer.tagline,
     coreReading:
-      "You feel attraction as momentum. The {person} who makes a dull room come alive, turns an ordinary exchange into flirtation, or creates a private joke within minutes has an advantage with you. You are drawn to social courage and emotional voltage—the feeling that something is already happening.",
+      "You feel attraction like a change in the room's temperature. The {person} who turns a boring party into a good one, who makes small talk feel like flirting, who's built an inside joke with you inside five minutes - that's the one you can't stop watching. You're wired for momentum: if it feels like something is already happening, you're already in.",
     whatItSaysAboutYou:
-      "Your nervous system notices energy before biography. You value presence, timing and reciprocal enthusiasm. You may also want proof that a {person} can enter life fully rather than observing it from the edges.",
-    strength: "You permit desire to be joyful. You can create play, initiate connection and prevent relationships from becoming purely administrative.",
+      "You clock energy before you clock anyone's résumé. Presence, timing, the sense that someone's actually enjoying being there with you - that beats most people's dating checklist. You also want proof that a {person} can show up fully in real life, not just shine when there's an audience.",
+    strength: "You make desire feel fun instead of a chore. You're often the one who keeps a relationship from turning into a shared to-do list - you bring the spark back on purpose.",
     blindSpot:
-      "Chemistry is information, not a full background check. Social fluency can look like intimacy because both create ease. The question is whether the {person} remains generous, accountable and interested when there is no audience and nothing exciting to win.",
+      "Chemistry tells you something is happening. It doesn't tell you who you're dealing with. Social ease can feel exactly like intimacy, because both feel effortless - but the real test is whether the {person} is still generous and reliable with no audience and nothing exciting on the table.",
     longTermFit:
-      "The best fit has sparkle and follow-through: socially alive, sexually expressive and playful, but dependable when plans, conflict and ordinary responsibilities arrive.",
-    growthPrompt: "Do not extinguish the spark. Ask whether it is attached to a {person} who can keep a promise after the party ends.",
+      "Look for spark with staying power: someone socially alive, openly into you, playful - who still shows up when plans fall through, conflict happens, or life gets boring for a while.",
+    growthPrompt: "Don't kill the spark. Just check whether it's attached to a {person} who can still keep a promise after the party's over.",
   },
   ambitious_icon: {
     key: "ambitious_icon",
     name: "Ambitious Icon",
     tagline: SPEC_TYPE_READINGS.ambitious_icon.tagline,
     coreReading:
-      "Respect is one of your gateways to desire. You notice competence, standards, direction and visible self-possession. It is not necessarily money that attracts you; it is evidence that a {person} can choose a path, carry weight and create a life rather than waiting for life to happen.",
+      "Competence turns you on. Not necessarily money - direction. You notice the {person} who's clearly building something, who has standards, who looks like {they} chose this life instead of falling into it. Watching someone be good at being {themself} is, for you, one of the most attractive things a human can do.",
     whatItSaysAboutYou:
-      "Attraction and admiration are closely linked. You may take partnership seriously and imagine how two lives will fit in practice. A {personPoss} decisions, reputation and discipline can affect how attractive you find {them}.",
-    strength: "You see potential in terms of behavior, not only promises. You can build deliberately, support meaningful goals and respect a partner without diminishing yourself.",
+      "For you, respect and desire run on the same wire. You take partnership seriously enough to actually picture how two lives would fit together in practice - not just how a first date would go. How a {person} carries {their} reputation, {their} discipline, {their} choices - all of it quietly shapes how attracted to {them} you feel.",
+    strength: "You judge potential by behavior, not promises, so you're hard to fool with talk. You're genuinely good at supporting someone's real goals without shrinking your own.",
     blindSpot:
-      "Competence in public does not guarantee generosity in private. Direction can become control; high standards can become chronic evaluation; polish can conceal an inability to repair harm.",
+      "Being impressive in public says nothing about how someone treats people in private. Direction can curdle into control. High standards can turn into a permanent performance review. And polish is a great way to hide the fact that someone's actually bad at repairing a fight.",
     longTermFit:
-      "Choose someone capable and emotionally generous. {They} should respect your goals, admire you back, share power, and know that success does not exempt {them} from tenderness, accountability or presence.",
-    growthPrompt: "The right {person} should be impressive to you, but you should not have to become an employee in {their} life to remain worthy of {them}.",
+      "You want capable AND generous - a {person} who respects your ambitions as much as {their} own, shares power instead of hoarding it, and knows that success doesn't get {them} out of being tender, accountable, and present.",
+    growthPrompt: "The right {person} should impress you. You shouldn't have to work for {them} to remain worthy of being loved.",
   },
   brilliant_tease: {
     key: "brilliant_tease",
     name: "Brilliant Tease",
     tagline: SPEC_TYPE_READINGS.brilliant_tease.tagline,
     coreReading:
-      "Your attraction often begins in language. A sharp observation, unexpected question or perfectly timed joke can alter a face for you. You are drawn to a {person} who can follow the leap in your mind, challenge you without flattening you, and make conversation feel like both play and discovery.",
+      "Words get you before looks do. A sharp comment, an unexpected question, a joke landed at exactly the right second - that's what changes a face for you. You want a {person} who can follow your train of thought without you slowing down for {them}, who can push back without flattening you, and who treats a conversation like a game you're both trying to win.",
     whatItSaysAboutYou:
-      "Being mentally met is a form of intimacy. You probably dislike scripts, shallow praise and conversation that never develops texture. Humor may also help you test flexibility, confidence and whether another {person} can perceive subtext.",
-    strength: "You can sustain curiosity and make a relationship intellectually alive. You tend to value individuality and may create unusually rich private languages with {people}.",
+      "Being understood, mentally, is intimacy to you - maybe the main kind. Small talk, rehearsed lines, and conversations that never go anywhere new lose you fast. Humor is also your real test: can this {person} read subtext, keep up, actually get the joke behind the joke?",
+    strength: "You keep things alive intellectually in a way a lot of relationships never manage. You build your own private language with {people}, and that in-joke-per-minute energy is genuinely rare.",
     blindSpot:
-      "Verbal intelligence is not emotional intelligence. Wit can deflect, seduce, dominate or conceal contempt. A {person} who understands your references may still fail to understand your needs.",
+      "Being quick with words isn't the same as being emotionally intelligent. Wit can just as easily deflect, seduce, dominate a room, or hide contempt behind a punchline. A {person} can get every reference you make and still completely miss what you actually need.",
     longTermFit:
-      "Choose a lively mind with an accessible heart: curious, funny and articulate, but able to speak plainly, listen without preparing a comeback, and remain kind when humor is no longer enough.",
-    growthPrompt: "Notice who can make you laugh; choose among them by who can also make honesty feel safe.",
+      "Find a sharp mind attached to an open heart: curious, funny, quick - but also able to drop the act, listen without prepping a comeback, and stay kind once the jokes run out.",
+    growthPrompt: "Notice who makes you laugh. Then choose, among them, whoever also makes honesty feel safe.",
   },
   beautiful_mystery: {
     key: "beautiful_mystery",
     name: "Beautiful Mystery",
     tagline: SPEC_TYPE_READINGS.beautiful_mystery.tagline,
     coreReading:
-      "You are drawn to composition: style, restraint, taste, bearing and the sense that a {person} is not immediately available for mass interpretation. {Their} selectivity makes attention feel meaningful. Attraction grows through detail—the second look, the unexpected softness, the life behind a carefully held surface.",
+      "You're drawn to composition - the way a {person} holds {themself}, dresses, edits {their} own story. Not because it's flashy, but because it's clearly on purpose. A {person} who isn't handing {their} whole story to anyone who asks makes your attention feel earned instead of automatic. For you, attraction builds slowly, in details: the unexpected softness, the second look, the life you can sense behind a very controlled surface.",
     whatItSaysAboutYou:
-      "You perceive aesthetics as information. Presentation can signal discernment, identity and self-respect. You may also have a strong imaginative life; what is not yet known creates room for possibility.",
-    strength: "You appreciate beauty beyond conventional attractiveness and understand the erotic value of pacing. You may be good at allowing another {person} to unfold without forcing instant disclosure.",
-    blindSpot: "Selectivity is not character, and aesthetics can generate a halo around unrelated qualities. An elegant surface can coexist with evasiveness, vanity or poor treatment.",
+      "You read style as information - presentation tells you something real about taste, identity, self-respect. You've probably also got a rich imagination: the parts you don't know yet leave room for possibility, and that gap is half the appeal.",
+    strength: "You appreciate beauty that goes beyond the obvious, and you get that pacing itself can be erotic. You're genuinely good at letting a {person} reveal {themself} on {their} own timeline instead of forcing it.",
+    blindSpot: "Being selective isn't the same as having good character, and a polished surface can throw a halo over qualities that have nothing to do with it. A gorgeous, controlled exterior can absolutely coexist with dishonesty, vanity, or straight-up bad treatment.",
     longTermFit:
-      "Choose intrigue that becomes intimacy. {They} can be stylish, independent and slow to reveal {themself}, but should become clearer—not more confusing—as trust grows.",
-    growthPrompt: "Let beauty invite the first question. Let behavior answer the important ones.",
+      "Look for intrigue that actually turns into intimacy over time - a {person} who's stylish, independent, unhurried about opening up, but who gets clearer the longer you know {them}, not more confusing.",
+    growthPrompt: "Let looks ask the first question. Let behavior answer the ones that actually matter.",
   },
   free_spirit: {
     key: "free_spirit",
     name: "Free Spirit",
     tagline: SPEC_TYPE_READINGS.free_spirit.tagline,
     coreReading:
-      "You want connection to enlarge life. You notice expressive {people} with stories, experiments, unusual interests and an ability to disrupt routine without demanding permission from the room. The attraction is not only to adventure; it is to possibility.",
+      "You want a relationship to make your life bigger, not smaller. You notice the {person} with the stories, the weird hobby, the ability to blow up a routine without asking anyone's permission first. It's not really adventure you're chasing - it's possibility, the sense that there's always another door.",
     whatItSaysAboutYou:
-      "Autonomy matters to your desire. You may need to feel that love opens doors rather than closes them. Predictability can feel safe at first and confining later if the relationship stops producing growth.",
-    strength: "You bring flexibility, curiosity and reinvention. You can help a {person} become less afraid of change and keep long-term love from shrinking into logistics.",
+      "Autonomy is basically wired into your desire. You need love to feel like it opens things up rather than fences you in. Predictable can feel comforting at the start, then start to feel like a cage the second the relationship stops producing anything new.",
+    strength: "You bring flexibility, curiosity, and reinvention to whoever you're with. You're often the one who helps a {person} get less afraid of change, and you keep long relationships from collapsing into pure logistics.",
     blindSpot:
-      "Unpredictability can imitate aliveness. A {person} who resists every structure may eventually make intimacy impossible, because trust needs enough continuity to accumulate.",
-    longTermFit: "Choose an adventurer with an anchor: open-minded, expressive and independent, but able to plan, repair, commit and support both shared and separate growth.",
-    growthPrompt: "Freedom in love is not the absence of promises; it is the ability to make promises that leave both people fully alive.",
+      "Unpredictability can fake aliveness pretty convincingly. A {person} who resists every kind of structure will eventually make real closeness impossible, because trust needs some consistency to actually build on.",
+    longTermFit: "Find an adventurer with an anchor: open, expressive, independent, but also able to plan things, repair a fight, commit to something, and grow with you - not just away from you.",
+    growthPrompt: "Freedom in love isn't the absence of promises. It's making promises that still leave both of you fully yourselves.",
   },
   grounded_equal: {
     key: "grounded_equal",
     name: "Grounded Equal",
     tagline: SPEC_TYPE_READINGS.grounded_equal.tagline,
     coreReading:
-      "You are attracted to evidence. The {person} does what {they} said, treats people consistently, contributes without scorekeeping, and can build a calm life without manufacturing emotional weather. Equality itself is attractive: neither rescuer nor project, neither fan nor authority.",
+      "Evidence turns you on more than promises do. You notice the {person} who follows through on what {they} said, treats people the same whether it's convenient or not, and can build a calm, good life without manufacturing a crisis every other week. Equality itself is the attraction: not a rescue project, not someone to worship - just two people on the same level.",
     whatItSaysAboutYou:
-      "You understand that ordinary days are the majority of a relationship. Shared values, fairness and practical compatibility matter because you imagine not only dating a {person} but making decisions beside {them}.",
-    strength: "You can distinguish attention from investment and drama from depth. You are well positioned to build trust through reciprocity and to approach conflict as a shared problem.",
-    blindSpot: "Low drama is healthy; low emotional range is not automatically healthy. Reliability does not remove the need for play, admiration, physical desire or surprise.",
+      "You get that most of a relationship happens on ordinary Tuesdays, not big nights out. Fairness and shared values matter to you because you're not just picturing dates with a {person} - you're picturing making decisions next to {them}.",
+    strength: "You can tell the difference between attention and actual investment, and between drama and real depth. You build trust through reciprocity and treat conflict like a shared problem, not a fight to win.",
+    blindSpot: "Low drama is healthy. Low emotional range isn't the same thing, and it's not automatically healthy just because it's calm. Being reliable doesn't cancel out the need for play, desire, admiration, or the occasional surprise.",
     longTermFit:
-      "Choose a true teammate with a pulse: dependable, fair and values-aligned, but capable of affection, initiative and enough novelty to keep partnership from becoming administration.",
-    growthPrompt: "You do not need chaos to create chemistry. You do need to keep choosing aliveness inside stability.",
+      "You want a real teammate who still has a pulse: dependable, fair, aligned with you on the big things, but also affectionate, willing to initiate, and able to bring enough novelty that the relationship doesn't turn into a shared spreadsheet.",
+    growthPrompt: "You don't need chaos to feel chemistry. You do need to keep choosing to feel alive inside something stable.",
   },
 };

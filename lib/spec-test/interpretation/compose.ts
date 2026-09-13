@@ -70,7 +70,7 @@ export function composeSpecTestResult(input: ComposeInput): SpecTestResultCopy {
       sparkName: sparkReading.name,
       partnershipSpec: input.partnershipPrimarySpec,
       partnershipName: partnershipReading.name,
-      copy: `What pulls you in and what keeps you aren't quite the same thing here. Your Spark answers lean ${sparkReading.name}; your Partnership answers lean ${partnershipReading.name}. That doesn't mean the spark was wrong - it means the strongest fit gives you what draws you in without making the basics hard to count on.`,
+      copy: `Plot twist: what pulls you in and what actually keeps you aren't quite the same thing. Your Spark answers point to ${sparkReading.name}; your Partnership answers point to ${partnershipReading.name}. That doesn't mean your spark was wrong about anything - it means your best match gives you the thing that hooks you without making the everyday stuff a struggle.`,
     };
   }
 
