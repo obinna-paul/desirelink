@@ -45,7 +45,7 @@ export function ProgressRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className="stroke-current transition-[stroke-dashoffset] duration-300 ease-out"
+          className="stroke-current transition-[stroke-dashoffset] duration-300 ease-out motion-reduce:transition-none"
         />
       </svg>
       <span className="absolute text-[10px] font-bold">{Math.round(clamped)}%</span>

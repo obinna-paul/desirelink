@@ -14,7 +14,7 @@ export const metadata: Metadata = publicPageMetadata({
 export default function SpecTestQuizPage() {
   return (
     <div className="flex min-h-screen flex-col">
-      <PublicHeader />
+      <PublicHeader minimal />
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-4 py-12 sm:px-8">
         <SpecTestQuizFlow />
       </main>

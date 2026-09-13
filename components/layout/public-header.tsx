@@ -3,10 +3,14 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { cn } from "@/lib/utils";
 
-export function PublicHeader() {
+/** Pass `minimal` on a focused, single-task flow (e.g. the Spec Test) to drop the
+ *  auth nav and center the logo - there's nowhere else for that visitor to go until
+ *  the task is done, so login/signup links are just noise, not navigation. */
+export function PublicHeader({ minimal = false }: { minimal?: boolean } = {}) {
   return (
-    <header className="flex items-center justify-between px-4 py-5 sm:px-8">
+    <header className={cn("flex items-center px-4 py-5 sm:px-8", minimal ? "justify-center" : "justify-between")}>
       <Link href="/landing" className="flex min-h-11 items-center gap-2">
         <span className="h-8 w-8 shrink-0 overflow-hidden rounded-lg">
           <BrandLogo className="h-full w-full" priority alt="" />
@@ -15,15 +19,17 @@ export function PublicHeader() {
           udala
         </span>
       </Link>
-      <nav className="flex items-center gap-2">
-        <ThemeToggle />
-        <Button asChild variant="ghost">
-          <Link href="/login">Log in</Link>
-        </Button>
-        <Button asChild>
-          <Link href="/signup">Get started</Link>
-        </Button>
-      </nav>
+      {!minimal && (
+        <nav className="flex items-center gap-2">
+          <ThemeToggle />
+          <Button asChild variant="ghost">
+            <Link href="/login">Log in</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/signup">Get started</Link>
+          </Button>
+        </nav>
+      )}
     </header>
   );
 }
