@@ -9,12 +9,19 @@ import {
   getSpecTestLeads,
   getSpecTestTypeDistribution,
   getSpecTestConfidenceMix,
+  getSpecTestConfidenceMixByForm,
+  getSpecTestTypeDistributionByForm,
   getSpecTestItemAnalytics,
   getSpecTestDataSplitCounts,
   SPEC_TYPE_READINGS,
   INSTRUMENT_VERSION,
 } from "@/lib/spec-test";
 import { Badge } from "@/components/ui/badge";
+
+const FORM_LABELS: Record<"male_user" | "female_user", string> = {
+  male_user: "Woman takers (male_user)",
+  female_user: "Man takers (female_user)",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -40,13 +47,16 @@ export default async function AdminSpecTestLeadsPage({ searchParams }: { searchP
     notFound();
   }
 
-  const [{ items, nextCursor }, typeDistribution, confidenceMix, dataSplit, itemAnalytics] = await Promise.all([
-    getSpecTestLeads({ take: 50, cursor: searchParams?.cursor }),
-    getSpecTestTypeDistribution(),
-    getSpecTestConfidenceMix(INSTRUMENT_VERSION),
-    getSpecTestDataSplitCounts(INSTRUMENT_VERSION),
-    getSpecTestItemAnalytics(INSTRUMENT_VERSION),
-  ]);
+  const [{ items, nextCursor }, typeDistribution, confidenceMix, dataSplit, itemAnalytics, confidenceMixByForm, typeDistributionByForm] =
+    await Promise.all([
+      getSpecTestLeads({ take: 50, cursor: searchParams?.cursor }),
+      getSpecTestTypeDistribution(),
+      getSpecTestConfidenceMix(INSTRUMENT_VERSION),
+      getSpecTestDataSplitCounts(INSTRUMENT_VERSION),
+      getSpecTestItemAnalytics(INSTRUMENT_VERSION),
+      getSpecTestConfidenceMixByForm(INSTRUMENT_VERSION),
+      getSpecTestTypeDistributionByForm(),
+    ]);
 
   return (
     <div className="flex flex-col gap-6 md:gap-8">
@@ -116,6 +126,67 @@ export default async function AdminSpecTestLeadsPage({ searchParams }: { searchP
               recording partial progress before submit, which doesn't exist yet. See
               lib/spec-test/admin-stats.ts's file comment. */}
         </section>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            By form <span className="font-normal text-muted-foreground">({INSTRUMENT_VERSION})</span>
+          </h2>
+          <p className="mt-1 text-[11px] text-muted-foreground/70">
+            Gender only ever changes which pronouns the questions use (Spec Test gender
+            plan, report §10) - it never changes scoring. A gap between forms here is a
+            starting point for investigation, not evidence of an innate difference: rule out
+            sample size, wording, and item bias before drawing any conclusion from it.
+          </p>
+        </div>
+        {confidenceMixByForm.every((form) => form.totalAttempts === 0) ? (
+          <p className="text-xs text-muted-foreground">No v2.1 submit attempts yet.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {confidenceMixByForm.map((form) => {
+              const distribution = typeDistributionByForm.find((row) => row.quizForm === form.quizForm)?.rows ?? [];
+              return (
+                <div key={form.quizForm} className="flex flex-col gap-2 rounded-xl border border-border/40 p-3">
+                  <p className="text-xs font-semibold text-foreground">{FORM_LABELS[form.quizForm]}</p>
+                  {form.totalAttempts === 0 ? (
+                    <p className="text-xs text-muted-foreground">No attempts yet.</p>
+                  ) : (
+                    <>
+                      <ul className="flex flex-col gap-1">
+                        {(["clear", "blend", "split"] as const).map((key) => (
+                          <li key={key} className="flex items-center justify-between text-xs">
+                            <span className="text-foreground">{CONFIDENCE_LABELS[key]}</span>
+                            <span className="font-semibold text-muted-foreground">
+                              {form[key]} &middot; {formatPercent(form.rates[key])}
+                            </span>
+                          </li>
+                        ))}
+                        <li className="flex items-center justify-between text-xs">
+                          <span className="text-foreground">{CONFIDENCE_LABELS.lowSignal}</span>
+                          <span className="font-semibold text-muted-foreground">
+                            {form.lowSignal} &middot; {formatPercent(form.rates.low_signal)}
+                          </span>
+                        </li>
+                      </ul>
+                      <p className="text-[11px] text-muted-foreground/70">{form.totalAttempts} total submit attempts</p>
+                      {distribution.length > 0 && (
+                        <ul className="mt-1 flex flex-col gap-1 border-t border-border/40 pt-2">
+                          {distribution.slice(0, 3).map((row) => (
+                            <li key={row.specType} className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">{row.name}</span>
+                              <span className="font-semibold text-muted-foreground">{row.count}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div>

@@ -75,6 +75,23 @@ async function bumpInstrumentStat(instrumentVersion: string, field: "submittedCo
   }
 }
 
+/** Same counter, broken out per quizForm (gender plan Phase G6) - the by-form low-signal rate
+ *  has the identical "no row exists to count" problem the function above solves, just scoped
+ *  to a form instead of the whole instrument. Only called when a form is actually known
+ *  (i.e. gender was supplied), so a v2.0 or malformed submission simply never bumps it rather
+ *  than being forced into a fake bucket. Also best-effort, same rationale as above. */
+async function bumpFormStat(instrumentVersion: string, quizForm: string, field: "submittedCount" | "lowSignalCount") {
+  try {
+    await prisma.specTestFormStat.upsert({
+      where: { instrumentVersion_quizForm: { instrumentVersion, quizForm } },
+      create: { instrumentVersion, quizForm, [field]: 1 },
+      update: { [field]: { increment: 1 } },
+    });
+  } catch (error) {
+    console.error("[spec-test] failed to bump form stat", instrumentVersion, quizForm, field, error);
+  }
+}
+
 const v2ResponseSchema = z.object({
   itemId: z.string().min(1),
   optionId: z.string().min(1).nullable(),
@@ -154,6 +171,7 @@ async function submitV2(payload: z.infer<typeof v2PayloadSchema>): Promise<NextR
     // report §6.2: "Offer a retake rather than false precision" - nothing shareable exists
     // for a low-signal response, so no row is written and no resultId is returned.
     await bumpInstrumentStat(payload.instrumentVersion, "lowSignalCount");
+    if (routing) await bumpFormStat(payload.instrumentVersion, routing.quizForm, "lowSignalCount");
     return NextResponse.json({ lowSignal: true, flags: decision.qualityFlags }, { status: 200 });
   }
 
@@ -192,6 +210,7 @@ async function submitV2(payload: z.infer<typeof v2PayloadSchema>): Promise<NextR
   });
 
   await bumpInstrumentStat(payload.instrumentVersion, "submittedCount");
+  if (routing) await bumpFormStat(payload.instrumentVersion, routing.quizForm, "submittedCount");
 
   return NextResponse.json({ resultId: result.id, confidence: decision.confidence }, { status: 201 });
 }

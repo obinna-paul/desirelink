@@ -1270,6 +1270,24 @@ model SpecTestInstrumentStat {
   updatedAt         DateTime @updatedAt
 }
 
+/**
+ * The same counters as SpecTestInstrumentStat above, broken out per quizForm - added in
+ * docs/spec-test-gender-implementation-plan.md Phase G6 so the admin dashboard's low-signal
+ * rate (the one metric a low-signal attempt's own missing SpecTestResult row can't supply)
+ * can be compared by form, not just combined. A separate additive table rather than widening
+ * SpecTestInstrumentStat's primary key: existing rows and callers are untouched, and this one
+ * is simply never written for a gender-less (pre-v2.1) submission.
+ */
+model SpecTestFormStat {
+  instrumentVersion String
+  quizForm          String
+  submittedCount    Int      @default(0)
+  lowSignalCount    Int      @default(0)
+  updatedAt         DateTime @updatedAt
+
+  @@id([instrumentVersion, quizForm])
+}
+
 // --- Live streaming & gifting -------------------------------------------------
 
 model LiveStream {

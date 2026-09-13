@@ -74,6 +74,20 @@ describe("getSpecTestItemAnalytics", () => {
     mockPrisma.specTestResult.findMany.mockResolvedValue([{ answers: null }, { answers: "not-an-array" }]);
     await expect(getSpecTestItemAnalytics(INSTRUMENT_VERSION)).resolves.toHaveLength(SPEC_TEST_ITEMS_V2.length);
   });
+
+  it("narrows to one quizForm when given (gender plan Phase G6), and omits it from the query otherwise", async () => {
+    mockPrisma.specTestResult.findMany.mockResolvedValue([]);
+
+    await getSpecTestItemAnalytics(INSTRUMENT_VERSION, "male_user");
+    expect(mockPrisma.specTestResult.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: { instrumentVersion: INSTRUMENT_VERSION, quizForm: "male_user" } }),
+    );
+
+    await getSpecTestItemAnalytics(INSTRUMENT_VERSION);
+    expect(mockPrisma.specTestResult.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: { instrumentVersion: INSTRUMENT_VERSION } }),
+    );
+  });
 });
 
 describe("getSpecTestDataSplitCounts", () => {

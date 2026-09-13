@@ -10,6 +10,7 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     specTestResult: { create: jest.fn() },
     specTestInstrumentStat: { upsert: jest.fn().mockResolvedValue({}) },
+    specTestFormStat: { upsert: jest.fn().mockResolvedValue({}) },
   },
 }));
 
@@ -19,7 +20,11 @@ import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
 import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
 import { specTestQuestionIds } from "@/lib/spec-test";
 
-const mockPrisma = prisma as unknown as { specTestResult: { create: jest.Mock }; specTestInstrumentStat: { upsert: jest.Mock } };
+const mockPrisma = prisma as unknown as {
+  specTestResult: { create: jest.Mock };
+  specTestInstrumentStat: { upsert: jest.Mock };
+  specTestFormStat: { upsert: jest.Mock };
+};
 
 function post(body: unknown, ip = "203.0.113.1") {
   return POST(
@@ -107,6 +112,13 @@ describe("POST /api/spec-test/submit - v2 payload", () => {
     expect(mockPrisma.specTestInstrumentStat.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { instrumentVersion: INSTRUMENT_VERSION }, update: { submittedCount: { increment: 1 } } }),
     );
+    // Gender plan Phase G6.
+    expect(mockPrisma.specTestFormStat.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { instrumentVersion_quizForm: { instrumentVersion: INSTRUMENT_VERSION, quizForm: "male_user" } },
+        update: { submittedCount: { increment: 1 } },
+      }),
+    );
   });
 
   it("does not persist a row and reports lowSignal for a low-signal response", async () => {
@@ -119,6 +131,14 @@ describe("POST /api/spec-test/submit - v2 payload", () => {
     expect(mockPrisma.specTestResult.create).not.toHaveBeenCalled();
     expect(mockPrisma.specTestInstrumentStat.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { instrumentVersion: INSTRUMENT_VERSION }, update: { lowSignalCount: { increment: 1 } } }),
+    );
+    // Gender plan Phase G6: the by-form counter bumps too, even though no SpecTestResult row
+    // was ever written for this attempt - it's the only record of a low-signal attempt by form.
+    expect(mockPrisma.specTestFormStat.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { instrumentVersion_quizForm: { instrumentVersion: INSTRUMENT_VERSION, quizForm: "male_user" } },
+        update: { lowSignalCount: { increment: 1 } },
+      }),
     );
   });
 

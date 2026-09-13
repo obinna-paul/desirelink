@@ -25,6 +25,7 @@ import { prisma } from "@/lib/prisma";
 import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
 import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
 import type { SpecTestResponseV2 } from "@/lib/spec-test/response";
+import type { QuizForm } from "@/lib/spec-test/gender/forms";
 
 export type ItemOptionAnalytics = {
   optionId: string;
@@ -61,10 +62,17 @@ function median(values: number[]): number {
  * Item-level diagnostics for one instrument version, computed over every persisted response
  * regardless of development/hold-out split - these are item-quality checks, not model
  * fitting, so there's no reason to withhold the hold-out half from them.
+ *
+ * `quizForm` (gender plan Phase G6, report §10 "item completion time" and "option
+ * distribution" by form) narrows to one form's rows when given; omitted, it's the combined
+ * figure across both forms exactly as before this parameter existed.
  */
-export async function getSpecTestItemAnalytics(instrumentVersion: string = INSTRUMENT_VERSION): Promise<ItemAnalytics[]> {
+export async function getSpecTestItemAnalytics(
+  instrumentVersion: string = INSTRUMENT_VERSION,
+  quizForm?: QuizForm,
+): Promise<ItemAnalytics[]> {
   const rows = await prisma.specTestResult.findMany({
-    where: { instrumentVersion },
+    where: quizForm ? { instrumentVersion, quizForm } : { instrumentVersion },
     select: { answers: true },
   });
 

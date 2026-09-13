@@ -24,8 +24,12 @@ export { getSpecTestReading, type SpecTestReading, type SpecTestReadingV1, type 
 export {
   getSpecTestTypeDistribution,
   getSpecTestConfidenceMix,
+  getSpecTestConfidenceMixByForm,
+  getSpecTestTypeDistributionByForm,
   type SpecTypeDistributionRow,
   type ConfidenceMix,
+  type FormConfidenceMix,
+  type FormTypeDistribution,
 } from "@/lib/spec-test/admin-stats";
 export {
   getSpecTestItemAnalytics,

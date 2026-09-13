@@ -279,3 +279,68 @@ motive/lens scores computed in `compose.ts`, completely gender-oblivious per the
 guarantee - gender was never able to change the advice itself, only who it's worded to be about.
 
 **2 new tests.** No production code changed.
+
+## spec-v2.1 — Phase G6 (analytics and governance)
+
+**Schema.** New `SpecTestFormStat` model (`instrumentVersion`, `quizForm` composite key,
+`submittedCount`, `lowSignalCount`) - additive, mirrors `SpecTestInstrumentStat` but scoped
+per form. Needed specifically for the low-signal rate: every other by-form metric can be
+computed straight from `SpecTestResult` rows (they've carried `quizForm` since G3), but a
+low-signal attempt never becomes a row at all, so without this counter there would be no
+denominator for "what share of male_user attempts came back low-signal" the same way
+`SpecTestInstrumentStat` already solves that for the combined rate. `submitV2`'s two call
+sites for `bumpInstrumentStat` each gained a matching `bumpFormStat` call, only firing when
+`routing` is non-null (i.e. gender was supplied) - same best-effort, non-blocking contract.
+
+**`admin-stats.ts` gains `getSpecTestConfidenceMixByForm` and
+`getSpecTestTypeDistributionByForm`** - the same shapes as their combined counterparts, one
+result per `QUIZ_FORMS` entry. **`calibration.ts`'s `getSpecTestItemAnalytics` gains an
+optional `quizForm` parameter** that narrows its query; omitted, behavior is unchanged from
+before this phase - so item timing and option-distribution comparisons by form (report §10)
+are available as a library call even though the admin page doesn't render a doubled 24-item
+table for it (see below).
+
+**Admin page.** A new "By form" section under the existing type-distribution/confidence-mix
+grid: submitted/clear/blend/split/low-signal counts and rates per form, plus each form's top
+three archetypes, with the report §10 caution stated inline - *"Gender only ever changes
+which pronouns the questions use... it never changes scoring. A gap between forms here is a
+starting point for investigation, not evidence of an innate difference: rule out sample size,
+wording, and item bias before drawing any conclusion from it."* Deliberately not duplicated:
+a full per-form item-analytics table (24 items × 4 options × 2 forms). That granularity is
+available via `getSpecTestItemAnalytics(version, quizForm)` for whoever is actually doing the
+item-bias review the caution calls for, but rendering it permanently on the dashboard was
+judged more noise than signal for the common case of "is one form obviously broken."
+
+**Public scope documentation (report §13: "Document the scope and limitations publicly").**
+Already satisfied by G4's gender-step scope notice - *"Current test scope: this version is
+designed for men attracted to women and women attracted to men"* - shown to every taker
+before they answer a single scored item, which is "where takers can see it" in the most
+literal sense the plan's own §10 asks for. No separate FAQ/about page was added: the landing
+page (`app/spec-test/page.tsx`) is a deliberately single-screen, no-scroll funnel (see its own
+file comment), and stapling a governance disclosure onto a conversion page would fight that
+page's actual job without reaching anyone who doesn't already see the in-quiz notice.
+
+**The marketing constraint stated here, for whoever writes marketing copy for this
+instrument:** this version is not "for everyone" - it assumes heterosexual attraction
+(`ROUTING_RULE = "heterosexual_v0_1"`, chosen and named specifically so a future routing rule
+covering other orientations is a new registered value, not a rewrite) and offers exactly two
+presentation forms. Marketing copy should not claim broader applicability than that until a
+new routing rule actually exists and has been through the same validation this one plans to
+go through (report §11).
+
+**Not built, same as the plan's own scope line:** the DIF / measurement-invariance analysis
+itself, and the research-consent surface it depends on (`lib/spec-test/calibration.ts`'s file
+comment already documents why the consented-export path doesn't exist yet - that blocker is
+unchanged by this phase).
+
+**14 new/extended tests** across `admin-stats.test.ts` (both new by-form functions),
+`calibration.test.ts` (the new `quizForm` parameter), and the submit route's test suite (the
+new `SpecTestFormStat` upsert on both the low-signal and success paths, keyed by the derived
+form exactly like the existing `SpecTestInstrumentStat` assertions).
+
+---
+
+This closes Phase G6, the last phase in
+[`docs/spec-test-gender-implementation-plan.md`](./spec-test-gender-implementation-plan.md).
+Every phase (G1-G6) shipped in the sequence the plan laid out, each with its own commit and
+its own full test/typecheck/lint pass before landing.

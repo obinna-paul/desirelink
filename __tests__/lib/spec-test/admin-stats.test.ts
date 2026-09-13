@@ -2,16 +2,23 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     specTestResult: { groupBy: jest.fn() },
     specTestInstrumentStat: { findUnique: jest.fn() },
+    specTestFormStat: { findUnique: jest.fn() },
   },
 }));
 
 import { prisma } from "@/lib/prisma";
-import { getSpecTestConfidenceMix, getSpecTestTypeDistribution } from "@/lib/spec-test/admin-stats";
+import {
+  getSpecTestConfidenceMix,
+  getSpecTestConfidenceMixByForm,
+  getSpecTestTypeDistribution,
+  getSpecTestTypeDistributionByForm,
+} from "@/lib/spec-test/admin-stats";
 import { SPEC_TYPE_READINGS } from "@/lib/spec-test/legacy";
 
 const mockPrisma = prisma as unknown as {
   specTestResult: { groupBy: jest.Mock };
   specTestInstrumentStat: { findUnique: jest.Mock };
+  specTestFormStat: { findUnique: jest.Mock };
 };
 
 describe("getSpecTestTypeDistribution", () => {
@@ -72,5 +79,61 @@ describe("getSpecTestConfidenceMix", () => {
 
     expect(mix.totalAttempts).toBe(0);
     expect(mix.rates).toEqual({ clear: 0, blend: 0, split: 0, low_signal: 0 });
+  });
+});
+
+describe("getSpecTestConfidenceMixByForm (gender plan Phase G6)", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("computes an independent mix per quizForm, using SpecTestFormStat for each form's low-signal count", async () => {
+    mockPrisma.specTestResult.groupBy.mockImplementation(({ where }: { where: { quizForm: string } }) => {
+      if (where.quizForm === "male_user") {
+        return Promise.resolve([
+          { resultConfidence: "clear", _count: { _all: 40 } },
+          { resultConfidence: "blend", _count: { _all: 10 } },
+        ]);
+      }
+      return Promise.resolve([{ resultConfidence: "clear", _count: { _all: 5 } }]);
+    });
+    mockPrisma.specTestFormStat.findUnique.mockImplementation(({ where }: { where: { instrumentVersion_quizForm: { quizForm: string } } }) => {
+      if (where.instrumentVersion_quizForm.quizForm === "male_user") {
+        return Promise.resolve({ lowSignalCount: 10 });
+      }
+      return Promise.resolve(null);
+    });
+
+    const [maleUser, femaleUser] = await getSpecTestConfidenceMixByForm("spec-v2.1");
+
+    expect(maleUser.quizForm).toBe("male_user");
+    expect(maleUser.clear).toBe(40);
+    expect(maleUser.blend).toBe(10);
+    expect(maleUser.lowSignal).toBe(10);
+    expect(maleUser.totalAttempts).toBe(60);
+    expect(maleUser.rates.clear).toBeCloseTo(40 / 60);
+
+    expect(femaleUser.quizForm).toBe("female_user");
+    expect(femaleUser.clear).toBe(5);
+    expect(femaleUser.lowSignal).toBe(0);
+    expect(femaleUser.totalAttempts).toBe(5);
+  });
+});
+
+describe("getSpecTestTypeDistributionByForm (gender plan Phase G6)", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("groups the type distribution separately for each quizForm", async () => {
+    mockPrisma.specTestResult.groupBy.mockImplementation(({ where }: { where: { quizForm: string } }) => {
+      if (where.quizForm === "male_user") {
+        return Promise.resolve([{ specType: "quiet_fire", _count: { _all: 3 } }]);
+      }
+      return Promise.resolve([{ specType: "grounded_equal", _count: { _all: 2 } }]);
+    });
+
+    const [maleUser, femaleUser] = await getSpecTestTypeDistributionByForm();
+
+    expect(maleUser.quizForm).toBe("male_user");
+    expect(maleUser.rows).toEqual([{ specType: "quiet_fire", name: SPEC_TYPE_READINGS.quiet_fire.name, count: 3 }]);
+    expect(femaleUser.quizForm).toBe("female_user");
+    expect(femaleUser.rows).toEqual([{ specType: "grounded_equal", name: SPEC_TYPE_READINGS.grounded_equal.name, count: 2 }]);
   });
 });
