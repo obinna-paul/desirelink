@@ -37,7 +37,7 @@ export type AccountRecordData = {
     heartsBalance: number;
     walletBalanceCents: number;
     createdAt: string;
-    user: { email: string; isAdmin: boolean; adminRole: string | null };
+    user: { email: string; isAdmin: boolean; adminRole: string | null; emailVerified: boolean; hasPassword: boolean };
   };
   stats: {
     postCount: number;
@@ -87,6 +87,7 @@ export type AccountRecordData = {
     createdAt: string;
   }[];
   serviceListings: { id: string; title: string; priceCents: number; createdAt: string }[];
+  emailLogs: { id: string; category: string; template: string; status: string; error: string | null; createdAt: string }[];
 };
 
 const TABS = ["Overview", "Content", "Money", "Reports", "Notes", "Admin history"] as const;
@@ -338,15 +339,61 @@ export function AccountRecord({
       </div>
 
       {tab === "Overview" && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Wallet balance" value={formatCents(profile.walletBalanceCents)} />
-          <StatCard label="Hearts balance" value={profile.heartsBalance} />
-          <StatCard label="Active subscribers" value={stats.subscriberCount} />
-          <StatCard label="Posts (premium)" value={`${stats.postCount} (${stats.premiumPostCount})`} />
-          <StatCard label="Lifetime withdrawn" value={formatCents(stats.lifetimeWithdrawnCents)} />
-          <StatCard label="Reports against" value={stats.reportsPendingAgainst} />
-          <StatCard label="Warnings" value={profile.warningCount} />
-          <StatCard label="Community standing" value={profile.communityStanding} />
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label="Wallet balance" value={formatCents(profile.walletBalanceCents)} />
+            <StatCard label="Hearts balance" value={profile.heartsBalance} />
+            <StatCard label="Active subscribers" value={stats.subscriberCount} />
+            <StatCard label="Posts (premium)" value={`${stats.postCount} (${stats.premiumPostCount})`} />
+            <StatCard label="Lifetime withdrawn" value={formatCents(stats.lifetimeWithdrawnCents)} />
+            <StatCard label="Reports against" value={stats.reportsPendingAgainst} />
+            <StatCard label="Warnings" value={profile.warningCount} />
+            <StatCard label="Community standing" value={profile.communityStanding} />
+          </div>
+
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Account access</h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={profile.user.hasPassword ? "outline" : "secondary"}>
+                {profile.user.hasPassword ? "Has password" : "No password (OAuth only)"}
+              </Badge>
+              <Badge variant={profile.user.emailVerified ? "outline" : "secondary"}>
+                {profile.user.emailVerified ? "Email verified" : "Email not verified"}
+              </Badge>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Recent email activity
+            </h3>
+            {/* Checks whether an email actually attempted to send (and whether Resend
+                accepted it) for this address - the direct way to answer a "no code
+                arrived" ticket instead of guessing at deliverability. */}
+            {detail.emailLogs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No emails logged for this address yet.</p>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {detail.emailLogs.map((log) => (
+                  <li
+                    key={log.id}
+                    className="flex flex-col gap-0.5 rounded-lg border border-border/60 px-3 py-2 text-sm"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-1.5">
+                        <Badge variant={log.status === "sent" ? "outline" : "secondary"}>{log.status}</Badge>
+                        <span className="text-xs text-muted-foreground">{log.template}</span>
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}
+                      </span>
+                    </div>
+                    {log.error && <p className="text-xs text-destructive">{log.error}</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
 
