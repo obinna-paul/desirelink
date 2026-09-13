@@ -4,6 +4,7 @@ import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
 import { SPEC_TEST_ITEMS_V2, type SpecItemV2 } from "@/lib/spec-test/items/spec-v2";
 
 export type { SpecItemV2, SpecItemOptionV2 } from "@/lib/spec-test/items/spec-v2";
+export { SPEC_TEST_CONTEXT_QUESTIONS_V2, type ContextQuestionV2, type ContextQuestionOption } from "@/lib/spec-test/items/context-v2";
 
 const ITEM_BANKS: Record<string, SpecItemV2[]> = {
   [INSTRUMENT_VERSION]: SPEC_TEST_ITEMS_V2,
