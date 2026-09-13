@@ -56,10 +56,10 @@ describe("searchDiscoverProfiles - recommended sort", () => {
 
   it("orders the candidate query deterministically before truncating to the candidate limit", async () => {
     const filters = parseDiscoverFilters({});
-    await searchDiscoverProfiles(filters, { id: "viewer-1", locationLat: 0, locationLng: 0 });
+    await searchDiscoverProfiles(filters, { id: "viewer-1", profileType: "EXPLORER" as const, locationLat: 0, locationLng: 0 });
 
     expect(mockPrisma.profile.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ orderBy: { createdAt: "desc" }, take: 300 }),
+      expect.objectContaining({ orderBy: { createdAt: "desc" }, take: 1000 }),
     );
   });
 
@@ -70,7 +70,7 @@ describe("searchDiscoverProfiles - recommended sort", () => {
     ]);
 
     const filters = parseDiscoverFilters({});
-    const { profiles } = await searchDiscoverProfiles(filters, { id: "viewer-1", locationLat: 0, locationLng: 0 });
+    const { profiles } = await searchDiscoverProfiles(filters, { id: "viewer-1", profileType: "EXPLORER" as const, locationLat: 0, locationLng: 0 });
 
     expect(profiles.map((p) => p.id)).toEqual(["trusted", "unremarkable"]);
   });
@@ -91,7 +91,7 @@ describe("searchDiscoverProfiles - recommended sort", () => {
     ]);
 
     const filters = parseDiscoverFilters({ radius: "10" });
-    const { profiles } = await searchDiscoverProfiles(filters, { id: "viewer-1", locationLat: 6.5, locationLng: 3.3 });
+    const { profiles } = await searchDiscoverProfiles(filters, { id: "viewer-1", profileType: "EXPLORER" as const, locationLat: 6.5, locationLng: 3.3 });
 
     expect(profiles.map((p) => p.id)).toEqual(["near"]);
   });
@@ -103,8 +103,27 @@ describe("searchDiscoverProfiles - recommended sort", () => {
     ]);
 
     const filters = parseDiscoverFilters({});
-    const { profiles } = await searchDiscoverProfiles(filters, { id: "viewer-1", locationLat: 6.5, locationLng: 3.3 });
+    const { profiles } = await searchDiscoverProfiles(filters, { id: "viewer-1", profileType: "EXPLORER" as const, locationLat: 6.5, locationLng: 3.3 });
 
     expect(profiles.map((p) => p.id).sort()).toEqual(["far", "near"]);
+  });
+
+  it("pages through the ranked candidate pool via offset instead of always returning the first page", async () => {
+    const candidates = Array.from({ length: 35 }, (_, i) => candidate(`p${i}`));
+    mockPrisma.profile.findMany.mockResolvedValue(candidates);
+
+    const filters = parseDiscoverFilters({});
+    const viewer = { id: "viewer-1", profileType: "EXPLORER" as const, locationLat: 0, locationLng: 0 };
+
+    const firstPage = await searchDiscoverProfiles(filters, viewer, 0);
+    const secondPage = await searchDiscoverProfiles(filters, viewer, 30);
+
+    expect(firstPage.profiles).toHaveLength(30);
+    expect(firstPage.hasMore).toBe(true);
+    expect(secondPage.profiles).toHaveLength(5);
+    expect(secondPage.hasMore).toBe(false);
+    // No overlap between pages - offset actually advances through the same ranked order.
+    const firstIds = new Set(firstPage.profiles.map((p) => p.id));
+    expect(secondPage.profiles.every((p) => !firstIds.has(p.id))).toBe(true);
   });
 });
