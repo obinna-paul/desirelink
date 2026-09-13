@@ -31,12 +31,17 @@ export default function SpecTestLandingPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
-      <PublicHeader />
+      <PublicHeader minimal />
 
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center gap-8 px-4 py-16 text-center sm:px-8">
-        <Sparkles className="h-12 w-12 text-primary" aria-hidden="true" />
+        <span className="flex h-20 w-20 items-center justify-center rounded-full bg-accent-tint motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-500">
+          <Sparkles className="h-10 w-10 text-primary" aria-hidden="true" />
+        </span>
 
-        <div className="flex flex-col gap-3">
+        <div
+          className="flex flex-col gap-3 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+          style={{ animationDelay: "80ms" }}
+        >
           <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-5xl">
             We&apos;ll guess your spec in four minutes.
           </h1>
@@ -46,11 +51,19 @@ export default function SpecTestLandingPage() {
           </p>
         </div>
 
-        <Button asChild size="lg" className="w-full max-w-xs">
+        <Button
+          asChild
+          size="lg"
+          className="w-full max-w-xs motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+          style={{ animationDelay: "160ms" }}
+        >
           <Link href="/spec-test/quiz">Find My Spec</Link>
         </Button>
 
-        <p className="text-xs text-muted-foreground">
+        <p
+          className="text-xs text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
+          style={{ animationDelay: "220ms" }}
+        >
           Free, anonymous, and about 10 quick questions. For adults 18 and over.
         </p>
       </main>
