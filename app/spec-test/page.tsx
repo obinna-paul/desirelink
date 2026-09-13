@@ -44,7 +44,7 @@ export default function SpecTestLandingPage() {
           reference frame) instead of continuing to grow past that on a taller phone.
           Uncapped dvh values were the bug: on a tall viewport every size and gap grew
           past what the mockup shows, reading as too large and too loosely spaced. */}
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col overflow-hidden px-6 pt-[clamp(1.75rem,4.8dvh,2.2rem)] sm:px-8">
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col overflow-hidden px-8 pt-[clamp(1.75rem,4.8dvh,2.2rem)]">
         <p className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 text-[clamp(0.65rem,1.6dvh,0.72rem)] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           The Spec Test
         </p>
@@ -71,22 +71,28 @@ export default function SpecTestLandingPage() {
           />
         </div>
 
+        {/* Narrower than the container (the mockup insets body copy further than its
+            edge-to-edge button/headline) so it wraps to the mockup's own 4 lines
+            instead of stretching wide and reading as 3. */}
         <p
-          className="mt-[clamp(0.75rem,2.6dvh,1.2rem)] text-center text-[clamp(0.8rem,1.9dvh,0.9rem)] leading-snug text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+          className="mt-[clamp(0.75rem,2.6dvh,1.2rem)] px-[1.35rem] text-center text-[clamp(0.8rem,1.9dvh,0.9rem)] leading-snug text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
           style={{ animationDelay: "200ms" }}
         >
           Answer 10 carefully designed questions to uncover the traits, energy and little
           behaviours you&apos;re naturally drawn to&mdash;and what they reveal about you.
         </p>
 
+        {/* Text is centered on its own (not as a text+icon group), with the arrow
+            pinned to the button's right padding edge - the mockup spaces the arrow
+            well away from the label instead of tucking it right up against it. */}
         <Button
           asChild
-          className="mt-[clamp(1rem,3.5dvh,1.6rem)] h-[clamp(2.5rem,7.3dvh,3.35rem)] w-full gap-2 rounded-full text-[clamp(0.7rem,1.7dvh,0.8rem)] font-bold uppercase tracking-[0.1em] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+          className="mt-[clamp(1rem,3.5dvh,1.6rem)] h-[clamp(2.5rem,7.3dvh,3.35rem)] w-full rounded-[12px] px-5 text-[clamp(0.7rem,1.7dvh,0.8rem)] font-bold uppercase tracking-[0.1em] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
           style={{ animationDelay: "260ms" }}
         >
-          <Link href="/spec-test/quiz">
+          <Link href="/spec-test/quiz" className="relative">
             Discover My Spec
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            <ArrowRight className="absolute right-5 top-1/2 h-4 w-4 -translate-y-1/2" aria-hidden="true" />
           </Link>
         </Button>
 
