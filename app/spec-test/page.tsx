@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import { ArrowRight } from "lucide-react";
 
 import { PublicHeader } from "@/components/layout/public-header";
-import { PublicFooter } from "@/components/layout/public-footer";
 import { Button } from "@/components/ui/button";
 import { AgeBadge } from "@/components/spec-test/age-badge";
 import { publicPageMetadata, serializeJsonLd } from "@/lib/seo";
@@ -31,17 +30,21 @@ export default function SpecTestLandingPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f7f4ee] dark:bg-background">
+    // Fixed to one dynamic-viewport-height screen with nothing below the fold - this
+    // is a single-CTA funnel page, not a scrolling article, so every element below is
+    // sized to fit alongside the others rather than assuming it can claim its own
+    // screen's worth of space.
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#f7f4ee] dark:bg-background">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
-      <PublicHeader minimal badge={<AgeBadge />} />
+      <PublicHeader minimal badge={<AgeBadge />} dense />
 
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-8 px-5 py-10 sm:px-8 sm:py-14">
-        <p className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-2.5 overflow-hidden px-5 py-1 sm:gap-4 sm:px-8">
+        <p className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
           The Spec Test
         </p>
 
         <h1
-          className="font-heading text-4xl font-semibold leading-[1.1] tracking-tight text-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 sm:text-6xl"
+          className="font-heading text-[1.65rem] font-semibold leading-[1.12] tracking-tight text-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 sm:text-5xl"
           style={{ animationDelay: "60ms" }}
         >
           You have <em className="italic text-primary">a type.</em> Even if you can&apos;t
@@ -49,7 +52,7 @@ export default function SpecTestLandingPage() {
         </h1>
 
         <div
-          className="flex justify-center py-2 motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-700"
+          className="flex justify-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-700"
           style={{ animationDelay: "140ms" }}
         >
           <Image
@@ -58,12 +61,12 @@ export default function SpecTestLandingPage() {
             width={260}
             height={260}
             priority
-            className="h-56 w-56 sm:h-64 sm:w-64"
+            className="h-24 w-24 sm:h-40 sm:w-40"
           />
         </div>
 
         <p
-          className="text-center text-base leading-relaxed text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+          className="text-center text-[13px] leading-snug text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 sm:text-base sm:leading-relaxed"
           style={{ animationDelay: "200ms" }}
         >
           Answer 10 carefully designed questions to uncover the traits, energy and little
@@ -72,7 +75,7 @@ export default function SpecTestLandingPage() {
 
         <Button
           asChild
-          className="h-14 w-full gap-2 rounded-full text-sm font-bold uppercase tracking-[0.1em] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+          className="h-11 w-full gap-2 rounded-full text-xs font-bold uppercase tracking-[0.1em] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 sm:h-14 sm:text-sm"
           style={{ animationDelay: "260ms" }}
         >
           <Link href="/spec-test/quiz">
@@ -82,20 +85,18 @@ export default function SpecTestLandingPage() {
         </Button>
 
         <p
-          className="text-center text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
+          className="text-center text-xs text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
           style={{ animationDelay: "320ms" }}
         >
           Free &middot; Private &middot; About 4 minutes
         </p>
 
-        <div className="border-t border-border/60 pt-6 text-center">
-          <p className="text-sm text-muted-foreground">
+        <div className="border-t border-border/60 pt-2.5 text-center sm:pt-4">
+          <p className="text-xs text-muted-foreground">
             A playful, research-informed reading of your attraction pattern.
           </p>
         </div>
       </main>
-
-      <PublicFooter />
     </div>
   );
 }

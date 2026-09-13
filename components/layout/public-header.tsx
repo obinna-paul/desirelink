@@ -9,15 +9,20 @@ import { cn } from "@/lib/utils";
  *  auth nav and center the logo - there's nowhere else for that visitor to go until
  *  the task is done, so login/signup links are just noise, not navigation. Pass
  *  `badge` alongside it (e.g. an "18+" pill) to pin the logo left instead and show
- *  the badge on the right - used across the Spec Test flow for a consistent header. */
+ *  the badge on the right - used across the Spec Test flow for a consistent header.
+ *  Pass `dense` on a page that must fit one viewport with no scroll (the Spec Test
+ *  landing screen) to shrink the header's own padding, since it eats into that
+ *  budget too. */
 export function PublicHeader({
   minimal = false,
   badge,
-}: { minimal?: boolean; badge?: React.ReactNode } = {}) {
+  dense = false,
+}: { minimal?: boolean; badge?: React.ReactNode; dense?: boolean } = {}) {
   return (
     <header
       className={cn(
-        "flex items-center px-4 py-5 sm:px-8",
+        "flex items-center px-4 sm:px-8",
+        dense ? "py-3 sm:py-4" : "py-5",
         minimal && !badge ? "justify-center" : "justify-between",
       )}
     >
