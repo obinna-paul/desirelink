@@ -4,17 +4,21 @@ import { EmailButton, EmailLayout, eyebrow, heading, muted, paragraph } from "@/
 
 /** Delivers a copy of a Spec Test result to the email address the taker typed in on the
  *  result page - transactional (they asked for it directly), no unsubscribe link, same
- *  as the OTP/password-changed emails. See lib/spec-test.ts for where specName/tagline/
- *  intro come from and docs/spec-test-quiz.md for the full quiz concept. */
+ *  as the OTP/password-changed emails. Renders both instrument versions: `secondaryLine`
+ *  is only ever passed for a v2 result (see lib/email/spec-test-notifications.ts), since
+ *  v1 never computed a secondary spec. See lib/spec-test/results.ts for where this content
+ *  comes from and docs/spec-test-research.md for the v2 quiz concept. */
 export function SpecTestResultEmail({
   specName,
   tagline,
   intro,
+  secondaryLine,
   resultUrl,
 }: {
   specName: string;
   tagline: string;
   intro: string;
+  secondaryLine?: string;
   resultUrl: string;
 }) {
   return (
@@ -23,6 +27,7 @@ export function SpecTestResultEmail({
       <Text style={heading}>{specName}</Text>
       <Text style={paragraph}>{tagline}</Text>
       <Text style={paragraph}>{intro}</Text>
+      {secondaryLine && <Text style={muted}>{secondaryLine}</Text>}
       <EmailButton href={resultUrl}>Read your full result</EmailButton>
       <Text style={{ ...muted, marginTop: 24 }}>
         Curious what everyone else&apos;s spec says about them? Meet people who match your energy on Udala.

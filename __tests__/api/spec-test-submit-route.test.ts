@@ -9,6 +9,7 @@ jest.mock("next/server", () => ({
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     specTestResult: { create: jest.fn() },
+    specTestInstrumentStat: { upsert: jest.fn().mockResolvedValue({}) },
   },
 }));
 
@@ -18,7 +19,7 @@ import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
 import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
 import { specTestQuestionIds } from "@/lib/spec-test";
 
-const mockPrisma = prisma as unknown as { specTestResult: { create: jest.Mock } };
+const mockPrisma = prisma as unknown as { specTestResult: { create: jest.Mock }; specTestInstrumentStat: { upsert: jest.Mock } };
 
 function post(body: unknown, ip = "203.0.113.1") {
   return POST(
@@ -97,6 +98,10 @@ describe("POST /api/spec-test/submit - v2 payload", () => {
     expect(data.responseQuality).toBe("usable");
     expect(Array.isArray(data.answers)).toBe(true);
     expect(data.answers).toHaveLength(SPEC_TEST_ITEMS_V2.length);
+
+    expect(mockPrisma.specTestInstrumentStat.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { instrumentVersion: INSTRUMENT_VERSION }, update: { submittedCount: { increment: 1 } } }),
+    );
   });
 
   it("does not persist a row and reports lowSignal for a low-signal response", async () => {
@@ -107,6 +112,9 @@ describe("POST /api/spec-test/submit - v2 payload", () => {
     expect(response.status).toBe(200);
     expect((response as unknown as { body: { lowSignal: boolean } }).body.lowSignal).toBe(true);
     expect(mockPrisma.specTestResult.create).not.toHaveBeenCalled();
+    expect(mockPrisma.specTestInstrumentStat.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { instrumentVersion: INSTRUMENT_VERSION }, update: { lowSignalCount: { increment: 1 } } }),
+    );
   });
 
   it("rejects an unknown instrument version", async () => {

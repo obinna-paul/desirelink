@@ -21,3 +21,9 @@ export { composeSpecTestResult, type ComposeInput, type SpecTestResultCopy } fro
 export { ARCHETYPE_READINGS_V2, type ArchetypeReadingV2 } from "@/lib/spec-test/interpretation/readings-v2";
 export { evaluatePatternFlags, patternFlagIds, type PatternFlagId, type TriggeredPatternFlag } from "@/lib/spec-test/interpretation/pattern-flags";
 export { getSpecTestReading, type SpecTestReading, type SpecTestReadingV1, type SpecTestReadingV2 } from "@/lib/spec-test/results";
+export {
+  getSpecTestTypeDistribution,
+  getSpecTestConfidenceMix,
+  type SpecTypeDistributionRow,
+  type ConfidenceMix,
+} from "@/lib/spec-test/admin-stats";

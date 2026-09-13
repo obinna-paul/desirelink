@@ -52,6 +52,22 @@ async function submitLegacy(answers: SpecTestAnswers): Promise<NextResponse> {
 
 const GENERIC_V2_ERROR = "Answer set does not match this version of the quiz.";
 
+/** Increments the one counter that lets the admin dashboard compute a real low-signal rate
+ *  (plan §11) - a low-signal submission never becomes its own SpecTestResult row, so without
+ *  this there would be no denominator for that rate at all. Best-effort: a failure here must
+ *  never block the response the taker is waiting on. */
+async function bumpInstrumentStat(instrumentVersion: string, field: "submittedCount" | "lowSignalCount") {
+  try {
+    await prisma.specTestInstrumentStat.upsert({
+      where: { instrumentVersion },
+      create: { instrumentVersion, [field]: 1 },
+      update: { [field]: { increment: 1 } },
+    });
+  } catch (error) {
+    console.error("[spec-test] failed to bump instrument stat", instrumentVersion, field, error);
+  }
+}
+
 const v2ResponseSchema = z.object({
   itemId: z.string().min(1),
   optionId: z.string().min(1).nullable(),
@@ -116,6 +132,7 @@ async function submitV2(payload: z.infer<typeof v2PayloadSchema>): Promise<NextR
   if (decision.confidence === "low_signal") {
     // report §6.2: "Offer a retake rather than false precision" - nothing shareable exists
     // for a low-signal response, so no row is written and no resultId is returned.
+    await bumpInstrumentStat(payload.instrumentVersion, "lowSignalCount");
     return NextResponse.json({ lowSignal: true, flags: decision.qualityFlags }, { status: 200 });
   }
 
@@ -147,6 +164,8 @@ async function submitV2(payload: z.infer<typeof v2PayloadSchema>): Promise<NextR
     },
     select: { id: true },
   });
+
+  await bumpInstrumentStat(payload.instrumentVersion, "submittedCount");
 
   return NextResponse.json({ resultId: result.id, confidence: decision.confidence }, { status: 201 });
 }

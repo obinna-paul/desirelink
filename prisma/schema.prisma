@@ -1236,6 +1236,19 @@ model SpecTestResult {
   @@index([instrumentVersion, specType])
 }
 
+/**
+ * One row per instrument version, incremented on every submit (both branches) - exists only
+ * because a low-signal submission never becomes its own SpecTestResult row, so without this
+ * counter the admin dashboard's confidence mix would have no denominator for a true
+ * low-signal rate (docs/spec-test-v2-implementation-plan.md §11).
+ */
+model SpecTestInstrumentStat {
+  instrumentVersion String   @id
+  submittedCount    Int      @default(0)
+  lowSignalCount    Int      @default(0)
+  updatedAt         DateTime @updatedAt
+}
+
 // --- Live streaming & gifting -------------------------------------------------
 
 model LiveStream {
