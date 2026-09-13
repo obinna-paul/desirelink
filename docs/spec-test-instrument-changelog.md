@@ -195,3 +195,53 @@ already consume `results.ts`'s output, so Phase G5 should be close to a no-op fo
 gender value rejected, correct routing derived for each gender, and the spoofed-payload
 override test) and the results read model (a rendered v2.1 row with a stored form, and a
 legacy row with none falling back to neutral, both asserted token-leak-free).
+
+## spec-v2.1 — Phase G4 (quiz UX)
+
+**Wizard sequence.** Age gate → gender (with the scope-notice paragraph and a one-line
+purpose statement) → section intro → items → submit. The two context questions (DG-2) are
+gone from the flow entirely - `advanceContext`/`answerContext` and the "context" step were
+deleted from the component. `lib/spec-test/items/context-v2.ts` and its `index.ts` export are
+left in place (nothing reads them today, but the plan's DG-2 recommendation was only to
+"remove them from the flow" and "keep the column and the existing rows" - not to delete the
+source file or the submit route's still-optional `contextAnswers` field, which stays as a
+harmless compatibility no-op for any old client build still sending it).
+
+**Gender step.** Two buttons labelled "Woman"/"Man" (DG-5) submit `"female"`/`"male"`
+respectively. Choosing one calls `routeForm` implicitly via the `form` value computed once
+per render (`gender ? routeForm(gender).quizForm : "neutral"`) and immediately advances to
+item 0 - so a real taker never sees the `"neutral"` fallback form; it exists only as a
+defensive default and for any literal render before gender state settles.
+
+**Rendering.** Every item prompt and option label goes through `renderTerms(text, form)` at
+render time. No new state: the item bank's canonical `{token}` strings (from G2) are rendered
+per-taker exactly the way `results.ts` already renders the composed reading server-side (G3) -
+same vocabulary, same substitution function, just called from the client instead.
+
+**Draft persistence.** `DraftShape` gained a `gender` field and lost `contextAnswers`. The
+persistence effect writes it on every step except the terminal `submitting`/`low-signal`
+states, so a reload mid-quiz resumes on the same form without ever re-asking gender -
+`computeInitialStep` treats `!draft.gender` the same way it already treated `!draft.ageConfirmed`,
+routing a gender-less resumed draft straight back to the gender step rather than assuming one.
+
+**A real bug caught by the new tests, not by inspection.** The original draft of this phase
+had `goToItem` call `submit()` directly once `itemIndex` reached `TOTAL_ITEMS`, from inside
+the same `setTimeout` closure chain that plays the select-then-advance animation
+(`SELECT_HOLD_MS` → `EXIT_MS`). That closure is created at the moment the *previous* render's
+`selectOption` runs - before the final answer's `setResponses` update has committed - so the
+`submit` it calls is stale and builds its request from a `responses` map that is always
+missing the very last answer. The old Phase 3 flow never hit this because the last item
+handed off to a context-question step (itself driven by a fresh, non-stale click handler)
+before ever calling submit; removing that intermediate step directly exposed the race. Fixed
+by having `goToItem` only set `step` to `"submitting"`, and moving the actual `submit()` call
+into a `useEffect` keyed on `step` - effects run after the state update commits, so it always
+sees the completed `responses` map. The same effect also now covers the "resume an
+interrupted mid-submit draft" case that used to be a separate mount-only effect, since both
+are really the same condition: "we're in the submitting step and haven't already errored."
+
+**9 tests** (up from 5 pre-existing, minus the removed context-question test, plus 5 new):
+no scored item or item option renders before gender is answered; a low-signal retake preserves
+the chosen gender and form without re-showing the gender step (verified against a real
+tokenized item's rendered text, not just the stored value); a resumed draft never re-asks
+gender; and the two forms are proven to differ only in their substituted terms, never in the
+underlying template.

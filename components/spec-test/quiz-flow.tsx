@@ -7,23 +7,31 @@ import { Check, ChevronLeft, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
-import { SPEC_TEST_CONTEXT_QUESTIONS_V2 } from "@/lib/spec-test/items/context-v2";
 import { INSTRUMENT_VERSION, type SectionKey } from "@/lib/spec-test/taxonomy";
+import { routeForm, type Gender } from "@/lib/spec-test/gender/forms";
+import { renderTerms } from "@/lib/spec-test/gender/render";
+import type { RenderForm } from "@/lib/spec-test/gender/terms";
 import type { SpecTestResponseV2 } from "@/lib/spec-test/response";
 import { cn } from "@/lib/utils";
 
 /**
- * Anonymous, single-page quiz wizard for the v2 instrument (docs/spec-test-research.md,
- * docs/spec-test-v2-implementation-plan.md Phase 3): age gate, three sectioned batches of
- * scenario items (each with a one-line intro), two optional unscored context questions, then
- * a submit to the server (which does the actual scoring - see lib/spec-test/scoring/) and a
- * redirect to the shareable result page. A low-signal server response (too fast, too
- * straight-lined, or too many skips) surfaces an honest retake prompt instead of a result.
+ * Anonymous, single-page quiz wizard for the v2.1 instrument
+ * (docs/spec-test-research.md, docs/spec-test-v2-implementation-plan.md Phase 3,
+ * docs/spec-test-gender-implementation-plan.md Phase G4): age gate, a one-question gender
+ * step with its scope disclosure, three sectioned batches of scenario items (each with a
+ * one-line intro, rendered for the chosen gender's form), then a submit to the server (which
+ * does the actual scoring - see lib/spec-test/scoring/) and a redirect to the shareable
+ * result page. A low-signal server response (too fast, too straight-lined, or too many
+ * skips) surfaces an honest retake prompt instead of a result.
+ *
+ * The two optional context questions from Phase 3 are removed per the gender plan's DG-2
+ * (docs/spec-test-gender-report.md §Exec: "no relationship-status or relationship-intent
+ * question").
  *
  * The submit route (app/api/spec-test/submit/route.ts) also still accepts the old v1
  * `{ answers }` shape as a compatibility safety net, but this component only ever sends the
- * v2 `{ instrumentVersion, responses, contextAnswers }` shape - see that route's file
- * comment for why the legacy branch is being kept rather than deleted outright.
+ * v2 `{ instrumentVersion, gender, responses }` shape - see that route's file comment for why
+ * the legacy branch is being kept rather than deleted outright.
  */
 
 const SELECT_HOLD_MS = 380;
@@ -48,24 +56,31 @@ const SECTION_INTRO_COPY: Record<SectionKey, { title: string; body: string }> = 
   },
 };
 
-type Step = "age-gate" | "section-intro" | "question" | "context" | "submitting" | "low-signal";
+/** Shown as "Woman"/"Man" (matching the platform's own profile vocabulary - plan §8 DG-5)
+ *  while the stored/submitted value stays "female"/"male" (matching the report's data model). */
+const GENDER_OPTIONS: { value: Gender; label: string }[] = [
+  { value: "female", label: "Woman" },
+  { value: "male", label: "Man" },
+];
+
+type Step = "age-gate" | "gender" | "section-intro" | "question" | "submitting" | "low-signal";
 
 type DraftShape = {
   instrumentVersion: string;
+  gender: Gender | null;
   itemIndex: number;
   responses: Record<string, SpecTestResponseV2>;
   optionOrders: Record<string, number[]>;
-  contextAnswers: Record<string, string>;
   ageConfirmed: boolean;
 };
 
 function emptyDraft(): DraftShape {
   return {
     instrumentVersion: INSTRUMENT_VERSION,
+    gender: null,
     itemIndex: 0,
     responses: {},
     optionOrders: {},
-    contextAnswers: {},
     ageConfirmed: false,
   };
 }
@@ -116,7 +131,8 @@ function shuffledCanonicalIndexes(): number[] {
 
 function computeInitialStep(draft: DraftShape): Step {
   if (!draft.ageConfirmed) return "age-gate";
-  if (draft.itemIndex >= TOTAL_ITEMS) return "context";
+  if (!draft.gender) return "gender";
+  if (draft.itemIndex >= TOTAL_ITEMS) return "submitting";
   if (draft.itemIndex === 0 && Object.keys(draft.responses).length === 0) return "section-intro";
   return "question";
 }
@@ -128,6 +144,7 @@ export function SpecTestQuizFlow() {
   const initialDraft = initialDraftRef.current;
 
   const [step, setStep] = useState<Step>(() => computeInitialStep(initialDraft));
+  const [gender, setGender] = useState<Gender | null>(initialDraft.gender);
   const [itemIndex, setItemIndex] = useState(initialDraft.itemIndex);
   const [responses, setResponses] = useState<Record<string, SpecTestResponseV2>>(initialDraft.responses);
   const [optionOrders, setOptionOrders] = useState<Record<string, number[]>>(() => {
@@ -144,8 +161,6 @@ export function SpecTestQuizFlow() {
     }
     return shown;
   });
-  const [contextAnswers, setContextAnswers] = useState<Record<string, string>>(initialDraft.contextAnswers);
-  const [contextIndex, setContextIndex] = useState(0);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [isExiting, setIsExiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -158,27 +173,48 @@ export function SpecTestQuizFlow() {
     return () => timeoutsRef.current.forEach(clearTimeout);
   }, []);
 
+  // Fires the submit whenever the wizard steps into "submitting" - both a draft resumed
+  // mid-submit (every item answered, but the request never completed - e.g. the tab closed
+  // right after the last answer) and the normal last-item-answered transition out of
+  // goToItem. Doing it here rather than calling submit() directly from goToItem matters: that
+  // call runs inside a setTimeout closure scheduled before the last answer's setResponses
+  // update commits, so it would submit a stale responses map missing the final answer. An
+  // effect keyed on `step` instead runs after the commit, on the render that already has it.
+  useEffect(() => {
+    if (step === "submitting" && !error) void submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
   // Persist a draft on every meaningful change so a reload mid-quiz resumes without losing
-  // answers (plan §8 acceptance criteria) - not written while submitting/low-signal, since
-  // those are terminal-ish states the draft shouldn't try to restore into.
+  // answers or re-asking gender (plan §8 acceptance criteria) - not written while submitting/
+  // low-signal, since those are terminal-ish states the draft shouldn't try to restore into.
   useEffect(() => {
     if (step === "submitting" || step === "low-signal") return;
     saveDraft({
       instrumentVersion: INSTRUMENT_VERSION,
+      gender,
       itemIndex,
       responses,
       optionOrders,
-      contextAnswers,
       ageConfirmed: step !== "age-gate",
     });
-  }, [step, itemIndex, responses, optionOrders, contextAnswers]);
+  }, [step, gender, itemIndex, responses, optionOrders]);
 
   const currentItem = SPEC_TEST_ITEMS_V2[itemIndex];
+  // The router of who's described in item text (report §3/§9) - gender only ever changes
+  // this rendering form, never the score. "neutral" only appears here defensively; the
+  // gender step always runs before any item, so a real taker never sees it.
+  const form: RenderForm = gender ? routeForm(gender).quizForm : "neutral";
+
+  function chooseGender(value: Gender) {
+    setGender(value);
+    goToItem(0);
+  }
 
   function goToItem(index: number, opts: { skipIntroCheck?: boolean } = {}) {
     if (index >= TOTAL_ITEMS) {
-      setContextIndex(0);
-      setStep("context");
+      setItemIndex(index);
+      setStep("submitting");
       return;
     }
     const item = SPEC_TEST_ITEMS_V2[index];
@@ -242,30 +278,15 @@ export function SpecTestQuizFlow() {
     goToItem(itemIndex - 1, { skipIntroCheck: true });
   }
 
-  function advanceContext() {
-    const next = contextIndex + 1;
-    if (next >= SPEC_TEST_CONTEXT_QUESTIONS_V2.length) {
-      void submit();
-    } else {
-      setContextIndex(next);
-    }
-  }
-
-  function answerContext(questionId: string, optionId: string) {
-    setContextAnswers((prev) => ({ ...prev, [questionId]: optionId }));
-    advanceContext();
-  }
-
   function restart() {
     clearDraft();
     setResponses({});
     setOptionOrders({});
-    setContextAnswers({});
     setShownSectionIntros(new Set());
-    setContextIndex(0);
     setError(null);
     setSelectedOptionId(null);
     setItemIndex(0);
+    // Gender is kept, not re-asked - a low-signal retake is about the answers, not the form.
     setStep("section-intro");
   }
 
@@ -283,8 +304,8 @@ export function SpecTestQuizFlow() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           instrumentVersion: INSTRUMENT_VERSION,
+          gender,
           responses: orderedResponses,
-          contextAnswers: Object.keys(contextAnswers).length > 0 ? contextAnswers : undefined,
         }),
       });
       const body = await res.json().catch(() => null);
@@ -325,9 +346,39 @@ export function SpecTestQuizFlow() {
             Answer with what feels true, not what sounds impressive.
           </p>
         </div>
-        <Button size="lg" onClick={() => goToItem(0)} className="w-full max-w-xs" data-testid="spec-start">
+        <Button size="lg" onClick={() => setStep("gender")} className="w-full max-w-xs" data-testid="spec-start">
           I&apos;m 18 or older - Start
         </Button>
+      </div>
+    );
+  }
+
+  if (step === "gender") {
+    return (
+      <div className="flex flex-col items-center gap-6 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-500">
+        <p className="rounded-2xl border border-dashed border-border/60 bg-card px-4 py-3 text-xs text-muted-foreground">
+          Current test scope: this version is designed for men attracted to women and women
+          attracted to men.
+        </p>
+        <div className="flex flex-col gap-2">
+          <h1 className="font-heading text-2xl font-bold sm:text-3xl">What&apos;s your gender?</h1>
+          <p className="text-sm text-muted-foreground">
+            This only changes who the questions describe. It doesn&apos;t affect your result.
+          </p>
+        </div>
+        <div className="flex w-full max-w-xs flex-col gap-3">
+          {GENDER_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => chooseGender(option.value)}
+              data-testid={`spec-gender-${option.value}`}
+              className="rounded-2xl border border-border bg-card px-4 py-3.5 text-sm font-semibold transition-colors hover:border-primary/60 hover:bg-accent-tint/70"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
     );
   }
@@ -388,33 +439,6 @@ export function SpecTestQuizFlow() {
     );
   }
 
-  if (step === "context") {
-    const question = SPEC_TEST_CONTEXT_QUESTIONS_V2[contextIndex];
-    if (!question) return null;
-    return (
-      <div key={question.id} className="flex flex-col gap-6 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300">
-        <p className="text-xs font-medium text-muted-foreground">A couple of optional questions - never scored, never required.</p>
-        <h1 className="font-heading text-xl font-bold sm:text-2xl">{question.prompt}</h1>
-        <div className="flex flex-col gap-3">
-          {question.options.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => answerContext(question.id, option.id)}
-              data-testid="spec-context-option"
-              className="rounded-2xl border border-border bg-card px-4 py-3.5 text-left text-sm font-medium transition-colors hover:border-primary/60 hover:bg-accent-tint/70"
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        <button type="button" onClick={advanceContext} data-testid="spec-context-skip" className="self-center text-sm text-muted-foreground underline underline-offset-4">
-          Skip
-        </button>
-      </div>
-    );
-  }
-
   // step === "question"
   if (!currentItem) return null;
   const order = optionOrders[currentItem.id] ?? [0, 1, 2, 3];
@@ -458,7 +482,7 @@ export function SpecTestQuizFlow() {
             : "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300",
         )}
       >
-        <h1 className="font-heading text-xl font-bold sm:text-2xl">{currentItem.prompt}</h1>
+        <h1 className="font-heading text-xl font-bold sm:text-2xl">{renderTerms(currentItem.prompt, form)}</h1>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -494,7 +518,7 @@ export function SpecTestQuizFlow() {
                 >
                   {isSelected ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : presentedIndex + 1}
                 </span>
-                {option.label}
+                {renderTerms(option.label, form)}
               </button>
             );
           })}

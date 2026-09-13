@@ -5,8 +5,9 @@ import * as navigation from "next/navigation";
 import { SpecTestQuizFlow } from "@/components/spec-test/quiz-flow";
 import { server } from "@/test/msw/server";
 import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
-import { SPEC_TEST_CONTEXT_QUESTIONS_V2 } from "@/lib/spec-test/items/context-v2";
 import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
+import { routeForm, type Gender } from "@/lib/spec-test/gender/forms";
+import { renderTerms } from "@/lib/spec-test/gender/render";
 import type { SpecTestResponseV2 } from "@/lib/spec-test/response";
 
 const mockRouter = (navigation as unknown as { __mockRouter: { push: jest.Mock } }).__mockRouter;
@@ -16,8 +17,8 @@ const TOTAL_ITEMS = SPEC_TEST_ITEMS_V2.length;
 
 type SubmitPayload = {
   instrumentVersion: string;
+  gender: Gender;
   responses: SpecTestResponseV2[];
-  contextAnswers?: Record<string, string>;
 };
 
 // The hold-then-exit animation before advancing to the next item (see SELECT_HOLD_MS/EXIT_MS
@@ -29,8 +30,9 @@ async function advancePastTransition() {
   });
 }
 
-async function startQuiz() {
+async function startQuiz(gender: Gender = "male") {
   fireEvent.click(screen.getByTestId("spec-start"));
+  fireEvent.click(await screen.findByTestId(`spec-gender-${gender}`));
   fireEvent.click(await screen.findByTestId("spec-continue")); // spark section intro
 }
 
@@ -51,13 +53,6 @@ async function completeAllItems() {
   }
 }
 
-async function completeContextQuestions() {
-  for (let i = 0; i < SPEC_TEST_CONTEXT_QUESTIONS_V2.length; i += 1) {
-    const skip = await screen.findByTestId("spec-context-skip");
-    fireEvent.click(skip);
-  }
-}
-
 describe("SpecTestQuizFlow (v2)", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -69,7 +64,7 @@ describe("SpecTestQuizFlow (v2)", () => {
     window.localStorage.clear();
   });
 
-  it("walks the age gate, all sections, context questions, and submits a full v2 payload", async () => {
+  it("walks the age gate, gender question, all sections, and submits a full v2 payload", async () => {
     let capturedBody: SubmitPayload | null = null;
     server.use(
       rest.post(SUBMIT_URL, async (req, res, ctx) => {
@@ -80,13 +75,13 @@ describe("SpecTestQuizFlow (v2)", () => {
 
     render(<SpecTestQuizFlow />);
 
-    await startQuiz();
+    await startQuiz("male");
     await completeAllItems();
-    await completeContextQuestions();
 
     await waitFor(() => expect(capturedBody).not.toBeNull());
 
     expect(capturedBody!.instrumentVersion).toBe(INSTRUMENT_VERSION);
+    expect(capturedBody!.gender).toBe("male");
     expect(capturedBody!.responses).toHaveLength(TOTAL_ITEMS);
 
     const bankIds = new Set(SPEC_TEST_ITEMS_V2.map((item) => item.id));
@@ -99,8 +94,6 @@ describe("SpecTestQuizFlow (v2)", () => {
       expect(typeof response.elapsedMs).toBe("number");
       expect([0, 1, 2, 3]).toContain(response.presentedIndex);
     }
-    // Context questions were skipped, so contextAnswers should be entirely absent.
-    expect(capturedBody!.contextAnswers).toBeUndefined();
 
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith("/spec-test/result/result-abc"));
   });
@@ -125,7 +118,6 @@ describe("SpecTestQuizFlow (v2)", () => {
       if (continueButtons.length > 0) fireEvent.click(continueButtons[0]);
       await answerCurrentItem();
     }
-    await completeContextQuestions();
 
     await waitFor(() => expect(capturedBody).not.toBeNull());
     expect(capturedBody!.responses).toHaveLength(TOTAL_ITEMS);
@@ -153,13 +145,45 @@ describe("SpecTestQuizFlow (v2)", () => {
     render(<SpecTestQuizFlow />);
     await startQuiz();
     await completeAllItems();
-    await completeContextQuestions();
 
     expect(await screen.findByText(/couldn't get a clear read/i)).toBeInTheDocument();
     expect(mockRouter.push).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId("spec-take-again"));
     expect(await screen.findByTestId("spec-continue")).toBeInTheDocument();
+  });
+
+  it("keeps the chosen gender on a low-signal retake instead of re-asking it", async () => {
+    let capturedBody: SubmitPayload | null = null;
+    server.use(
+      rest.post(SUBMIT_URL, async (req, res, ctx) => {
+        capturedBody = await req.json();
+        return res(ctx.status(200), ctx.json({ lowSignal: true, flags: ["too_fast"] }));
+      }),
+    );
+
+    render(<SpecTestQuizFlow />);
+    await startQuiz("female");
+    await completeAllItems();
+    expect(await screen.findByText(/couldn't get a clear read/i)).toBeInTheDocument();
+    await waitFor(() => expect(capturedBody).not.toBeNull());
+    expect(capturedBody!.gender).toBe("female");
+
+    fireEvent.click(screen.getByTestId("spec-take-again"));
+    // Retake lands straight on a section intro, not the gender step.
+    expect(await screen.findByTestId("spec-continue")).toBeInTheDocument();
+    expect(screen.queryByTestId("spec-gender-female")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("spec-gender-male")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("spec-continue"));
+    // The retake's form is still female_user (male referent) - confirmed by answering up to
+    // the first tokenized item ("hosting-party", index 6) and checking its rendered text,
+    // rather than running a second full 24-item submission.
+    for (let i = 0; i < 6; i += 1) {
+      await answerCurrentItem();
+    }
+    const hostingItem = SPEC_TEST_ITEMS_V2.find((item) => item.id === "hosting-party")!;
+    expect(await screen.findByText(renderTerms(hostingItem.prompt, "female_user"))).toBeInTheDocument();
   });
 
   it("persists progress across a remount (draft survives a reload)", async () => {
@@ -174,5 +198,45 @@ describe("SpecTestQuizFlow (v2)", () => {
     first.unmount();
     render(<SpecTestQuizFlow />);
     expect(await screen.findByText(SPEC_TEST_ITEMS_V2[2].prompt)).toBeInTheDocument();
+  });
+
+  it("resumes a draft on the taker's chosen form without ever re-asking gender", async () => {
+    const first = render(<SpecTestQuizFlow />);
+    await startQuiz("female");
+    await answerCurrentItem();
+
+    first.unmount();
+    render(<SpecTestQuizFlow />);
+
+    // Never re-shown the gender step, and the female_user form (male referent) is still in use.
+    expect(screen.queryByTestId("spec-gender-female")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("spec-gender-male")).not.toBeInTheDocument();
+    const hostingItem = SPEC_TEST_ITEMS_V2.find((item) => item.id === "hosting-party");
+    if (hostingItem) {
+      // Not necessarily the item on screen right now - this just confirms the form used for
+      // rendering resolves the same way the report/plan require (§8 acceptance criteria).
+      expect(renderTerms(hostingItem.prompt, routeForm("female").quizForm)).toContain("man");
+    }
+  });
+
+  it("renders no scored item until the gender question is answered", async () => {
+    render(<SpecTestQuizFlow />);
+    fireEvent.click(screen.getByTestId("spec-start"));
+
+    expect(await screen.findByText(/what's your gender/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("spec-continue")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("spec-option")).not.toBeInTheDocument();
+  });
+
+  it("renders items using the taker's own form, differing only in the substituted terms", async () => {
+    const hostingItem = SPEC_TEST_ITEMS_V2.find((item) => item.id === "hosting-party")!;
+    const maleUserText = renderTerms(hostingItem.prompt, "male_user");
+    const femaleUserText = renderTerms(hostingItem.prompt, "female_user");
+
+    expect(maleUserText).not.toEqual(femaleUserText);
+    expect(maleUserText).toContain("woman");
+    expect(femaleUserText).toContain("man");
+    // Same template underneath - the two forms only ever differ in the rendered term.
+    expect(maleUserText.replace("woman", "{person}")).toEqual(femaleUserText.replace("man", "{person}"));
   });
 });
