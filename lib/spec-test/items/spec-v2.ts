@@ -36,10 +36,10 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
     section: "spark",
     prompt: "At a crowded event, who makes you look twice?",
     options: [
-      { id: "crowded-event-a", label: "The quiet person clocking everything from the edge of the room." }, // [I-depth]
-      { id: "crowded-event-b", label: "The one turning strangers into friends within ten minutes." }, // [V]
-      { id: "crowded-event-c", label: "The polished person people instinctively ask for an opinion." }, // [A]
-      { id: "crowded-event-d", label: "The beautifully put-together person who leaves before anyone fully figures them out." }, // [I-aesthetic]
+      { id: "crowded-event-a", label: "The quiet {person} clocking everything from the edge of the room." }, // [I-depth]
+      { id: "crowded-event-b", label: "The {person} turning strangers into friends within ten minutes." }, // [V]
+      { id: "crowded-event-c", label: "The polished {person} people instinctively ask for an opinion." }, // [A]
+      { id: "crowded-event-d", label: "The beautifully put-together {person} who leaves before anyone fully figures {them} out." }, // [I-aesthetic]
     ],
   },
   {
@@ -72,7 +72,7 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
       { id: "profile-investigate-a", label: "Clear goals, excellent work, very little noise." }, // [A]
       { id: "profile-investigate-b", label: "Immaculate taste and captions that reveal almost nothing." }, // [I-aesthetic]
       { id: "profile-investigate-c", label: "Different city every month; somehow every photo has a story." }, // [N]
-      { id: "profile-investigate-d", label: "Friends, family, hobbies and an actual life they seem to like." }, // [R]
+      { id: "profile-investigate-d", label: "Friends, family, hobbies and a life that clearly suits {them}." }, // [R]
     ],
   },
   {
@@ -92,20 +92,20 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
     prompt: "A pause falls in the conversation. Which version feels attractive?",
     options: [
       { id: "conversation-pause-a", label: "The silence feels charged, not awkward." }, // [I-depth]
-      { id: "conversation-pause-b", label: "They hold your gaze like they know something you do not." }, // [I-aesthetic]
-      { id: "conversation-pause-c", label: "They are comfortable enough not to fill every gap." }, // [R]
-      { id: "conversation-pause-d", label: "They suddenly suggest going somewhere completely different." }, // [N]
+      { id: "conversation-pause-b", label: "The {person} holds your gaze as if already knowing something you do not." }, // [I-aesthetic]
+      { id: "conversation-pause-c", label: "The {person} is comfortable enough not to fill every gap." }, // [R]
+      { id: "conversation-pause-d", label: "The {person} suddenly suggests going somewhere completely different." }, // [N]
     ],
   },
   {
     id: "hosting-party",
     section: "spark",
-    prompt: "Your person is hosting. What wins you over?",
+    prompt: "The {person} you’re seeing is hosting. What wins you over?",
     options: [
-      { id: "hosting-party-a", label: "They notice exactly who needs to be included." }, // [W]
+      { id: "hosting-party-a", label: "The {person} notices exactly who needs to be included." }, // [W]
       { id: "hosting-party-b", label: "Everybody is laughing, but you still feel singled out." }, // [V]
-      { id: "hosting-party-c", label: "Everything runs beautifully without them looking stressed." }, // [A]
-      { id: "hosting-party-d", label: "The conversation at their table is the best one in the room." }, // [C]
+      { id: "hosting-party-c", label: "Everything runs beautifully without {them} looking stressed." }, // [A]
+      { id: "hosting-party-d", label: "The conversation at {their} table is the best one in the room." }, // [C]
     ],
   },
   {
@@ -113,10 +113,10 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
     section: "spark",
     prompt: "Which slow reveal keeps you interested?",
     options: [
-      { id: "slow-reveal-a", label: "They become warmer in private than anyone would expect." }, // [I-depth]
+      { id: "slow-reveal-a", label: "The {person} becomes warmer in private than anyone would expect." }, // [I-depth]
       { id: "slow-reveal-b", label: "Every meeting reveals another layer of taste and history." }, // [I-aesthetic]
-      { id: "slow-reveal-c", label: "Their life keeps opening into experiences you never considered." }, // [N]
-      { id: "slow-reveal-d", label: "Their consistency becomes more attractive the longer you watch." }, // [R]
+      { id: "slow-reveal-c", label: "{Their} life keeps opening into experiences you never considered." }, // [N]
+      { id: "slow-reveal-d", label: "{Their} consistency becomes more attractive the longer you watch." }, // [R]
     ],
   },
 
@@ -127,9 +127,9 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
     prompt: "A disagreement begins. Which response increases attraction?",
     options: [
       { id: "disagreement-response-a", label: "“I care about us. Let me understand what hurt.”" }, // [W]
-      { id: "disagreement-response-b", label: "They stay calm, decisive and willing to own their part." }, // [A]
-      { id: "disagreement-response-c", label: "They can challenge your argument without attacking you." }, // [C]
-      { id: "disagreement-response-d", label: "They focus on solving the issue fairly, not winning." }, // [R]
+      { id: "disagreement-response-b", label: "The {person} stays calm, decisive and willing to own {their} part." }, // [A]
+      { id: "disagreement-response-c", label: "{They} can challenge your argument without attacking you." }, // [C]
+      { id: "disagreement-response-d", label: "The {person} focuses on solving the issue fairly, not winning." }, // [R]
     ],
   },
   {
@@ -137,8 +137,8 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
     section: "pattern",
     prompt: "Plans are cancelled at the last minute. What could genuinely rescue the mood?",
     options: [
-      { id: "plans-cancelled-a", label: "They create a better night on the spot." }, // [V]
-      { id: "plans-cancelled-b", label: "They send one intriguing suggestion and let anticipation build." }, // [I-aesthetic]
+      { id: "plans-cancelled-a", label: "The {person} creates a better night on the spot." }, // [V]
+      { id: "plans-cancelled-b", label: "The {person} sends one intriguing suggestion and lets anticipation build." }, // [I-aesthetic]
       { id: "plans-cancelled-c", label: "“Pack light. Trust me.”" }, // [N]
       { id: "plans-cancelled-d", label: "An unexpectedly honest private conversation." }, // [I-depth]
     ],
@@ -149,9 +149,9 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
     prompt: "What most makes you feel chosen?",
     options: [
       { id: "feel-chosen-a", label: "Consistent reassurance and affection." }, // [W]
-      { id: "feel-chosen-b", label: "Being deliberately included in the future they are building." }, // [A]
+      { id: "feel-chosen-b", label: "Being deliberately included in the {personPoss} plans for the future." }, // [A]
       { id: "feel-chosen-c", label: "Equal effort without having to request it." }, // [R]
-      { id: "feel-chosen-d", label: "Access to a side of them almost nobody sees." }, // [I-aesthetic]
+      { id: "feel-chosen-d", label: "Access to a side of {them} almost nobody sees." }, // [I-aesthetic]
     ],
   },
   {
@@ -171,8 +171,8 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
     prompt: "A friend says, “I know exactly who to introduce you to.” What description wins?",
     options: [
       { id: "friend-introduction-a", label: "“Mature, kind and genuinely ready.”" }, // [R]
-      { id: "friend-introduction-b", label: "“Warm—the sort of person who makes people feel at home.”" }, // [W]
-      { id: "friend-introduction-c", label: "“Focused. They are going somewhere.”" }, // [A]
+      { id: "friend-introduction-b", label: "“Warm—the sort of {person} who makes people feel at home.”" }, // [W]
+      { id: "friend-introduction-c", label: "“Focused. Going somewhere.”" }, // [A]
       { id: "friend-introduction-d", label: "“Ridiculously smart, but never boring about it.”" }, // [C]
     ],
   },
@@ -183,8 +183,8 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
     options: [
       { id: "strongest-entrance-a", label: "Understated, impeccable, impossible not to notice." }, // [I-aesthetic]
       { id: "strongest-entrance-b", label: "Almost silent, but the eye contact is not." }, // [I-depth]
-      { id: "strongest-entrance-c", label: "They arrive laughing and the room lifts." }, // [V]
-      { id: "strongest-entrance-d", label: "They look as though they have just returned from a story." }, // [N]
+      { id: "strongest-entrance-c", label: "The {person} arrives laughing and the room lifts." }, // [V]
+      { id: "strongest-entrance-d", label: "The {person} looks as though a story just ended." }, // [N]
     ],
   },
   {
@@ -192,10 +192,10 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
     section: "pattern",
     prompt: "Which kind of vulnerability feels most intimate?",
     options: [
-      { id: "intimate-vulnerability-a", label: "They ask directly for comfort instead of pretending." }, // [W]
-      { id: "intimate-vulnerability-b", label: "They explain the thought beneath the feeling." }, // [C]
-      { id: "intimate-vulnerability-c", label: "They admit a mistake and show what will change." }, // [R]
-      { id: "intimate-vulnerability-d", label: "They trust you with something they usually keep guarded." }, // [I-depth]
+      { id: "intimate-vulnerability-a", label: "The {person} asks directly for comfort instead of pretending." }, // [W]
+      { id: "intimate-vulnerability-b", label: "The {person} explains the thought beneath the feeling." }, // [C]
+      { id: "intimate-vulnerability-c", label: "The {person} admits a mistake and shows what will change." }, // [R]
+      { id: "intimate-vulnerability-d", label: "The {person} trusts you with something usually kept guarded." }, // [I-depth]
     ],
   },
   {
@@ -217,7 +217,7 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
     prompt: "Your last message got left on read for a day. What’s actually happening in your head?",
     options: [
       { id: "delayed-reply-a", label: "I start rereading the conversation for a clue I might have missed." }, // anxiety
-      { id: "delayed-reply-b", label: "I assume they’re busy and don’t think about it much." }, // steady
+      { id: "delayed-reply-b", label: "I assume the {person} is busy and don’t think about it much." }, // steady
       { id: "delayed-reply-c", label: "I feel my interest cool a little, just in case." }, // avoidance
       { id: "delayed-reply-d", label: "I send something breezy to test the temperature without asking directly." }, // push-pull
     ],
@@ -228,7 +228,7 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
     prompt: "Things move fast and someone starts wanting a lot of your time early on. What’s your instinct?",
     options: [
       { id: "fast-closeness-a", label: "I lean in—it feels like a sign this is real." }, // anxiety
-      { id: "fast-closeness-b", label: "I match their pace happily, no hesitation." }, // steady
+      { id: "fast-closeness-b", label: "I match {their} pace happily, no hesitation." }, // steady
       { id: "fast-closeness-c", label: "Part of me wants to slow it down and protect my space." }, // avoidance
       { id: "fast-closeness-d", label: "I enjoy it but quietly wonder if it will last." }, // push-pull
     ],
@@ -239,9 +239,9 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
     prompt: "You’re upset with someone you’re seeing. What do you actually do?",
     options: [
       { id: "conflict-response-a", label: "I bring it up right away, even if it’s uncomfortable." }, // steady
-      { id: "conflict-response-b", label: "I keep pushing until we’ve really resolved it, even if they want to drop it." }, // anxiety
+      { id: "conflict-response-b", label: "I keep pushing until we’ve really resolved it, even if the {person} wants to drop it." }, // anxiety
       { id: "conflict-response-c", label: "I go quiet and need space before I can talk about it." }, // avoidance
-      { id: "conflict-response-d", label: "I hint at it and hope they notice." }, // push-pull
+      { id: "conflict-response-d", label: "I hint at it and hope the {person} notices." }, // push-pull
     ],
   },
   {
@@ -250,8 +250,8 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
     prompt: "You’re having a rough week. What’s true for you?",
     options: [
       { id: "need-comfort-a", label: "I ask directly for comfort—“can you just be here for a minute.”" }, // steady
-      { id: "need-comfort-b", label: "I want them to notice without me having to ask." }, // anxiety
-      { id: "need-comfort-c", label: "I’d rather handle it myself and fill them in after." }, // avoidance
+      { id: "need-comfort-b", label: "I want {them} to notice without me having to ask." }, // anxiety
+      { id: "need-comfort-c", label: "I’d rather handle it myself and fill {them} in after." }, // avoidance
       { id: "need-comfort-d", label: "I want comfort but downplay how much I need it." }, // push-pull
     ],
   },
@@ -265,7 +265,7 @@ export const SPEC_TEST_ITEMS_V2: SpecItemV2[] = [
       { id: "forgivable-flaw-a", label: "Emotional distance, because rare closeness feels profound." }, // [I-depth]
       { id: "forgivable-flaw-b", label: "Inconsistency, because the chemistry is outrageous." }, // [V]
       { id: "forgivable-flaw-c", label: "Deflection, because the conversation is addictive." }, // [C]
-      { id: "forgivable-flaw-d", label: "Opacity, because the person fascinates you." }, // [I-aesthetic]
+      { id: "forgivable-flaw-d", label: "Opacity, because the {person} fascinates you." }, // [I-aesthetic]
     ],
   },
   {

@@ -106,3 +106,57 @@ asserts nothing under lib/spec-test/scoring/ or lib/spec-test/interpretation/ im
 gender module at all; (2) decideSpecTestResult's declared arity (2 parameters) is asserted
 directly, so a future change that quietly adds a third "gender" parameter fails a test rather
 than passing review by inspection.
+
+## spec-v2.1 — Phase G2 (content pass)
+
+Tokenized every gendered referent to the OTHER person (never the respondent) across the item
+bank, the 8 archetype readings, and the 8 pattern-flag copy strings, using G1's token
+vocabulary. Item option ids, section weights, motive loadings, and archetype centroids are
+byte-identical to v2.0 - confirmed by diff, not just by intent (git diff touches only
+`label`/`prompt`/`copy` string values in three files; loadings.ts and archetypes.ts have zero
+diff). Pattern-flag `evaluate` functions (the eligibility rules) are untouched - only their
+`copy` strings changed, per the report's explicit instruction that gendered editions may
+change target nouns but never the eligibility rule.
+
+**38 item-bank edits, 28 reading edits, 3 pattern-flag copy edits.** Roughly 14 of 24 items
+carried a gendered referent; the rest (pure first-person scenarios, mutual "we"/"each other"
+phrasing, or quoted direct speech) needed no change.
+
+**The verb-agreement discipline.** Pure token substitution has one hard constraint the report
+doesn't mention: `{they}`/`{them}`/`{their}` render as singular "she"/"he" under a gendered
+form but as plural "they" under neutral, and English present-tense verbs (and "is/are")
+inflect for that difference ("they know" vs "she knows"). Substituting only the pronoun while
+leaving a plain-text verb next to it breaks agreement in one direction or the other. The rule
+applied throughout: never use a bare `{they}` pronoun as the subject of a present-tense finite
+verb; use "the {person}" instead (a common noun - "woman"/"man"/"person" - which is always
+grammatically singular, so any verb agreeing with it is correct in all three forms), or
+restructure onto a modal ("can", "should" - invariant), an infinitive, a gerund, or a passive
+construction. `{they}`/`{them}`/`{their}` remain fine anywhere agreement doesn't apply:
+objects, possessives, past tense, or before a modal. Every rewrite here preserves the
+original's psychological claim and motive; none changes what an option measures.
+
+**Two corrections caught after the first pass, worth naming as a category of mistake:**
+- "Tension in everything neither person is saying" (chemistry-definition-a) describes BOTH
+  parties' mutual silence, not the target person's - tokenizing it would have wrongly implied
+  two people of the same assumed-target gender. Reverted to plain "person". The same
+  distinction protected "both people naturally contribute" (repeated-sunday-d) and "both
+  people can give and receive" (soft_landing growthPrompt) from being tokenized in the first
+  place: a mutual/couple referent is never the same as a reference to "the other person."
+- "Your person is hosting" read as unwanted-possessive once gendered ("Your woman is
+  hosting"/"Your man is hosting"). Rewritten to "The person you're seeing is hosting."
+
+**No override registry was built.** The plan's DG-4 anticipated needing an authored per-form
+override table for sentences that "genuinely need restructuring." In practice, every case
+that needed restructuring (verb agreement, the two corrections above) could be resolved by
+rewriting the single canonical template rather than forking it into two authored strings -
+so pure substitution covers 100% of current content, and no override infrastructure exists.
+If a future string genuinely can't be phrased this way, build the registry then rather than
+speculatively now.
+
+**The report's §8 three-question check** (would the claim survive gender reversal; is it
+answer-supported; does one variant read as more flattering/sexualized/moralized) is satisfied
+structurally rather than case-by-case: pure substitution means the semantic content is
+identical regardless of which token values fill it, eligibility rules were never touched, and
+the content-symmetry test (`__tests__/lib/spec-test/gender/content-symmetry.test.ts`) proves
+every string in this pass renders without a leaked token and is byte-identical across forms
+once gendered words are normalized.

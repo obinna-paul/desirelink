@@ -59,14 +59,14 @@ const RULES: PatternFlagRule[] = [
   {
     id: "fast_burn_undercurrent",
     reportTrigger: "high vitality + fast burn + low consistency threshold (low reciprocity)",
-    copy: "Your best beginnings may have outperformed their follow-through.",
+    copy: "Your best beginnings may have outperformed {their} follow-through.",
     evaluate: ({ motiveScores, lenses }) =>
       motiveScores.socialVitality >= HIGH && lenses.fastSlow >= HIGH && motiveScores.reliabilityReciprocity <= LOW,
   },
   {
     id: "approval_seeking",
     reportTrigger: "high agency + high approval sensitivity (admiration-leaning)",
-    copy: "Being chosen by an impressive person may sometimes feel like proof of your own value.",
+    copy: "Being chosen by an impressive {person} may sometimes feel like proof of your own value.",
     evaluate: ({ motiveScores, lenses }) => motiveScores.agencyDirection >= HIGH && lenses.admirationMutuality >= HIGH,
   },
   {
@@ -79,7 +79,7 @@ const RULES: PatternFlagRule[] = [
   {
     id: "aesthetic_projection",
     reportTrigger: "high aesthetics + high projection (intrigue-leaning)",
-    copy: "You may complete incomplete people with your imagination.",
+    copy: "You may complete incomplete {people} with your imagination.",
     evaluate: ({ motiveScores, lenses }) => motiveScores.intrigueSelectiveAccess >= HIGH && lenses.directnessIntrigue >= HIGH,
   },
   {
