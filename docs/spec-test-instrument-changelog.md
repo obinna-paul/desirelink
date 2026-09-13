@@ -74,3 +74,35 @@ Partnership disagreement is reported even when the overall primary looks confide
 ordering is an interpretation of report §6.2's four rules (which are listed but not
 explicitly prioritized against each other) - worth revisiting if pilot data shows split
 results are either too rare or too noisy to be a stable third state.
+
+## spec-v2.1 — Phase G1 (gender routing and rendering core)
+
+Per docs/spec-test-gender-report.md and docs/spec-test-gender-implementation-plan.md. This
+entry covers G1 only - the routing rule and the token-rendering layer. No item, reading, or
+pattern-flag content changed in this pass (that's G2); no schema or submit-route change yet
+(G3); nothing user-visible yet (G4/G5).
+
+**Routing rule.** `heterosexual_v0_1` (lib/spec-test/gender/forms.ts), named exactly as in the
+report. male -> male_user form, assumed attraction target female; female -> female_user form,
+assumed attraction target male. This is a disclosed product assumption, never a measured
+orientation - see the report's §9 and the plan's DG-1 for the known limitation (the platform's
+own profile vocabulary already models eight genders and eight orientations; this instrument's
+v0.1 scope is deliberately narrower and says so).
+
+**Token vocabulary.** Eight tokens (lib/spec-test/gender/terms.ts): person, people, they, them,
+their, theirs, themself, personPoss. Chosen to cover every gendered referent form the existing
+item/reading copy will need once G2 templates it - the exact set may need one more token if G2
+finds a construction these eight can't render naturally (e.g. a hyphenated compound); if so,
+add it here as a changelog entry, not a silent expansion.
+
+**Rendering.** `renderTerms` (lib/spec-test/gender/render.ts) substitutes `{token}` /
+`{Token}` (capitalized) against one of three tables: male_user, female_user, or neutral (used
+for any pre-v2.1 row with no stored form). An unknown token throws in development and
+degrades to its bare word with braces stripped in production - a content typo should fail
+loudly before shipping, never leak `{braces}` to a user.
+
+**Zero-score guarantee.** Enforced two ways, not just documented: (1) a structural test
+asserts nothing under lib/spec-test/scoring/ or lib/spec-test/interpretation/ imports the
+gender module at all; (2) decideSpecTestResult's declared arity (2 parameters) is asserted
+directly, so a future change that quietly adds a third "gender" parameter fails a test rather
+than passing review by inspection.

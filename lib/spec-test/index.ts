@@ -34,3 +34,10 @@ export {
   type ItemOptionAnalytics,
   type DataSplitCounts,
 } from "@/lib/spec-test/calibration";
+// Gender routing/rendering (docs/spec-test-gender-implementation-plan.md Phase G1) is
+// client-safe and re-exported here for server-side convenience only - client code (the quiz
+// wizard) imports @/lib/spec-test/gender/* directly, same convention as items/taxonomy above,
+// since this barrel pulls in legacy.ts and is therefore server-only overall.
+export { GENDERS, QUIZ_FORMS, ROUTING_RULE, routeForm, type Gender, type QuizForm, type RoutingResult } from "@/lib/spec-test/gender/forms";
+export { TOKEN_KEYS, TERM_TABLES, type TokenKey, type RenderForm } from "@/lib/spec-test/gender/terms";
+export { renderTerms } from "@/lib/spec-test/gender/render";
