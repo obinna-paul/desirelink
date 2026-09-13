@@ -87,7 +87,7 @@ export default function SpecTestLandingPage() {
             well away from the label instead of tucking it right up against it. */}
         <Button
           asChild
-          className="mt-[clamp(1rem,3.5dvh,1.6rem)] h-[clamp(2.5rem,7.3dvh,3.35rem)] w-full rounded-[12px] px-5 text-[clamp(0.7rem,1.7dvh,0.8rem)] font-bold uppercase tracking-[0.1em] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+          className="mt-[clamp(1rem,3.5dvh,1.6rem)] h-[clamp(3rem,8.3dvh,3.85rem)] w-full rounded-[12px] px-5 text-[clamp(0.7rem,1.7dvh,0.8rem)] font-bold uppercase tracking-[0.1em] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
           style={{ animationDelay: "260ms" }}
         >
           <Link href="/spec-test/quiz" className="relative">

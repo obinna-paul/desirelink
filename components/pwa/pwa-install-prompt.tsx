@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { Download, EllipsisVertical, Share, Smartphone, SquarePlus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,12 @@ function isAndroidDevice(): boolean {
 }
 
 export function PwaInstallPrompt() {
+  const pathname = usePathname();
+  // The Spec Test is a standalone funnel for visitors who aren't Udala users yet -
+  // pitching them the app install here is premature and competes with the quiz's own
+  // CTA. It should only resume once they finish the test and land on the real
+  // login/signup page (i.e. as soon as pathname next moves off /spec-test).
+  const isSpecTestRoute = pathname?.startsWith("/spec-test") ?? false;
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [platform, setPlatform] = useState<"android" | "ios" | null>(null);
   const [dismissedForVisit, setDismissedForVisit] = useState(false);
@@ -235,7 +242,7 @@ export function PwaInstallPrompt() {
     }
   }
 
-  if (!platform || dismissedForVisit || isStandaloneMode()) return null;
+  if (!platform || dismissedForVisit || isStandaloneMode() || isSpecTestRoute) return null;
 
   return (
     <>
