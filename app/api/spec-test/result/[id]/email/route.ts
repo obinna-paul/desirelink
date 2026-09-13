@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { SPEC_TYPE_READINGS, type SpecTypeKey } from "@/lib/spec-test";
+import { getSpecTestReading } from "@/lib/spec-test";
 import { sendSpecTestResultEmail } from "@/lib/email/spec-test-notifications";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -16,12 +16,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
   }
 
-  let result;
   try {
-    result = await prisma.specTestResult.update({
+    await prisma.specTestResult.update({
       where: { id: params.id },
       data: { email, consentMarketing },
-      select: { specType: true },
+      select: { id: true },
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
@@ -34,7 +33,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     );
   }
 
-  const reading = SPEC_TYPE_READINGS[result.specType as SpecTypeKey];
+  // Read back through the shared version-branching model rather than re-deriving v1/v2
+  // reading logic here - see lib/spec-test/results.ts.
+  const reading = await getSpecTestReading(params.id);
   if (reading) {
     await sendSpecTestResultEmail(email, reading, params.id);
   }
