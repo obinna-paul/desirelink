@@ -12,6 +12,7 @@ import { WelcomeSeekerEmail } from "@/components/emails/welcome-seeker";
 import { WelcomeCreatorEmail } from "@/components/emails/welcome-creator";
 import { VerificationApprovedEmail } from "@/components/emails/verification-approved";
 import { VerificationDeniedEmail } from "@/components/emails/verification-denied";
+import { OAuthPasswordResetAttemptEmail } from "@/components/emails/oauth-password-reset-attempt";
 
 const OTP_TTL_MINUTES = Number(process.env.EMAIL_OTP_TTL_MINUTES ?? 10);
 
@@ -60,6 +61,34 @@ export async function sendPasswordResetOtpEmail(email: string): Promise<boolean>
   });
   if (!delivered) await removeUndeliveredOtp(id);
   return delivered;
+}
+
+const OAUTH_PROVIDER_LABELS: Record<string, string> = {
+  google: "Google",
+  twitter: "X",
+};
+
+/** Human-readable label for a set of provider ids (from the Account table) - "Google",
+ *  "X", "Google or X" for an account somehow linked to both, or a safe generic fallback
+ *  if the list is empty (shouldn't happen for a passwordless account, but never block the
+ *  email over it). */
+function describeOAuthProviders(providerIds: string[]): string {
+  const labels = [...new Set(providerIds.map((id) => OAUTH_PROVIDER_LABELS[id] ?? id))];
+  if (labels.length === 0) return "Google or X";
+  if (labels.length === 1) return labels[0];
+  return labels.join(" or ");
+}
+
+/** Sent instead of a reset code when a password-reset request targets an account that
+ *  has no password (created via OAuth) - see OAuthPasswordResetAttemptEmail. */
+export async function sendOAuthPasswordResetAttemptEmail(email: string, providerIds: string[]): Promise<boolean> {
+  return sendEmail({
+    to: email,
+    subject: "About your password reset request",
+    react: OAuthPasswordResetAttemptEmail({ providerLabel: describeOAuthProviders(providerIds) }),
+    category: "auth",
+    template: "oauth-password-reset-attempt",
+  });
 }
 
 export async function sendAddEmailOtp(email: string): Promise<boolean> {
