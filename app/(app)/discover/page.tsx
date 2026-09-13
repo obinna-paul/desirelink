@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ProfileGrid } from "@/components/home/profile-grid";
 import { DiscoverFiltersPanel } from "@/components/discover/discover-filters";
+import { DiscoverGenderQuickFilter } from "@/components/discover/discover-gender-quick-filter";
 import { DiscoverSearchInput } from "@/components/discover/discover-search-input";
 import { SearchResults, type TopResultRow } from "@/components/search/search-results";
 import { getPostsByIds } from "@/lib/posts";
@@ -140,6 +141,8 @@ export default async function DiscoverPage({
         <DiscoverSearchInput initialQuery={filters.query} />
         <DiscoverFiltersPanel initialFilters={filters} />
       </div>
+
+      {!filters.query && <DiscoverGenderQuickFilter initialGenders={filters.genders} />}
 
       {filters.query ? (
         <SearchResults

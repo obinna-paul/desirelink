@@ -10,6 +10,7 @@ import { getClientIp, readJson } from "@/lib/security/request";
 import { sendSignupOtpEmail } from "@/lib/email/notifications";
 import { isTurnstileConfigured, verifyTurnstileToken } from "@/lib/turnstile";
 import { linkSpecTestResultIfConsented } from "@/lib/spec-test";
+import { GENDER_UNSPECIFIED } from "@/lib/profile-options";
 
 export async function POST(req: Request) {
   const body = await readJson(req);
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
             displayName: name,
             bio: "",
             avatarUrl: "",
-            gender: "unspecified",
+            gender: GENDER_UNSPECIFIED,
             orientation: "unspecified",
             locationLat: 0,
             locationLng: 0,

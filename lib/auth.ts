@@ -13,6 +13,7 @@ import { usernameFieldSchema } from "@/lib/validations/auth";
 import { recordDeviceAndMaybeAlert } from "@/lib/email/device";
 import { isPlaceholderEmail, placeholderEmailFor } from "@/lib/oauth-placeholder-email";
 import { linkSpecTestResultIfConsented } from "@/lib/spec-test";
+import { GENDER_UNSPECIFIED } from "@/lib/profile-options";
 
 /** Every OAuth provider registered below - the signIn callback's belt-and-suspenders
  * profile-creation check (see createUser event) needs to recognize all of them. */
@@ -69,7 +70,7 @@ async function ensureProfileForAuthUser(user: {
           displayName,
           bio: "",
           avatarUrl: user.image ?? "",
-          gender: "unspecified",
+          gender: GENDER_UNSPECIFIED,
           orientation: "unspecified",
           locationLat: 0,
           locationLng: 0,
