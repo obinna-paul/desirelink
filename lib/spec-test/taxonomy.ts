@@ -4,7 +4,20 @@
 // code - the report treats 7 motives and 8 archetypes as hypotheses the pilot may revise,
 // so nothing downstream may assume these lists' length or order.
 
-export const INSTRUMENT_VERSION = "spec-v2.0" as const;
+/**
+ * Bumped from "spec-v2.0" in Phase G3 (docs/spec-test-gender-implementation-plan.md §8,
+ * open decision DG-3): the item bank's option ids/loadings/centroids are unchanged, but the
+ * taker's experience changed (a gender question now precedes every scored item, and item/
+ * reading/pattern-flag text is now rendered per form), and DG-3 wants the exact bank pinned
+ * per version for §11 Stage 5's per-form structural comparison. "spec-v2.0" is kept resolvable
+ * (see lib/spec-test/items/index.ts) so any pre-gender row or test fixture still validates.
+ */
+export const INSTRUMENT_VERSION = "spec-v2.1" as const;
+
+/** The version this replaced - kept as a named constant (not a bare string literal) so its
+ *  one remaining use, registering it in the item-bank lookup, is traceable to this comment
+ *  rather than a magic string. */
+export const LEGACY_INSTRUMENT_VERSION_V2_0 = "spec-v2.0" as const;
 
 /**
  * The seven candidate attraction motives (report §3 Layer A), with the "I" (Intrigue &

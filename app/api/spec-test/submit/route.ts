@@ -7,6 +7,8 @@ import { resolveSpecType, scoreSpecTestAnswers, specTestQuestionIds, type SpecTe
 import { itemBankForVersion } from "@/lib/spec-test/items";
 import { decideSpecTestResult } from "@/lib/spec-test/scoring/decide";
 import { evaluatePatternFlags } from "@/lib/spec-test/interpretation/pattern-flags";
+import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
+import { GENDERS, routeForm } from "@/lib/spec-test/gender/forms";
 import type { SpecTestResponseV2 } from "@/lib/spec-test/response";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { getClientIp, readJson } from "@/lib/security/request";
@@ -83,6 +85,12 @@ const v2ResponseSchema = z.object({
 
 const v2PayloadSchema = z.object({
   instrumentVersion: z.string().min(1),
+  // Required only for the current instrument version (checked below, not by zod) - a v2.0
+  // fixture/legacy submission is unaffected (plan §8 acceptance criteria: "A v2.1 submission
+  // without a gender is rejected; a v2.0 submission is unaffected"). Never a `quizForm` field
+  // here: the form is always derived server-side from gender via routeForm(), never accepted
+  // as client input (plan §8: "quizForm is always server-derived").
+  gender: z.enum(GENDERS).optional(),
   responses: z.array(v2ResponseSchema),
   contextAnswers: z.record(z.unknown()).optional(),
 });
@@ -92,6 +100,14 @@ async function submitV2(payload: z.infer<typeof v2PayloadSchema>): Promise<NextR
   if (!bank) {
     return NextResponse.json({ error: "Unknown instrument version." }, { status: 400 });
   }
+
+  if (payload.instrumentVersion === INSTRUMENT_VERSION && !payload.gender) {
+    return NextResponse.json({ error: "Select a gender to continue." }, { status: 400 });
+  }
+
+  // Routed here, once, from the validated gender only - this is the single point where a
+  // client-supplied value could otherwise be trusted, and it isn't.
+  const routing = payload.gender ? routeForm(payload.gender) : null;
 
   // Every item in the declared bank must appear exactly once - this is what "rejects a
   // payload whose items do not match the declared instrumentVersion" (plan §7) means in
@@ -167,6 +183,10 @@ async function submitV2(payload: z.infer<typeof v2PayloadSchema>): Promise<NextR
       resultConfidence: decision.confidence,
       responseQuality: decision.quality,
       contextAnswers: payload.contextAnswers ? (payload.contextAnswers as Prisma.InputJsonValue) : undefined,
+      gender: payload.gender,
+      routingRule: routing?.routingRule,
+      assumedAttractionTarget: routing?.assumedAttractionTarget,
+      quizForm: routing?.quizForm,
     },
     select: { id: true },
   });

@@ -1230,6 +1230,21 @@ model SpecTestResult {
    *  refit validate on data it never fit on (report §8 Phase 3; plan §12 "Hold-out tagging"). */
   dataSplit         String   @default("development")
 
+  // --- Gender routing (docs/spec-test-gender-report.md, docs/spec-test-gender-implementation-plan.md
+  // Phase G3) - null on every pre-v2.1 row. Never used in scoring; see
+  // lib/spec-test/gender/scoring-boundary.test.ts for the structural proof of that. ---
+  /** "male" | "female" - the taker's stated gender. */
+  gender                  String?
+  /** Which assumption mapped gender to a target, e.g. "heterosexual_v0_1" - named and stored
+   *  so a future rule change is legible in the data rather than implied by a date range. */
+  routingRule             String?
+  /** What the product ASSUMED, never what the user declared - report §9 is explicit this
+   *  must never be treated as a stated sexual orientation. */
+  assumedAttractionTarget String?
+  /** "male_user" | "female_user" - always derived server-side from `gender` at submission,
+   *  never accepted from the client (plan §8 acceptance criteria). */
+  quizForm                String?
+
   email             String?
   profileId         String?
   profile           Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)

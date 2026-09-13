@@ -47,6 +47,10 @@ function v2Reading(overrides: Partial<Extract<SpecTestReading, { version: "v2" }
     sparkSpec: "quiet_fire",
     partnershipSpec: "quiet_fire",
     patternFlags: [],
+    gender: "male",
+    routingRule: "heterosexual_v0_1",
+    assumedAttractionTarget: "female",
+    quizForm: "male_user",
     copy: {
       primarySpec: "quiet_fire",
       secondarySpec: "brilliant_tease",

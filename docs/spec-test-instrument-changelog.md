@@ -160,3 +160,38 @@ identical regardless of which token values fill it, eligibility rules were never
 the content-symmetry test (`__tests__/lib/spec-test/gender/content-symmetry.test.ts`) proves
 every string in this pass renders without a leaked token and is byte-identical across forms
 once gendered words are normalized.
+
+## spec-v2.1 — Phase G3 (persistence and API)
+
+**Version bump.** `INSTRUMENT_VERSION` moved from "spec-v2.0" to "spec-v2.1" (plan DG-3).
+"spec-v2.0" stays resolvable in `lib/spec-test/items/index.ts`'s bank registry - option ids,
+loadings and centroids never changed in G1/G2, only rendered text did, so a fixture or row
+tagged with the old version string still validates against the same bank.
+
+**Schema.** Four nullable columns on `SpecTestResult`: `gender`, `routingRule`,
+`assumedAttractionTarget`, `quizForm`. Additive migration, null on every pre-v2.1 row.
+`sexual_orientation` is deliberately not a column - report §9 is explicit the product must
+never store an inferred orientation as if the user stated it.
+
+**Submit route.** `gender` is required in the v2 payload only when `instrumentVersion`
+matches the current `INSTRUMENT_VERSION` - a v2.0 submission (none exist in practice, but the
+bank stays registered) is unaffected, satisfying the plan's own acceptance criterion in those
+exact terms. There is no client-supplied `quizForm`/`routingRule`/`assumedAttractionTarget`
+field in the request schema at all - `routeForm(gender)` is the only path that produces them,
+called once server-side, so there is nothing for a spoofed request body to override even in
+principle (verified by a test that sends contradictory `quizForm`/`routingRule` fields
+alongside a real `gender` and confirms only the gender-derived values are ever stored).
+
+**Where rendering happens, and why it's not in interpretation/.** `compose.ts` (under
+`lib/spec-test/interpretation/`) still returns raw templated strings, completely gender-
+oblivious, exactly as G1's structural boundary test requires. Rendering is a separate step in
+`lib/spec-test/results.ts` - one layer above interpretation/, not subject to that boundary
+test - which calls `renderTerms` on every string field of the composed reading using the row's
+stored `quizForm` (or `"neutral"` for any row with none). This means email and the result page
+both automatically receive already-rendered final copy with no changes of their own: they
+already consume `results.ts`'s output, so Phase G5 should be close to a no-op for both.
+
+**11 new/extended tests** across the submit route (required-for-current-version, invalid
+gender value rejected, correct routing derived for each gender, and the spoofed-payload
+override test) and the results read model (a rendered v2.1 row with a stored form, and a
+legacy row with none falling back to neutral, both asserted token-leak-free).

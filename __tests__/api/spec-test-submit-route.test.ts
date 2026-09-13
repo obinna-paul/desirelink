@@ -31,7 +31,7 @@ function post(body: unknown, ip = "203.0.113.1") {
   );
 }
 
-function v2ResponsePayload(overrides: Record<string, "a" | "b" | "c" | "d" | "skip"> = {}) {
+function v2ResponsePayload(overrides: Record<string, "a" | "b" | "c" | "d" | "skip"> = {}, gender: "male" | "female" = "male") {
   const responses = SPEC_TEST_ITEMS_V2.map((item, index) => {
     const choice = overrides[item.id] ?? (["a", "b", "c", "d"] as const)[index % 4];
     if (choice === "skip") {
@@ -45,7 +45,7 @@ function v2ResponsePayload(overrides: Record<string, "a" | "b" | "c" | "d" | "sk
       elapsedMs: 2500 + index * 40,
     };
   });
-  return { instrumentVersion: INSTRUMENT_VERSION, responses };
+  return { instrumentVersion: INSTRUMENT_VERSION, gender, responses };
 }
 
 describe("POST /api/spec-test/submit - legacy v1 payload", () => {
@@ -99,6 +99,10 @@ describe("POST /api/spec-test/submit - v2 payload", () => {
     expect(Array.isArray(data.answers)).toBe(true);
     expect(data.answers).toHaveLength(SPEC_TEST_ITEMS_V2.length);
     expect(["development", "holdout"]).toContain(data.dataSplit);
+    expect(data.gender).toBe("male");
+    expect(data.routingRule).toBe("heterosexual_v0_1");
+    expect(data.assumedAttractionTarget).toBe("female");
+    expect(data.quizForm).toBe("male_user");
 
     expect(mockPrisma.specTestInstrumentStat.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { instrumentVersion: INSTRUMENT_VERSION }, update: { submittedCount: { increment: 1 } } }),
@@ -157,6 +161,56 @@ describe("POST /api/spec-test/submit - v2 payload", () => {
     const response = await post({ ...payload, responses: tampered }, "203.0.113.16");
     expect(response.status).toBe(400);
     expect(mockPrisma.specTestResult.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/spec-test/submit - gender routing", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("rejects a current-version submission with no gender", async () => {
+    const payload: Record<string, unknown> = v2ResponsePayload();
+    delete payload.gender;
+    const response = await post(payload, "203.0.113.20");
+    expect(response.status).toBe(400);
+    expect(mockPrisma.specTestResult.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid gender value", async () => {
+    const payload = v2ResponsePayload();
+    const response = await post({ ...payload, gender: "nonbinary" }, "203.0.113.21");
+    expect(response.status).toBe(400);
+    expect(mockPrisma.specTestResult.create).not.toHaveBeenCalled();
+  });
+
+  it("derives the female_user form and male target from a female taker", async () => {
+    mockPrisma.specTestResult.create.mockResolvedValue({ id: "v2-result-female" });
+    const response = await post(v2ResponsePayload({}, "female"), "203.0.113.22");
+
+    expect(response.status).toBe(201);
+    const data = mockPrisma.specTestResult.create.mock.calls[0][0].data;
+    expect(data.gender).toBe("female");
+    expect(data.quizForm).toBe("female_user");
+    expect(data.assumedAttractionTarget).toBe("male");
+  });
+
+  it("ignores any client-supplied quizForm/routing fields and always re-derives them from gender", async () => {
+    mockPrisma.specTestResult.create.mockResolvedValue({ id: "v2-result-spoofed" });
+    const payload = v2ResponsePayload({}, "male") as Record<string, unknown>;
+    const spoofed = {
+      ...payload,
+      quizForm: "female_user",
+      assumedAttractionTarget: "male",
+      routingRule: "some_other_rule",
+    };
+
+    const response = await post(spoofed, "203.0.113.23");
+    expect(response.status).toBe(201);
+    const data = mockPrisma.specTestResult.create.mock.calls[0][0].data;
+    // gender: "male" always derives male_user/female target, regardless of what else the
+    // client's request body claimed.
+    expect(data.quizForm).toBe("male_user");
+    expect(data.assumedAttractionTarget).toBe("female");
+    expect(data.routingRule).toBe("heterosexual_v0_1");
   });
 });
 
