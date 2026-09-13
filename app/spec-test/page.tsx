@@ -38,18 +38,19 @@ export default function SpecTestLandingPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
       <PublicHeader minimal badge={<AgeBadge />} dense />
 
-      {/* Every size/gap below is a percentage of viewport height (dvh), lifted directly
-          from the approved mockup's own proportions (measured against its ~732px-tall
-          reference frame) - not centered as a small block with dead space around it,
-          but laid out top-down the same way the mockup is, so it fills the screen the
-          same way on a short phone as on a tall one. */}
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col overflow-hidden px-6 pt-[4.8dvh] sm:px-8">
-        <p className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 text-[clamp(0.65rem,1.6dvh,0.8rem)] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+      {/* Every size/gap below is clamp(min, Xdvh, max) - the dvh term scales it down
+          proportionally on a short phone (same logic as before), but the max now caps
+          it at the mockup's own absolute size (measured against its ~732px-tall
+          reference frame) instead of continuing to grow past that on a taller phone.
+          Uncapped dvh values were the bug: on a tall viewport every size and gap grew
+          past what the mockup shows, reading as too large and too loosely spaced. */}
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col overflow-hidden px-6 pt-[clamp(1.75rem,4.8dvh,2.2rem)] sm:px-8">
+        <p className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 text-[clamp(0.65rem,1.6dvh,0.72rem)] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           The Spec Test
         </p>
 
         <h1
-          className="mt-[2.4dvh] font-heading text-[clamp(1.85rem,5.6dvh,3.25rem)] font-semibold leading-[1.12] tracking-tight text-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+          className="mt-[clamp(0.75rem,2.4dvh,1.1rem)] font-heading text-[clamp(1.85rem,5.6dvh,2.6rem)] font-semibold leading-[1.12] tracking-tight text-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
           style={{ animationDelay: "60ms" }}
         >
           You have <em className="italic text-primary">a type.</em> Even if you can&apos;t
@@ -57,7 +58,7 @@ export default function SpecTestLandingPage() {
         </h1>
 
         <div
-          className="mt-[4.1dvh] flex justify-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-700"
+          className="mt-[clamp(1rem,4.1dvh,1.9rem)] flex justify-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-700"
           style={{ animationDelay: "140ms" }}
         >
           <Image
@@ -66,12 +67,12 @@ export default function SpecTestLandingPage() {
             width={260}
             height={260}
             priority
-            className="h-[clamp(6rem,22.5dvh,12rem)] w-[clamp(6rem,22.5dvh,12rem)]"
+            className="h-[clamp(6rem,22.5dvh,10.3rem)] w-[clamp(6rem,22.5dvh,10.3rem)]"
           />
         </div>
 
         <p
-          className="mt-[2.6dvh] text-center text-[clamp(0.85rem,1.9dvh,1.05rem)] leading-snug text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+          className="mt-[clamp(0.75rem,2.6dvh,1.2rem)] text-center text-[clamp(0.8rem,1.9dvh,0.9rem)] leading-snug text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
           style={{ animationDelay: "200ms" }}
         >
           Answer 10 carefully designed questions to uncover the traits, energy and little
@@ -80,7 +81,7 @@ export default function SpecTestLandingPage() {
 
         <Button
           asChild
-          className="mt-[3.5dvh] h-[clamp(2.75rem,7.3dvh,3.5rem)] w-full gap-2 rounded-full text-[clamp(0.75rem,1.7dvh,0.9rem)] font-bold uppercase tracking-[0.1em] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
+          className="mt-[clamp(1rem,3.5dvh,1.6rem)] h-[clamp(2.5rem,7.3dvh,3.35rem)] w-full gap-2 rounded-full text-[clamp(0.7rem,1.7dvh,0.8rem)] font-bold uppercase tracking-[0.1em] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
           style={{ animationDelay: "260ms" }}
         >
           <Link href="/spec-test/quiz">
@@ -90,14 +91,14 @@ export default function SpecTestLandingPage() {
         </Button>
 
         <p
-          className="mt-[2.1dvh] text-center text-[clamp(0.75rem,1.6dvh,0.875rem)] text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
+          className="mt-[clamp(0.6rem,2.1dvh,1rem)] text-center text-[clamp(0.7rem,1.6dvh,0.75rem)] text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
           style={{ animationDelay: "320ms" }}
         >
           Free &middot; Private &middot; About 4 minutes
         </p>
 
-        <div className="mt-[3.5dvh] border-t border-border/60 pt-[2.2dvh] text-center">
-          <p className="text-[clamp(0.75rem,1.6dvh,0.875rem)] text-muted-foreground">
+        <div className="mt-[clamp(1rem,3.5dvh,1.6rem)] border-t border-border/60 pt-[clamp(0.5rem,2.2dvh,1rem)] text-center">
+          <p className="text-[clamp(0.7rem,1.6dvh,0.75rem)] text-muted-foreground">
             A playful, research-informed reading of your attraction pattern.
           </p>
         </div>
