@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { USERNAME_PATTERN } from "@/lib/username-format";
+import { GENDER_OPTIONS } from "@/lib/profile-options";
 
 export const ACCOUNT_TYPE_VALUES = ["EXPLORER", "SEEKER", "CREATOR"] as const;
 
@@ -79,3 +80,10 @@ export const chooseAccountTypeSchema = z.object({
   profileType: z.enum(ACCOUNT_TYPE_VALUES),
 });
 export type ChooseAccountTypeInput = z.infer<typeof chooseAccountTypeSchema>;
+
+/** /onboarding/gender - reached by every account (new or pre-existing) whose
+ * Profile.gender is still the "unspecified" default it's created with. */
+export const chooseGenderSchema = z.object({
+  gender: z.enum(GENDER_OPTIONS as [string, ...string[]]),
+});
+export type ChooseGenderInput = z.infer<typeof chooseGenderSchema>;

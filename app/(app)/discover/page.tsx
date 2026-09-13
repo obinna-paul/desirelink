@@ -3,8 +3,9 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ProfileGrid } from "@/components/home/profile-grid";
+import { DiscoverInfiniteGrid } from "@/components/discover/discover-infinite-grid";
 import { DiscoverFiltersPanel } from "@/components/discover/discover-filters";
+import { DiscoverGenderQuickFilter } from "@/components/discover/discover-gender-quick-filter";
 import { DiscoverSearchInput } from "@/components/discover/discover-search-input";
 import { SearchResults, type TopResultRow } from "@/components/search/search-results";
 import { getPostsByIds } from "@/lib/posts";
@@ -37,11 +38,11 @@ export default async function DiscoverPage({
 
   const viewerProfile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, displayName: true, locationLat: true, locationLng: true },
+    select: { id: true, displayName: true, profileType: true, locationLat: true, locationLng: true },
   });
 
   const filters = parseDiscoverFilters(searchParams);
-  const { profiles, note } = await searchDiscoverProfiles(filters, viewerProfile);
+  const { profiles, note, hasMore } = await searchDiscoverProfiles(filters, viewerProfile);
 
   const searchRows = filters.query ? await searchDocuments(filters.query) : [];
   if (filters.query) {
@@ -124,6 +125,18 @@ export default async function DiscoverPage({
     return [];
   }).slice(0, 20);
 
+  // Reconstructed from the parsed filters, not the raw searchParams, so the infinite grid's
+  // /api/discover requests always carry exactly the filters this render used - a stray or
+  // unrecognized query param on the page's own URL never leaks into pagination requests.
+  const gridQueryParams = new URLSearchParams();
+  filters.genders.forEach((value) => gridQueryParams.append("gender", value));
+  filters.orientations.forEach((value) => gridQueryParams.append("orientation", value));
+  if (filters.lastActive !== "any") gridQueryParams.set("lastActive", filters.lastActive);
+  if (filters.verification !== "any") gridQueryParams.set("verification", filters.verification);
+  if (filters.radiusKm !== null) gridQueryParams.set("radius", String(filters.radiusKm));
+  if (filters.availability !== "any") gridQueryParams.set("availability", filters.availability);
+  if (filters.sort !== "recommended") gridQueryParams.set("sort", filters.sort);
+
   const activeFilterCount =
     (filters.query ? 1 : 0) +
     filters.genders.length +
@@ -141,6 +154,8 @@ export default async function DiscoverPage({
         <DiscoverFiltersPanel initialFilters={filters} />
       </div>
 
+      {!filters.query && <DiscoverGenderQuickFilter initialGenders={filters.genders} />}
+
       {filters.query ? (
         <SearchResults
           query={filters.query}
@@ -153,18 +168,20 @@ export default async function DiscoverPage({
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
-            <p className="text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">{profiles.length}</span>{" "}
-              {profiles.length === 1 ? "profile matches" : "profiles match"} your filters
-              {activeFilterCount > 0 && ` (${activeFilterCount} applied)`}
-            </p>
-          </div>
+          {activeFilterCount > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+              <p className="text-sm text-muted-foreground">
+                {activeFilterCount} {activeFilterCount === 1 ? "filter" : "filters"} applied
+              </p>
+            </div>
+          )}
 
           {note && <p className="text-sm text-muted-foreground">{note}</p>}
 
-          <ProfileGrid
-            profiles={profiles}
+          <DiscoverInfiniteGrid
+            initialProfiles={profiles}
+            initialHasMore={hasMore}
+            queryString={gridQueryParams.toString()}
             emptyMessage="No one matches these filters yet. Try widening your search."
           />
         </>

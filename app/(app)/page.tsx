@@ -33,7 +33,7 @@ export default async function HomePage() {
   const isProvider = viewerProfile ? isProviderProfileType(viewerProfile.profileType) : false;
 
   const [posts, premiumFeed, ring, myActiveStream] = await Promise.all([
-    getPublicFeedPosts(viewerProfile?.id ?? null),
+    getPublicFeedPosts(viewerProfile?.id ?? null, viewerProfile?.profileType ?? null),
     getPremiumFeedPosts(viewerProfile?.id ?? null),
     getLiveRingFeed(viewerProfile?.id ?? null),
     isProvider && viewerProfile

@@ -798,6 +798,7 @@ async function computeSubscribePrompts(
  */
 async function applyFeedRanking(
   viewerProfileId: string | null,
+  viewerProfileType: ProfileType | null,
   posts: RawPost[],
   postViews: PostView[],
 ): Promise<PostView[]> {
@@ -809,10 +810,11 @@ async function applyFeedRanking(
     const rankable = posts.map((post, i) => ({
       id: post.id,
       authorId: post.author.id,
+      authorProfileType: post.author.profileType,
       createdAt: post.createdAt,
       locked: postViews[i].locked,
     }));
-    const rankedIds = await rankFeedPosts(viewerProfileId, HOME_FEED_SESSION_SEED, rankable);
+    const rankedIds = await rankFeedPosts(viewerProfileId, viewerProfileType, HOME_FEED_SESSION_SEED, rankable);
 
     const byId = new Map(postViews.map((view) => [view.id, view]));
     const ranked = rankedIds.map((id) => byId.get(id)).filter((view): view is PostView => Boolean(view));
@@ -827,6 +829,7 @@ async function applyFeedRanking(
 
 export async function getPublicFeedPosts(
   viewerProfileId: string | null,
+  viewerProfileType: ProfileType | null = null,
 ): Promise<PostView[]> {
   const [hiddenCreatorIds, notInterestedPostIds] = viewerProfileId
     ? await Promise.all([
@@ -862,7 +865,7 @@ export async function getPublicFeedPosts(
       ...toPostView(post, access, viewerProfileId, liveStreamIds),
       subscribePrompt: subscribePrompts.get(post.id) ?? null,
     }));
-    return (await applyFeedRanking(viewerProfileId, posts, postViews)).slice(0, FEED_LIMIT);
+    return (await applyFeedRanking(viewerProfileId, viewerProfileType, posts, postViews)).slice(0, FEED_LIMIT);
   } catch (error) {
     if (isMissingPostArchiveError(error)) {
       console.warn(
@@ -889,7 +892,7 @@ export async function getPublicFeedPosts(
         ...toPostView(post, access, viewerProfileId, liveStreamIds),
         subscribePrompt: subscribePrompts.get(post.id) ?? null,
       }));
-      return (await applyFeedRanking(viewerProfileId, posts, postViews)).slice(0, FEED_LIMIT);
+      return (await applyFeedRanking(viewerProfileId, viewerProfileType, posts, postViews)).slice(0, FEED_LIMIT);
     }
     if (isMissingSchemaError(error)) {
       console.warn(

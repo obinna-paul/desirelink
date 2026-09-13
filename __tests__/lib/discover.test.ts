@@ -19,7 +19,7 @@ describe("searchDiscoverProfiles", () => {
 
   it("excludes suspended profiles and profiles blocked either way, symmetric with lib/recommendations.ts", async () => {
     const filters = parseDiscoverFilters({});
-    await searchDiscoverProfiles(filters, { id: "viewer-1", locationLat: 0, locationLng: 0 });
+    await searchDiscoverProfiles(filters, { id: "viewer-1", profileType: "EXPLORER", locationLat: 0, locationLng: 0 });
 
     const where = mockPrisma.profile.findMany.mock.calls[0][0].where;
     expect(where.isSuspended).toBe(false);
@@ -35,6 +35,34 @@ describe("searchDiscoverProfiles", () => {
     expect(where.isSuspended).toBe(false);
     expect(where.blocksReceived).toBeUndefined();
     expect(where.blocksMade).toBeUndefined();
+  });
+
+  it("pages the plain (unranked) sort at the DB level via skip/take, not a bounded in-memory pool", async () => {
+    // sort=newest skips in-memory ranking entirely - hasMore here must come from an
+    // over-fetch (page size + 1), not from re-slicing an already-limited candidate array.
+    mockPrisma.profile.findMany.mockResolvedValue(
+      Array.from({ length: 31 }, (_, i) => ({ id: `p${i}` })),
+    );
+
+    const filters = parseDiscoverFilters({ sort: "newest" });
+    const result = await searchDiscoverProfiles(filters, null, 0);
+
+    expect(mockPrisma.profile.findMany.mock.calls[0][0]).toMatchObject({ skip: 0, take: 31 });
+    expect(result.profiles).toHaveLength(30);
+    expect(result.hasMore).toBe(true);
+  });
+
+  it("reports no more pages once the over-fetch comes back within a page size", async () => {
+    mockPrisma.profile.findMany.mockResolvedValue(
+      Array.from({ length: 5 }, (_, i) => ({ id: `p${i}` })),
+    );
+
+    const filters = parseDiscoverFilters({ sort: "newest" });
+    const result = await searchDiscoverProfiles(filters, null, 30);
+
+    expect(mockPrisma.profile.findMany.mock.calls[0][0]).toMatchObject({ skip: 30, take: 31 });
+    expect(result.profiles).toHaveLength(5);
+    expect(result.hasMore).toBe(false);
   });
 });
 

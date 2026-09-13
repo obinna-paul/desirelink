@@ -1,4 +1,4 @@
-import type { AvailabilityStatusType, Prisma } from "@prisma/client";
+import type { AvailabilityStatusType, Prisma, ProfileType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
@@ -112,6 +112,7 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
 
 type ViewerProfile = {
   id: string;
+  profileType: ProfileType;
   locationLat: number;
   locationLng: number;
 };
@@ -196,17 +197,24 @@ async function buildWhere(
   return where;
 }
 
-const RESULTS_LIMIT = 30;
-const DISTANCE_CANDIDATE_LIMIT = 300;
+export const RESULTS_PAGE_SIZE = 30;
+// Discover has no persisted, frozen slate the way the post feed does (lib/feed-slate.ts) -
+// every request re-ranks this whole in-memory candidate pool, so raising this is what
+// gives infinite scroll real runway rather than hitting a page-2-sized wall. Chosen as
+// "comfortably past any realistic user base for now", not "unlimited" - past this many
+// eligible profiles, scrolling stops rather than silently degrading to an unranked tail.
+const DISTANCE_CANDIDATE_LIMIT = 1000;
 
 export type DiscoverResult = {
   profiles: ProfileCardData[];
   note?: string;
+  hasMore: boolean;
 };
 
 export async function searchDiscoverProfiles(
   filters: DiscoverFilters,
-  viewerProfile: ViewerProfile | null
+  viewerProfile: ViewerProfile | null,
+  offset = 0,
 ): Promise<DiscoverResult> {
   const effectiveFilters = filters;
   const where = await buildWhere(effectiveFilters, viewerProfile);
@@ -219,11 +227,15 @@ export async function searchDiscoverProfiles(
     const orderBy: Prisma.ProfileOrderByWithRelationInput =
       effectiveFilters.sort === "active" ? { lastActiveAt: "desc" } : { createdAt: "desc" };
 
-    const profiles = await prisma.profile.findMany({
+    // A true DB-level ORDER BY needs no fixed candidate pool - skip/take pages through
+    // every matching row, not just a bounded in-memory slice. Over-fetch by one to learn
+    // whether another page exists without a separate count query.
+    const rows = await prisma.profile.findMany({
       where,
       select: profileCardSelect(),
       orderBy,
-      take: RESULTS_LIMIT,
+      skip: offset,
+      take: RESULTS_PAGE_SIZE + 1,
     });
 
     const note =
@@ -233,7 +245,7 @@ export async function searchDiscoverProfiles(
           ? "Set your location on your profile to filter by radius."
           : undefined;
 
-    return { profiles, note };
+    return { profiles: rows.slice(0, RESULTS_PAGE_SIZE), hasMore: rows.length > RESULTS_PAGE_SIZE, note };
   }
 
   const candidates = await prisma.profile.findMany({
@@ -281,7 +293,10 @@ export async function searchDiscoverProfiles(
     withDistance.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  return { profiles: withDistance.slice(0, RESULTS_LIMIT) };
+  return {
+    profiles: withDistance.slice(offset, offset + RESULTS_PAGE_SIZE),
+    hasMore: offset + RESULTS_PAGE_SIZE < withDistance.length,
+  };
 }
 
 export type ProfileSuggestion = {

@@ -1,3 +1,5 @@
+import type { ProfileType } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { getOrBuildSlate } from "@/lib/feed-slate";
 import { getViewerHashtagAffinity, postHashtagAffinity } from "@/lib/hashtag-affinity";
@@ -35,6 +37,7 @@ export const HOME_FEED_SESSION_SEED = "home-feed";
 export type RankableFeedPost = {
   id: string;
   authorId: string;
+  authorProfileType: ProfileType;
   createdAt: Date;
   /** Whether this post is currently locked for this viewer (PostView.locked) - the ranking
    * engine never re-derives access itself, it trusts what's already been resolved. */
@@ -72,6 +75,7 @@ function buildExplorationPool(scored: ReturnType<typeof scoreCandidates>): Slate
  */
 export async function rankFeedPosts(
   viewerId: string,
+  viewerProfileType: ProfileType | null,
   sessionSeed: string,
   posts: RankableFeedPost[],
   now: Date = new Date(),
@@ -110,6 +114,7 @@ export async function rankFeedPosts(
     const rankable: RankablePost[] = posts.map((post) => ({
       id: post.id,
       authorId: post.authorId,
+      authorProfileType: post.authorProfileType,
       rawAffinity: affinityByCreator.get(post.authorId) ?? 0,
       rawTopicAffinity: postHashtagAffinity(
         hashtagsByPost.get(post.id) ?? [],
@@ -120,7 +125,7 @@ export async function rankFeedPosts(
       isLocked: post.locked,
     }));
 
-    const scored = scoreCandidates(rankable, now);
+    const scored = scoreCandidates(rankable, now, viewerProfileType);
 
     const slateCandidates: SlateCandidate[] = scored.map((post) => ({
       id: post.id,

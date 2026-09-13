@@ -43,15 +43,16 @@ describe("ranking sanity: a realistic multi-creator, multi-signal corpus", () =>
     // Every post is posted at NOW (recency term = 1 for all), so this corpus isolates
     // affinity/quality/lock behavior without recency also moving the order - recency's own
     // math is already covered in recommendation-scoring.test.ts.
+    const type = "EXPLORER" as const;
     const posts = [
-      { id: "a1", authorId: "A", createdAt: NOW, locked: false },
-      { id: "a2", authorId: "A", createdAt: NOW, locked: false },
-      { id: "b1", authorId: "B", createdAt: NOW, locked: false },
-      { id: "b2", authorId: "B", createdAt: NOW, locked: false },
-      { id: "c1", authorId: "C", createdAt: NOW, locked: false },
-      { id: "locked-d", authorId: "D", createdAt: NOW, locked: true },
-      { id: "e1", authorId: "E", createdAt: NOW, locked: false },
-      { id: "locked-f-no-affinity", authorId: "F", createdAt: NOW, locked: true },
+      { id: "a1", authorId: "A", authorProfileType: type, createdAt: NOW, locked: false },
+      { id: "a2", authorId: "A", authorProfileType: type, createdAt: NOW, locked: false },
+      { id: "b1", authorId: "B", authorProfileType: type, createdAt: NOW, locked: false },
+      { id: "b2", authorId: "B", authorProfileType: type, createdAt: NOW, locked: false },
+      { id: "c1", authorId: "C", authorProfileType: type, createdAt: NOW, locked: false },
+      { id: "locked-d", authorId: "D", authorProfileType: type, createdAt: NOW, locked: true },
+      { id: "e1", authorId: "E", authorProfileType: type, createdAt: NOW, locked: false },
+      { id: "locked-f-no-affinity", authorId: "F", authorProfileType: type, createdAt: NOW, locked: true },
     ];
 
     // Affinity is per (viewer, creator) - every post from the same creator shares its raw
@@ -68,21 +69,26 @@ describe("ranking sanity: a realistic multi-creator, multi-signal corpus", () =>
       { postId: "b1", quality: 3 }, // 0.75
       { postId: "b2", quality: 0.25 }, // qualityTerm = 0.25/1.25 = 0.2
       { postId: "c1", quality: 1 }, // 0.5
-      { postId: "locked-d", quality: 1 }, // 0.5
+      // Deliberately not 1 like c1's - at the new weights (below), a raw quality of 1 here
+      // would tie locked-d's penalized score exactly with b2's, making their relative order
+      // ambiguous (tiebreak-dependent) instead of a clean, unambiguous score comparison.
+      { postId: "locked-d", quality: 1.5 }, // qualityTerm = 1.5/2.5 = 0.6
       { postId: "e1", quality: 1 }, // 0.5
       { postId: "locked-f-no-affinity", quality: 3 }, // irrelevant - dropped before scoring
     ]);
 
-    // score = 0.35*affinity + 0.30*quality + 0.15*recency(=1 for all) - penalty
-    // a1:       .35*.75 + .30*.75 + .15        = .6375
-    // a2:       .35*.75 + .30*.50 + .15        = .5625
-    // b1:       .35*.50 + .30*.75 + .15        = .5500
-    // c1:       .35*.50 + .30*.50 + .15        = .4750
-    // locked-d: (.35*.50 + .30*.50 + .15) - .15*(1-.50) = .4750 - .075 = .4000
-    // b2:       .35*.50 + .30*.20 + .15        = .3850
-    // e1:       .35*0   + .30*.50 + .15        = .3000
+    // score = 0.3*affinity + 0.25*quality + 0.15*recency(=1 for all) - penalty
+    // (type term is 0 throughout - viewerProfileType is null below, isolating this corpus to
+    // affinity/quality/lock behavior exactly as the file comment promises)
+    // a1:       .30*.75 + .25*.75 + .15        = .5625
+    // a2:       .30*.75 + .25*.50 + .15        = .5000
+    // b1:       .30*.50 + .25*.75 + .15        = .4875
+    // c1:       .30*.50 + .25*.50 + .15        = .4250
+    // locked-d: (.30*.50 + .25*.60 + .15) - .15*(1-.50) = .4500 - .075 = .3750
+    // b2:       .30*.50 + .25*.20 + .15        = .3500
+    // e1:       .30*0   + .25*.50 + .15        = .2750
     // locked-f-no-affinity: dropped outright (locked, zero affinity toward F) - never scored.
-    const result = await rankFeedPosts("viewer-1", "sanity-session", posts, NOW);
+    const result = await rankFeedPosts("viewer-1", null, "sanity-session", posts, NOW);
 
     // Every score above is strictly distinct, so this order is the ONLY correct one for
     // score alone; the trace below confirms the creator cap doesn't change it, only defers
