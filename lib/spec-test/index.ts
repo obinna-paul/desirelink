@@ -17,3 +17,7 @@ export type { SpecItemV2, SpecItemOptionV2 } from "@/lib/spec-test/items/spec-v2
 export { SPEC_TEST_ITEMS_V2, itemBankForVersion } from "@/lib/spec-test/items";
 export { decideSpecTestResult, type SpecTestDecision } from "@/lib/spec-test/scoring/decide";
 export { assessResponseQuality, SKIP_CAP, type QualityFlag } from "@/lib/spec-test/scoring/quality";
+export { composeSpecTestResult, type ComposeInput, type SpecTestResultCopy } from "@/lib/spec-test/interpretation/compose";
+export { ARCHETYPE_READINGS_V2, type ArchetypeReadingV2 } from "@/lib/spec-test/interpretation/readings-v2";
+export { evaluatePatternFlags, patternFlagIds, type PatternFlagId, type TriggeredPatternFlag } from "@/lib/spec-test/interpretation/pattern-flags";
+export { getSpecTestReading, type SpecTestReading, type SpecTestReadingV1, type SpecTestReadingV2 } from "@/lib/spec-test/results";

@@ -7,6 +7,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { SPEC_TYPE_READINGS, type SpecTypeKey, type SpecTypeReading } from "@/lib/spec-test/legacy";
+import { composeSpecTestResult, type SpecTestResultCopy } from "@/lib/spec-test/interpretation/compose";
 import type { AttachmentResponseLabel, ArchetypeKey, LensKey, MotiveKey, ResultConfidence } from "@/lib/spec-test/taxonomy";
 
 export type SpecTestReadingV1 = {
@@ -39,10 +40,14 @@ export type SpecTestReadingV2 = {
   motiveFacets: MotiveFacetScores;
   lenses: Record<LensKey, number>;
   attachment: AttachmentReadout | null;
-  sparkSpec: ArchetypeKey | null;
-  partnershipSpec: ArchetypeKey | null;
-  /** Set by the Phase 4 interpretation engine, not by submission - empty until that ships. */
+  sparkSpec: ArchetypeKey;
+  partnershipSpec: ArchetypeKey;
+  /** Snapshot taken at submission time - see the submit route's comment. Not what drives
+   *  `copy.datingLoop` below, which is always recomputed live. */
   patternFlags: string[];
+  /** The assembled reading (Phase 4) - headline, core pull, strength, blind spot, long-term
+   *  fit, growth prompt, the triggered dating-loop modules, and the split twist if any. */
+  copy: SpecTestResultCopy;
 };
 
 export type SpecTestReading = SpecTestReadingV1 | SpecTestReadingV2;
@@ -80,25 +85,42 @@ export async function getSpecTestReading(id: string): Promise<SpecTestReading | 
     return { version: "v1", id: row.id, specType: row.specType as SpecTypeKey, reading };
   }
 
-  if (!row.secondarySpec || !row.motiveScores || !row.lenses || !row.resultConfidence) {
+  if (!row.secondarySpec || !row.motiveScores || !row.lenses || !row.resultConfidence || !row.sparkSpec || !row.partnershipSpec) {
     return null;
   }
 
   const motiveScoresJson = row.motiveScores as unknown as MotiveScoresJson;
+  const primarySpec = row.specType as ArchetypeKey;
+  const secondarySpec = row.secondarySpec as ArchetypeKey;
+  const confidence = row.resultConfidence as Exclude<ResultConfidence, "low_signal">;
+  const lenses = row.lenses as unknown as Record<LensKey, number>;
+  const attachment = (row.attachment as unknown as AttachmentReadout | null) ?? null;
+  const sparkSpec = row.sparkSpec as ArchetypeKey;
+  const partnershipSpec = row.partnershipSpec as ArchetypeKey;
 
   return {
     version: "v2",
     id: row.id,
     instrumentVersion: row.instrumentVersion,
-    primarySpec: row.specType as ArchetypeKey,
-    secondarySpec: row.secondarySpec as ArchetypeKey,
-    confidence: row.resultConfidence as Exclude<ResultConfidence, "low_signal">,
+    primarySpec,
+    secondarySpec,
+    confidence,
     motiveScores: motiveScoresJson.motives,
     motiveFacets: motiveScoresJson.facets,
-    lenses: row.lenses as unknown as Record<LensKey, number>,
-    attachment: (row.attachment as unknown as AttachmentReadout | null) ?? null,
-    sparkSpec: (row.sparkSpec as ArchetypeKey | null) ?? null,
-    partnershipSpec: (row.partnershipSpec as ArchetypeKey | null) ?? null,
+    lenses,
+    attachment,
+    sparkSpec,
+    partnershipSpec,
     patternFlags: row.patternFlags,
+    copy: composeSpecTestResult({
+      primarySpec,
+      secondarySpec,
+      confidence,
+      motiveScores: motiveScoresJson.motives,
+      lenses,
+      attachment,
+      sparkPrimarySpec: sparkSpec,
+      partnershipPrimarySpec: partnershipSpec,
+    }),
   };
 }

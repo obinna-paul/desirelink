@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveSpecType, scoreSpecTestAnswers, specTestQuestionIds, type SpecTestAnswers } from "@/lib/spec-test";
 import { itemBankForVersion } from "@/lib/spec-test/items";
 import { decideSpecTestResult } from "@/lib/spec-test/scoring/decide";
+import { evaluatePatternFlags } from "@/lib/spec-test/interpretation/pattern-flags";
 import type { SpecTestResponseV2 } from "@/lib/spec-test/response";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { getClientIp, readJson } from "@/lib/security/request";
@@ -132,6 +133,14 @@ async function submitV2(payload: z.infer<typeof v2PayloadSchema>): Promise<NextR
       attachment: decision.attachment === null ? Prisma.JsonNull : decision.attachment,
       sparkSpec: decision.sparkPrimarySpec,
       partnershipSpec: decision.partnershipPrimarySpec,
+      // Persisted as a snapshot for admin analytics only - the result page (Phase 5) always
+      // recomputes the live set from motiveScores/lenses/attachment via compose.ts, so a
+      // future change to these rules applies retroactively without a backfill here.
+      patternFlags: evaluatePatternFlags({
+        motiveScores: decision.motiveScores,
+        lenses: decision.lenses,
+        attachment: decision.attachment,
+      }).map((flag) => flag.id),
       resultConfidence: decision.confidence,
       responseQuality: decision.quality,
       contextAnswers: payload.contextAnswers ? (payload.contextAnswers as Prisma.InputJsonValue) : undefined,
