@@ -37,6 +37,7 @@ export default async function AdminAccountDetailPage({
       ...detail.profile,
       suspendedAt: detail.profile.suspendedAt?.toISOString() ?? null,
       createdAt: detail.profile.createdAt.toISOString(),
+      user: { ...detail.profile.user, emailVerified: Boolean(detail.profile.user.emailVerified) },
     },
     stats: detail.stats,
     recentTransactions: detail.recentTransactions.map((t) => ({
@@ -79,6 +80,14 @@ export default async function AdminAccountDetailPage({
       title: listing.title,
       priceCents: listing.priceCents,
       createdAt: listing.createdAt.toISOString(),
+    })),
+    emailLogs: detail.emailLogs.map((log) => ({
+      id: log.id,
+      category: log.category,
+      template: log.template,
+      status: log.status,
+      error: log.error,
+      createdAt: log.createdAt.toISOString(),
     })),
   };
 

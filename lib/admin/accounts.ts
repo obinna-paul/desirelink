@@ -94,7 +94,7 @@ export async function getAccountDetail(username: string) {
       heartsBalance: true,
       walletBalanceCents: true,
       createdAt: true,
-      user: { select: { email: true, isAdmin: true, adminRole: true } },
+      user: { select: { email: true, isAdmin: true, adminRole: true, emailVerified: true, passwordHash: true } },
     },
   });
   if (!profile) return null;
@@ -102,6 +102,7 @@ export async function getAccountDetail(username: string) {
   const [
     postCount,
     premiumPostCount,
+    emailLogs,
     subscriberCount,
     serviceListingCount,
     roomCount,
@@ -118,6 +119,14 @@ export async function getAccountDetail(username: string) {
   ] = await Promise.all([
     prisma.post.count({ where: { authorId: profile.id, isArchived: false } }),
     prisma.post.count({ where: { authorId: profile.id, isArchived: false, isSubscriberOnly: true } }),
+    // Recipient-scoped, not tied to a foreign key - EmailLog only ever records a raw
+    // address, so this is what lets a support ticket like "no reset code arrived" be
+    // checked directly (sent vs. failed, and why) instead of guessing.
+    prisma.emailLog.findMany({
+      where: { recipient: profile.user.email },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
     getActiveSubscriberCount(profile.id),
     prisma.serviceListing.count({ where: { providerId: profile.id } }),
     prisma.circle.count({ where: { userId: profile.id } }),
@@ -161,8 +170,12 @@ export async function getAccountDetail(username: string) {
     }),
   ]);
 
+  // passwordHash was only ever selected to derive this boolean - never send the hash
+  // itself past this function.
+  const { passwordHash, ...userWithoutHash } = profile.user;
+
   return {
-    profile,
+    profile: { ...profile, user: { ...userWithoutHash, hasPassword: Boolean(passwordHash) } },
     stats: {
       postCount,
       premiumPostCount,
@@ -181,6 +194,7 @@ export async function getAccountDetail(username: string) {
     adminHistory,
     posts,
     serviceListings,
+    emailLogs,
   };
 }
 
