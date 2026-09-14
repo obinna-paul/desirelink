@@ -209,14 +209,18 @@ export function ProfileView({
             </div>
           </div>
 
-          <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1 md:ml-[9.5rem]">
-            <h1 className="min-w-0 break-words font-heading text-xl font-semibold text-foreground sm:text-2xl md:text-3xl">
-              {profile.displayName || profile.username}
-            </h1>
-            <AccountTypeBadge profileType={profile.profileType} />
-            <VerificationBadge profile={profile} />
+          <div className="mt-3 min-w-0 md:ml-[9.5rem]">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1">
+              <h1 className="min-w-0 break-words font-heading text-xl font-semibold text-foreground sm:text-2xl md:text-3xl">
+                {profile.displayName || profile.username}
+              </h1>
+              <AccountTypeBadge profileType={profile.profileType} />
+              <VerificationBadge profile={profile} />
+            </div>
             {profile.specShownPublicly && (
-              <SpecBadge specType={profile.specTestResults[0]?.specType} variant="profile" />
+              <div className="mt-1.5">
+                <SpecBadge specType={profile.specTestResults[0]?.specType} variant="profile" />
+              </div>
             )}
           </div>
 
