@@ -517,3 +517,34 @@ suite's `startQuiz()` helper and the two tests that referenced the old screen.
 
 **9 tests updated, 0 added or removed** - same coverage, just no longer routing through a
 screen that no longer exists.
+
+## spec-v2.1 — Fixed: going back to an already-answered question got the quiz stuck
+
+**The bug, as reported.** Answering a question, going back to change an earlier one, and then
+being unable to select anything, skip, or go back further - completely stuck.
+
+**Root cause.** `goToItem` pre-fills `selectedOptionId` with an item's existing answer when
+navigating back to it, so the prior pick still shows highlighted. But `selectedOptionId` was
+also being used everywhere else as the "we're mid-transition, ignore clicks" lock: the early
+returns in `selectOption`/`skipItem`/`goBack`, and the `disabled` prop on the option buttons,
+the Back button, and the Skip button. The instant you landed back on an answered question,
+every control on screen disabled itself for a reason that had nothing to do with an actual
+in-flight transition.
+
+**Fix.** Added a separate `isLocked` state that is the real "ignore clicks" flag - true only
+for the ~580ms hold-then-exit window after a fresh click, and explicitly reset to `false`
+every time `goToItem` lands on an item (including via `goBack`). `selectedOptionId` now only
+drives which option shows highlighted; it no longer gates any interactivity.
+
+**Test.** New regression test drives exactly the reported scenario: answer two items, go back
+to the first of the two, assert the back/skip/option controls are not disabled, pick a
+different option than originally chosen, confirm the quiz actually advances instead of
+freezing, then complete the quiz and confirm a valid (non-null) answer was submitted for the
+revised item.
+
+## spec-v2.1 — Simplified the gender step to just the question and its two options
+
+Removed the scope notice ("Current test scope: this version is designed for...") and the
+"This only changes who the questions describe" explainer added in Phase G4, per direct
+request to keep the screen to the bare question and its two buttons. No test depended on
+either removed string.

@@ -17,12 +17,15 @@ import { cn } from "@/lib/utils";
 /**
  * Anonymous, single-page quiz wizard for the v2.1 instrument
  * (docs/spec-test-research.md, docs/spec-test-v2-implementation-plan.md Phase 3,
- * docs/spec-test-gender-implementation-plan.md Phase G4): a one-question gender step with its
- * scope disclosure, three sectioned batches of scenario items (each with a one-line intro,
- * rendered for the chosen gender's form), then a submit to the server (which does the actual
- * scoring - see lib/spec-test/scoring/) and a redirect to the shareable result page. A
- * low-signal server response (too fast, too straight-lined, or too many skips) surfaces an
- * honest retake prompt instead of a result.
+ * docs/spec-test-gender-implementation-plan.md Phase G4): a one-question gender step, three
+ * sectioned batches of scenario items (each with a one-line intro, rendered for the chosen
+ * gender's form), then a submit to the server (which does the actual scoring - see
+ * lib/spec-test/scoring/) and a redirect to the shareable result page. A low-signal server
+ * response (too fast, too straight-lined, or too many skips) surfaces an honest retake prompt
+ * instead of a result.
+ *
+ * The gender step's scope notice and "doesn't affect your result" explainer were both removed
+ * on direct request, in favor of just the bare question and its two options - kept minimal.
  *
  * There is no separate age-gate click-through screen: the "18+" badge is shown on every
  * Spec Test page (see AgeBadge), and the platform's actual binding age confirmation happens
@@ -165,6 +168,11 @@ export function SpecTestQuizFlow() {
     return shown;
   });
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  // Separate from selectedOptionId on purpose: selectedOptionId also gets pre-filled with an
+  // item's existing answer when goToItem navigates back to it (so the prior pick still shows
+  // highlighted), but that must never disable the controls the way an actual in-flight
+  // selection does - isLocked is the real "ignore clicks, we're mid-transition" flag.
+  const [isLocked, setIsLocked] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lowSignalFlags, setLowSignalFlags] = useState<string[]>([]);
@@ -223,6 +231,7 @@ export function SpecTestQuizFlow() {
     setOptionOrders((prev) => (prev[item.id] ? prev : { ...prev, [item.id]: shuffledCanonicalIndexes() }));
     setItemIndex(index);
     setSelectedOptionId(responses[item.id]?.optionId ?? null);
+    setIsLocked(false);
     setIsExiting(false);
 
     const needsIntro = !opts.skipIntroCheck && !shownSectionIntros.has(item.section);
@@ -255,10 +264,11 @@ export function SpecTestQuizFlow() {
   }
 
   function selectOption(optionId: string, presentedIndex: number, event: MouseEvent<HTMLButtonElement>) {
-    if (selectedOptionId) return; // already mid-transition - ignore a fast double tap
+    if (isLocked) return; // already mid-transition - ignore a fast double tap
     event.currentTarget.blur();
 
     setSelectedOptionId(optionId);
+    setIsLocked(true);
     recordAnswer(optionId, presentedIndex, false);
 
     const holdTimeout = setTimeout(() => {
@@ -270,13 +280,13 @@ export function SpecTestQuizFlow() {
   }
 
   function skipItem() {
-    if (selectedOptionId) return;
+    if (isLocked) return;
     recordAnswer(null, null, true);
     goToItem(itemIndex + 1);
   }
 
   function goBack() {
-    if (selectedOptionId || itemIndex === 0) return;
+    if (isLocked || itemIndex === 0) return;
     goToItem(itemIndex - 1, { skipIntroCheck: true });
   }
 
@@ -287,6 +297,7 @@ export function SpecTestQuizFlow() {
     setShownSectionIntros(new Set());
     setError(null);
     setSelectedOptionId(null);
+    setIsLocked(false);
     setItemIndex(0);
     // Gender is kept, not re-asked - a low-signal retake is about the answers, not the form.
     setStep("section-intro");
@@ -333,16 +344,7 @@ export function SpecTestQuizFlow() {
   if (step === "gender") {
     return (
       <div className="flex flex-col items-center gap-6 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-500">
-        <p className="rounded-2xl border border-dashed border-border/60 bg-card px-4 py-3 text-xs text-muted-foreground">
-          Current test scope: this version is designed for men attracted to women and women
-          attracted to men.
-        </p>
-        <div className="flex flex-col gap-2">
-          <h1 className="font-heading text-2xl font-bold sm:text-3xl">What&apos;s your gender?</h1>
-          <p className="text-sm text-muted-foreground">
-            This only changes who the questions describe. It doesn&apos;t affect your result.
-          </p>
-        </div>
+        <h1 className="font-heading text-2xl font-bold sm:text-3xl">What&apos;s your gender?</h1>
         <div className="flex w-full max-w-xs flex-col gap-3">
           {GENDER_OPTIONS.map((option) => (
             <button
@@ -427,7 +429,7 @@ export function SpecTestQuizFlow() {
           <button
             type="button"
             onClick={goBack}
-            disabled={!!selectedOptionId}
+            disabled={isLocked}
             aria-label="Back to previous question"
             data-testid="spec-back"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent-tint hover:text-foreground disabled:opacity-40"
@@ -442,7 +444,7 @@ export function SpecTestQuizFlow() {
         <button
           type="button"
           onClick={skipItem}
-          disabled={!!selectedOptionId}
+          disabled={isLocked}
           data-testid="spec-skip"
           className="ml-auto text-xs font-medium text-muted-foreground underline underline-offset-4 disabled:opacity-40"
         >
@@ -473,7 +475,7 @@ export function SpecTestQuizFlow() {
               <button
                 key={option.id}
                 type="button"
-                disabled={selectedOptionId !== null}
+                disabled={isLocked}
                 onClick={(event) => selectOption(option.id, presentedIndex, event)}
                 style={{ animationDelay: `${presentedIndex * 45}ms` }}
                 data-testid="spec-option"
