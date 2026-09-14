@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { requireCapability } from "@/lib/admin/access";
 import {
   getSpecTestLeads,
+  getSpecTestProfileResults,
   getSpecTestTypeDistribution,
   getSpecTestConfidenceMix,
   getSpecTestConfidenceMixByForm,
@@ -17,6 +18,10 @@ import {
   INSTRUMENT_VERSION,
 } from "@/lib/spec-test";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+const GENDER_LABELS: Record<string, string> = { male: "Man", female: "Woman" };
+const CONFIDENCE_BADGE_LABELS: Record<string, string> = { clear: "Clear", blend: "Blend", split: "Split" };
 
 const FORM_LABELS: Record<"male_user" | "female_user", string> = {
   male_user: "Woman takers (male_user)",
@@ -36,7 +41,11 @@ function formatPercent(rate: number): string {
   return `${Math.round(rate * 100)}%`;
 }
 
-export default async function AdminSpecTestLeadsPage({ searchParams }: { searchParams?: { cursor?: string } }) {
+export default async function AdminSpecTestLeadsPage({
+  searchParams,
+}: {
+  searchParams?: { cursor?: string; resultsCursor?: string };
+}) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     redirect("/login");
@@ -47,22 +56,34 @@ export default async function AdminSpecTestLeadsPage({ searchParams }: { searchP
     notFound();
   }
 
-  const [{ items, nextCursor }, typeDistribution, confidenceMix, dataSplit, itemAnalytics, confidenceMixByForm, typeDistributionByForm] =
-    await Promise.all([
-      getSpecTestLeads({ take: 50, cursor: searchParams?.cursor }),
-      getSpecTestTypeDistribution(),
-      getSpecTestConfidenceMix(INSTRUMENT_VERSION),
-      getSpecTestDataSplitCounts(INSTRUMENT_VERSION),
-      getSpecTestItemAnalytics(INSTRUMENT_VERSION),
-      getSpecTestConfidenceMixByForm(INSTRUMENT_VERSION),
-      getSpecTestTypeDistributionByForm(),
-    ]);
+  const [
+    { items, nextCursor },
+    { items: profileResults, nextCursor: profileResultsNextCursor },
+    typeDistribution,
+    confidenceMix,
+    dataSplit,
+    itemAnalytics,
+    confidenceMixByForm,
+    typeDistributionByForm,
+  ] = await Promise.all([
+    getSpecTestLeads({ take: 50, cursor: searchParams?.cursor }),
+    getSpecTestProfileResults({ take: 50, cursor: searchParams?.resultsCursor }),
+    getSpecTestTypeDistribution(),
+    getSpecTestConfidenceMix(INSTRUMENT_VERSION),
+    getSpecTestDataSplitCounts(INSTRUMENT_VERSION),
+    getSpecTestItemAnalytics(INSTRUMENT_VERSION),
+    getSpecTestConfidenceMixByForm(INSTRUMENT_VERSION),
+    getSpecTestTypeDistributionByForm(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6 md:gap-8">
       <div>
         <h1 className="text-lg font-semibold text-foreground">Spec Test</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Instrument health and everyone who asked for a copy of their result by email.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Instrument health, registered members who&rsquo;ve taken the test, and everyone who asked for a copy of
+          their result by email.
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -222,6 +243,62 @@ export default async function AdminSpecTestLeadsPage({ searchParams }: { searchP
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      <div>
+        <h2 className="mb-2 text-sm font-semibold text-foreground">Members who&rsquo;ve taken the test</h2>
+        {profileResults.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:shadow-none">
+            No registered member has taken the test yet.
+          </div>
+        ) : (
+          <>
+            <ul className="flex flex-col gap-2">
+              {profileResults.map((result) => (
+                <li
+                  key={result.id}
+                  className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm md:rounded-xl md:shadow-none"
+                >
+                  <Avatar className="h-9 w-9 shrink-0">
+                    <AvatarImage src={result.profile.avatarUrl} alt={result.profile.displayName} />
+                    <AvatarFallback className="text-xs">
+                      {result.profile.displayName.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/profile/${result.profile.username}`}
+                      className="text-sm font-medium text-foreground hover:text-primary hover:underline"
+                    >
+                      @{result.profile.username}
+                    </Link>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline">{SPEC_TYPE_READINGS[result.specType]?.name ?? result.specType}</Badge>
+                      {result.resultConfidence && CONFIDENCE_BADGE_LABELS[result.resultConfidence] && (
+                        <Badge>{CONFIDENCE_BADGE_LABELS[result.resultConfidence]}</Badge>
+                      )}
+                      {result.gender && (
+                        <span className="text-xs text-muted-foreground">{GENDER_LABELS[result.gender] ?? result.gender}</span>
+                      )}
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-xs text-muted-foreground" title={new Date(result.createdAt).toISOString()}>
+                    {formatDistanceToNow(new Date(result.createdAt), { addSuffix: true })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            {profileResultsNextCursor && (
+              <Link
+                href={`/admin/spec-test?resultsCursor=${profileResultsNextCursor}`}
+                className="mt-3 block self-center text-center text-sm font-medium text-primary hover:underline"
+              >
+                Load more
+              </Link>
+            )}
+          </>
         )}
       </div>
 

@@ -424,6 +424,73 @@ export async function getSpecTestLeads(filters: { cursor?: string; take?: number
   };
 }
 
+export type SpecTestProfileResult = {
+  id: string;
+  specType: SpecTypeKey;
+  secondarySpec: SpecTypeKey | null;
+  /** "clear" | "blend" | "split" - null only on a pre-v2 row. */
+  resultConfidence: string | null;
+  /** "male" | "female" - null on a pre-v2.1 row (see the gender-routing schema comment). */
+  gender: string | null;
+  instrumentVersion: string;
+  createdAt: Date;
+  profile: { id: string; username: string; displayName: string; avatarUrl: string };
+};
+
+/**
+ * Admin-facing view of registered members who've taken the Spec Test, most recent first - see
+ * app/(admin)/admin/spec-test/page.tsx. Deliberately distinct from getSpecTestLeads above:
+ * that list is scoped to `email is not null` (an anonymous taker who used the result page's
+ * "email me this" card), which structurally excludes every signed-in taker's result, since a
+ * signed-in submission links straight to a profile and never collects a separate email (see
+ * submit/route.ts's viewerProfileId branch). This is the complementary list, scoped to
+ * `profileId is not null` instead - a member can retake once the 30-day cooldown lifts
+ * (submit/route.ts), and each attempt shows here as its own row rather than only the latest,
+ * so an admin can see a member's spec history rather than just their current one.
+ */
+export async function getSpecTestProfileResults(filters: { cursor?: string; take?: number } = {}): Promise<{
+  items: SpecTestProfileResult[];
+  nextCursor: string | null;
+}> {
+  const take = Math.min(filters.take ?? 50, 200);
+
+  const rows = await prisma.specTestResult.findMany({
+    where: { profileId: { not: null } },
+    orderBy: { createdAt: "desc" },
+    take: take + 1,
+    ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {}),
+    select: {
+      id: true,
+      specType: true,
+      secondarySpec: true,
+      resultConfidence: true,
+      gender: true,
+      instrumentVersion: true,
+      createdAt: true,
+      profile: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+    },
+  });
+
+  const hasMore = rows.length > take;
+  const page = hasMore ? rows.slice(0, take) : rows;
+
+  return {
+    items: page.map((row) => ({
+      id: row.id,
+      specType: row.specType as SpecTypeKey,
+      secondarySpec: row.secondarySpec as SpecTypeKey | null,
+      resultConfidence: row.resultConfidence,
+      gender: row.gender,
+      instrumentVersion: row.instrumentVersion,
+      createdAt: row.createdAt,
+      // The `profileId: { not: null }` filter guarantees this relation resolves - same
+      // non-null-assertion pattern as `email!` in getSpecTestLeads above.
+      profile: row.profile!,
+    })),
+    nextCursor: hasMore ? page[page.length - 1].id : null,
+  };
+}
+
 /**
  * Called right after a new account is created (see app/api/signup/route.ts and
  * ensureProfileForAuthUser in lib/auth.ts) so a Spec Test result someone took before they
