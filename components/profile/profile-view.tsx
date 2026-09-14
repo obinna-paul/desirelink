@@ -5,6 +5,7 @@ import {
   Bookmark,
   BriefcaseBusiness,
   CalendarDays,
+  Fingerprint,
   LayoutGrid,
   LockKeyhole,
   MapPin,
@@ -29,6 +30,7 @@ import { ShareProfileButton } from "@/components/profile/share-profile-button";
 import { SwipeableSection } from "@/components/profile/swipeable-section";
 import { VerificationBadge } from "@/components/profile/verification-badge";
 import { AccountTypeBadge } from "@/components/profile/account-type-badge";
+import { archetypeDisplayName } from "@/lib/spec-test/archetype-labels";
 import type { PresenceStatus } from "@/lib/presence";
 import { ReviewDialog } from "@/components/reviews/review-dialog";
 import { ReviewsSection } from "@/components/reviews/reviews-section";
@@ -134,6 +136,7 @@ export function ProfileView({
       displayName: string;
       avatarUrl: string;
     } | null;
+    specTestResults: { specType: string }[];
   };
   posts: PostView[];
   tiers: PublicTierView[];
@@ -160,6 +163,7 @@ export function ProfileView({
   const section = normalizeSection(visibleSections, activeSection);
   const visibleFields = new Set(visibleProfileFields);
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
+  const specLabel = profile.specShownPublicly ? archetypeDisplayName(profile.specTestResults[0]?.specType) : null;
   const freePosts = posts.filter((post) => !post.isSubscriberOnly);
   const premiumPosts = posts.filter((post) => post.isSubscriberOnly);
   const subscriptionReviewContexts = isProvider
@@ -213,6 +217,12 @@ export function ProfileView({
             </h1>
             <AccountTypeBadge profileType={profile.profileType} />
             <VerificationBadge profile={profile} />
+            {specLabel && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/70 bg-accent-tint px-2 py-0.5 text-xs font-medium text-foreground">
+                <Fingerprint className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+                Reads as {specLabel}
+              </span>
+            )}
           </div>
 
           <div

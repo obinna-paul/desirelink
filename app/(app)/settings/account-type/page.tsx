@@ -52,6 +52,7 @@ export default async function AccountTypeSettingsPage({
       showExactLocation: true,
       showActivityStatus: true,
       isIncognito: true,
+      specShownPublicly: true,
     },
   });
   if (!profile) {

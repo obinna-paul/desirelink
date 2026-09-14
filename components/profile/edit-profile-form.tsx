@@ -40,7 +40,8 @@ type BooleanFieldName =
   | "showInSearch"
   | "showExactLocation"
   | "showActivityStatus"
-  | "isIncognito";
+  | "isIncognito"
+  | "specShownPublicly";
 
 export type EditableSectionId =
   | "basics"
@@ -245,6 +246,7 @@ export function EditProfileForm({
       showExactLocation: profile.showExactLocation,
       showActivityStatus: profile.showActivityStatus,
       isIncognito: profile.isIncognito,
+      specShownPublicly: profile.specShownPublicly,
     },
   });
 
@@ -400,6 +402,14 @@ export function EditProfileForm({
               control={control}
               name="isIncognito"
             />
+            {latestSpecResultId && (
+              <ToggleRow
+                label="Show your spec on your profile"
+                description="Let others see a 'Reads as' badge from your Spec Test result. Off by default."
+                control={control}
+                name="specShownPublicly"
+              />
+            )}
           </div>
         </SectionShell>
       );

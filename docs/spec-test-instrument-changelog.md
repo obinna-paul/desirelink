@@ -656,11 +656,72 @@ app routes under the same session cookie, so a signed-in taker never actually le
 session by visiting `/spec-test/quiz`.
 
 **Sparkle icon removed everywhere**, not just the result page (per explicit instruction): the
-admin nav's "Spec Test leads" link now uses `Compass` (also the new nudge modal and settings
-row's icon) instead of `Sparkles`.
+admin nav's "Spec Test leads" link now uses a non-sparkle icon (also the new nudge modal and
+settings row's icon) instead of `Sparkles` - see the icon note in the next entry below for why
+it changed again shortly after this one.
 
 **Tests.** New coverage in `__tests__/api/spec-test-submit-route.test.ts` (signed-in submission
 links `profileId` immediately; a retake inside 30 days is rejected with no row written; a retake
 past 30 days succeeds) and `__tests__/app/spec-test-result-page.test.tsx` (signed-in viewer sees
 the confirmation/back-to-app CTA, never the anonymous Join card or email form). Full suite: 568
 tests, 100 suites, all green.
+
+## spec-v2.1 — Phase 2: spec shown publicly, filterable in Discover, used in ranking
+
+**Why.** Direct follow-up to Phase 1: identity and settings were wired up, but a taker's spec
+still did nothing for them beyond their own account - it wasn't visible to anyone else,
+couldn't be searched for, and had zero influence on who Discover or the home "Recommended for
+you" rail actually showed them. This closes the loop the original ask was really about: "if my
+result is Soft Landing, how do I find who will give me that."
+
+**Two separate consent boundaries, not one.** `Profile.specShownPublicly` (new column, default
+`false`) gates whether a taker's spec is ever *shown* to anyone else - a badge on their profile
+card/page, and eligibility for the Discover spec filter. It does NOT gate whether the spec is
+*used* internally for ranking: that runs unconditionally once a spec exists, the same default
+every other behavioral signal in this codebase already uses (`CreatorAffinity`, search
+interactions, etc. have no per-signal opt-out either). A Spec Test result is materially more
+intimate than a bio (attachment style, dating patterns), so *display* gets its own explicit
+opt-in; *use* doesn't need one to stay consistent with how the rest of the app already treats
+personalization data.
+
+**The compatibility table** (`lib/spec-test/compatibility.ts`, new): `SPEC_COMPATIBILITY` maps
+each archetype to a ranked list of complements, directly transcribed from that archetype's own
+`longTermFit` paragraph in `readings-v2.ts` (each one already names its ideal partner in prose -
+this just formalizes it). Explicitly documented as hand-authored and provisional, same status as
+the archetype centroids in `scoring/archetypes.ts` - it should be re-derived from real
+reply-rate/retention data crossed by (viewer spec x candidate spec) once enough exists, logged
+here as a scoring change when that happens, not folded in as a copy edit.
+
+**Where it shows up:**
+- **Profile badge.** `components/home/profile-card.tsx` (every card grid: Discover, search,
+  home) and the full profile page (`components/profile/profile-view.tsx`) render "Reads as
+  {spec}" whenever `specShownPublicly` is true and a result exists. Toggle lives in profile
+  settings' Privacy section, only shown once a spec exists to show.
+- **Discover filter.** A new "Spec" multi-select in the existing filter panel
+  (`lib/discover.ts`'s `DiscoverFilters.specTypes`) - `where.specTestResults` scoped to
+  candidates with `specShownPublicly: true`, so the filter can never be used to probe someone's
+  private result.
+- **Ranking.** Both places this codebase already ranks people got a new term: the home
+  "Recommended for you" rail (`lib/recommendations.ts`) adds up to +15 points and a "Great spec
+  match" / "Shares your spec" reason chip (the rail's own subtitle already promised "preference
+  overlap" - this is the first term that actually delivers it); Discover's "Recommended for you"
+  sort (`lib/ranking/people-scoring.ts`) adds a new `spec: 0.1` weight, reweighting the existing
+  terms down slightly to make room. Both contribute exactly 0, never a penalty, whenever either
+  side hasn't taken the test - the common case today.
+
+**Icon note.** `Compass` was already claimed by `AccountTypeBadge`'s Explorer icon and would
+have collided in the same badge row on the profile page - switched every spec-test icon
+(nudge modal, settings row, admin nav, the new badges) to `Fingerprint` instead, still never
+`Sparkles`.
+
+**Tests.** New: `__tests__/lib/spec-test/compatibility.test.ts` (weight table behavior - no
+penalty for an untaken test, same-spec credit, complement tapering, every archetype has a valid
+non-empty list), `__tests__/lib/recommendations.test.ts` (spec term boosts and explains a
+complement, credits but doesn't over-credit a shared spec, never penalizes an untaken test),
+new cases in `__tests__/lib/ranking/people-scoring.test.ts` (spec-compatible candidate outranks
+an identical one without the signal) and `__tests__/lib/discover.test.ts` (the spec filter's
+`where` clause, including that an unrecognized value is dropped rather than breaking the
+filter), plus updated fixtures in `__tests__/components/profile-card.test.tsx` (badge shown
+only when `specShownPublicly` is true and a result exists) and
+`__tests__/api/profile-account-type-upgrade.test.ts`. Full suite: 581 tests, 102 suites, all
+green.

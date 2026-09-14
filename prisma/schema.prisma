@@ -230,6 +230,15 @@ model Profile {
   showInSearch              Boolean   @default(true)
   showExactLocation         Boolean   @default(false)
   showActivityStatus        Boolean   @default(true)
+  /**
+   * Shows a "Reads as: <spec>" badge on this profile's cards and page - off by default. A
+   * Spec Test result is more intimate than a bio (attachment style, dating patterns), so
+   * displaying it to other users is opt-in, separate from using it internally for ranking
+   * (see lib/spec-test/compatibility.ts), which needs no separate consent - same behavioral-
+   * signal default every other ranking input in this codebase already uses (CreatorAffinity,
+   * search interactions, etc. have no per-signal opt-out either).
+   */
+  specShownPublicly         Boolean   @default(false)
   isVerified                Boolean   @default(false)
   isVerifiedCreator         Boolean   @default(false)
   isVerifiedServiceProvider Boolean   @default(false)

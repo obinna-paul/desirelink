@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { BadgeCheck, MapPin, Radio } from "lucide-react";
+import { BadgeCheck, Fingerprint, MapPin, Radio } from "lucide-react";
 
 import type { ProfileCardData } from "@/lib/home-feed";
 import { AVAILABILITY_STATUS_LABELS } from "@/lib/availability-options";
+import { archetypeDisplayName } from "@/lib/spec-test/archetype-labels";
 
 export function ProfileCard({
   profile,
@@ -23,6 +24,7 @@ export function ProfileCard({
       : null;
   const locationLabel = distanceLabel ?? (profile.showExactLocation ? preciseLocation : "");
   const activeStatus = profile.availabilityStatuses[0];
+  const specLabel = profile.specShownPublicly ? archetypeDisplayName(profile.specTestResults[0]?.specType) : null;
 
   return (
     <Link
@@ -75,6 +77,12 @@ export function ProfileCard({
             <p className="mt-1 flex items-center gap-1 truncate text-[10px] text-white/80 md:text-xs">
               <MapPin className="h-3 w-3 shrink-0" aria-hidden="true" />
               <span className="truncate">{locationLabel}</span>
+            </p>
+          )}
+          {specLabel && (
+            <p className="mt-1 flex items-center gap-1 truncate text-[10px] font-medium text-white/90 md:text-xs">
+              <Fingerprint className="h-3 w-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">Reads as {specLabel}</span>
             </p>
           )}
         </div>

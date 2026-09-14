@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Compass } from "lucide-react";
+import { ChevronRight, Fingerprint } from "lucide-react";
 
 import { SpecTestNudgeModal } from "@/components/spec-test/spec-test-nudge-modal";
 
@@ -18,7 +18,7 @@ function RowContent({ description }: { description: string }) {
   return (
     <>
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-foreground md:rounded-xl md:border md:border-border md:text-primary">
-        <Compass className="h-4 w-4" aria-hidden="true" />
+        <Fingerprint className="h-4 w-4" aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold">What&rsquo;s your spec?</span>

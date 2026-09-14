@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Compass, X } from "lucide-react";
+import { Fingerprint, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/lib/use-focus-trap";
@@ -89,7 +89,7 @@ export function SpecTestNudgeModal({ variant, onClose }: { variant: "global" | "
         {deferred ? (
           <div className="flex flex-col gap-4 p-7 sm:p-8">
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-tint">
-              <Compass className="h-5 w-5 text-primary" aria-hidden="true" />
+              <Fingerprint className="h-5 w-5 text-primary" aria-hidden="true" />
             </span>
             <p className="text-[15px] leading-relaxed text-foreground">
               No problem. You can take the Spec Test anytime from{" "}
@@ -103,7 +103,7 @@ export function SpecTestNudgeModal({ variant, onClose }: { variant: "global" | "
           <div className="flex flex-col gap-6 p-7 sm:p-8">
             <div>
               <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-                <Compass className="h-3.5 w-3.5" aria-hidden="true" />
+                <Fingerprint className="h-3.5 w-3.5" aria-hidden="true" />
                 The Spec Test
               </p>
               <h2 id="spec-test-nudge-title" className="mt-3 text-balance font-heading text-2xl font-semibold leading-tight text-foreground">

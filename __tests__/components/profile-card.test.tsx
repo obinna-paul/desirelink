@@ -21,6 +21,8 @@ function profile(overrides: Partial<ProfileCardData> = {}): ProfileCardData {
     verificationPending: false,
     isTrustedMember: false,
     availabilityStatuses: [{ status: "available_tonight", expiresAt: new Date(Date.now() + 60 * 60 * 1000) }],
+    specShownPublicly: false,
+    specTestResults: [],
     ...overrides,
   };
 }
@@ -35,5 +37,20 @@ describe("ProfileCard", () => {
     expect(screen.getByText("Lagos, NG")).toBeInTheDocument();
     expect(screen.getByText("91% match")).toBeInTheDocument();
     expect(container.querySelector('[aria-label="Verified"]')).toBeInTheDocument();
+  });
+
+  it("shows a spec badge only when the profile has opted into showing it", () => {
+    const { rerender } = render(
+      <ProfileCard profile={profile({ specShownPublicly: false, specTestResults: [{ specType: "soft_landing" }] })} />,
+    );
+    expect(screen.queryByText(/Reads as/)).not.toBeInTheDocument();
+
+    rerender(<ProfileCard profile={profile({ specShownPublicly: true, specTestResults: [{ specType: "soft_landing" }] })} />);
+    expect(screen.getByText("Reads as Soft Landing")).toBeInTheDocument();
+  });
+
+  it("shows no spec badge when the profile opted in but has no linked result", () => {
+    render(<ProfileCard profile={profile({ specShownPublicly: true, specTestResults: [] })} />);
+    expect(screen.queryByText(/Reads as/)).not.toBeInTheDocument();
   });
 });
