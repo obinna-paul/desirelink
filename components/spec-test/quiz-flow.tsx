@@ -343,6 +343,16 @@ export function SpecTestQuizFlow() {
       const body = await res.json().catch(() => null);
 
       if (!res.ok) {
+        // The retake-cooldown rejection (see submit/route.ts) means this taker already has a
+        // scored result - most commonly reached here via a stale, fully-answered draft that
+        // auto-resubmits on reopening the quiz (computeInitialStep resumes straight into
+        // "submitting"). Sending them to that existing result instead of a dead "Try again"
+        // loop is the only path forward that isn't just repeating the same rejected request.
+        if (typeof body?.resultId === "string") {
+          clearDraft();
+          router.push(`/spec-test/result/${body.resultId}`);
+          return;
+        }
         setError(body?.error ?? "Something went wrong scoring your answers. Please try again.");
         return;
       }

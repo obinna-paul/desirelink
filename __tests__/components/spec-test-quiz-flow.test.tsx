@@ -232,6 +232,33 @@ describe("SpecTestQuizFlow (v2)", () => {
     expect(await screen.findByText(renderTerms(hostingItem.prompt, "female_user"))).toBeInTheDocument();
   });
 
+  it("redirects to the taker's existing result on a retake-cooldown rejection, instead of dead-ending on a retry loop", async () => {
+    // Mirrors the real-world trigger: a fully-answered draft auto-resubmits on reopening the
+    // quiz (computeInitialStep resumes straight into "submitting"), and the server rejects it
+    // because this taker already has a result within the 30-day cooldown (submit/route.ts).
+    server.use(
+      rest.post(SUBMIT_URL, async (_req, res, ctx) =>
+        res(
+          ctx.status(429),
+          ctx.json({
+            error: "You can retake the Spec Test on October 14.",
+            nextEligibleAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+            resultId: "already-scored-result",
+          }),
+        ),
+      ),
+    );
+
+    render(<SpecTestQuizFlow />);
+    await startQuiz();
+    await completeAllItems();
+
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith("/spec-test/result/already-scored-result"));
+    // Never shows the dead "Try again" retry state for this case - there's somewhere useful
+    // to go instead.
+    expect(screen.queryByText(/retake the Spec Test/i)).not.toBeInTheDocument();
+  });
+
   it("persists progress across a remount (draft survives a reload)", async () => {
     const first = render(<SpecTestQuizFlow />);
     await startQuiz();

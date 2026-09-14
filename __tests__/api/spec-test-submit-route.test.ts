@@ -288,10 +288,11 @@ describe("POST /api/spec-test/submit - signed-in taker", () => {
     expect(mockCookieStore.set).not.toHaveBeenCalled();
   });
 
-  it("rejects a retake within the 30-day cooldown without creating a row", async () => {
+  it("rejects a retake within the 30-day cooldown without creating a row, but returns the existing result's id", async () => {
     mockSession.mockResolvedValue({ user: { id: "user-1" } });
     mockPrisma.profile.findUnique.mockResolvedValue({ id: "profile-1" });
     mockPrisma.specTestResult.findFirst.mockResolvedValue({
+      id: "already-scored-result",
       createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
     });
 
@@ -299,8 +300,11 @@ describe("POST /api/spec-test/submit - signed-in taker", () => {
 
     expect(response.status).toBe(429);
     expect(mockPrisma.specTestResult.create).not.toHaveBeenCalled();
-    const body = (response as unknown as { body: { error: string; nextEligibleAt: string } }).body;
+    const body = (response as unknown as { body: { error: string; nextEligibleAt: string; resultId: string } }).body;
     expect(new Date(body.nextEligibleAt).getTime()).toBeGreaterThan(Date.now());
+    // The client (quiz-flow.tsx) uses this to send a taker straight to their existing result
+    // instead of a dead "Try again" loop - see that component's submit().
+    expect(body.resultId).toBe("already-scored-result");
   });
 
   it("allows a retake once the 30-day cooldown has passed", async () => {

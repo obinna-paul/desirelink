@@ -330,6 +330,15 @@ export default function SignupPage() {
               {serverError && (
                 <p role="alert" className="text-sm text-[#b42318]">
                   {serverError}
+                  {serverError.includes("account with this email already exists") && (
+                    <>
+                      {" "}
+                      <Link href="/login" className="font-semibold underline underline-offset-4">
+                        Log in instead
+                      </Link>
+                      .
+                    </>
+                  )}
                 </p>
               )}
 

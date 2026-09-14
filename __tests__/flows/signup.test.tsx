@@ -59,4 +59,31 @@ describe("signup flow", () => {
     expect(navigation.__mockRouter.push).toHaveBeenCalledWith("/verify-email");
     expect(navigation.__mockRouter.refresh).toHaveBeenCalled();
   });
+
+  it("offers a way to log in instead when the email already has an account", async () => {
+    server.use(
+      rest.post("http://localhost/api/signup", async (_req, res, ctx) =>
+        res(ctx.status(409), ctx.json({ error: "An account with this email already exists" })),
+      ),
+    );
+
+    const user = userEvent.setup();
+    render(<SignupPage />);
+
+    await user.type(screen.getByLabelText(/^name$/i), "Ada Lovelace");
+    await user.type(screen.getByLabelText(/^username$/i), "adalovelace2");
+    await user.type(screen.getByLabelText(/email/i), "ada@example.com");
+    await user.type(screen.getByLabelText(/^password$/i), "password123");
+    await user.type(screen.getByLabelText(/confirm password/i), "password123");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await user.click(screen.getByRole("button", { name: /create account/i }));
+
+    expect(await screen.findByText(/An account with this email already exists/)).toBeInTheDocument();
+    const loginLink = screen.getByRole("link", { name: "Log in instead" });
+    expect(loginLink).toHaveAttribute("href", "/login");
+    // Never proceeds as if signup succeeded - no credentials sign-in attempt, no redirect.
+    expect(mockSignIn).not.toHaveBeenCalled();
+    expect(navigation.__mockRouter.push).not.toHaveBeenCalledWith("/verify-email");
+  });
 });
