@@ -69,7 +69,10 @@ export function DiscoverInfiniteGrid({
 
   return (
     <>
-      <ProfileGrid profiles={profiles} emptyMessage={emptyMessage} />
+      {/* Discover's card is small and already carries location/distance - its one piece of
+          scannable identity for browsing strangers - so the spec badge is left off rather
+          than crowding that out (see ProfileCard's own showSpec doc comment). */}
+      <ProfileGrid profiles={profiles} emptyMessage={emptyMessage} showSpec={false} />
       {hasMore && (
         <div ref={sentinelRef} className="flex justify-center py-6">
           {loading && <span className="text-sm text-muted-foreground">Loading more...</span>}

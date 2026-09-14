@@ -4,9 +4,11 @@ import type { ProfileCardData } from "@/lib/home-feed";
 export function ProfileGrid({
   profiles,
   emptyMessage,
+  showSpec = true,
 }: {
   profiles: ProfileCardData[];
   emptyMessage: string;
+  showSpec?: boolean;
 }) {
   if (profiles.length === 0) {
     return (
@@ -19,7 +21,7 @@ export function ProfileGrid({
   return (
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-4 xl:grid-cols-4">
       {profiles.map((profile) => (
-        <ProfileCard key={profile.id} profile={profile} />
+        <ProfileCard key={profile.id} profile={profile} showSpec={showSpec} />
       ))}
     </div>
   );

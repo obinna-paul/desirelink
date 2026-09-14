@@ -54,6 +54,23 @@ describe("ProfileCard", () => {
     expect(screen.queryByText(/My spec is/)).not.toBeInTheDocument();
   });
 
+  it("never shows the spec badge when showSpec is false, even if the profile opted in - Discover's own small card", () => {
+    render(
+      <ProfileCard
+        profile={profile({
+          specShownPublicly: true,
+          specTestResults: [{ specType: "soft_landing" }],
+          showExactLocation: true,
+        })}
+        showSpec={false}
+      />,
+    );
+
+    expect(screen.queryByText(/My spec is/)).not.toBeInTheDocument();
+    // Never displaces location/distance - it's just never shown here at all.
+    expect(screen.getByText("Lagos, NG")).toBeInTheDocument();
+  });
+
   it("opens a snapshot popup on badge click instead of navigating the card's own link", () => {
     render(<ProfileCard profile={profile({ specShownPublicly: true, specTestResults: [{ specType: "soft_landing" }] })} matchScore={91} />);
 

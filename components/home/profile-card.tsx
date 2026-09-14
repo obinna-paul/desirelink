@@ -9,9 +9,15 @@ import { SpecBadge } from "@/components/spec-test/spec-badge";
 export function ProfileCard({
   profile,
   matchScore,
+  showSpec = true,
 }: {
   profile: ProfileCardData;
   matchScore?: number;
+  /** Discover intentionally opts out (components/discover/discover-infinite-grid.tsx) - the
+   *  card there is small and already carries location/distance, its one piece of scannable
+   *  identity for browsing strangers; the spec badge crowded that out rather than sitting
+   *  alongside it. Defaults to true so every other caller (home feed, search) is unaffected. */
+  showSpec?: boolean;
 }) {
   const initials = profile.displayName.slice(0, 2).toUpperCase();
   const isVerifiedProvider = profile.isVerified || profile.isVerifiedCreator;
@@ -78,7 +84,7 @@ export function ProfileCard({
               <span className="truncate">{locationLabel}</span>
             </p>
           )}
-          {profile.specShownPublicly && (
+          {showSpec && profile.specShownPublicly && (
             <SpecBadge specType={profile.specTestResults[0]?.specType} variant="card" />
           )}
         </div>
