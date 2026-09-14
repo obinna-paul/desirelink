@@ -18,6 +18,7 @@ import {
   isHlsVideoSource,
   type VideoTapZone,
 } from "@/lib/video-playback";
+import { cn } from "@/lib/utils";
 
 type PlaybackState = "loading" | "ready" | "playing" | "paused" | "error";
 type SeekDirection = Extract<VideoTapZone, "backward" | "forward">;
@@ -442,28 +443,44 @@ export function PostVideoPlayer({
       >
         {muted ? <VolumeX className="h-4 w-4" aria-hidden="true" /> : <Volume2 className="h-4 w-4" aria-hidden="true" />}
       </button>
-      <label
+      <details
         data-video-control="true"
         data-post-carousel-control="true"
         className="absolute bottom-3 right-3"
       >
-        <span className="sr-only">Playback speed</span>
-        <select
-          value={playbackRate}
-          onChange={(event) => {
-            const nextRate = Number(event.target.value) as (typeof PLAYBACK_RATES)[number];
-            setPlaybackRate(nextRate);
-          }}
+        <summary
           aria-label="Playback speed"
-          className="h-11 min-w-12 cursor-pointer appearance-none rounded-full border-0 bg-black/50 px-2 text-center text-xs font-semibold text-white shadow-none outline-none backdrop-blur transition-colors hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-white"
+          className="flex h-11 min-w-12 cursor-pointer list-none items-center justify-center rounded-full bg-black/50 px-3 text-center text-xs font-semibold tabular-nums text-white backdrop-blur transition-colors hover:bg-black/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white [&::-webkit-details-marker]:hidden"
+        >
+          {playbackRate}x
+        </summary>
+        <div
+          role="radiogroup"
+          aria-label="Playback speed"
+          className="absolute bottom-14 right-0 z-10 flex flex-col gap-1 rounded-2xl border border-white/10 bg-black/80 p-1.5 shadow-lift backdrop-blur-md"
         >
           {PLAYBACK_RATES.map((rate) => (
-            <option key={rate} value={rate} className="bg-black text-white">
+            <button
+              key={rate}
+              type="button"
+              role="radio"
+              aria-checked={playbackRate === rate}
+              onClick={(event) => {
+                setPlaybackRate(rate);
+                event.currentTarget.closest("details")?.removeAttribute("open");
+              }}
+              className={cn(
+                "min-h-9 min-w-12 rounded-full px-3 text-xs font-semibold tabular-nums transition-colors",
+                playbackRate === rate
+                  ? "bg-white text-black"
+                  : "text-white/80 hover:bg-white/10 hover:text-white",
+              )}
+            >
               {rate}x
-            </option>
+            </button>
           ))}
-        </select>
-      </label>
+        </div>
+      </details>
     </div>
   );
 }
