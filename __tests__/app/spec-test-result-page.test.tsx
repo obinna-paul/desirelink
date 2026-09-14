@@ -136,6 +136,9 @@ describe("Spec Test result page", () => {
     // No dating-loop section when nothing converged, no split twist on a clear result.
     expect(screen.queryByText("Your likely dating loop")).not.toBeInTheDocument();
     expect(screen.queryByText(/Spark answers lean/)).not.toBeInTheDocument();
+
+    // Invites a friend to take the quiz themselves - never "share my result".
+    expect(screen.getByRole("button", { name: "Invite a friend to take it" })).toBeInTheDocument();
   });
 
   it("omits the attachment section when no attachment item was ever answered", async () => {
@@ -209,6 +212,8 @@ describe("Spec Test result page", () => {
     expect(screen.getByText("Take the new one")).toBeInTheDocument();
     // v1 rows never show the v2-only disclaimer/confidence copy.
     expect(screen.queryByText("Strong match")).not.toBeInTheDocument();
+    // The invite-a-friend share action is shared across v1 and v2 rows.
+    expect(screen.getByRole("button", { name: "Invite a friend to take it" })).toBeInTheDocument();
   });
 
   it("builds metadata from the composed v2 headline", async () => {
@@ -228,5 +233,7 @@ describe("Spec Test result page", () => {
     expect(screen.getByText("Back to Udala")).toBeInTheDocument();
     expect(screen.queryByText("Join Udala")).not.toBeInTheDocument();
     expect(screen.queryByText("Want a copy of this in your inbox?")).not.toBeInTheDocument();
+    // A signed-in taker can still invite a friend to take the quiz.
+    expect(screen.getByRole("button", { name: "Invite a friend to take it" })).toBeInTheDocument();
   });
 });

@@ -8,6 +8,7 @@ import { ArrowRight, Check, ChevronDown } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { Button } from "@/components/ui/button";
+import { ShareButton } from "@/components/ui/share-button";
 import { EmailCaptureForm } from "@/components/spec-test/email-capture-form";
 import { AgeBadge } from "@/components/spec-test/age-badge";
 import { authOptions } from "@/lib/auth";
@@ -148,8 +149,21 @@ function LearnMoreDisclosure({ children }: { children: React.ReactNode }) {
 // A signed-in taker's result is already linked to their account the moment they submitted
 // it (see app/api/spec-test/submit/route.ts's viewerProfileId) - no email step needed, and
 // "Join Udala" would be a strange thing to say to someone already a member. They get a
-// plain confirmation and a way back into the app instead.
-function JoinCta({ resultId, isSignedIn }: { resultId: string; isSignedIn: boolean }) {
+// plain confirmation and a way back into the app instead. Either way, the share action always
+// invites a friend to take the quiz themselves (href points at /spec-test, the quiz's own
+// landing page, never this taker's personal result) - not "share my result," since a result
+// is a private reading about the taker, not something meant to circulate on its own.
+function JoinCta({ resultId, specName, isSignedIn }: { resultId: string; specName: string; isSignedIn: boolean }) {
+  const inviteShare = (
+    <ShareButton
+      href="/spec-test"
+      title={`I got ${specName} on the Spec Test. Take it and see what you get.`}
+      label="Invite a friend to take it"
+      variant="ghost"
+      className="text-muted-foreground"
+    />
+  );
+
   if (isSignedIn) {
     return (
       <RevealSection delayMs={700} className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-card p-6 text-center shadow-card">
@@ -166,6 +180,7 @@ function JoinCta({ resultId, isSignedIn }: { resultId: string; isSignedIn: boole
             <ArrowRight className="h-5 w-5" aria-hidden="true" />
           </Link>
         </Button>
+        {inviteShare}
       </RevealSection>
     );
   }
@@ -182,6 +197,7 @@ function JoinCta({ resultId, isSignedIn }: { resultId: string; isSignedIn: boole
           <ArrowRight className="h-5 w-5" aria-hidden="true" />
         </Link>
       </Button>
+      {inviteShare}
 
       <div className="mt-2 w-full max-w-sm border-t border-border/60 pt-6">
         <p className="mb-3 text-sm font-medium">Want a copy of this in your inbox?</p>
@@ -263,7 +279,7 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
             </RevealSection>
           </LearnMoreDisclosure>
 
-          <JoinCta resultId={params.id} isSignedIn={isSignedIn} />
+          <JoinCta resultId={params.id} specName={v1.name} isSignedIn={isSignedIn} />
         </main>
 
         <PublicFooter />
@@ -390,8 +406,8 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
           </RevealSection>
         </LearnMoreDisclosure>
 
-        {/* 12. Share card */}
-        <JoinCta resultId={params.id} isSignedIn={isSignedIn} />
+        {/* 12. Join / back-to-app card, with an invite-a-friend share action */}
+        <JoinCta resultId={params.id} specName={copy.headline.name} isSignedIn={isSignedIn} />
       </main>
 
       <PublicFooter />

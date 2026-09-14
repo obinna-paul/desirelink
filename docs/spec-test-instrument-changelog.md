@@ -774,3 +774,25 @@ linked via an active session). The OAuth path (`ensureProfileForAuthUser`) reuse
 `claimSpecTestResultById`/`readSpecTestResultCookie` already covered by the signup-route tests,
 consistent with this file having no existing dedicated test harness of its own. Full suite: 583
 tests, 103 suites, all green.
+
+## spec-v2.1 — Invite-a-friend share action on the result page
+
+**Why.** Direct question: is there a share button, and if so it shouldn't share the taker's own
+result - it should invite a friend to take the test themselves, since that's what actually
+grows who takes it. There was no share button on the result page at all before this (the
+`{/* 12. Share card */}` comment labeling the Join/Back CTA block was aspirational, not
+describing anything that existed).
+
+**What it does.** `JoinCta` (`app/spec-test/result/[id]/page.tsx`) now renders the existing
+`components/ui/share-button.tsx` (already used elsewhere in the app for events/services/posts -
+reused rather than building a new one) pointed at `/spec-test`, the quiz's own public landing
+page - never this taker's personal result URL. The share title uses the taker's own archetype
+as a curiosity hook without disclosing the reading itself: "I got {spec name} on the Spec Test.
+Take it and see what you get." Shown in both the signed-in and anonymous branches of `JoinCta`,
+and on both v1 and v2 result rows - inviting a friend is independent of whether the taker is
+already a member.
+
+**Tests.** New assertions in `__tests__/app/spec-test-result-page.test.tsx`: the invite button
+renders on a full v2 result, a signed-in result, and a v1 legacy result. Full suite: 584 tests,
+103 suites, all green (`ShareButton` itself has no dedicated test file - pre-existing, already
+shipped in three other places in the app, so none was added for this integration either).
