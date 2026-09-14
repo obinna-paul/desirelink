@@ -8,7 +8,13 @@ import { Download, EllipsisVertical, Share, Smartphone, SquarePlus, X } from "lu
 import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { isMobileDevice } from "@/lib/device";
-import { clearInstallCompleted, hasCompletedInstall, markInstallCompleted } from "@/lib/pwa-install-storage";
+import {
+  clearInstallCompleted,
+  hasCompletedInstall,
+  hasDismissedInstallPromptToday,
+  markInstallCompleted,
+  markInstallPromptDismissed,
+} from "@/lib/pwa-install-storage";
 
 type InstallChoice = { outcome: "accepted" | "dismissed"; platform: string };
 
@@ -73,6 +79,12 @@ export function PwaInstallPrompt() {
 
     let cancelled = false;
 
+    // Checked once per mount, same as hasCompletedInstall() below - a persisted same-day
+    // dismissal stays honored even if this component remounts mid-visit (a tab reload from
+    // backgrounding), without blocking platform detection or the install-event listeners
+    // from running normally in the background.
+    if (hasDismissedInstallPromptToday()) setDismissedForVisit(true);
+
     const revealCapturedPrompt = () => {
       if (window.__udalaInstallPrompt) {
         setInstallEvent(window.__udalaInstallPrompt);
@@ -85,7 +97,11 @@ export function PwaInstallPrompt() {
       window.__udalaInstallPrompt = promptEvent;
       setInstallEvent(promptEvent);
       setPlatform("android");
-      setDismissedForVisit(false);
+      // A backgrounded mobile tab can get silently discarded and reloaded under memory
+      // pressure, remounting this component and re-firing beforeinstallprompt on nothing
+      // more than a tab switch - only clear an already-persisted "dismissed today" if the
+      // taker hasn't actually dismissed it today, or that reload would undo the dismissal.
+      if (!hasDismissedInstallPromptToday()) setDismissedForVisit(false);
     };
     const handleInstalled = () => {
       markInstallCompleted();
@@ -219,6 +235,14 @@ export function PwaInstallPrompt() {
     };
   }, [showAndroidGuide, showIosGuide]);
 
+  /** Cancelling any form of the prompt - the banner's own X, declining the browser's native
+   *  install dialog, or closing the "how to install" instructions - persists the dismissal
+   *  for the rest of today (see markInstallPromptDismissed's own doc comment for why). */
+  function dismissForToday() {
+    markInstallPromptDismissed();
+    setDismissedForVisit(true);
+  }
+
   async function handleInstall() {
     if (platform === "ios") {
       setShowIosGuide(true);
@@ -233,10 +257,13 @@ export function PwaInstallPrompt() {
     setInstalling(true);
     try {
       await installEvent.prompt();
+      // Doesn't branch on outcome: "dismissed" is exactly a cancel (persist for today), and
+      // "accepted" is superseded moments later by the appinstalled listener's own permanent
+      // markInstallCompleted() - harmless to also persist a same-day dismissal here first.
       await installEvent.userChoice;
       window.__udalaInstallPrompt = null;
       setInstallEvent(null);
-      setDismissedForVisit(true);
+      dismissForToday();
     } finally {
       setInstalling(false);
     }
@@ -286,7 +313,7 @@ export function PwaInstallPrompt() {
           </button>
           <button
             type="button"
-            onClick={() => setDismissedForVisit(true)}
+            onClick={dismissForToday}
             aria-label="Not now"
             className="flex h-11 w-8 shrink-0 items-center justify-center rounded-md text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
           >
@@ -349,7 +376,7 @@ export function PwaInstallPrompt() {
               type="button"
               onClick={() => {
                 setShowIosGuide(false);
-                setDismissedForVisit(true);
+                dismissForToday();
               }}
               className="mt-7 w-full bg-[#050505] text-white hover:bg-[#1b1b1b]"
             >
@@ -423,7 +450,7 @@ export function PwaInstallPrompt() {
               type="button"
               onClick={() => {
                 setShowAndroidGuide(false);
-                setDismissedForVisit(true);
+                dismissForToday();
               }}
               className="mt-7 w-full bg-[#050505] text-white hover:bg-[#1b1b1b]"
             >
