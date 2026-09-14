@@ -231,14 +231,17 @@ model Profile {
   showExactLocation         Boolean   @default(false)
   showActivityStatus        Boolean   @default(true)
   /**
-   * Shows a "My spec is: <spec>" badge on this profile's cards and page - off by default. A
-   * Spec Test result is more intimate than a bio (attachment style, dating patterns), so
-   * displaying it to other users is opt-in, separate from using it internally for ranking
-   * (see lib/spec-test/compatibility.ts), which needs no separate consent - same behavioral-
-   * signal default every other ranking input in this codebase already uses (CreatorAffinity,
-   * search interactions, etc. have no per-signal opt-out either).
+   * Shows a "My spec is: <spec>" badge on this profile's cards and page - on by default,
+   * opt-out. Originally shipped opt-in, but that meant a taker's result never showed up
+   * anywhere unless they separately found and flipped this setting - in practice nobody's
+   * spec ever appeared. Reversed by direct product decision: on the moment someone has a
+   * result, with the toggle there to turn it off. Internal use for ranking (see
+   * lib/spec-test/compatibility.ts) is unconditional either way and needs no separate
+   * consent - same behavioral-signal default every other ranking input in this codebase
+   * already uses (CreatorAffinity, search interactions, etc. have no per-signal opt-out
+   * either).
    */
-  specShownPublicly         Boolean   @default(false)
+  specShownPublicly         Boolean   @default(true)
   isVerified                Boolean   @default(false)
   isVerifiedCreator         Boolean   @default(false)
   isVerifiedServiceProvider Boolean   @default(false)
