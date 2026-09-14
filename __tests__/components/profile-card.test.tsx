@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { ProfileCard } from "@/components/home/profile-card";
 import type { ProfileCardData } from "@/lib/home-feed";
@@ -52,5 +52,23 @@ describe("ProfileCard", () => {
   it("shows no spec badge when the profile opted in but has no linked result", () => {
     render(<ProfileCard profile={profile({ specShownPublicly: true, specTestResults: [] })} />);
     expect(screen.queryByText(/My spec is/)).not.toBeInTheDocument();
+  });
+
+  it("opens a snapshot popup on badge click instead of navigating the card's own link", () => {
+    render(<ProfileCard profile={profile({ specShownPublicly: true, specTestResults: [{ specType: "soft_landing" }] })} matchScore={91} />);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /My spec is Soft Landing/ }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Soft Landing" })).toBeInTheDocument();
+    expect(screen.getByText(/Affectionate, emotionally available/)).toBeInTheDocument();
+    // The card is still a link to the profile - the badge click only opened the popup, it
+    // didn't replace or break the card's own navigation.
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/profile/mara");
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
