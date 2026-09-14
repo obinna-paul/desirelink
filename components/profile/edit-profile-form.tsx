@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   Camera,
   ChevronRight,
+  KeyRound,
   LocateFixed,
   Lock,
   MapPin,
@@ -47,7 +48,7 @@ export type EditableSectionId =
   | "privacy"
   | "availability";
 
-type EditSectionId = EditableSectionId | "verification";
+type EditSectionId = EditableSectionId | "verification" | "security";
 
 const EDIT_SECTIONS: {
   id: EditSectionId;
@@ -63,6 +64,7 @@ const EDIT_SECTIONS: {
   { id: "privacy", label: "Privacy", description: "Visibility and activity", icon: Lock },
   { id: "availability", label: "Availability", description: "Chat and meet status", icon: Bell },
   { id: "verification", label: "Verification", description: "Identity and trust", icon: ShieldCheck, href: "/verification" },
+  { id: "security", label: "Security", description: "Password and account", icon: KeyRound, href: "/settings/security" },
 ];
 
 function FieldWrapper({

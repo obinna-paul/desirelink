@@ -87,3 +87,21 @@ export const chooseGenderSchema = z.object({
   gender: z.enum(GENDER_OPTIONS as [string, ...string[]]),
 });
 export type ChooseGenderInput = z.infer<typeof chooseGenderSchema>;
+
+/** /settings/security's change-password form. currentPassword is optional here because
+ * an OAuth-only account (no passwordHash yet) is setting a password for the first time,
+ * not changing one - the route itself enforces it's present whenever the account already
+ * has a password. */
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().optional(),
+  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+});
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+/** /settings/security's delete-account form. password is optional for the same
+ * OAuth-only reason as changePasswordSchema above - the route enforces it when relevant. */
+export const deleteOwnAccountSchema = z.object({
+  password: z.string().optional(),
+  confirmUsername: z.string().trim().toLowerCase().min(1, "Type your username to confirm"),
+});
+export type DeleteOwnAccountInput = z.infer<typeof deleteOwnAccountSchema>;
