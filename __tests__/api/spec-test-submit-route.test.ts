@@ -1,5 +1,7 @@
 jest.mock("next-auth", () => ({ getServerSession: jest.fn() }));
 jest.mock("@/lib/auth", () => ({ authOptions: {} }));
+const mockCookieStore = { get: jest.fn(), set: jest.fn(), delete: jest.fn() };
+jest.mock("next/headers", () => ({ cookies: () => mockCookieStore }));
 jest.mock("next/server", () => ({
   NextResponse: {
     json: jest.fn((body: unknown, init?: ResponseInit) => ({
@@ -117,6 +119,13 @@ describe("POST /api/spec-test/submit - v2 payload", () => {
     expect(data.quizForm).toBe("male_user");
     // Anonymous (no session mocked) - never linked to a profile at submission time.
     expect(data.profileId).toBeNull();
+    // ...but gets a claim cookie, so a later "Join Udala" click (no email ever given) can
+    // still find its way back to this result at signup - see lib/spec-test/claim-cookie.ts.
+    expect(mockCookieStore.set).toHaveBeenCalledWith(
+      "spec_test_result_id",
+      "v2-result-1",
+      expect.objectContaining({ httpOnly: true }),
+    );
 
     expect(mockPrisma.specTestInstrumentStat.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { instrumentVersion: INSTRUMENT_VERSION }, update: { submittedCount: { increment: 1 } } }),
@@ -275,6 +284,8 @@ describe("POST /api/spec-test/submit - signed-in taker", () => {
     );
     const data = mockPrisma.specTestResult.create.mock.calls[0][0].data;
     expect(data.profileId).toBe("profile-1");
+    // Already linked at submission time - no claim cookie needed for a signed-in taker.
+    expect(mockCookieStore.set).not.toHaveBeenCalled();
   });
 
   it("rejects a retake within the 30-day cooldown without creating a row", async () => {

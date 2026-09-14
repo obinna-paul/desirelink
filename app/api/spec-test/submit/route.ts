@@ -14,6 +14,7 @@ import { GENDERS, routeForm } from "@/lib/spec-test/gender/forms";
 import type { SpecTestResponseV2 } from "@/lib/spec-test/response";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { getClientIp, readJson } from "@/lib/security/request";
+import { setSpecTestResultCookie } from "@/lib/spec-test/claim-cookie";
 
 /**
  * Accepts two request shapes on one endpoint:
@@ -28,9 +29,11 @@ import { getClientIp, readJson } from "@/lib/security/request";
  *
  * A v2 submission from a signed-in session is linked to that profile immediately (no
  * email-capture step needed - see submitV2's `profileId` write) and is subject to a 30-day
- * retake cooldown; an anonymous submission is unlinked and uncapped, same as always, and
- * links later via linkSpecTestResultToProfile if the email it's eventually given matches a
- * new signup.
+ * retake cooldown; an anonymous submission is unlinked and uncapped, same as always, and gets
+ * a claim cookie (lib/spec-test/claim-cookie.ts) so it can still be claimed at signup by id,
+ * whether or not the taker ever gives an email via the result page's "email me this" card -
+ * see claimSpecTestResultById and linkSpecTestResultToProfile in lib/spec-test/legacy.ts for
+ * the two independent ways a signup can pick it up.
  */
 
 const QUESTION_IDS = new Set(specTestQuestionIds());
@@ -239,13 +242,20 @@ async function submitV2(payload: z.infer<typeof v2PayloadSchema>, viewerProfileI
       routingRule: routing?.routingRule,
       assumedAttractionTarget: routing?.assumedAttractionTarget,
       quizForm: routing?.quizForm,
-      // Signed-in takers never need the email-capture step to link their result to their
+      // Signed-in takers never need any of what follows to link their result to their
       // account - the session already tells us who they are, so it's linked the moment the
-      // result exists. Anonymous takers still link later via linkSpecTestResultToProfile.
+      // result exists. An anonymous taker gets a claim cookie instead (see below), which
+      // covers signup regardless of whether they ever use the "email me this" card.
       profileId: viewerProfileId,
     },
     select: { id: true },
   });
+
+  if (!viewerProfileId) {
+    // See lib/spec-test/claim-cookie.ts - covers "took the quiz, then clicked Join Udala"
+    // without the taker ever having to type an email on the result page.
+    setSpecTestResultCookie(result.id);
+  }
 
   await bumpInstrumentStat(payload.instrumentVersion, "submittedCount");
   if (routing) await bumpFormStat(payload.instrumentVersion, routing.quizForm, "submittedCount");

@@ -9,7 +9,8 @@ import { checkRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { getClientIp, readJson } from "@/lib/security/request";
 import { sendSignupOtpEmail } from "@/lib/email/notifications";
 import { isTurnstileConfigured, verifyTurnstileToken } from "@/lib/turnstile";
-import { linkSpecTestResultToProfile } from "@/lib/spec-test";
+import { linkSpecTestResultToProfile, claimSpecTestResultById } from "@/lib/spec-test";
+import { readSpecTestResultCookie, clearSpecTestResultCookie } from "@/lib/spec-test/claim-cookie";
 import { GENDER_UNSPECIFIED } from "@/lib/profile-options";
 
 export async function POST(req: Request) {
@@ -86,6 +87,15 @@ export async function POST(req: Request) {
     });
 
     if (created.profile) {
+      // Two independent claim paths - see the doc comments on both in
+      // lib/spec-test/legacy.ts for how they relate. The cookie covers "took the quiz, then
+      // clicked Join Udala" without ever using the result page's "email me this" card; the
+      // email match covers the same email being used on a different browser/device.
+      const cookieResultId = readSpecTestResultCookie();
+      if (cookieResultId) {
+        await claimSpecTestResultById(cookieResultId, created.profile.id);
+        clearSpecTestResultCookie();
+      }
       await linkSpecTestResultToProfile(normalizedEmail, created.profile.id);
     }
   } catch (error) {

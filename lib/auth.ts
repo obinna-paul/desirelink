@@ -12,8 +12,25 @@ import { generateUniqueUsername, isUsernameAvailable } from "@/lib/username";
 import { usernameFieldSchema } from "@/lib/validations/auth";
 import { recordDeviceAndMaybeAlert } from "@/lib/email/device";
 import { isPlaceholderEmail, placeholderEmailFor } from "@/lib/oauth-placeholder-email";
-import { linkSpecTestResultToProfile } from "@/lib/spec-test";
+import { linkSpecTestResultToProfile, claimSpecTestResultById } from "@/lib/spec-test";
+import { readSpecTestResultCookie, clearSpecTestResultCookie } from "@/lib/spec-test/claim-cookie";
 import { GENDER_UNSPECIFIED } from "@/lib/profile-options";
+
+/** Reads and claims the spec_test_result_id cookie (see lib/spec-test/claim-cookie.ts) for a
+ *  brand-new OAuth profile - wrapped separately from the rest of ensureProfileForAuthUser so
+ *  that cookies() ever throwing here (an edge case in exactly how NextAuth's own request
+ *  lifecycle exposes Next's request context to a callback) can never take down email
+ *  verification, the profile row itself, or Twitter enrichment alongside it. */
+async function claimSpecTestResultFromCookie(profileId: string): Promise<void> {
+  try {
+    const cookieResultId = readSpecTestResultCookie();
+    if (!cookieResultId) return;
+    await claimSpecTestResultById(cookieResultId, profileId);
+    clearSpecTestResultCookie();
+  } catch (error) {
+    console.error("[auth] failed to claim spec test result from cookie", error);
+  }
+}
 
 /** Every OAuth provider registered below - the signIn callback's belt-and-suspenders
  * profile-creation check (see createUser event) needs to recognize all of them. */
@@ -83,8 +100,12 @@ async function ensureProfileForAuthUser(user: {
     include: { profile: { select: { id: true } } },
   });
 
-  // No-op for a placeholder (X) email - it can never match a real Spec Test submission.
   if (updated.profile) {
+    // The cookie claim works regardless of email (a placeholder X email can never match a
+    // real Spec Test submission for the email path below, but the same browser's cookie still
+    // can) - see claimSpecTestResultFromCookie and linkSpecTestResultToProfile's own doc
+    // comments for how the two independent claim paths relate.
+    await claimSpecTestResultFromCookie(updated.profile.id);
     await linkSpecTestResultToProfile(email, updated.profile.id);
   }
 }
