@@ -139,15 +139,20 @@ async function submitV2(payload: z.infer<typeof v2PayloadSchema>, viewerProfileI
     const lastResult = await prisma.specTestResult.findFirst({
       where: { profileId: viewerProfileId },
       orderBy: { createdAt: "desc" },
-      select: { createdAt: true },
+      select: { id: true, createdAt: true },
     });
     if (lastResult) {
       const nextEligibleAt = new Date(lastResult.createdAt.getTime() + RETAKE_COOLDOWN_MS);
       if (nextEligibleAt > new Date()) {
+        // Include the id of the result this cap is protecting, not just the rejection - a
+        // taker hitting this is, by definition, someone who already has a scored result. The
+        // client uses this to send them straight to it instead of dead-ending on a retry
+        // button that would only hit this same 429 again (see quiz-flow.tsx's submit()).
         return NextResponse.json(
           {
             error: `You can retake the Spec Test on ${nextEligibleAt.toLocaleDateString("en-US", { month: "long", day: "numeric" })}.`,
             nextEligibleAt: nextEligibleAt.toISOString(),
+            resultId: lastResult.id,
           },
           { status: 429 },
         );
