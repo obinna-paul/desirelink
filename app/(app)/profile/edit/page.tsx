@@ -48,9 +48,14 @@ export default async function EditProfilePage({
   }
 
   const showPartnerPanel = profile.partnerId !== null;
-  const [partnerState, latestUsernameAlias] = await Promise.all([
+  const [partnerState, latestUsernameAlias, latestSpecResult] = await Promise.all([
     showPartnerPanel ? getPartnerState(profile.id) : Promise.resolve(null),
     getLatestUsernameChange(profile.id),
+    prisma.specTestResult.findFirst({
+      where: { profileId: profile.id },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    }),
   ]);
   const initialSection = VALID_SECTIONS.find((section) => section === searchParams.section);
 
@@ -60,6 +65,7 @@ export default async function EditProfilePage({
         profile={profile}
         initialSection={initialSection}
         usernameChangedAt={latestUsernameAlias?.changedAt.toISOString() ?? null}
+        latestSpecResultId={latestSpecResult?.id ?? null}
       />
       {partnerState && <PartnerLinkPanel initialState={partnerState} />}
     </div>

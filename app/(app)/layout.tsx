@@ -8,6 +8,7 @@ import { getAccountThemeClass } from "@/lib/account-theme";
 import { GENDER_UNSPECIFIED } from "@/lib/profile-options";
 import { AppShell } from "@/components/layout/app-shell";
 import { CreatorWelcomeModal } from "@/components/creator/creator-welcome-modal";
+import { SpecTestNudgeModal } from "@/components/spec-test/spec-test-nudge-modal";
 
 export default async function AppGroupLayout({
   children,
@@ -27,6 +28,8 @@ export default async function AppGroupLayout({
           gender: true,
           username: true,
           creatorWelcomeShownAt: true,
+          specTestNudgeShownAt: true,
+          specTestResults: { select: { id: true }, take: 1 },
         },
       })
     : null;
@@ -48,6 +51,11 @@ export default async function AppGroupLayout({
   }
   const isProvider = profile ? isProviderProfileType(profile.profileType) : false;
   const showCreatorWelcome = isProvider && !!profile && !profile.creatorWelcomeShownAt;
+  // Never shown alongside the creator-welcome modal (that one's already a full-screen
+  // moment for a brand-new creator) - it'll simply show on this same profile's next visit
+  // instead, since specTestNudgeShownAt stays null until it's actually been shown.
+  const showSpecNudge =
+    !!profile && !showCreatorWelcome && !profile.specTestNudgeShownAt && profile.specTestResults.length === 0;
   const accountThemeClass = profile ? getAccountThemeClass(profile.profileType) : "theme-olive";
 
   return (
@@ -56,6 +64,7 @@ export default async function AppGroupLayout({
         {children}
       </AppShell>
       {showCreatorWelcome && <CreatorWelcomeModal profileHref={`/profile/${profile!.username}`} />}
+      {showSpecNudge && <SpecTestNudgeModal variant="global" />}
     </>
   );
 }

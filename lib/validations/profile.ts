@@ -21,6 +21,7 @@ export const updateProfileSchema = z.object({
   showExactLocation: z.boolean(),
   showActivityStatus: z.boolean(),
   isIncognito: z.boolean(),
+  specShownPublicly: z.boolean(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

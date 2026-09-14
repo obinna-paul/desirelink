@@ -19,12 +19,31 @@ describe("searchDiscoverProfiles", () => {
 
   it("excludes suspended profiles and profiles blocked either way, symmetric with lib/recommendations.ts", async () => {
     const filters = parseDiscoverFilters({});
-    await searchDiscoverProfiles(filters, { id: "viewer-1", profileType: "EXPLORER", locationLat: 0, locationLng: 0 });
+    await searchDiscoverProfiles(filters, { id: "viewer-1", profileType: "EXPLORER", locationLat: 0, locationLng: 0, specTestResults: [] });
 
     const where = mockPrisma.profile.findMany.mock.calls[0][0].where;
     expect(where.isSuspended).toBe(false);
     expect(where.blocksReceived).toEqual({ none: { blockerId: "viewer-1" } });
     expect(where.blocksMade).toEqual({ none: { blockedId: "viewer-1" } });
+  });
+
+  it("filters to profiles with a publicly-shown spec matching one of the requested archetypes", async () => {
+    const filters = parseDiscoverFilters({ spec: ["soft_landing", "grounded_equal"] });
+    await searchDiscoverProfiles(filters, null);
+
+    const where = mockPrisma.profile.findMany.mock.calls[0][0].where;
+    expect(where.specShownPublicly).toBe(true);
+    expect(where.specTestResults).toEqual({ some: { specType: { in: ["soft_landing", "grounded_equal"] } } });
+  });
+
+  it("drops an unrecognized spec value and applies no spec filter when none survive", async () => {
+    const filters = parseDiscoverFilters({ spec: ["not-a-real-archetype"] });
+    expect(filters.specTypes).toEqual([]);
+
+    await searchDiscoverProfiles(filters, null);
+    const where = mockPrisma.profile.findMany.mock.calls[0][0].where;
+    expect(where.specShownPublicly).toBeUndefined();
+    expect(where.specTestResults).toBeUndefined();
   });
 
   it("still excludes suspended profiles for an anonymous viewer, but has no viewer to block-filter against", async () => {

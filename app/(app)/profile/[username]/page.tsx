@@ -113,6 +113,7 @@ export default async function PublicProfilePage({
     where: { id: resolved.id },
     include: {
       partner: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+      specTestResults: { select: { specType: true }, orderBy: { createdAt: "desc" }, take: 1 },
     },
   });
 

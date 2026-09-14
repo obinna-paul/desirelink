@@ -2,6 +2,8 @@ import type { AvailabilityStatusType, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect } from "@/lib/home-feed";
+import { specCompatibilityWeight } from "@/lib/spec-test/compatibility";
+import type { ArchetypeKey } from "@/lib/spec-test/taxonomy";
 
 const DEFAULT_RECOMMENDATION_LIMIT = 6;
 const MAX_RECOMMENDATION_LIMIT = 50;
@@ -42,6 +44,11 @@ function viewerProfileSelect() {
     availabilityStatuses: {
       where: { expiresAt: { gt: new Date() } },
       select: { status: true, expiresAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+    },
+    specTestResults: {
+      select: { specType: true },
       orderBy: { createdAt: "desc" },
       take: 1,
     },
@@ -148,6 +155,24 @@ function scoreActivity(updatedAt: Date): { score: number; reasons: string[] } {
   return { score: 0, reasons: [] };
 }
 
+/** The "preference overlap" this section's own subtitle already promises - see
+ *  lib/spec-test/compatibility.ts for the weighting rationale. Capped below proximity's top
+ *  score (25) since it's a newer, unvalidated signal, but above availability's top (12) -
+ *  this is meant to matter, not be a tiebreaker. Neither side having taken the test (the
+ *  common case today) contributes 0, same as every other term when its signal is absent. */
+function scoreSpec(
+  viewer: ViewerRecommendationProfile,
+  candidate: RecommendationProfileData,
+): { score: number; reasons: string[] } {
+  const viewerSpec = viewer.specTestResults[0]?.specType as ArchetypeKey | undefined;
+  const candidateSpec = candidate.specTestResults[0]?.specType as ArchetypeKey | undefined;
+  const weight = specCompatibilityWeight(viewerSpec, candidateSpec);
+  if (weight <= 0) return { score: 0, reasons: [] };
+
+  const reason = viewerSpec === candidateSpec ? "Shares your spec" : "Great spec match";
+  return { score: Math.round(weight * 15), reasons: [reason] };
+}
+
 function scoreCandidate(
   viewer: ViewerRecommendationProfile,
   candidate: RecommendationProfileData
@@ -155,13 +180,16 @@ function scoreCandidate(
   const proximity = scoreProximity(viewer, candidate);
   const availability = scoreAvailability(viewer, candidate);
   const activity = scoreActivity(candidate.updatedAt);
+  const spec = scoreSpec(viewer, candidate);
 
-  const compatibilityScore = Math.round(proximity.score + availability.score + activity.score);
+  const compatibilityScore = Math.round(proximity.score + availability.score + activity.score + spec.score);
 
   return {
     profile: candidate,
     compatibilityScore,
-    reasons: [...proximity.reasons, ...availability.reasons, ...activity.reasons]
+    // Spec first when it fires - it's the most personal signal available (an explicit
+    // self-report, not an inference from behavior/location), so it's worth leading with.
+    reasons: [...spec.reasons, ...proximity.reasons, ...availability.reasons, ...activity.reasons]
       .filter(Boolean)
       .slice(0, 3),
   };

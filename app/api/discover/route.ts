@@ -17,7 +17,13 @@ export async function GET(req: Request) {
 
   const viewerProfile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, profileType: true, locationLat: true, locationLng: true },
+    select: {
+      id: true,
+      profileType: true,
+      locationLat: true,
+      locationLng: true,
+      specTestResults: { select: { specType: true }, orderBy: { createdAt: "desc" }, take: 1 },
+    },
   });
 
   const url = new URL(req.url);

@@ -44,6 +44,7 @@ const VALID_PROFILE_FIELDS = {
   showExactLocation: false,
   showActivityStatus: true,
   isIncognito: false,
+  specShownPublicly: false,
 };
 
 function patchRequest(body: Record<string, unknown>) {

@@ -27,6 +27,16 @@ export function profileCardSelect() {
       orderBy: { createdAt: "desc" },
       take: 1,
     },
+    // The taker's current Spec, if any - specShownPublicly gates whether components/home/
+    // profile-card.tsx actually renders it as a badge; specTestResults stays populated
+    // either way so ranking (lib/recommendations.ts, lib/ranking/people-scoring.ts) can use
+    // it as a behavioral signal even when the taker hasn't opted into showing the badge.
+    specShownPublicly: true,
+    specTestResults: {
+      select: { specType: true },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+    },
   } satisfies Prisma.ProfileSelect;
 }
 

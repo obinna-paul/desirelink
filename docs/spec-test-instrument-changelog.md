@@ -606,3 +606,122 @@ generic "a person"/"someone" instead of the established `{person}` token.
 term list and the gender content-symmetry checks operate on the token structure and vocabulary
 of these strings, not their length, so the added depth didn't require new fixtures. Confirmed
 zero em dashes across all three files via direct grep, per the standing no-em-dash rule.
+
+## spec-v2.1 — Phase 1: a Spec Test result follows the taker into their account
+
+**Why.** Until now a result was a link, nothing more - taking the test and later signing up
+never connected the two, and there was no way to see, revisit, or retake a result from inside
+the app. This is the first step of wiring the test into identity: link results to accounts
+reliably, give the app a place to surface "what's your spec," and let the retake happen
+without ever touching onboarding (explicit instruction: never add it there, never force it).
+
+**Fixed a real gap in the existing anonymous-to-signup link.** `linkSpecTestResultIfConsented`
+(app/api/signup/route.ts, lib/auth.ts) already matched a pre-signup result to a new account by
+email - but only if `consentMarketing` was also true, which conflates two different things: "I
+gave my email to get my result" and "keep me updated about Udala" (a separate switch on
+components/spec-test/email-capture-form.tsx, off by default). Most takers who gave an email
+just to get their result, without opting into marketing, were never actually linked. Renamed to
+`linkSpecTestResultToProfile` and dropped the consent requirement - it now matches on the email
+given for the result alone, which is what "remember this is mine" actually means. Marketing
+consent still only ever controls marketing emails, untouched.
+
+**Signed-in takers link immediately, no email step at all.** `app/api/spec-test/submit/route.ts`
+now checks the session and, when one exists, writes `profileId` directly onto the created
+`SpecTestResult` row - so a member taking the test from inside the app never needs to type an
+email to keep their result; it's tied to their account the moment it exists. Also enforces a
+30-day retake cooldown server-side for a signed-in submission (a fresh anonymous submission is
+never capped), returning 429 with a plain-language date rather than silently overwriting.
+
+**Two entry points, one shared nudge popup, shown once ever.**
+`components/spec-test/spec-test-nudge-modal.tsx` explains the test ("takes about 4 minutes")
+with Take it now / Take it later, and is opened from either surface:
+- The "What's your spec?" row in profile settings
+  (components/profile/spec-settings-row.tsx, wired into edit-profile-form.tsx's existing
+  settings list) - opens the nudge if untaken, or links straight to the saved result if not.
+- A one-time popup on next app open for any signed-in profile that hasn't taken it and hasn't
+  been shown the nudge before (app/(app)/layout.tsx's `showSpecNudge`, same
+  gate-a-modal-in-the-layout pattern as the existing creator-welcome modal).
+
+Whichever surface shows it first marks `Profile.specTestNudgeShownAt` (new column, mirrors
+`creatorWelcomeShownAt` exactly) via `POST /api/profile/spec-test-nudge-seen` - a mount here IS
+the "shown" event, so the other surface never shows it again either, satisfying "just once,
+ever" regardless of which one the taker saw first. Deliberately never added to the onboarding
+wizard or any redirect gate - per direct instruction, this stays opt-in and low-pressure.
+
+**The result page recognizes a signed-in viewer.** No re-entering an email, and no pre-fill
+either - since the result is already linked at submission time, the email-capture card and
+"Join Udala" messaging are replaced with a plain "Saved to your profile" confirmation and a
+"Back to Udala" button. Getting back into the app needs no re-login: the quiz lives at ordinary
+app routes under the same session cookie, so a signed-in taker never actually leaves their
+session by visiting `/spec-test/quiz`.
+
+**Sparkle icon removed everywhere**, not just the result page (per explicit instruction): the
+admin nav's "Spec Test leads" link now uses a non-sparkle icon (also the new nudge modal and
+settings row's icon) instead of `Sparkles` - see the icon note in the next entry below for why
+it changed again shortly after this one.
+
+**Tests.** New coverage in `__tests__/api/spec-test-submit-route.test.ts` (signed-in submission
+links `profileId` immediately; a retake inside 30 days is rejected with no row written; a retake
+past 30 days succeeds) and `__tests__/app/spec-test-result-page.test.tsx` (signed-in viewer sees
+the confirmation/back-to-app CTA, never the anonymous Join card or email form). Full suite: 568
+tests, 100 suites, all green.
+
+## spec-v2.1 — Phase 2: spec shown publicly, filterable in Discover, used in ranking
+
+**Why.** Direct follow-up to Phase 1: identity and settings were wired up, but a taker's spec
+still did nothing for them beyond their own account - it wasn't visible to anyone else,
+couldn't be searched for, and had zero influence on who Discover or the home "Recommended for
+you" rail actually showed them. This closes the loop the original ask was really about: "if my
+result is Soft Landing, how do I find who will give me that."
+
+**Two separate consent boundaries, not one.** `Profile.specShownPublicly` (new column, default
+`false`) gates whether a taker's spec is ever *shown* to anyone else - a badge on their profile
+card/page, and eligibility for the Discover spec filter. It does NOT gate whether the spec is
+*used* internally for ranking: that runs unconditionally once a spec exists, the same default
+every other behavioral signal in this codebase already uses (`CreatorAffinity`, search
+interactions, etc. have no per-signal opt-out either). A Spec Test result is materially more
+intimate than a bio (attachment style, dating patterns), so *display* gets its own explicit
+opt-in; *use* doesn't need one to stay consistent with how the rest of the app already treats
+personalization data.
+
+**The compatibility table** (`lib/spec-test/compatibility.ts`, new): `SPEC_COMPATIBILITY` maps
+each archetype to a ranked list of complements, directly transcribed from that archetype's own
+`longTermFit` paragraph in `readings-v2.ts` (each one already names its ideal partner in prose -
+this just formalizes it). Explicitly documented as hand-authored and provisional, same status as
+the archetype centroids in `scoring/archetypes.ts` - it should be re-derived from real
+reply-rate/retention data crossed by (viewer spec x candidate spec) once enough exists, logged
+here as a scoring change when that happens, not folded in as a copy edit.
+
+**Where it shows up:**
+- **Profile badge.** `components/home/profile-card.tsx` (every card grid: Discover, search,
+  home) and the full profile page (`components/profile/profile-view.tsx`) render "Reads as
+  {spec}" whenever `specShownPublicly` is true and a result exists. Toggle lives in profile
+  settings' Privacy section, only shown once a spec exists to show.
+- **Discover filter.** A new "Spec" multi-select in the existing filter panel
+  (`lib/discover.ts`'s `DiscoverFilters.specTypes`) - `where.specTestResults` scoped to
+  candidates with `specShownPublicly: true`, so the filter can never be used to probe someone's
+  private result.
+- **Ranking.** Both places this codebase already ranks people got a new term: the home
+  "Recommended for you" rail (`lib/recommendations.ts`) adds up to +15 points and a "Great spec
+  match" / "Shares your spec" reason chip (the rail's own subtitle already promised "preference
+  overlap" - this is the first term that actually delivers it); Discover's "Recommended for you"
+  sort (`lib/ranking/people-scoring.ts`) adds a new `spec: 0.1` weight, reweighting the existing
+  terms down slightly to make room. Both contribute exactly 0, never a penalty, whenever either
+  side hasn't taken the test - the common case today.
+
+**Icon note.** `Compass` was already claimed by `AccountTypeBadge`'s Explorer icon and would
+have collided in the same badge row on the profile page - switched every spec-test icon
+(nudge modal, settings row, admin nav, the new badges) to `Fingerprint` instead, still never
+`Sparkles`.
+
+**Tests.** New: `__tests__/lib/spec-test/compatibility.test.ts` (weight table behavior - no
+penalty for an untaken test, same-spec credit, complement tapering, every archetype has a valid
+non-empty list), `__tests__/lib/recommendations.test.ts` (spec term boosts and explains a
+complement, credits but doesn't over-credit a shared spec, never penalizes an untaken test),
+new cases in `__tests__/lib/ranking/people-scoring.test.ts` (spec-compatible candidate outranks
+an identical one without the signal) and `__tests__/lib/discover.test.ts` (the spec filter's
+`where` clause, including that an unrecognized value is dropped rather than breaking the
+filter), plus updated fixtures in `__tests__/components/profile-card.test.tsx` (badge shown
+only when `specShownPublicly` is true and a result exists) and
+`__tests__/api/profile-account-type-upgrade.test.ts`. Full suite: 581 tests, 102 suites, all
+green.
