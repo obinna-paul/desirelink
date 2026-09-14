@@ -38,6 +38,29 @@ describe("creator wallet rules", () => {
     });
   });
 
+  it("credits a provider's own platformFeeRateOverride instead of the 85% default when one is set", async () => {
+    mockPrisma.profile.findUnique.mockResolvedValue({ platformFeeRateOverride: 0 });
+
+    await creditProviderWallet("founding-creator-1", 1_000_000);
+
+    // 0% fee - the founding creator keeps the full gross amount.
+    expect(mockPrisma.profile.update).toHaveBeenCalledWith({
+      where: { id: "founding-creator-1" },
+      data: { walletBalanceCents: { increment: 1_000_000 } },
+    });
+  });
+
+  it("falls back to the 85% default when platformFeeRateOverride is explicitly null", async () => {
+    mockPrisma.profile.findUnique.mockResolvedValue({ platformFeeRateOverride: null });
+
+    await creditProviderWallet("creator-1", 1_000_000);
+
+    expect(mockPrisma.profile.update).toHaveBeenCalledWith({
+      where: { id: "creator-1" },
+      data: { walletBalanceCents: { increment: 850_000 } },
+    });
+  });
+
   it("sets the minimum withdrawal to exactly ₦15,000", () => {
     expect(MINIMUM_WITHDRAWAL_CENTS).toBe(1_500_000);
   });

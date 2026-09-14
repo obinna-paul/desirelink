@@ -276,10 +276,20 @@ model Profile {
   heartsBalance      Int       @default(0)
   /**
    * Withdrawable cash balance from all provider earnings — gift hearts, tier subscriptions, service
-   * bookings, and the monthly rewards pool. Each credit already reflects the provider's 85% share;
-   * the platform's cut is taken upfront (see PLATFORM_FEE_RATE in lib/wallet.ts), not at withdrawal.
+   * bookings, and the monthly rewards pool. Each credit already reflects the provider's 85% share
+   * (or platformFeeRateOverride below, for the rare provider with a negotiated rate); the platform's
+   * cut is taken upfront (see PLATFORM_FEE_RATE in lib/wallet.ts), not at withdrawal.
    */
   walletBalanceCents Int       @default(0)
+  /**
+   * Per-provider override of PLATFORM_FEE_RATE (lib/wallet.ts) - null uses the platform default
+   * (15%) for everyone, same as before this field existed. Set case by case for a negotiated deal
+   * (e.g. a founding creator keeping 100%, i.e. 0 here) - there's no admin UI for this yet, it's
+   * set directly in the database. creditProviderWallet reads it on every earning credited (gift
+   * hearts, tier subscriptions, bookings), so a change here applies to every future earning
+   * immediately, with no effect on wallet balance already credited at the old rate.
+   */
+  platformFeeRateOverride Float?
   /**
    * Last time this profile was seen active in the app — powers the "online for chat" ring on Home without full presence infra.
    */
