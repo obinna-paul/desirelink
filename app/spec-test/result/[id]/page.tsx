@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
@@ -23,17 +23,17 @@ import { cn } from "@/lib/utils";
  */
 
 // One distinct accent per archetype so each result reads as its own identity rather than the
-// same gray card with different words - confined to small elements (badge, icon, quote), never
-// the page shell. Both v1 and v2 rows resolve to the same eight archetype keys.
-const SPEC_ACCENTS: Record<ArchetypeKey, { badge: string; icon: string }> = {
-  quiet_fire: { badge: "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300", icon: "text-red-600 dark:text-red-400" },
-  soft_landing: { badge: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300", icon: "text-rose-600 dark:text-rose-400" },
-  electric_charmer: { badge: "bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-300", icon: "text-fuchsia-600 dark:text-fuchsia-400" },
-  ambitious_icon: { badge: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300", icon: "text-amber-600 dark:text-amber-400" },
-  brilliant_tease: { badge: "bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300", icon: "text-violet-600 dark:text-violet-400" },
-  beautiful_mystery: { badge: "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300", icon: "text-indigo-600 dark:text-indigo-400" },
-  free_spirit: { badge: "bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300", icon: "text-orange-600 dark:text-orange-400" },
-  grounded_equal: { badge: "bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300", icon: "text-teal-600 dark:text-teal-400" },
+// same gray card with different words - confined to small elements (badge, quote), never the
+// page shell. Both v1 and v2 rows resolve to the same eight archetype keys.
+const SPEC_ACCENTS: Record<ArchetypeKey, { badge: string }> = {
+  quiet_fire: { badge: "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300" },
+  soft_landing: { badge: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" },
+  electric_charmer: { badge: "bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-300" },
+  ambitious_icon: { badge: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" },
+  brilliant_tease: { badge: "bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300" },
+  beautiful_mystery: { badge: "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300" },
+  free_spirit: { badge: "bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300" },
+  grounded_equal: { badge: "bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300" },
 };
 
 const RESULT_DISCLAIMER =
@@ -83,13 +83,10 @@ function ResultHeader({
   eyebrow: string;
   name: string;
   tagline: string;
-  accent: { badge: string; icon: string };
+  accent: { badge: string };
 }) {
   return (
     <div className="flex flex-col items-center gap-3 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-500">
-      <span className={cn("flex h-16 w-16 items-center justify-center rounded-full shadow-card", accent.badge)}>
-        <Sparkles className={cn("h-8 w-8", accent.icon)} aria-hidden="true" />
-      </span>
       <p className={cn("inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide", accent.badge)}>{eyebrow}</p>
       <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">{name}</h1>
       <p className="text-base text-muted-foreground">{tagline}</p>
