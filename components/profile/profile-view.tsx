@@ -220,7 +220,7 @@ export function ProfileView({
             {specLabel && (
               <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/70 bg-accent-tint px-2 py-0.5 text-xs font-medium text-foreground">
                 <Fingerprint className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
-                Reads as {specLabel}
+                My spec is {specLabel}
               </span>
             )}
           </div>

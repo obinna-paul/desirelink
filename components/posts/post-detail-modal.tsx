@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Share2, X } from "lucide-react";
@@ -9,6 +8,7 @@ import { ChevronLeft, ChevronRight, Heart, MessageCircle, Share2, X } from "luci
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getPresenceDestination, PresenceRing } from "@/components/ui/presence-avatar";
 import { PostVideoPlayer } from "@/components/posts/post-video-player";
+import { RetryingPostImage } from "@/components/posts/post-media-carousel";
 import type { PresenceStatus } from "@/lib/presence";
 import { PostOwnerControls } from "@/components/posts/post-owner-controls";
 import { ReportDialog } from "@/components/safety/report-dialog";
@@ -138,13 +138,12 @@ export function PostDetailModal({
                   crop={activeMedia.crop}
                 />
               ) : (
-                <Image
-                  src={activeMedia.url}
+                <RetryingPostImage
+                  item={activeMedia}
                   alt={`Post by ${author.displayName}${media.length > 1 ? `, image ${activeIndex + 1} of ${media.length}` : ""}`}
-                  fill
                   sizes="(min-width: 935px) 555px, 60vw"
                   quality={94}
-                  className="object-contain"
+                  fit="contain"
                 />
               )}
             </>

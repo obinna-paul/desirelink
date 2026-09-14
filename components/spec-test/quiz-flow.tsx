@@ -136,11 +136,28 @@ function shuffledCanonicalIndexes(): number[] {
   return indexes;
 }
 
-function computeInitialStep(draft: DraftShape): Step {
+/** The stored `itemIndex` only advances after the post-select hold timer finishes (see
+ *  `selectOption`) - if a taker answers an item and then closes the tab inside that ~380ms
+ *  window, the draft persists with the response recorded but `itemIndex` still pointing at
+ *  the now-answered item. Trusting that stale index on resume would re-show a question that
+ *  already has an answer and, worse, skip its section-intro entirely (since intros are only
+ *  marked "shown" on the normal forward transition) - the intro would then wrongly surface
+ *  after the *next* item instead of before this one. Deriving resume position from which
+ *  items already have a recorded response, instead of the stored index, sidesteps the whole
+ *  class of index/response desync - it also matches "if they've already provided any answer,
+ *  assume from that point" (the resume behavior already agreed on for this flow). */
+function resumeItemIndex(draft: DraftShape): number {
+  const firstUnanswered = SPEC_TEST_ITEMS_V2.findIndex((item) => !draft.responses[item.id]);
+  return firstUnanswered === -1 ? TOTAL_ITEMS : firstUnanswered;
+}
+
+function computeInitialStep(draft: DraftShape, resumeIndex: number): Step {
   if (!draft.gender) return "gender";
-  if (draft.itemIndex >= TOTAL_ITEMS) return "submitting";
-  if (draft.itemIndex === 0 && Object.keys(draft.responses).length === 0) return "section-intro";
-  return "question";
+  if (resumeIndex >= TOTAL_ITEMS) return "submitting";
+  if (resumeIndex === 0) return "section-intro";
+  const currentSection = SPEC_TEST_ITEMS_V2[resumeIndex].section;
+  const previousSection = SPEC_TEST_ITEMS_V2[resumeIndex - 1].section;
+  return currentSection === previousSection ? "question" : "section-intro";
 }
 
 export function SpecTestQuizFlow() {
@@ -148,21 +165,23 @@ export function SpecTestQuizFlow() {
   const initialDraftRef = useRef<DraftShape | null>(null);
   if (initialDraftRef.current === null) initialDraftRef.current = loadDraft();
   const initialDraft = initialDraftRef.current;
+  const resumeIndexRef = useRef<number | null>(null);
+  if (resumeIndexRef.current === null) resumeIndexRef.current = resumeItemIndex(initialDraft);
+  const resumeIndex = resumeIndexRef.current;
 
-  const [step, setStep] = useState<Step>(() => computeInitialStep(initialDraft));
+  const [step, setStep] = useState<Step>(() => computeInitialStep(initialDraft, resumeIndex));
   const [gender, setGender] = useState<Gender | null>(initialDraft.gender);
-  const [itemIndex, setItemIndex] = useState(initialDraft.itemIndex);
+  const [itemIndex, setItemIndex] = useState(resumeIndex);
   const [responses, setResponses] = useState<Record<string, SpecTestResponseV2>>(initialDraft.responses);
   const [optionOrders, setOptionOrders] = useState<Record<string, number[]>>(() => {
     const base = { ...initialDraft.optionOrders };
-    const startItem = SPEC_TEST_ITEMS_V2[Math.min(initialDraft.itemIndex, TOTAL_ITEMS - 1)];
+    const startItem = SPEC_TEST_ITEMS_V2[Math.min(resumeIndex, TOTAL_ITEMS - 1)];
     if (startItem && !base[startItem.id]) base[startItem.id] = shuffledCanonicalIndexes();
     return base;
   });
   const [shownSectionIntros, setShownSectionIntros] = useState<Set<SectionKey>>(() => {
-    if (initialDraft.itemIndex <= 0) return new Set();
     const shown = new Set<SectionKey>();
-    for (let i = 0; i <= Math.min(initialDraft.itemIndex, TOTAL_ITEMS - 1); i += 1) {
+    for (let i = 0; i < resumeIndex; i += 1) {
       shown.add(SPEC_TEST_ITEMS_V2[i].section);
     }
     return shown;

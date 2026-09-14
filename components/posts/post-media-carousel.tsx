@@ -8,6 +8,84 @@ import { cn } from "@/lib/utils";
 import { feedMediaAspectRatio, type PostMediaItem } from "@/lib/post-shared";
 import { getVideoTapZone } from "@/lib/video-playback";
 import { PostVideoPlayer } from "@/components/posts/post-video-player";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const IMAGE_RETRY_BASE_MS = 2_000;
+const IMAGE_RETRY_MAX_MS = 30_000;
+
+/**
+ * A failed image load (bad network, a transient CDN hiccup) otherwise renders the browser's
+ * bare broken-image icon on a black box - jarring, and reads as permanently broken even when
+ * a retry a moment later would succeed. Shows the app's own skeleton instead and keeps
+ * retrying with a capped exponential backoff (2s, 4s, 8s... up to 30s) so a bad connection
+ * just looks like it's still loading, never broken.
+ */
+export function RetryingPostImage({
+  item,
+  alt,
+  sizes = "(min-width: 1536px) 48rem, (min-width: 640px) 40rem, 100vw",
+  quality = 92,
+  fit = "cover",
+}: {
+  item: PostMediaItem;
+  alt: string;
+  sizes?: string;
+  quality?: number;
+  fit?: "cover" | "contain";
+}) {
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
+  const [attempt, setAttempt] = useState(0);
+  const retryTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setStatus("loading");
+    setAttempt(0);
+  }, [item.url]);
+
+  useEffect(
+    () => () => {
+      if (retryTimeoutRef.current !== null) window.clearTimeout(retryTimeoutRef.current);
+    },
+    [],
+  );
+
+  function scheduleRetry() {
+    if (retryTimeoutRef.current !== null) window.clearTimeout(retryTimeoutRef.current);
+    const delayMs = Math.min(IMAGE_RETRY_MAX_MS, IMAGE_RETRY_BASE_MS * 2 ** attempt);
+    retryTimeoutRef.current = window.setTimeout(() => {
+      setAttempt((current) => current + 1);
+      setStatus("loading");
+    }, delayMs);
+  }
+
+  // A cache-busting param forces a fresh request on retry - the browser (and some CDNs)
+  // will otherwise keep serving the same failed response for the identical URL.
+  const src = attempt === 0 ? item.url : `${item.url}${item.url.includes("?") ? "&" : "?"}retry=${attempt}`;
+
+  return (
+    <>
+      {status !== "loaded" && <Skeleton className="absolute inset-0 rounded-none" />}
+      <Image
+        key={attempt}
+        src={src}
+        alt={alt}
+        fill
+        sizes={sizes}
+        quality={quality}
+        className={cn(
+          "transition-opacity duration-300",
+          fit === "cover" ? "object-cover" : "object-contain",
+          status === "loaded" ? "opacity-100" : "opacity-0",
+        )}
+        onLoad={() => setStatus("loaded")}
+        onError={() => {
+          setStatus("error");
+          scheduleRetry();
+        }}
+      />
+    </>
+  );
+}
 
 export function PostMediaCarousel({
   media,
@@ -150,13 +228,9 @@ export function PostMediaCarousel({
                 crop={item.crop}
               />
             ) : (
-              <Image
-                src={item.url}
+              <RetryingPostImage
+                item={item}
                 alt={media.length > 1 ? `${imageAlt} ${index + 1} of ${media.length}` : imageAlt}
-                fill
-                sizes="(min-width: 1536px) 48rem, (min-width: 640px) 40rem, 100vw"
-                quality={92}
-                className="object-cover"
               />
             )}
           </div>

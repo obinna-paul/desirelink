@@ -82,7 +82,7 @@ export function ProfileCard({
           {specLabel && (
             <p className="mt-1 flex items-center gap-1 truncate text-[10px] font-medium text-white/90 md:text-xs">
               <Fingerprint className="h-3 w-3 shrink-0" aria-hidden="true" />
-              <span className="truncate">Reads as {specLabel}</span>
+              <span className="truncate">My spec is {specLabel}</span>
             </p>
           )}
         </div>

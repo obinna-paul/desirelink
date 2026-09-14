@@ -405,7 +405,7 @@ export function EditProfileForm({
             {latestSpecResultId && (
               <ToggleRow
                 label="Show your spec on your profile"
-                description="Let others see a 'Reads as' badge from your Spec Test result. Off by default."
+                description="Let others see a 'My spec is' badge from your Spec Test result. Off by default."
                 control={control}
                 name="specShownPublicly"
               />

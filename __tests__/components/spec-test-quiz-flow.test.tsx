@@ -265,6 +265,27 @@ describe("SpecTestQuizFlow (v2)", () => {
     }
   });
 
+  it("resumes past an already-answered item even if the advance transition never finished (tab closed mid-hold)", async () => {
+    const first = render(<SpecTestQuizFlow />);
+    await startQuiz("male");
+
+    // Answer item 0 but unmount before the hold-then-advance timer fires - simulates closing
+    // the tab in the ~380ms window between picking an answer and itemIndex actually
+    // advancing, which is exactly when a stale draft (itemIndex still 0, but responses
+    // already has item 0) gets persisted.
+    const options = await screen.findAllByTestId("spec-option");
+    fireEvent.click(options[0]);
+    first.unmount();
+
+    render(<SpecTestQuizFlow />);
+
+    // Must resume on item 1, not re-ask the already-answered item 0, and not show a
+    // redundant section intro (item 1 is in the same section as item 0, whose intro was
+    // already shown before item 0 was first presented).
+    expect(await screen.findByText(SPEC_TEST_ITEMS_V2[1].prompt)).toBeInTheDocument();
+    expect(screen.queryByTestId("spec-continue")).not.toBeInTheDocument();
+  });
+
   it("renders no scored item until the gender question is answered", async () => {
     render(<SpecTestQuizFlow />);
 
