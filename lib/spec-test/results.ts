@@ -26,6 +26,10 @@ export type SpecTestReadingV1 = {
   id: string;
   specType: SpecTypeKey;
   reading: SpecTypeReading;
+  /** Null on every row predating the gender question (docs/spec-test-gender-report.md §9) -
+   *  the v1 instrument never asked it, but the column is shared across both instrument
+   *  versions, so a v1 row submitted after gender rollout can still carry it. */
+  assumedAttractionTarget: Gender | null;
 };
 
 export type MotiveFacetScores = {
@@ -134,7 +138,13 @@ export async function getSpecTestReading(id: string): Promise<SpecTestReading | 
   if (row.instrumentVersion === "spec-v1") {
     const reading = SPEC_TYPE_READINGS[row.specType as SpecTypeKey];
     if (!reading) return null;
-    return { version: "v1", id: row.id, specType: row.specType as SpecTypeKey, reading };
+    return {
+      version: "v1",
+      id: row.id,
+      specType: row.specType as SpecTypeKey,
+      reading,
+      assumedAttractionTarget: (row.assumedAttractionTarget as Gender | null) ?? null,
+    };
   }
 
   if (!row.secondarySpec || !row.motiveScores || !row.lenses || !row.resultConfidence || !row.sparkSpec || !row.partnershipSpec) {

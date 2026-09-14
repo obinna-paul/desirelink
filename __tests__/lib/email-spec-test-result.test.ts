@@ -19,6 +19,7 @@ describe("sendSpecTestResultEmail", () => {
       id: "legacy-1",
       specType: "grounded_equal",
       reading: SPEC_TYPE_READINGS.grounded_equal,
+      assumedAttractionTarget: null,
     };
 
     await sendSpecTestResultEmail("taker@example.com", reading, "legacy-1");

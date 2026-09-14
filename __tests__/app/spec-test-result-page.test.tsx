@@ -111,7 +111,9 @@ describe("Spec Test result page", () => {
     render(jsx);
 
     expect(screen.getByText("Quiet Fire")).toBeInTheDocument();
-    expect(screen.getByText("Composed, private, observant and surprisingly intense.")).toBeInTheDocument();
+    // assumedAttractionTarget is "female" on the fixture, so the tagline is prefixed for a
+    // "woman" and its first letter lowercased to read as one sentence.
+    expect(screen.getByText("You like a woman who is composed, private, observant and surprisingly intense.")).toBeInTheDocument();
     expect(screen.getByText("Core reading paragraph.")).toBeInTheDocument();
     expect(screen.getByText("Top motive signal one.")).toBeInTheDocument();
     expect(screen.getByText("Top motive signal two.")).toBeInTheDocument();
@@ -195,12 +197,15 @@ describe("Spec Test result page", () => {
       id: "legacy-1",
       specType: "grounded_equal",
       reading: SPEC_TYPE_READINGS.grounded_equal,
+      assumedAttractionTarget: null,
     });
     const jsx = await SpecTestResultPage({ params: { id: "legacy-1" } });
     render(jsx);
 
     expect(screen.getByText(SPEC_TYPE_READINGS.grounded_equal.name)).toBeInTheDocument();
-    expect(screen.getByText(SPEC_TYPE_READINGS.grounded_equal.tagline)).toBeInTheDocument();
+    // No stored gender on this legacy row - falls back to the "woman" default target.
+    const loweredTagline = SPEC_TYPE_READINGS.grounded_equal.tagline.charAt(0).toLowerCase() + SPEC_TYPE_READINGS.grounded_equal.tagline.slice(1);
+    expect(screen.getByText(`You like a woman who is ${loweredTagline}`)).toBeInTheDocument();
     expect(screen.getByText("Take the new one")).toBeInTheDocument();
     // v1 rows never show the v2-only disclaimer/confidence copy.
     expect(screen.queryByText("Strong match")).not.toBeInTheDocument();
