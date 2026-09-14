@@ -495,3 +495,25 @@ to skim on a phone.
 direction, and always exists unlike attachment) and the gender content-symmetry suite (all 16
 lens entries render token-safe and symmetric across forms), plus the safety-lint test's banned
 term list now also runs against the new lens copy.
+
+## spec-v2.1 — Removed the standalone age-gate screen
+
+**Why.** Direct request to remove the "Before we start / I'm 18 or older - Start" click-through
+that used to be the second screen of the quiz, before the gender question.
+
+**What still exists.** This removes a redundant confirmation click, not the product's actual
+age signaling: the "18+" badge (`components/spec-test/age-badge.tsx`) still shows on every
+Spec Test page (landing, quiz, result), the landing page still frames the quiz as "a playful,
+research-informed reading... (beta)," and the platform's real, binding age confirmation
+happens at account signup (`components/auth/auth-shell.tsx`: "By continuing, you confirm you
+are at least 18 years old"). An anonymous quiz taker who never creates an account was never
+bound by the quiz's own click-through anyway, so it was friction without an equivalent
+safeguard behind it.
+
+**What changed.** `components/spec-test/quiz-flow.tsx`: removed the `"age-gate"` step, its
+JSX, and the `ageConfirmed` field from the persisted draft shape - the wizard now opens
+directly on the gender question, same scope-notice and copy as before. Updated the test
+suite's `startQuiz()` helper and the two tests that referenced the old screen.
+
+**9 tests updated, 0 added or removed** - same coverage, just no longer routing through a
+screen that no longer exists.

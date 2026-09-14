@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, Loader2, Sparkles } from "lucide-react";
+import { Check, ChevronLeft, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ProgressRing } from "@/components/ui/progress-ring";
@@ -17,12 +17,18 @@ import { cn } from "@/lib/utils";
 /**
  * Anonymous, single-page quiz wizard for the v2.1 instrument
  * (docs/spec-test-research.md, docs/spec-test-v2-implementation-plan.md Phase 3,
- * docs/spec-test-gender-implementation-plan.md Phase G4): age gate, a one-question gender
- * step with its scope disclosure, three sectioned batches of scenario items (each with a
- * one-line intro, rendered for the chosen gender's form), then a submit to the server (which
- * does the actual scoring - see lib/spec-test/scoring/) and a redirect to the shareable
- * result page. A low-signal server response (too fast, too straight-lined, or too many
- * skips) surfaces an honest retake prompt instead of a result.
+ * docs/spec-test-gender-implementation-plan.md Phase G4): a one-question gender step with its
+ * scope disclosure, three sectioned batches of scenario items (each with a one-line intro,
+ * rendered for the chosen gender's form), then a submit to the server (which does the actual
+ * scoring - see lib/spec-test/scoring/) and a redirect to the shareable result page. A
+ * low-signal server response (too fast, too straight-lined, or too many skips) surfaces an
+ * honest retake prompt instead of a result.
+ *
+ * There is no separate age-gate click-through screen: the "18+" badge is shown on every
+ * Spec Test page (see AgeBadge), and the platform's actual binding age confirmation happens
+ * at account signup (components/auth/auth-shell.tsx) - an anonymous quiz taker who never
+ * signs up was never bound by that confirmation anyway, so a second click-through here was
+ * redundant friction rather than a real additional safeguard. Removed on direct request.
  *
  * The two optional context questions from Phase 3 are removed per the gender plan's DG-2
  * (docs/spec-test-gender-report.md §Exec: "no relationship-status or relationship-intent
@@ -63,7 +69,7 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: "male", label: "Man" },
 ];
 
-type Step = "age-gate" | "gender" | "section-intro" | "question" | "submitting" | "low-signal";
+type Step = "gender" | "section-intro" | "question" | "submitting" | "low-signal";
 
 type DraftShape = {
   instrumentVersion: string;
@@ -71,7 +77,6 @@ type DraftShape = {
   itemIndex: number;
   responses: Record<string, SpecTestResponseV2>;
   optionOrders: Record<string, number[]>;
-  ageConfirmed: boolean;
 };
 
 function emptyDraft(): DraftShape {
@@ -81,7 +86,6 @@ function emptyDraft(): DraftShape {
     itemIndex: 0,
     responses: {},
     optionOrders: {},
-    ageConfirmed: false,
   };
 }
 
@@ -130,7 +134,6 @@ function shuffledCanonicalIndexes(): number[] {
 }
 
 function computeInitialStep(draft: DraftShape): Step {
-  if (!draft.ageConfirmed) return "age-gate";
   if (!draft.gender) return "gender";
   if (draft.itemIndex >= TOTAL_ITEMS) return "submitting";
   if (draft.itemIndex === 0 && Object.keys(draft.responses).length === 0) return "section-intro";
@@ -196,7 +199,6 @@ export function SpecTestQuizFlow() {
       itemIndex,
       responses,
       optionOrders,
-      ageConfirmed: step !== "age-gate",
     });
   }, [step, gender, itemIndex, responses, optionOrders]);
 
@@ -326,31 +328,6 @@ export function SpecTestQuizFlow() {
     } catch {
       setError("Something went wrong scoring your answers. Please try again.");
     }
-  }
-
-  if (step === "age-gate") {
-    return (
-      <div className="flex flex-col items-center gap-6 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-500">
-        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-accent-tint">
-          <Sparkles className="h-8 w-8 text-primary" aria-hidden="true" />
-        </span>
-        <div className="flex flex-col gap-2">
-          <h1 className="font-heading text-2xl font-bold sm:text-3xl">Before we start</h1>
-          <p className="text-sm text-muted-foreground">
-            The Spec Test asks about attraction and dating, so it&apos;s only for adults 18 and over.
-            Your answers are used only to generate your result - not shared publicly or used for
-            advertising unless you say so.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            This is a beta, research-informed reading - not a clinical or diagnostic assessment.
-            Answer with what feels true, not what sounds impressive.
-          </p>
-        </div>
-        <Button size="lg" onClick={() => setStep("gender")} className="w-full max-w-xs" data-testid="spec-start">
-          I&apos;m 18 or older - Start
-        </Button>
-      </div>
-    );
   }
 
   if (step === "gender") {

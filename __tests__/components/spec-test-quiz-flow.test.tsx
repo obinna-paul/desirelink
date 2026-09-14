@@ -31,7 +31,6 @@ async function advancePastTransition() {
 }
 
 async function startQuiz(gender: Gender = "male") {
-  fireEvent.click(screen.getByTestId("spec-start"));
   fireEvent.click(await screen.findByTestId(`spec-gender-${gender}`));
   fireEvent.click(await screen.findByTestId("spec-continue")); // spark section intro
 }
@@ -64,7 +63,7 @@ describe("SpecTestQuizFlow (v2)", () => {
     window.localStorage.clear();
   });
 
-  it("walks the age gate, gender question, all sections, and submits a full v2 payload", async () => {
+  it("walks the gender question, all sections, and submits a full v2 payload", async () => {
     let capturedBody: SubmitPayload | null = null;
     server.use(
       rest.post(SUBMIT_URL, async (req, res, ctx) => {
@@ -221,7 +220,6 @@ describe("SpecTestQuizFlow (v2)", () => {
 
   it("renders no scored item until the gender question is answered", async () => {
     render(<SpecTestQuizFlow />);
-    fireEvent.click(screen.getByTestId("spec-start"));
 
     expect(await screen.findByText(/what's your gender/i)).toBeInTheDocument();
     expect(screen.queryByTestId("spec-continue")).not.toBeInTheDocument();
