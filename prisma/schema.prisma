@@ -280,6 +280,15 @@ model Profile {
   creatorWelcomeShownAt DateTime?
 
   /**
+   * Set the first time this profile is shown the "What's your spec?" nudge - either the
+   * one-time app-open popup (see components/spec-test/spec-test-nudge-modal.tsx, mounted from
+   * app/(app)/layout.tsx) or an on-demand open from the "What's your spec?" row in profile
+   * settings. Null means unseen AND the test is untaken; once set, the popup never shows
+   * again regardless of which surface set it or whether the taker actually took the test.
+   */
+  specTestNudgeShownAt DateTime?
+
+  /**
    * Dedupes the one-time personal welcome note from the founder - see app/api/cron/ceo-welcome-note.
    */
   ceoNoteSentAt      DateTime?

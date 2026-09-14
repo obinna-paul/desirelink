@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { getServerSession } from "next-auth";
 import { z } from "zod";
 
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveSpecType, scoreSpecTestAnswers, specTestQuestionIds, type SpecTestAnswers } from "@/lib/spec-test";
 import { itemBankForVersion } from "@/lib/spec-test/items";
@@ -23,6 +25,12 @@ import { getClientIp, readJson } from "@/lib/security/request";
  * - v2: `{ instrumentVersion, responses: SpecTestResponseV2[], contextAnswers? }` - the engine
  *   from docs/spec-test-v2-implementation-plan.md Phases 1-4, the only shape the live quiz
  *   wizard sends.
+ *
+ * A v2 submission from a signed-in session is linked to that profile immediately (no
+ * email-capture step needed - see submitV2's `profileId` write) and is subject to a 30-day
+ * retake cooldown; an anonymous submission is unlinked and uncapped, same as always, and
+ * links later via linkSpecTestResultToProfile if the email it's eventually given matches a
+ * new signup.
  */
 
 const QUESTION_IDS = new Set(specTestQuestionIds());
@@ -100,6 +108,12 @@ const v2ResponseSchema = z.object({
   skipped: z.boolean().optional(),
 });
 
+/** Settings' "What's your spec?" row offers a retake no more than once a month - enforced
+ *  here, not just by disabling the button client-side, same as every other monthly cap in
+ *  this codebase (e.g. Profile.earningsSummarySentForMonth). Anonymous submissions are never
+ *  capped - only a signed-in taker has a profile row to check a prior submission against. */
+const RETAKE_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
+
 const v2PayloadSchema = z.object({
   instrumentVersion: z.string().min(1),
   // Required only for the current instrument version (checked below, not by zod) - a v2.0
@@ -112,10 +126,30 @@ const v2PayloadSchema = z.object({
   contextAnswers: z.record(z.unknown()).optional(),
 });
 
-async function submitV2(payload: z.infer<typeof v2PayloadSchema>): Promise<NextResponse> {
+async function submitV2(payload: z.infer<typeof v2PayloadSchema>, viewerProfileId: string | null): Promise<NextResponse> {
   const bank = itemBankForVersion(payload.instrumentVersion);
   if (!bank) {
     return NextResponse.json({ error: "Unknown instrument version." }, { status: 400 });
+  }
+
+  if (viewerProfileId) {
+    const lastResult = await prisma.specTestResult.findFirst({
+      where: { profileId: viewerProfileId },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    if (lastResult) {
+      const nextEligibleAt = new Date(lastResult.createdAt.getTime() + RETAKE_COOLDOWN_MS);
+      if (nextEligibleAt > new Date()) {
+        return NextResponse.json(
+          {
+            error: `You can retake the Spec Test on ${nextEligibleAt.toLocaleDateString("en-US", { month: "long", day: "numeric" })}.`,
+            nextEligibleAt: nextEligibleAt.toISOString(),
+          },
+          { status: 429 },
+        );
+      }
+    }
   }
 
   if (payload.instrumentVersion === INSTRUMENT_VERSION && !payload.gender) {
@@ -205,6 +239,10 @@ async function submitV2(payload: z.infer<typeof v2PayloadSchema>): Promise<NextR
       routingRule: routing?.routingRule,
       assumedAttractionTarget: routing?.assumedAttractionTarget,
       quizForm: routing?.quizForm,
+      // Signed-in takers never need the email-capture step to link their result to their
+      // account - the session already tells us who they are, so it's linked the moment the
+      // result exists. Anonymous takers still link later via linkSpecTestResultToProfile.
+      profileId: viewerProfileId,
     },
     select: { id: true },
   });
@@ -239,7 +277,13 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: GENERIC_V2_ERROR }, { status: 400 });
     }
-    return await submitV2(parsed.data);
+
+    const session = await getServerSession(authOptions);
+    const viewerProfile = session?.user?.id
+      ? await prisma.profile.findUnique({ where: { userId: session.user.id }, select: { id: true } })
+      : null;
+
+    return await submitV2(parsed.data, viewerProfile?.id ?? null);
   } catch (error) {
     console.error("[spec-test] failed to save result", error);
     return NextResponse.json(

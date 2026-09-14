@@ -381,7 +381,7 @@ export type SpecTestLead = {
   specType: SpecTypeKey;
   consentMarketing: boolean;
   createdAt: Date;
-  /** Set once this lead's email matched a new signup - see linkSpecTestResultIfConsented. */
+  /** Set once this lead's email matched a new signup - see linkSpecTestResultToProfile. */
   joinedUsername: string | null;
 };
 
@@ -426,17 +426,22 @@ export async function getSpecTestLeads(filters: { cursor?: string; take?: number
 
 /**
  * Called right after a new account is created (see app/api/signup/route.ts and
- * ensureProfileForAuthUser in lib/auth.ts) so a consenting Spec Test result finds its
- * way to the account its taker went on to create. Deliberately does NOT feed
- * recommendations/ranking - this codebase treats those as behavior-only by design (see
- * lib/ranking/people-scoring.ts), so this is bookkeeping/attribution only for now, not a
- * personalization signal. Matches only the newest unlinked, consenting result for the
- * email, and never throws - a failure here must never block account creation.
+ * ensureProfileForAuthUser in lib/auth.ts) so a Spec Test result someone took before they
+ * had an account finds its way to the account they went on to create with the same email.
+ * Matches on the email given for the result alone, NOT on `consentMarketing` - typing an
+ * email to get a result emailed is "this is mine, remember it," a separate intent from "send
+ * me marketing," and conflating the two meant most takers who gave an email but skipped the
+ * unrelated "Keep me updated" switch (see components/spec-test/email-capture-form.tsx) never
+ * got linked at all. Deliberately does NOT feed recommendations/ranking - this codebase
+ * treats those as behavior-only by design (see lib/ranking/people-scoring.ts), so this is
+ * bookkeeping/attribution only for now, not a personalization signal. Matches only the newest
+ * unlinked result for the email, and never throws - a failure here must never block account
+ * creation.
  */
-export async function linkSpecTestResultIfConsented(email: string, profileId: string): Promise<void> {
+export async function linkSpecTestResultToProfile(email: string, profileId: string): Promise<void> {
   try {
     const pending = await prisma.specTestResult.findFirst({
-      where: { email: { equals: email, mode: "insensitive" }, consentMarketing: true, profileId: null },
+      where: { email: { equals: email, mode: "insensitive" }, profileId: null },
       orderBy: { createdAt: "desc" },
       select: { id: true },
     });

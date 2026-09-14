@@ -22,6 +22,7 @@ import {
 
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
 import { UsernameEditor } from "@/components/profile/username-editor";
+import { SpecSettingsRow } from "@/components/profile/spec-settings-row";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -201,10 +202,12 @@ export function EditProfileForm({
   profile,
   initialSection,
   usernameChangedAt,
+  latestSpecResultId,
 }: {
   profile: Profile;
   initialSection?: EditableSectionId;
   usernameChangedAt: string | null;
+  latestSpecResultId: string | null;
 }) {
   const router = useRouter();
   const [isDesktop, setIsDesktop] = useState(false);
@@ -496,6 +499,7 @@ export function EditProfileForm({
                   onClick={() => setMobileSection(section.id as EditableSectionId)}
                 />
               ))}
+              <SpecSettingsRow latestSpecResultId={latestSpecResultId} />
             </nav>
           </>
         ) : (
@@ -532,6 +536,7 @@ export function EditProfileForm({
               onClick={() => setActiveSection(section.id as EditableSectionId)}
             />
           ))}
+          <SpecSettingsRow latestSpecResultId={latestSpecResultId} />
         </div>
       </aside>
 
