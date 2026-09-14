@@ -136,6 +136,53 @@ describe("SpecTestQuizFlow (v2)", () => {
     expect(await screen.findByText(SPEC_TEST_ITEMS_V2[0].prompt)).toBeInTheDocument();
   });
 
+  it("lets the taker change an already-answered question after going back to it, instead of getting stuck", async () => {
+    let capturedBody: SubmitPayload | null = null;
+    server.use(
+      rest.post(SUBMIT_URL, async (req, res, ctx) => {
+        capturedBody = await req.json();
+        return res(ctx.status(201), ctx.json({ resultId: "result-changed", confidence: "clear" }));
+      }),
+    );
+
+    render(<SpecTestQuizFlow />);
+    await startQuiz();
+
+    await answerCurrentItem(); // item 0 answered, now on item 1
+    await answerCurrentItem(); // item 1 answered, now on item 2
+    fireEvent.click(screen.getByTestId("spec-back")); // back to item 1 (itemIndex > 0, so a back button exists here)
+    expect(await screen.findByText(SPEC_TEST_ITEMS_V2[1].prompt)).toBeInTheDocument();
+
+    // Landing back on an already-answered question must not disable every control - this is
+    // the exact bug: selectedOptionId got pre-filled from the existing answer and was also
+    // being used as the "mid-transition, ignore all clicks" lock.
+    expect(screen.getByTestId("spec-back")).not.toBeDisabled();
+    expect(screen.getByTestId("spec-skip")).not.toBeDisabled();
+    const options = await screen.findAllByTestId("spec-option");
+    for (const option of options) expect(option).not.toBeDisabled();
+
+    // Pick a different on-screen option than the one originally chosen for item 1 (the option
+    // order is stable across the back-navigation, so a different position is guaranteed to be
+    // a different underlying option).
+    fireEvent.click(options[1]);
+    await advancePastTransition();
+
+    // Must have actually advanced past item 1, not gotten stuck on it.
+    expect(await screen.findByText(SPEC_TEST_ITEMS_V2[2].prompt)).toBeInTheDocument();
+
+    for (let i = 2; i < TOTAL_ITEMS; i += 1) {
+      const continueButtons = screen.queryAllByTestId("spec-continue");
+      if (continueButtons.length > 0) fireEvent.click(continueButtons[0]);
+      await answerCurrentItem();
+    }
+
+    await waitFor(() => expect(capturedBody).not.toBeNull());
+    const revisedResponse = capturedBody!.responses.find((r) => r.itemId === SPEC_TEST_ITEMS_V2[1].id)!;
+    const validOptionIds = new Set(SPEC_TEST_ITEMS_V2[1].options.map((option) => option.id));
+    expect(revisedResponse.optionId).not.toBeNull();
+    expect(validOptionIds.has(revisedResponse.optionId!)).toBe(true);
+  });
+
   it("shows a retake prompt on a low-signal server response, without navigating", async () => {
     server.use(
       rest.post(SUBMIT_URL, async (_req, res, ctx) => res(ctx.status(200), ctx.json({ lowSignal: true, flags: ["too_fast"] }))),

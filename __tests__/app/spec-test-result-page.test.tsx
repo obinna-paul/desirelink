@@ -179,6 +179,9 @@ describe("Spec Test result page", () => {
     render(jsx);
 
     expect(screen.getByText(/Spark answers lean Electric Charmer/)).toBeInTheDocument();
+    // report §10: "secondary Spec OR Spark-Partnership split", never both - the twist card
+    // shows only one of the two secondary signals, even though the fixture supplies both.
+    expect(screen.queryByText(/Right behind it: Brilliant Tease/)).not.toBeInTheDocument();
   });
 
   it("renders the original v1 reading with a CTA to take the new version", async () => {

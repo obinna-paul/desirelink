@@ -112,6 +112,15 @@ function topLensInsight(lenses: Record<LensKey, number>): LensInsight {
   return { key: topKey, pole, title: reading.title, copy: reading.copy, partnerNote: reading.partnerNote };
 }
 
+/** Folds a tagline into the middle of a sentence: drops the trailing period and lowercases
+ *  the first letter, so "Dependable, values-driven..." can read as "..., dependable,
+ *  values-driven..." instead of colliding with the surrounding sentence's own capitalization
+ *  and punctuation. */
+function inlineTagline(tagline: string): string {
+  const stripped = tagline.endsWith(".") ? tagline.slice(0, -1) : tagline;
+  return stripped.charAt(0).toLowerCase() + stripped.slice(1);
+}
+
 export function composeSpecTestResult(input: ComposeInput): SpecTestResultCopy {
   const primary = ARCHETYPE_READINGS_V2[input.primarySpec];
   const secondary = ARCHETYPE_READINGS_V2[input.secondarySpec];
@@ -131,7 +140,7 @@ export function composeSpecTestResult(input: ComposeInput): SpecTestResultCopy {
       sparkName: sparkReading.name,
       partnershipSpec: input.partnershipPrimarySpec,
       partnershipName: partnershipReading.name,
-      copy: `Plot twist: what pulls you in and what actually keeps you aren't quite the same thing. Your Spark answers point to ${sparkReading.name}; your Partnership answers point to ${partnershipReading.name}. That doesn't mean your spark was wrong about anything - it means your best match gives you the thing that hooks you without making the everyday stuff a struggle.`,
+      copy: `Here's the twist: two different signals showed up in your answers, and that's completely normal, not a contradiction. What actually catches your eye lines up with ${sparkReading.name}, ${inlineTagline(sparkReading.tagline)}. But what you need to make something last leans more toward ${partnershipReading.name}, ${inlineTagline(partnershipReading.tagline)}. Neither one is wrong. Your best match is just someone who can give you both: the spark that hooks you, and the steadiness that keeps it going.`,
     };
   }
 
@@ -139,7 +148,7 @@ export function composeSpecTestResult(input: ComposeInput): SpecTestResultCopy {
     primarySpec: input.primarySpec,
     secondarySpec: input.secondarySpec,
     headline: { name: primary.name, tagline: primary.tagline },
-    secondaryInfluence: `Right behind it: ${secondary.name} - ${secondary.tagline}`,
+    secondaryInfluence: `You've got a real second layer here too. Right behind it: ${secondary.name}, ${inlineTagline(secondary.tagline)}.`,
     corePull: primary.coreReading,
     topMotives: topMotiveSignals(input.motiveScores),
     lensInsight: topLensInsight(input.lenses),

@@ -23,18 +23,19 @@ import type { AttachmentResponseLabel, LensKey, MotiveKey } from "@/lib/spec-tes
  */
 export const MOTIVE_READINGS: Record<MotiveKey, string> = {
   warmthResponsiveness:
-    "You're pulled toward tenderness - someone emotionally present, who reassures without being asked twice, who makes you feel met instead of managed.",
+    "You're pulled toward tenderness. A {person} who reassures you without needing to be asked twice, who notices you've gone quiet and actually checks in instead of waiting for you to explain yourself. It's less about grand romantic gestures and more about feeling met in the small moments, instead of feeling handled or managed like a task on someone's list.",
   reliabilityReciprocity:
-    "You're pulled toward follow-through - a {person} who does what {they} said, treats you the same on a quiet Tuesday as on a good night out, and isn't keeping score.",
+    "You're pulled toward follow-through. A {person} who actually does what {they} said {they} would, who treats you the same on a quiet Tuesday at home as on a good night out with friends watching, and who isn't secretly keeping score of who did what last. Consistency reads to you as care, maybe even more than any single grand gesture would.",
   socialVitality:
-    "You're pulled toward energy - boldness, flirtation, a {person} who brings a room (or just a conversation) to life by fully showing up in it.",
+    "You're pulled toward energy. Boldness, flirtation, a {person} who brings an entire room, or even just a two-person conversation, to life simply by fully showing up in it. It's the difference between someone who's technically present and someone whose presence you can actually feel.",
   agencyDirection:
-    "You're pulled toward direction - ambition, competence, the sense that a {person} chose {their} life on purpose instead of drifting into it.",
-  cognitivePlay: "You're pulled toward wit - quick minds, curiosity, a conversation that feels like a game you're both actually trying to win.",
+    "You're pulled toward direction. Ambition, competence, the unmistakable sense that a {person} chose {their} life on purpose instead of just drifting into whatever happened next. Watching someone build something real, on purpose, does more for your attraction than watching someone simply have a good time.",
+  cognitivePlay:
+    "You're pulled toward wit. Quick minds, real curiosity, a conversation that feels like a game you're both actually trying to win instead of small talk you're both just enduring. A {person} who can keep pace with your thinking gets further with you than one who simply agrees with everything you say.",
   noveltyAutonomy:
-    "You're pulled toward possibility - spontaneity, self-expression, a {person} who makes life feel bigger instead of more scheduled.",
+    "You're pulled toward possibility. Spontaneity, self-expression, a {person} who makes your life feel bigger and more open instead of more scheduled and boxed in. The appeal isn't chaos for its own sake, it's the sense that there's always another door somewhere worth trying.",
   intrigueSelectiveAccess:
-    "You're pulled toward restraint - privacy, style, a slow reveal that makes attention feel earned instead of handed to just anyone.",
+    "You're pulled toward restraint. Privacy, style, a slow reveal that makes attention feel earned rather than handed out to whoever happened to ask first. A {person} who doesn't tell {their} whole story on the first date makes you lean in, not lose interest.",
 };
 
 export type LensPoleReading = {
@@ -65,96 +66,96 @@ export const LENS_INSIGHTS: Record<LensKey, { low: LensPoleReading; high: LensPo
   sparkSafety: {
     low: {
       title: "You run on calm, not chaos",
-      copy: "Here's one you might not have clocked about yourself. You're not actually chasing fireworks. What gets you is knowing exactly where you stand. Predictable isn't boring to you. It's kind of the whole appeal.",
+      copy: "Here's one you might not have clocked about yourself. You're not actually chasing fireworks, whatever your friends might assume about your type. What genuinely gets you is knowing exactly where you stand with someone, no guessing, no reading into a delayed text. Predictable isn't boring to you the way it might be for other people. It's kind of the whole appeal, because certainty is what lets you actually relax into something.",
       partnerNote: "Your best match is a {person} steady enough that you never have to wonder where you stand.",
     },
     high: {
       title: "You run on spark, not certainty",
-      copy: "You might think you want stability more than you actually do. What lights you up is momentum, that little jolt of not knowing exactly what happens next. A guarantee is nice. A spark beats it every time.",
+      copy: "You might genuinely believe you want stability more than you actually do, right up until a sure thing starts to feel a little flat. What actually lights you up is momentum, that small jolt of not knowing exactly what happens next with someone. A guarantee is nice on paper. In practice, a spark beats it almost every time, even when you know better.",
       partnerNote: "Your best match is a {person} who keeps a little unpredictability alive, even years in.",
     },
   },
   closenessAutonomy: {
     low: {
       title: "You want in, not just nearby",
-      copy: "You might call yourself independent, and you're not wrong, but your answers say you genuinely want real closeness, not just someone in the vicinity. There's nothing wrong with wanting to be wanted that much.",
+      copy: "You might describe yourself as independent, and you're not wrong about that. But your answers say something else is also true underneath it: you genuinely want real closeness, not just someone pleasant nearby who's technically your partner. There's nothing needy about wanting to be wanted that much, whatever anyone's told you before.",
       partnerNote: "Your best match is a {person} who wants to be close as often as you do.",
     },
     high: {
       title: "You need your own room, even in love",
-      copy: "You might not notice this about yourself day to day, but you protect your independence hard, even inside a relationship you actually want. That's not commitment issues. That's just how you stay yourself.",
+      copy: "You might not notice this about yourself day to day, especially if the relationship is going well, but you protect your independence hard, even inside a relationship you genuinely want and chose. That's not commitment issues in disguise. It's just how you stay recognizably yourself instead of dissolving into someone else's life.",
       partnerNote: "Your best match is a {person} who respects your need for space without taking it personally.",
     },
   },
   fastSlow: {
     low: {
       title: "You're a slow burn, whether you admit it or not",
-      copy: "You might think of yourself as someone who jumps in fast. Your answers tell a different story. You actually build attraction slowly and on purpose, even on the nights it feels like you're moving quick.",
+      copy: "You might think of yourself as someone who jumps in fast, especially if a recent crush felt intense right away. Your answers tell a quieter story underneath that. You actually build real attraction slowly and on purpose, testing as you go, even on the nights it feels like everything's moving quick.",
       partnerNote: "Your best match is a {person} who lets things build instead of rushing the pace.",
     },
     high: {
       title: "You catch feelings at full speed",
-      copy: "You might tell people you take things slow. Your answers disagree. You fall fast when it's right, and you're not actually that interested in pretending otherwise.",
+      copy: "You might tell people, maybe even yourself, that you take things slow and never rush into anything. Your answers quietly disagree. You fall fast when something's right, sometimes faster than you'd admit out loud, and you're not actually that interested in performing more caution than you feel.",
       partnerNote: "Your best match is a {person} who can keep up when you fall fast, instead of pumping the brakes.",
     },
   },
   directnessIntrigue: {
     low: {
       title: "You want it said out loud",
-      copy: "Mystery sounds fun in theory. Your answers reveal you actually want things spelled out. Clear beats cryptic for you, every single time, even if you'd never admit that out loud on a date.",
+      copy: "Mystery sounds fun in theory, the kind of thing people say they like in a dating profile. Your answers reveal you actually want things spelled out in plain language. Clear beats cryptic for you every single time, even if admitting that out loud on a first date feels a little unglamorous.",
       partnerNote: "Your best match is a {person} who just tells you the thing, instead of making you decode it.",
     },
     high: {
       title: "You're wired for a little mystery",
-      copy: "You might say you want someone completely straightforward. Your answers disagree. A little bit of mystery, something left to figure out, is doing more work on your attraction than you probably realize.",
+      copy: "You might say, with total sincerity, that you want someone completely straightforward and easy to read. Your answers quietly disagree. A little bit of mystery, something left for you to figure out on your own, is doing more work on your actual attraction than you'd probably guess if you thought about it directly.",
       partnerNote: "Your best match is a {person} who keeps a little something back on purpose, instead of laying it all out on date one.",
     },
   },
   privatePublic: {
     low: {
       title: "Your love language is private, not public",
-      copy: "You're not that into showing it off. What actually feels good to you is quiet intimacy, the kind nobody else gets to see. Public affection is nice. This is nicer.",
+      copy: "You're not that into showing a relationship off, and that's not coldness, it's just not where the good feeling lives for you. What actually feels good is quiet intimacy, the kind that happens with the door closed and nobody else watching. Public affection is nice enough. This is nicer, every time.",
       partnerNote: "Your best match is happy keeping the good stuff between just the two of you.",
     },
     high: {
       title: "You want the world to know",
-      copy: "You might not say this part out loud, but you genuinely like affection other people can see. Being visibly chosen matters more to you than you'd probably guess.",
+      copy: "You might not say this part out loud, since it can sound a little vain, but you genuinely like affection other people can actually see. A hand held in public, someone visibly proud to be with you in front of others. Being visibly chosen matters more to you than you'd probably guess.",
       partnerNote: "Your best match is a {person} who isn't shy about showing you off.",
     },
   },
   admirationMutuality: {
     low: {
       title: "You want a teammate, not an idol",
-      copy: "You might think you're drawn to impressive people. What your answers actually show is that you want to feel like an equal, side by side, not looking up at someone from below.",
+      copy: "You might genuinely think you're drawn to impressive, accomplished people, and on the surface that can look true. What your answers actually show underneath it is that you want to feel like an equal standing side by side with someone, not looking up at {them} from below like a fan.",
       partnerNote: "Your best match is a {person} who treats you like an equal, not a project or a prize.",
     },
     high: {
       title: "A little bit of awe goes a long way for you",
-      copy: "You might not admit this readily, but genuinely looking up to someone, being a little in awe of {them}, quietly does more for your attraction than pure equality ever does.",
+      copy: "You might not admit this readily, since it can feel like it undercuts the whole equal-partnership ideal, but genuinely looking up to someone, being a little in awe of what {they}'ve built or how {they} carry {themself}, quietly does more for your attraction than pure equality ever does.",
       partnerNote: "Your best match is a {person} who gives you something real to look up to, not just someone comfortable.",
     },
   },
   mindEmbodied: {
     low: {
       title: "Presence gets you more than words do",
-      copy: "You might think you're all about the conversation. Actually, energy and presence, how someone carries themselves in a room, is pulling more weight for you than clever talk ever could.",
+      copy: "You might think you're all about the conversation, the wit, the back-and-forth. Actually, energy and presence, the way someone carries {themself} into a room before a single word gets said, is pulling more weight for you than clever talk ever could on its own.",
       partnerNote: "Your best match is a {person} who brings real presence, not just good conversation.",
     },
     high: {
       title: "You fall for minds first",
-      copy: "Looks and energy are fine, but your answers reveal the real move is mental. Someone who can actually keep up with your brain gets further with you than someone who just shows up looking good.",
+      copy: "Looks and energy are fine, and you'll notice them, but your answers reveal the real move for you is mental. Someone who can actually keep pace with how your brain works, who challenges a thought instead of just nodding along, gets further with you than someone who just shows up looking good and says little.",
       partnerNote: "Your best match is a {person} who can actually keep up with how your brain works.",
     },
   },
   explorationCommitment: {
     low: {
       title: "You're commitment first, even if you don't lead with it",
-      copy: "You might play it casual out loud. Your answers say you're actually looking for something that goes somewhere, not just something that happens once and evaporates.",
+      copy: "You might play it casual out loud, especially early on, using words like \"seeing where it goes.\" Your answers say something more committed underneath that. You're actually looking for something that goes somewhere real, not just something that happens once, feels good, and evaporates by the weekend.",
       partnerNote: "Your best match is a {person} looking for something real, not just something happening.",
     },
     high: {
       title: "You're wired to keep discovering, not settle in early",
-      copy: "You might feel a little guilty about this one. You're genuinely drawn to discovery over certainty right now, and that's not something to fix. It's just where you are.",
+      copy: "You might feel a little guilty reading this one, like it means something's wrong with you. It doesn't. You're genuinely drawn to discovery over certainty right now, more interested in finding out what's next than locking anything down early, and that's not a flaw to fix. It's just an honest read of where you are.",
       partnerNote: "Your best match is a {person} who doesn't rush you into certainty before you're ready for it.",
     },
   },
