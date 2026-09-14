@@ -344,3 +344,176 @@ This closes Phase G6, the last phase in
 [`docs/spec-test-gender-implementation-plan.md`](./spec-test-gender-implementation-plan.md).
 Every phase (G1-G6) shipped in the sequence the plan laid out, each with its own commit and
 its own full test/typecheck/lint pass before landing.
+
+## spec-v2.1 — Reading copy voice rewrite
+
+**Why.** Direct user feedback on a live result ("Soft Landing"): the archetype prose read as
+generic, clinical, and confusing rather than fun - sentences like "Your attraction system
+relaxes when care is unmistakable" and "Relief can masquerade as compatibility" are accurate
+descriptions but not something anyone recognizes themselves in or wants to share. That prose
+had been transcribed close to verbatim from `docs/spec-test-research.md` §4's "Provisional
+narrative library" - a research document's voice, not a consumer quiz's.
+
+**What changed.** All six narrative fields (`coreReading`, `whatItSaysAboutYou`, `strength`,
+`blindSpot`, `longTermFit`, `growthPrompt`) for all eight archetypes in
+`lib/spec-test/interpretation/readings-v2.ts`, the eight "dating loop" pattern-flag copy
+strings in `lib/spec-test/interpretation/pattern-flags.ts`, and the spark/partnership "twist"
+template in `lib/spec-test/interpretation/compose.ts` - rewritten in second person, with
+concrete scenarios and images ("texts to check you got home safe" instead of "your attraction
+system relaxes when care is unmistakable"), aiming for "a sharp friend describing you
+accurately" rather than a clinical abstract.
+
+**What didn't change.** The underlying claim for each archetype - what it means, which motive
+pattern it represents (`lib/spec-test/scoring/archetypes.ts`), which pattern-flag rule fires
+when (`evaluate` functions in pattern-flags.ts, untouched) - none of that moved. This is a
+delivery/voice rewrite of existing, already-accurate content, not new psychological claims.
+The pattern-flag copy keeps the report's required epistemic hedge ("may have", "may
+sometimes") in every line - a stronger sentence, not a stronger claim. Archetype names and
+taglines are untouched (the taglines were already short and doing their job; the paragraphs
+underneath them weren't).
+
+**Gender rendering.** Every gendered referent in the new copy still goes through the same
+`{token}` vocabulary from Phase G2, with the same verb-agreement discipline (no bare
+`{they}`/`{them}` as the subject of a present-tense finite verb). Verified by the existing
+gender symmetry/render test suite (`__tests__/lib/spec-test/gender/*`) and
+`results.test.ts` - both suites pass unchanged against the new content with zero test
+modifications required, confirming the rewrite is a content swap that fits the existing
+rendering pipeline rather than something that needed new plumbing.
+
+**No instrument version bump.** Option ids, loadings, centroids, and pattern-flag eligibility
+rules are unchanged - this is copy-only, same precedent as G2's tokenization pass (which also
+didn't bump the version on its own).
+
+## spec-v2.1 — Result depth expansion (two new modules)
+
+**Why.** Direct follow-up feedback: 24 answers were producing a result that felt shallow -
+one fixed archetype template plus a couple of one-line flags, when the engine actually
+computes a taker's own 7-motive vector and a 4-label attachment read (report §3 Layers A and
+C) and had simply never shown either. The voice rewrite above fixed *how* the result reads;
+this fixes how much of what the taker actually answered makes it into the result at all.
+
+**Two new modules, both built from data the engine already scores - no new questions, no new
+scoring, no schema change:**
+
+- **Your top signals** (report §10 item 2: "Why this pulls you in: three specific attraction
+  signals drawn from answers"). `composeSpecTestResult` now ranks the taker's own 7 motive
+  scores and surfaces the top 3 with a per-motive description
+  (`lib/spec-test/interpretation/signal-readings.ts`'s new `MOTIVE_READINGS`). Two takers who
+  land on the same primary archetype (identical `corePull`) can now see different top signals
+  if their underlying motive mix differs - a real personalization the templated archetype
+  copy alone could never provide. Rendered directly under "Why this pulls you in" on the
+  result page.
+- **How you handle uncertainty.** The attachment-response read (`AttachmentScore.label`) was
+  computed on every usable submission and stored, but never shown anywhere. New
+  `ATTACHMENT_READINGS` gives each of the four labels a title and a paragraph, framed per the
+  report's own safety boundary (§9: never a diagnosis, ordinary language only, never a
+  clinical attachment-theory term) - the same four labels `taxonomy.ts` has always declared
+  as the *only* ones this product may show. Rendered as its own section between "What it says
+  about you" and "Your likely dating loop"; omitted entirely on the rare row with no
+  attachment item answered (`attachmentInsight: null`).
+
+**Existing fields lengthened too.** `strength`, `blindSpot`, and `longTermFit` for all 8
+archetypes each gained one more concrete sentence - still a single paragraph each (no change
+to how the result page renders them), just more specific and less generic per archetype.
+
+**Both new modules go through the same rendering and safety pipeline as everything else.**
+`SpecTestResultCopy` gained `topMotives`/`attachmentInsight`; `results.ts`'s
+`renderResultCopy` renders both through the existing `{token}` gender pipeline; the gender
+symmetry/render test suite and the interpretation safety-lint test (banned clinical/ranking
+language) were both extended to cover the two new content dictionaries and pass without any
+changes to the pipeline itself - the new modules are a content addition that fits machinery
+already built for this, not new plumbing.
+
+**No instrument version bump, no schema change.** `motiveScores` and `attachment` were
+already computed and persisted for every usable v2 row (Phase 2/7 of the original v2
+rebuild) - this only adds a presentation layer over data that already existed.
+
+## spec-v2.1 — Item bank wording pass
+
+**Why.** Direct feedback: several prompts and options needed a reread to parse, and the
+overall tone read closer to a research abstract than a quiz someone would actually enjoy
+taking, on a product that should feel fun and openly flirtatious given its audience.
+
+**What changed, and what absolutely did not.** All 24 prompts and all 96 option labels in
+`lib/spec-test/items/spec-v2.ts` were rewritten for plain, first-read clarity and a lighter,
+flirtier tone. Every item id and every option id is byte-for-byte unchanged, and so is every
+option's assigned scoring dimension in `lib/spec-test/scoring/loadings.ts` (`OPTION_MOTIVE_LOADINGS`,
+`OPTION_ATTACHMENT_LOADINGS`) and `TENSION_ITEM_PAIRS` - this file never touched loadings.ts,
+so there was nothing to keep in sync beyond writing each option so it still clearly reads as
+evidence of the exact motive or attachment code the comment beside it already names. Verified
+by the full existing test suite passing unchanged, most importantly
+`__tests__/lib/spec-test/loadings.test.ts` (confirms every optionId still has a matching
+loadings entry) and the gender content-symmetry suite (confirms the `{token}` vocabulary and
+verb-agreement rule were applied correctly to the new wording).
+
+**The four attachment-scenario items** (`delayed-reply`, `fast-closeness`, `conflict-response`,
+`need-comfort`) got lighter touches than everything else - these measure a real emotional
+pattern, and the report's own hedge about honest framing (§9) argues for keeping them sincere
+enough to get a genuine answer rather than one picked because it was the funniest option.
+
+## spec-v2.1 — Two more result modules: hidden lens insight and a fuller partner brief
+
+**Why.** Direct follow-up: the result still read as a recap of answers already given, when it
+should tell the taker something they didn't already know about themselves - and the "who
+tends to work for you" section should draw on more than a single archetype label. The user
+specifically pointed to Tim LaHaye's *Why You Act the Way You Do* as the kind of holistic,
+narrative-rich character sketch to aim for.
+
+**What the report actually says about that book, checked before writing anything:** §1
+covers it directly - "The book is useful for narrative technique... Udala should borrow that
+breadth and human tone. It **should not** adopt the four temperaments as the scoring
+foundation." So this pass borrows the *technique* (weave several real signals into one
+textured character sketch, the way LaHaye connects temperament to work, conflict, love and
+blind spots) without inventing a second, untested four-type classification system layered on
+top of the actual one - which would also have meant fabricating content with no basis in the
+report, exactly what was asked not to do.
+
+**"Something you might not know about yourself"** (new section, always present). Every
+result already scores all 8 interpretive lenses (report §3 Layer B - Spark-Safety,
+Closeness-Autonomy, Fast-Slow burn, Directness-Intrigue, Private-Public, Admiration-Mutuality,
+Mind-Embodied, Exploration-Commitment), and none of the 8 were ever shown. `composeSpecTestResult`
+now picks the taker's single most extreme lens (furthest from the neutral midpoint, in either
+direction) and shows a specific, playful reveal for it
+(`lib/spec-test/interpretation/signal-readings.ts`'s new `LENS_INSIGHTS`, 16 entries: one per
+pole per lens). A lens score is extracted across several answers, not chosen directly on any
+one of them - which is exactly why this is new information to the taker rather than a recap.
+
+**A fuller partner brief, not a new type.** The existing archetype-level `longTermFit`
+paragraph is untouched, but the result page now shows a second, trait-based partner note
+right alongside it, pulled from that same selected lens
+(`LensPoleReading.partnerNote`, e.g. "Your best match is a {person} who keeps a little
+unpredictability alive, even years in.") - report §7's "person to marry" section calls this
+out explicitly: "Do not output 'Marry a Grounded Equal.' Output a **behavioral partner
+brief**." The brief a taker now sees is synthesized from two independent computed signals
+(archetype + lens), not a single label.
+
+**Voice note.** Per explicit instruction, this pass (and the item-bank pass above) avoid em
+dashes - short sentences and commas instead, which if anything reads more casual and easier
+to skim on a phone.
+
+**Tests.** New coverage in `interpretation.test.ts` (lens selection picks the correct key and
+direction, and always exists unlike attachment) and the gender content-symmetry suite (all 16
+lens entries render token-safe and symmetric across forms), plus the safety-lint test's banned
+term list now also runs against the new lens copy.
+
+## spec-v2.1 — Removed the standalone age-gate screen
+
+**Why.** Direct request to remove the "Before we start / I'm 18 or older - Start" click-through
+that used to be the second screen of the quiz, before the gender question.
+
+**What still exists.** This removes a redundant confirmation click, not the product's actual
+age signaling: the "18+" badge (`components/spec-test/age-badge.tsx`) still shows on every
+Spec Test page (landing, quiz, result), the landing page still frames the quiz as "a playful,
+research-informed reading... (beta)," and the platform's real, binding age confirmation
+happens at account signup (`components/auth/auth-shell.tsx`: "By continuing, you confirm you
+are at least 18 years old"). An anonymous quiz taker who never creates an account was never
+bound by the quiz's own click-through anyway, so it was friction without an equivalent
+safeguard behind it.
+
+**What changed.** `components/spec-test/quiz-flow.tsx`: removed the `"age-gate"` step, its
+JSX, and the `ageConfirmed` field from the persisted draft shape - the wizard now opens
+directly on the gender question, same scope-notice and copy as before. Updated the test
+suite's `startQuiz()` helper and the two tests that referenced the old screen.
+
+**9 tests updated, 0 added or removed** - same coverage, just no longer routing through a
+screen that no longer exists.

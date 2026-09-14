@@ -9,8 +9,11 @@ import "server-only";
 // requires at least two converging conditions, per the report's own instruction and
 // docs/spec-test-v2-implementation-plan.md §9's acceptance criteria.
 //
-// Copy strings are quoted directly from the report's §7 table - they already carry the
-// hedge ("may have", "may sometimes") the report requires, so nothing is added on top.
+// Copy strings started as near-verbatim quotes from the report's §7 table, then were
+// rewritten (same follow-up pass as readings-v2.ts) to sound like an actual observation
+// instead of a clinical note - the report's own required hedge ("may have", "may sometimes")
+// is preserved in every line, since eligibility here is still just a converged-answers signal,
+// not a diagnosis.
 
 import type { AttachmentScore } from "@/lib/spec-test/scoring/score";
 import type { LensKey, MotiveKey } from "@/lib/spec-test/taxonomy";
@@ -46,52 +49,52 @@ const RULES: PatternFlagRule[] = [
   {
     id: "ambiguity_amplification",
     reportTrigger: "high intrigue + high reassurance sensitivity",
-    copy: "Hot-and-cold attention may have occupied more mental space than steady interest.",
+    copy: "Hot-and-cold energy may have lived rent-free in your head more than actual steady interest ever did.",
     evaluate: ({ motiveScores, attachment }) =>
       motiveScores.intrigueSelectiveAccess >= HIGH && (attachment?.label === "reassuranceSensitive" || attachment?.label === "pushPull"),
   },
   {
     id: "caretaking_imbalance",
     reportTrigger: "high safety (warmth) + low reciprocity - reads as low boundaries/one-sided caretaking",
-    copy: "You may have become the emotional manager of relationships that felt unequal.",
+    copy: "You may have ended up managing the emotional temperature of relationships that weren't equal to begin with.",
     evaluate: ({ motiveScores }) => motiveScores.warmthResponsiveness >= HIGH && motiveScores.reliabilityReciprocity <= LOW,
   },
   {
     id: "fast_burn_undercurrent",
     reportTrigger: "high vitality + fast burn + low consistency threshold (low reciprocity)",
-    copy: "Your best beginnings may have outperformed {their} follow-through.",
+    copy: "The opening chapter may have been better written than everything {they} did after it.",
     evaluate: ({ motiveScores, lenses }) =>
       motiveScores.socialVitality >= HIGH && lenses.fastSlow >= HIGH && motiveScores.reliabilityReciprocity <= LOW,
   },
   {
     id: "approval_seeking",
     reportTrigger: "high agency + high approval sensitivity (admiration-leaning)",
-    copy: "Being chosen by an impressive {person} may sometimes feel like proof of your own value.",
+    copy: "Being picked by an impressive {person} may sometimes feel like proof of your own worth - more than it should.",
     evaluate: ({ motiveScores, lenses }) => motiveScores.agencyDirection >= HIGH && lenses.admirationMutuality >= HIGH,
   },
   {
     id: "banter_avoidance",
     reportTrigger: "high mental attunement + space protection (attachment avoidance)",
-    copy: "Banter may have made closeness possible while also helping you avoid direct vulnerability.",
+    copy: "Banter may have been how you got close to people - and also how you avoided ever being direct about what you actually feel.",
     evaluate: ({ motiveScores, attachment }) =>
       motiveScores.cognitivePlay >= HIGH && (attachment?.label === "spaceProtective" || (attachment?.avoidance ?? 0) >= HIGH),
   },
   {
     id: "aesthetic_projection",
     reportTrigger: "high aesthetics + high projection (intrigue-leaning)",
-    copy: "You may complete incomplete {people} with your imagination.",
+    copy: "You may fill in the blanks on incomplete {people} with your imagination - and fall for the version you invented.",
     evaluate: ({ motiveScores, lenses }) => motiveScores.intrigueSelectiveAccess >= HIGH && lenses.directnessIntrigue >= HIGH,
   },
   {
     id: "novelty_instability",
     reportTrigger: "high novelty + low routine tolerance (exploration-leaning)",
-    copy: "Familiarity may register as fading chemistry before the relationship has learned renewal.",
+    copy: "Getting familiar with someone may start to feel like the chemistry is dying, before the relationship's even had a chance to find a second gear.",
     evaluate: ({ motiveScores, lenses }) => motiveScores.noveltyAutonomy >= HIGH && lenses.explorationCommitment >= HIGH,
   },
   {
     id: "partnership_low_desire",
     reportTrigger: "high partnership (reliability) + low expressed desire (low vitality)",
-    copy: "You may build relationships that function well but need more deliberate erotic and playful energy.",
+    copy: "You may build relationships that run smoothly on paper but are quietly starved for playfulness and heat.",
     evaluate: ({ motiveScores }) => motiveScores.reliabilityReciprocity >= HIGH && motiveScores.socialVitality <= LOW,
   },
 ];

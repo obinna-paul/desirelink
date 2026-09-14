@@ -1,7 +1,16 @@
 import { composeSpecTestResult, type ComposeInput } from "@/lib/spec-test/interpretation/compose";
 import { ARCHETYPE_READINGS_V2 } from "@/lib/spec-test/interpretation/readings-v2";
 import { allPatternFlagCopy, evaluatePatternFlags, patternFlagIds, type PatternFlagInput } from "@/lib/spec-test/interpretation/pattern-flags";
-import { ARCHETYPE_KEYS, LENS_KEYS, MOTIVE_KEYS, type ArchetypeKey, type LensKey, type MotiveKey } from "@/lib/spec-test/taxonomy";
+import { ATTACHMENT_READINGS, LENS_INSIGHTS, MOTIVE_READINGS } from "@/lib/spec-test/interpretation/signal-readings";
+import {
+  ARCHETYPE_KEYS,
+  ATTACHMENT_RESPONSE_LABELS,
+  LENS_KEYS,
+  MOTIVE_KEYS,
+  type ArchetypeKey,
+  type LensKey,
+  type MotiveKey,
+} from "@/lib/spec-test/taxonomy";
 
 // Acceptance criteria from docs/spec-test-v2-implementation-plan.md §9.
 
@@ -84,6 +93,50 @@ describe("composeSpecTestResult", () => {
   // Note: this is enforced at the type level, not at runtime - ComposeInput has no
   // "low_signal" variant, so there is no value you could pass here that both type-checks and
   // represents a low-signal result. A low-signal decision simply cannot reach this function.
+
+  it("surfaces the taker's own top 3 motives by score, not the fixed archetype copy", () => {
+    const motiveScores = { ...neutralMotives(), cognitivePlay: 90, agencyDirection: 80, warmthResponsiveness: 70 };
+    const copy = composeSpecTestResult(composeInputFor("quiet_fire", { motiveScores }));
+
+    expect(copy.topMotives).toHaveLength(3);
+    expect(copy.topMotives.map((signal) => signal.key)).toEqual(["cognitivePlay", "agencyDirection", "warmthResponsiveness"]);
+    expect(copy.topMotives[0].copy).toBe(MOTIVE_READINGS.cognitivePlay);
+  });
+
+  it("surfaces an attachment insight matching the taker's own attachment label", () => {
+    const copy = composeSpecTestResult(composeInputFor("quiet_fire", { attachment: { anxiety: 80, avoidance: 20, label: "reassuranceSensitive" } }));
+    expect(copy.attachmentInsight).toEqual({
+      label: "reassuranceSensitive",
+      title: ATTACHMENT_READINGS.reassuranceSensitive.title,
+      copy: ATTACHMENT_READINGS.reassuranceSensitive.copy,
+    });
+  });
+
+  it("omits the attachment insight when no attachment item was ever answered", () => {
+    const copy = composeSpecTestResult(composeInputFor("quiet_fire", { attachment: null }));
+    expect(copy.attachmentInsight).toBeNull();
+  });
+
+  it("surfaces the taker's single most extreme lens, in the direction it actually leans", () => {
+    const high = composeSpecTestResult(
+      composeInputFor("quiet_fire", { lenses: { ...neutralLenses(), directnessIntrigue: 90, fastSlow: 60 } }),
+    );
+    expect(high.lensInsight.key).toBe("directnessIntrigue");
+    expect(high.lensInsight.pole).toBe("high");
+    expect(high.lensInsight.copy).toBe(LENS_INSIGHTS.directnessIntrigue.high.copy);
+
+    const low = composeSpecTestResult(
+      composeInputFor("quiet_fire", { lenses: { ...neutralLenses(), closenessAutonomy: 5 } }),
+    );
+    expect(low.lensInsight.key).toBe("closenessAutonomy");
+    expect(low.lensInsight.pole).toBe("low");
+    expect(low.lensInsight.copy).toBe(LENS_INSIGHTS.closenessAutonomy.low.copy);
+  });
+
+  it("always includes a lens insight, unlike attachment which can be null", () => {
+    const copy = composeSpecTestResult(composeInputFor("quiet_fire", { lenses: neutralLenses() }));
+    expect(copy.lensInsight).toBeTruthy();
+  });
 });
 
 describe("pattern flags require converging conditions", () => {
@@ -169,6 +222,18 @@ describe("safety lint - no clinical/diagnostic or ranking language", () => {
     }
     for (const flag of allPatternFlagCopy()) {
       strings.push(flag.copy);
+    }
+    for (const key of MOTIVE_KEYS) {
+      strings.push(MOTIVE_READINGS[key]);
+    }
+    for (const label of ATTACHMENT_RESPONSE_LABELS) {
+      strings.push(ATTACHMENT_READINGS[label].title, ATTACHMENT_READINGS[label].copy);
+    }
+    for (const key of LENS_KEYS) {
+      for (const pole of ["low", "high"] as const) {
+        const reading = LENS_INSIGHTS[key][pole];
+        strings.push(reading.title, reading.copy, reading.partnerNote);
+      }
     }
     return strings;
   }

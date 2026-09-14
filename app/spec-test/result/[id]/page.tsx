@@ -37,7 +37,7 @@ const SPEC_ACCENTS: Record<ArchetypeKey, { badge: string; icon: string }> = {
 };
 
 const RESULT_DISCLAIMER =
-  "This is a research-informed reflection on your attraction preferences, not a diagnosis or a prediction of destiny. People and relationships change with context. Use the reading as a prompt to notice patterns—not as a reason to ignore what someone consistently shows you.";
+  "This is a research-informed reflection on your attraction preferences, not a diagnosis or a prediction of destiny. People and relationships change with context. Use the reading as a prompt to notice patterns, not as a reason to ignore what someone consistently shows you.";
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const reading = await getSpecTestReading(params.id);
@@ -99,7 +99,7 @@ function ResultHeader({
 
 function JoinCta({ resultId }: { resultId: string }) {
   return (
-    <RevealSection delayMs={520} className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-card p-6 text-center shadow-card">
+    <RevealSection delayMs={700} className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-card p-6 text-center shadow-card">
       <p className="font-heading text-xl font-bold">Meet people who match your energy on Udala.</p>
       <Button
         asChild
@@ -199,9 +199,20 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
         {/* 1. Your Spec */}
         <ResultHeader eyebrow="Your spec is" name={copy.headline.name} tagline={copy.headline.tagline} accent={accent} />
 
-        {/* 2. Why this pulls you in */}
-        <RevealSection delayMs={80}>
+        {/* 2. Why this pulls you in - the archetype hook, plus the taker's own top 3 motive
+             signals (not fixed archetype copy - these come straight from their scores). */}
+        <RevealSection delayMs={80} className="flex flex-col gap-4">
           <p className="text-[15px] leading-relaxed">{copy.corePull}</p>
+          <div className="flex flex-col gap-2 rounded-2xl border border-dashed border-border/60 bg-card/60 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Your top signals</p>
+            <ul className="flex flex-col gap-2">
+              {copy.topMotives.map((signal) => (
+                <li key={signal.key} className="text-[15px] leading-relaxed text-muted-foreground">
+                  {signal.copy}
+                </li>
+              ))}
+            </ul>
+          </div>
         </RevealSection>
 
         {/* 3. The twist - secondary spec, and the spark/partnership split when it applies */}
@@ -219,9 +230,29 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
           <p className="text-[15px] leading-relaxed text-muted-foreground">{copy.whatItSaysAboutYou}</p>
         </RevealSection>
 
-        {/* 5. Your likely dating loop - only the modules that actually converged */}
+        {/* 5. Something you might not know about yourself - the taker's single most extreme
+             interpretive lens (report §3 Layer B), a pattern pulled across several answers
+             rather than a recap of any one of them. Always present. */}
+        <RevealSection delayMs={260} className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-5 shadow-card">
+          <h2 className="font-heading text-lg font-semibold">Something you might not know about yourself</h2>
+          <p className="text-sm font-semibold text-primary">{copy.lensInsight.title}</p>
+          <p className="text-[15px] leading-relaxed text-muted-foreground">{copy.lensInsight.copy}</p>
+        </RevealSection>
+
+        {/* 6. How you handle uncertainty - the taker's attachment-response read, in ordinary
+             language only (report §9: never a diagnosis). Absent only when no attachment item
+             was ever answered. */}
+        {copy.attachmentInsight && (
+          <RevealSection delayMs={320} className="flex flex-col gap-3">
+            <h2 className="font-heading text-lg font-semibold">How you handle uncertainty</h2>
+            <p className="text-sm font-semibold text-primary">{copy.attachmentInsight.title}</p>
+            <p className="text-[15px] leading-relaxed text-muted-foreground">{copy.attachmentInsight.copy}</p>
+          </RevealSection>
+        )}
+
+        {/* 7. Your likely dating loop - only the modules that actually converged */}
         {copy.datingLoop.length > 0 && (
-          <RevealSection delayMs={260} className="flex flex-col gap-3">
+          <RevealSection delayMs={380} className="flex flex-col gap-3">
             <h2 className="font-heading text-lg font-semibold">Your likely dating loop</h2>
             {copy.datingLoop.map((flag) => (
               <p key={flag.id} className="text-[15px] leading-relaxed text-muted-foreground">
@@ -231,36 +262,40 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
           </RevealSection>
         )}
 
-        {/* 6. Your strength in love */}
-        <RevealSection delayMs={320} className="flex flex-col gap-3">
+        {/* 8. Your strength in love */}
+        <RevealSection delayMs={440} className="flex flex-col gap-3">
           <h2 className="font-heading text-lg font-semibold">Your strength in love</h2>
           <p className="text-[15px] leading-relaxed text-muted-foreground">{copy.strength}</p>
         </RevealSection>
 
-        {/* 7. Your blind spot */}
-        <RevealSection delayMs={380} className="flex flex-col gap-3">
+        {/* 9. Your blind spot */}
+        <RevealSection delayMs={500} className="flex flex-col gap-3">
           <h2 className="font-heading text-lg font-semibold">Your blind spot</h2>
           <p className="text-[15px] leading-relaxed text-muted-foreground">{copy.blindSpot}</p>
         </RevealSection>
 
-        {/* 8. Who tends to work for you */}
-        <RevealSection delayMs={440} className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-5 shadow-card">
+        {/* 10. Who tends to work for you - the archetype's own partner brief, plus a second,
+             trait-based partner note from the same lens insight above, so the brief draws on
+             more than one signal (report §7 "person to marry": a behavioral brief, not a type
+             label). */}
+        <RevealSection delayMs={560} className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-5 shadow-card">
           <h2 className="font-heading text-lg font-semibold">Who tends to work for you</h2>
           <p className="text-[15px] leading-relaxed text-muted-foreground">{copy.longTermFit}</p>
+          <p className="text-[15px] leading-relaxed text-muted-foreground">{copy.lensInsight.partnerNote}</p>
         </RevealSection>
 
-        {/* 9. One experiment */}
-        <RevealSection delayMs={480} className="flex flex-col gap-2">
+        {/* 11. One experiment */}
+        <RevealSection delayMs={620} className="flex flex-col gap-2">
           <h2 className="font-heading text-lg font-semibold">One thing to try</h2>
           <p className="font-heading text-[15px] font-semibold italic text-foreground">&ldquo;{copy.growthPrompt}&rdquo;</p>
         </RevealSection>
 
-        <RevealSection delayMs={500} className="flex flex-col gap-1 text-center">
+        <RevealSection delayMs={640} className="flex flex-col gap-1 text-center">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{copy.confidenceLabel}</p>
           <p className="text-xs text-muted-foreground/80">{RESULT_DISCLAIMER}</p>
         </RevealSection>
 
-        {/* 10. Share card */}
+        {/* 12. Share card */}
         <JoinCta resultId={params.id} />
       </main>
 

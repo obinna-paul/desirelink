@@ -2,7 +2,8 @@ import { renderTerms } from "@/lib/spec-test/gender/render";
 import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
 import { ARCHETYPE_READINGS_V2 } from "@/lib/spec-test/interpretation/readings-v2";
 import { allPatternFlagCopy } from "@/lib/spec-test/interpretation/pattern-flags";
-import { ARCHETYPE_KEYS } from "@/lib/spec-test/taxonomy";
+import { ATTACHMENT_READINGS, LENS_INSIGHTS, MOTIVE_READINGS } from "@/lib/spec-test/interpretation/signal-readings";
+import { ARCHETYPE_KEYS, ATTACHMENT_RESPONSE_LABELS, LENS_KEYS, MOTIVE_KEYS } from "@/lib/spec-test/taxonomy";
 import { expectSymmetricTemplate } from "./symmetry-helper";
 
 // Acceptance criteria from docs/spec-test-gender-implementation-plan.md §7 (Phase G2):
@@ -100,6 +101,70 @@ describe("pattern-flag copy - gender rendering", () => {
   it("is symmetric across forms for every rule's copy", () => {
     for (const flag of allPatternFlagCopy()) {
       expectSymmetricTemplate(flag.copy);
+    }
+  });
+});
+
+describe("top-motive-signal copy - gender rendering", () => {
+  it("renders every motive's copy under both forms without throwing, with no leaked token", () => {
+    for (const key of MOTIVE_KEYS) {
+      const copy = MOTIVE_READINGS[key];
+      expect(() => renderTerms(copy, "male_user")).not.toThrow();
+      expect(() => renderTerms(copy, "female_user")).not.toThrow();
+      expect(renderTerms(copy, "male_user")).not.toMatch(/[{}]/);
+      expect(renderTerms(copy, "female_user")).not.toMatch(/[{}]/);
+    }
+  });
+
+  it("is symmetric across forms for every motive's copy", () => {
+    for (const key of MOTIVE_KEYS) {
+      expectSymmetricTemplate(MOTIVE_READINGS[key]);
+    }
+  });
+});
+
+describe("attachment-insight copy - gender rendering", () => {
+  it("renders every attachment reading under both forms without throwing, with no leaked token", () => {
+    for (const label of ATTACHMENT_RESPONSE_LABELS) {
+      const { copy } = ATTACHMENT_READINGS[label];
+      expect(() => renderTerms(copy, "male_user")).not.toThrow();
+      expect(() => renderTerms(copy, "female_user")).not.toThrow();
+      expect(renderTerms(copy, "male_user")).not.toMatch(/[{}]/);
+      expect(renderTerms(copy, "female_user")).not.toMatch(/[{}]/);
+    }
+  });
+
+  it("is symmetric across forms for every attachment reading", () => {
+    for (const label of ATTACHMENT_RESPONSE_LABELS) {
+      expectSymmetricTemplate(ATTACHMENT_READINGS[label].copy);
+    }
+  });
+});
+
+describe("lens-insight copy - gender rendering", () => {
+  function allLensStrings(): string[] {
+    const strings: string[] = [];
+    for (const key of LENS_KEYS) {
+      for (const pole of ["low", "high"] as const) {
+        const reading = LENS_INSIGHTS[key][pole];
+        strings.push(reading.copy, reading.partnerNote);
+      }
+    }
+    return strings;
+  }
+
+  it("renders every lens insight under both forms without throwing, with no leaked token", () => {
+    for (const text of allLensStrings()) {
+      expect(() => renderTerms(text, "male_user")).not.toThrow();
+      expect(() => renderTerms(text, "female_user")).not.toThrow();
+      expect(renderTerms(text, "male_user")).not.toMatch(/[{}]/);
+      expect(renderTerms(text, "female_user")).not.toMatch(/[{}]/);
+    }
+  });
+
+  it("is symmetric across forms for every lens insight", () => {
+    for (const text of allLensStrings()) {
+      expectSymmetricTemplate(text);
     }
   });
 });
