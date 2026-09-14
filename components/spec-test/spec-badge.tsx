@@ -4,7 +4,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Fingerprint, X } from "lucide-react";
 
-import { archetypeDisplayName, archetypeSummary } from "@/lib/spec-test/archetype-labels";
+import { archetypeDisplayName, archetypeSummary, likeSummaryPrompt } from "@/lib/spec-test/archetype-labels";
+import type { Gender } from "@/lib/spec-test/gender/forms";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { cn } from "@/lib/utils";
 
@@ -24,10 +25,15 @@ import { cn } from "@/lib/utils";
  */
 export function SpecBadge({
   specType,
+  assumedAttractionTarget,
   variant,
   className,
 }: {
   specType: string | null | undefined;
+  /** Profile.specTestResults[0].assumedAttractionTarget - which gender the archetype summary
+   *  below is phrased as "I like a woman/man who is..." for. Missing (a pre-gender-question
+   *  row) falls back the same way likeSummaryPrompt's own default does. */
+  assumedAttractionTarget?: string | null;
   variant: "card" | "profile";
   className?: string;
 }) {
@@ -39,6 +45,7 @@ export function SpecBadge({
 
   const name = archetypeDisplayName(specType);
   const summary = archetypeSummary(specType);
+  const prompt = summary ? likeSummaryPrompt(summary, assumedAttractionTarget as Gender | null) : null;
 
   useEffect(() => {
     if (!open) return;
@@ -109,7 +116,7 @@ export function SpecBadge({
                     {name}
                   </h2>
                 </div>
-                <p className="text-sm leading-relaxed text-muted-foreground">{summary}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{prompt}</p>
               </div>
             </div>
           </div>,
