@@ -215,13 +215,14 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
           </div>
         </RevealSection>
 
-        {/* 3. The twist - secondary spec, and the spark/partnership split when it applies */}
+        {/* 3. The twist - report §10: "secondary Spec OR Spark-Partnership split", never both.
+             Showing both at once was naming up to three archetypes in one card with no
+             explanation attached to the newer two - confirmed confusing in practice. */}
         <RevealSection delayMs={140} className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-5 shadow-card">
           <h2 className="font-heading text-lg font-semibold">The twist</h2>
-          <p className="text-[15px] leading-relaxed text-muted-foreground">{copy.secondaryInfluence}</p>
-          {copy.sparkPartnershipTwist && (
-            <p className="text-[15px] leading-relaxed text-muted-foreground">{copy.sparkPartnershipTwist.copy}</p>
-          )}
+          <p className="text-[15px] leading-relaxed text-muted-foreground">
+            {copy.sparkPartnershipTwist ? copy.sparkPartnershipTwist.copy : copy.secondaryInfluence}
+          </p>
         </RevealSection>
 
         {/* 4. What it says about you */}

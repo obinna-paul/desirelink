@@ -548,3 +548,61 @@ Removed the scope notice ("Current test scope: this version is designed for...")
 "This only changes who the questions describe" explainer added in Phase G4, per direct
 request to keep the screen to the bare question and its two buttons. No test depended on
 either removed string.
+
+## spec-v2.1 — Fixed "the twist" stacking two archetype names with no explanation
+
+**The bug, as reported.** On a split result, the result page showed the secondary-influence
+module ("Right behind it: Brilliant Tease...") and the Spark/Partnership twist module in the
+same card at the same time - up to three archetype names on screen with no room to explain
+any of the newer two, read as confusing rather than insightful.
+
+**What the report actually specifies.** §10's result-page structure lists "3. The twist:
+secondary Spec **or** Spark-Partnership split" as one module with two possible fillings, not
+both simultaneously. The shipped code had drifted from that.
+
+**Fix.** `compose.ts` and `app/spec-test/result/[id]/page.tsx`'s "The twist" card now render
+`sparkPartnershipTwist.copy` when the result is a split (mentioning both the taker's Spark-lean
+and Partnership-lean archetype, spelled out in one connected explanation) and
+`secondaryInfluence` otherwise - never both. Also added an `inlineTagline` helper so an
+archetype's tagline folds into the middle of a sentence instead of colliding with its own
+capitalization/punctuation when quoted inline.
+
+**Test.** `spec-test-result-page.test.tsx`'s existing split-result test now also asserts the
+secondary-influence line is absent when the twist module is shown, confirming the either/or
+behavior actually holds rather than just happening to pass.
+
+## spec-v2.1 — Depth pass: pattern flags, archetype readings, and motive/lens copy
+
+**Why.** Direct escalation on top of the spec-v2.1 lens-insight pass above: "these sections
+are too brief, too snappy, too shallow... Deep, very insightful, very specific, very
+relatable, and very detailed." The earlier pass fixed voice and added new modules but left
+every individual string at one terse sentence - fine for a first read, not enough once a
+taker is looking at their actual result.
+
+**What changed, and what didn't.** No new claims, dimensions, or archetypes - every string
+below still describes exactly what `lib/spec-test/scoring/archetypes.ts`'s centroids and
+`docs/spec-test-research.md` already support for that pattern/archetype/lens/motive. Only the
+delivery changed: each string went from a single sentence to a short paragraph built the same
+way throughout - a concrete, relatable scenario, then the psychological "why this happens"
+underneath it - while keeping every required hedge ("may have", "you might") since none of
+this is a diagnosis.
+
+- `lib/spec-test/interpretation/pattern-flags.ts`: all 8 dating-loop rules' `copy` rewritten.
+- `lib/spec-test/interpretation/readings-v2.ts`: all 8 archetypes' `coreReading`,
+  `whatItSaysAboutYou`, `strength`, `blindSpot`, and `longTermFit` rewritten (`growthPrompt`
+  left as-is - it's a deliberately short closing line, not a shallow one).
+- `lib/spec-test/interpretation/signal-readings.ts`: all 7 `MOTIVE_READINGS` entries and all
+  16 `LENS_INSIGHTS` pole `copy` fields rewritten. `partnerNote` fields and `ATTACHMENT_READINGS`
+  were already at this depth from the original pass and are unchanged.
+
+**Verb-agreement and token checks.** Several longer drafts initially used a bare `{they}`/
+`{them}` as the subject of a present-tense verb (e.g. "{they've} decided", "whenever
+{they're} ready") - all rewritten to avoid that construction (a modal, a passive, or "the
+{person}" as subject) per the standing gender-rendering rule, since neutral "they" and
+gendered "she"/"he" take different verb forms. Also caught a few drafts that had drifted to
+generic "a person"/"someone" instead of the established `{person}` token.
+
+**Tests.** Full suite (543 tests) still green with no changes needed - the safety-lint banned
+term list and the gender content-symmetry checks operate on the token structure and vocabulary
+of these strings, not their length, so the added depth didn't require new fixtures. Confirmed
+zero em dashes across all three files via direct grep, per the standing no-em-dash rule.
