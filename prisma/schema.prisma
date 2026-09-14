@@ -230,6 +230,15 @@ model Profile {
   showInSearch              Boolean   @default(true)
   showExactLocation         Boolean   @default(false)
   showActivityStatus        Boolean   @default(true)
+  /**
+   * Shows a "Reads as: <spec>" badge on this profile's cards and page - off by default. A
+   * Spec Test result is more intimate than a bio (attachment style, dating patterns), so
+   * displaying it to other users is opt-in, separate from using it internally for ranking
+   * (see lib/spec-test/compatibility.ts), which needs no separate consent - same behavioral-
+   * signal default every other ranking input in this codebase already uses (CreatorAffinity,
+   * search interactions, etc. have no per-signal opt-out either).
+   */
+  specShownPublicly         Boolean   @default(false)
   isVerified                Boolean   @default(false)
   isVerifiedCreator         Boolean   @default(false)
   isVerifiedServiceProvider Boolean   @default(false)
@@ -278,6 +287,15 @@ model Profile {
    * Creator, or on first entry after signing up directly as one) - null means unseen.
    */
   creatorWelcomeShownAt DateTime?
+
+  /**
+   * Set the first time this profile is shown the "What's your spec?" nudge - either the
+   * one-time app-open popup (see components/spec-test/spec-test-nudge-modal.tsx, mounted from
+   * app/(app)/layout.tsx) or an on-demand open from the "What's your spec?" row in profile
+   * settings. Null means unseen AND the test is untaken; once set, the popup never shows
+   * again regardless of which surface set it or whether the taker actually took the test.
+   */
+  specTestNudgeShownAt DateTime?
 
   /**
    * Dedupes the one-time personal welcome note from the founder - see app/api/cron/ceo-welcome-note.

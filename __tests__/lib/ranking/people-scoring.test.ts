@@ -129,7 +129,7 @@ describe("rankRecommendedProfiles", () => {
     ];
 
     const result = await rankRecommendedProfiles(
-      { id: "viewer-1", profileType: "EXPLORER", ...NO_LOCATION },
+      { id: "viewer-1", profileType: "EXPLORER", ...NO_LOCATION, specTestResults: [] },
       candidates,
       NOW,
     );
@@ -149,7 +149,7 @@ describe("rankRecommendedProfiles", () => {
     ];
 
     const result = await rankRecommendedProfiles(
-      { id: "viewer-1", profileType: "SEEKER", ...NO_LOCATION },
+      { id: "viewer-1", profileType: "SEEKER", ...NO_LOCATION, specTestResults: [] },
       candidates,
       NOW,
     );
@@ -165,13 +165,37 @@ describe("rankRecommendedProfiles", () => {
       { id: "tied-2", profileType: "EXPLORER" as const, ...NO_LOCATION, createdAt: NOW, ...trustless },
       { id: "tied-3", profileType: "EXPLORER" as const, ...NO_LOCATION, createdAt: NOW, ...trustless },
     ];
-    const viewer = { id: "viewer-1", profileType: "EXPLORER" as const, ...NO_LOCATION };
+    const viewer = { id: "viewer-1", profileType: "EXPLORER" as const, ...NO_LOCATION, specTestResults: [] };
 
     const first = await rankRecommendedProfiles(viewer, candidates, NOW);
     const second = await rankRecommendedProfiles(viewer, candidates, NOW);
 
     expect(first).toEqual(second);
     expect(new Set(first)).toEqual(new Set(["tied-1", "tied-2", "tied-3"]));
+  });
+
+  it("ranks a spec-compatible candidate above an otherwise-identical one with no spec signal", async () => {
+    const viewer = {
+      id: "viewer-1",
+      profileType: "EXPLORER" as const,
+      ...NO_LOCATION,
+      specTestResults: [{ specType: "soft_landing" }],
+    };
+    const candidates = [
+      { id: "no-spec", profileType: "EXPLORER" as const, ...NO_LOCATION, createdAt: NOW, ...trustless },
+      {
+        id: "complement",
+        profileType: "EXPLORER" as const,
+        ...NO_LOCATION,
+        createdAt: NOW,
+        ...trustless,
+        specTestResults: [{ specType: "grounded_equal" }],
+      },
+    ];
+
+    const result = await rankRecommendedProfiles(viewer, candidates, NOW);
+
+    expect(result).toEqual(["complement", "no-spec"]);
   });
 });
 

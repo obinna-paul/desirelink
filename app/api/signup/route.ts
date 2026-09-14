@@ -9,7 +9,7 @@ import { checkRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { getClientIp, readJson } from "@/lib/security/request";
 import { sendSignupOtpEmail } from "@/lib/email/notifications";
 import { isTurnstileConfigured, verifyTurnstileToken } from "@/lib/turnstile";
-import { linkSpecTestResultIfConsented } from "@/lib/spec-test";
+import { linkSpecTestResultToProfile } from "@/lib/spec-test";
 import { GENDER_UNSPECIFIED } from "@/lib/profile-options";
 
 export async function POST(req: Request) {
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
     });
 
     if (created.profile) {
-      await linkSpecTestResultIfConsented(normalizedEmail, created.profile.id);
+      await linkSpecTestResultToProfile(normalizedEmail, created.profile.id);
     }
   } catch (error) {
     console.error("[signup] account creation failed", error);

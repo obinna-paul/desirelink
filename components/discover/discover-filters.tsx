@@ -16,6 +16,7 @@ import {
   DISCOVER_SORT_OPTIONS,
   LAST_ACTIVE_FILTER_OPTIONS,
   RADIUS_OPTIONS,
+  SPEC_FILTER_OPTIONS,
   VERIFICATION_FILTER_OPTIONS,
   type AvailabilityFilterValue,
   type DiscoverFilters,
@@ -40,6 +41,7 @@ export function DiscoverFiltersPanel({
   const router = useRouter();
   const [genders, setGenders] = useState<string[]>(initialFilters.genders);
   const [orientations, setOrientations] = useState<string[]>(initialFilters.orientations);
+  const [specTypes, setSpecTypes] = useState<string[]>(initialFilters.specTypes);
   const [lastActive, setLastActive] = useState<LastActiveFilterValue>(initialFilters.lastActive);
   const [verification, setVerification] = useState<VerificationFilterValue>(initialFilters.verification);
   const [radiusKm, setRadiusKm] = useState<string>(
@@ -54,6 +56,7 @@ export function DiscoverFiltersPanel({
   const activeFilterCount =
     genders.length +
     orientations.length +
+    specTypes.length +
     (radiusKm !== "any" ? 1 : 0) +
     (availability !== "any" ? 1 : 0) +
     (sort !== "recommended" ? 1 : 0) +
@@ -65,6 +68,7 @@ export function DiscoverFiltersPanel({
     if (initialFilters.query) params.set("q", initialFilters.query);
     genders.forEach((value) => params.append("gender", value));
     orientations.forEach((value) => params.append("orientation", value));
+    specTypes.forEach((value) => params.append("spec", value));
     if (lastActive !== "any") params.set("lastActive", lastActive);
     if (verification !== "any") params.set("verification", verification);
     params.set("radius", radiusKm);
@@ -77,6 +81,7 @@ export function DiscoverFiltersPanel({
   function clearFilters() {
     setGenders([]);
     setOrientations([]);
+    setSpecTypes([]);
     setLastActive("any");
     setVerification("any");
     setRadiusKm("any");
@@ -107,6 +112,12 @@ export function DiscoverFiltersPanel({
             options={toOptions(ORIENTATION_OPTIONS)}
             selected={orientations}
             onChange={setOrientations}
+          />
+          <FilterMultiSelect
+            label="Spec"
+            options={SPEC_FILTER_OPTIONS}
+            selected={specTypes}
+            onChange={setSpecTypes}
           />
           <FilterSelect
             label="Verification"

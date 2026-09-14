@@ -5,14 +5,18 @@ jest.mock("@/components/layout/public-footer", () => ({ PublicFooter: () => null
 jest.mock("@/components/spec-test/age-badge", () => ({ AgeBadge: () => null }));
 jest.mock("@/components/spec-test/email-capture-form", () => ({ EmailCaptureForm: () => null }));
 jest.mock("@/lib/spec-test", () => ({ getSpecTestReading: jest.fn() }));
+jest.mock("next-auth", () => ({ getServerSession: jest.fn() }));
+jest.mock("@/lib/auth", () => ({ authOptions: {} }));
 
 import SpecTestResultPage, { generateMetadata } from "@/app/spec-test/result/[id]/page";
 import { getSpecTestReading } from "@/lib/spec-test";
+import { getServerSession } from "next-auth";
 import { notFound } from "next/navigation";
 import type { SpecTestReading } from "@/lib/spec-test/results";
 import { SPEC_TYPE_READINGS } from "@/lib/spec-test/legacy";
 
 const mockGetReading = getSpecTestReading as jest.Mock;
+const mockSession = getServerSession as jest.Mock;
 const mockNotFound = notFound as unknown as jest.Mock;
 
 function v2Reading(overrides: Partial<Extract<SpecTestReading, { version: "v2" }>> = {}): Extract<SpecTestReading, { version: "v2" }> {
@@ -87,6 +91,7 @@ function v2Reading(overrides: Partial<Extract<SpecTestReading, { version: "v2" }
 describe("Spec Test result page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSession.mockResolvedValue(null);
   });
 
   it("calls notFound for a missing result", async () => {
@@ -211,5 +216,17 @@ describe("Spec Test result page", () => {
     const metadata = await generateMetadata({ params: { id: "result-1" } });
     expect(metadata.title).toBe("My spec is Quiet Fire | The Spec Test");
     expect(metadata.description).toBe("Composed, private, observant and surprisingly intense.");
+  });
+
+  it("shows a signed-in taker a confirmation and a way back into the app, not the anonymous Join CTA", async () => {
+    mockSession.mockResolvedValue({ user: { id: "user-1" } });
+    mockGetReading.mockResolvedValue(v2Reading());
+    const jsx = await SpecTestResultPage({ params: { id: "result-1" } });
+    render(jsx);
+
+    expect(screen.getByText(/Saved to your profile/)).toBeInTheDocument();
+    expect(screen.getByText("Back to Udala")).toBeInTheDocument();
+    expect(screen.queryByText("Join Udala")).not.toBeInTheDocument();
+    expect(screen.queryByText("Want a copy of this in your inbox?")).not.toBeInTheDocument();
   });
 });

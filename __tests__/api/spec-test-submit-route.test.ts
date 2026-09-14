@@ -1,3 +1,5 @@
+jest.mock("next-auth", () => ({ getServerSession: jest.fn() }));
+jest.mock("@/lib/auth", () => ({ authOptions: {} }));
 jest.mock("next/server", () => ({
   NextResponse: {
     json: jest.fn((body: unknown, init?: ResponseInit) => ({
@@ -8,11 +10,14 @@ jest.mock("next/server", () => ({
 }));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    specTestResult: { create: jest.fn() },
+    specTestResult: { create: jest.fn(), findFirst: jest.fn() },
     specTestInstrumentStat: { upsert: jest.fn().mockResolvedValue({}) },
     specTestFormStat: { upsert: jest.fn().mockResolvedValue({}) },
+    profile: { findUnique: jest.fn() },
   },
 }));
+
+import { getServerSession } from "next-auth";
 
 import { POST } from "@/app/api/spec-test/submit/route";
 import { prisma } from "@/lib/prisma";
@@ -20,10 +25,12 @@ import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
 import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
 import { specTestQuestionIds } from "@/lib/spec-test";
 
+const mockSession = getServerSession as jest.Mock;
 const mockPrisma = prisma as unknown as {
-  specTestResult: { create: jest.Mock };
+  specTestResult: { create: jest.Mock; findFirst: jest.Mock };
   specTestInstrumentStat: { upsert: jest.Mock };
   specTestFormStat: { upsert: jest.Mock };
+  profile: { findUnique: jest.Mock };
 };
 
 function post(body: unknown, ip = "203.0.113.1") {
@@ -108,6 +115,8 @@ describe("POST /api/spec-test/submit - v2 payload", () => {
     expect(data.routingRule).toBe("heterosexual_v0_1");
     expect(data.assumedAttractionTarget).toBe("female");
     expect(data.quizForm).toBe("male_user");
+    // Anonymous (no session mocked) - never linked to a profile at submission time.
+    expect(data.profileId).toBeNull();
 
     expect(mockPrisma.specTestInstrumentStat.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { instrumentVersion: INSTRUMENT_VERSION }, update: { submittedCount: { increment: 1 } } }),
@@ -246,5 +255,54 @@ describe("POST /api/spec-test/submit - rate limiting", () => {
     }
 
     expect(lastResponse?.status).toBe(429);
+  });
+});
+
+describe("POST /api/spec-test/submit - signed-in taker", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("links a signed-in taker's submission to their profile immediately, with no prior result to cap against", async () => {
+    mockSession.mockResolvedValue({ user: { id: "user-1" } });
+    mockPrisma.profile.findUnique.mockResolvedValue({ id: "profile-1" });
+    mockPrisma.specTestResult.findFirst.mockResolvedValue(null);
+    mockPrisma.specTestResult.create.mockResolvedValue({ id: "linked-result-1" });
+
+    const response = await post(v2ResponsePayload(), "203.0.113.50");
+
+    expect(response.status).toBe(201);
+    expect(mockPrisma.specTestResult.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { profileId: "profile-1" }, orderBy: { createdAt: "desc" } }),
+    );
+    const data = mockPrisma.specTestResult.create.mock.calls[0][0].data;
+    expect(data.profileId).toBe("profile-1");
+  });
+
+  it("rejects a retake within the 30-day cooldown without creating a row", async () => {
+    mockSession.mockResolvedValue({ user: { id: "user-1" } });
+    mockPrisma.profile.findUnique.mockResolvedValue({ id: "profile-1" });
+    mockPrisma.specTestResult.findFirst.mockResolvedValue({
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    });
+
+    const response = await post(v2ResponsePayload(), "203.0.113.51");
+
+    expect(response.status).toBe(429);
+    expect(mockPrisma.specTestResult.create).not.toHaveBeenCalled();
+    const body = (response as unknown as { body: { error: string; nextEligibleAt: string } }).body;
+    expect(new Date(body.nextEligibleAt).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("allows a retake once the 30-day cooldown has passed", async () => {
+    mockSession.mockResolvedValue({ user: { id: "user-1" } });
+    mockPrisma.profile.findUnique.mockResolvedValue({ id: "profile-1" });
+    mockPrisma.specTestResult.findFirst.mockResolvedValue({
+      createdAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000),
+    });
+    mockPrisma.specTestResult.create.mockResolvedValue({ id: "retake-result-1" });
+
+    const response = await post(v2ResponsePayload(), "203.0.113.52");
+
+    expect(response.status).toBe(201);
+    expect(mockPrisma.specTestResult.create).toHaveBeenCalledTimes(1);
   });
 });

@@ -6,8 +6,19 @@ import { affinityTerm } from "@/lib/recommendation-scoring";
 import { seededTiebreak } from "@/lib/ranking/slate";
 import { bucketStartFor } from "@/lib/feed-slate";
 import { typeTerm } from "@/lib/ranking/type-priority";
+import { specCompatibilityWeight } from "@/lib/spec-test/compatibility";
+import type { ArchetypeKey } from "@/lib/spec-test/taxonomy";
 
 export { affinityTerm, typeTerm };
+
+/** [0, 1] already - lib/spec-test/compatibility.ts's own weight scale matches every other
+ *  term in this file, so no rescaling needed here (unlike lib/recommendations.ts, which
+ *  scales it into that module's own unbounded point system). */
+export function specTerm(viewerSpec: { specType: string }[], candidateSpec: { specType: string }[]): number {
+  const viewerKey = viewerSpec[0]?.specType as ArchetypeKey | undefined;
+  const candidateKey = candidateSpec[0]?.specType as ArchetypeKey | undefined;
+  return specCompatibilityWeight(viewerKey, candidateKey);
+}
 
 /** Same distance buckets as lib/recommendations.ts's scoreProximity and
  * lib/live-streams.ts's own locality term, normalized to [0, 1] here so it combines cleanly
@@ -73,19 +84,26 @@ export type RecommendableProfile = {
   isVerified: boolean;
   isVerifiedCreator: boolean;
   isVerifiedServiceProvider: boolean;
+  // Optional, not required: rankRecommendedCreators below never reads this (creators
+  // directory candidates aren't built from profileCardSelect()), so it shouldn't have to
+  // supply a field it has no use for. rankRecommendedProfiles (Discover) always has it.
+  specTestResults?: { specType: string }[];
 };
 
-/** Reweighted to make room for the type term below. Affinity still leads since behavioral
- * affinity is the strongest available personalization signal; type is the second-strongest
- * since (unlike locality/trust/novelty) it's read directly off the viewer, not just the
- * candidate, so it varies the order between viewers even before any interaction history
- * exists. */
+/** Reweighted to make room for the type term below, then again for spec below that. Affinity
+ * still leads since behavioral affinity is the strongest available personalization signal;
+ * type is the second-strongest since (unlike locality/trust/novelty) it's read directly off
+ * the viewer, not just the candidate, so it varies the order between viewers even before any
+ * interaction history exists. Spec starts small since it's a newer, unvalidated signal (see
+ * lib/spec-test/compatibility.ts) - it contributes 0 for the common case where either side
+ * hasn't taken the test, same as every other term when its input is absent. */
 const PEOPLE_WEIGHTS = {
-  affinity: 0.4,
-  type: 0.2,
+  affinity: 0.35,
+  type: 0.15,
   locality: 0.15,
   trust: 0.15,
   novelty: 0.1,
+  spec: 0.1,
 };
 
 /** Score values are continuous, so exact ties are rare - quantizing into steps this wide
@@ -125,7 +143,15 @@ function rankWithSeededShuffle(scored: { id: string; score: number }[], seed: st
  * other viewer.
  */
 export async function rankRecommendedProfiles(
-  viewer: { id: string; profileType: ProfileType | null; locationLat: number; locationLng: number } | null,
+  viewer:
+    | {
+        id: string;
+        profileType: ProfileType | null;
+        locationLat: number;
+        locationLng: number;
+        specTestResults: { specType: string }[];
+      }
+    | null,
   candidates: RecommendableProfile[],
   now: Date = new Date(),
 ): Promise<string[]> {
@@ -143,7 +169,8 @@ export async function rankRecommendedProfiles(
       PEOPLE_WEIGHTS.type * typeTerm(viewer?.profileType ?? null, candidate.profileType) +
       PEOPLE_WEIGHTS.locality * localityTerm(viewer, candidate) +
       PEOPLE_WEIGHTS.trust * trustTerm(candidate) +
-      PEOPLE_WEIGHTS.novelty * noveltyTerm(candidate.createdAt, now);
+      PEOPLE_WEIGHTS.novelty * noveltyTerm(candidate.createdAt, now) +
+      PEOPLE_WEIGHTS.spec * specTerm(viewer?.specTestResults ?? [], candidate.specTestResults ?? []);
     return { id: candidate.id, score };
   });
 

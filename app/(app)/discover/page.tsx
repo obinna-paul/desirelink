@@ -38,7 +38,14 @@ export default async function DiscoverPage({
 
   const viewerProfile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, displayName: true, profileType: true, locationLat: true, locationLng: true },
+    select: {
+      id: true,
+      displayName: true,
+      profileType: true,
+      locationLat: true,
+      locationLng: true,
+      specTestResults: { select: { specType: true }, orderBy: { createdAt: "desc" }, take: 1 },
+    },
   });
 
   const filters = parseDiscoverFilters(searchParams);
@@ -131,6 +138,7 @@ export default async function DiscoverPage({
   const gridQueryParams = new URLSearchParams();
   filters.genders.forEach((value) => gridQueryParams.append("gender", value));
   filters.orientations.forEach((value) => gridQueryParams.append("orientation", value));
+  filters.specTypes.forEach((value) => gridQueryParams.append("spec", value));
   if (filters.lastActive !== "any") gridQueryParams.set("lastActive", filters.lastActive);
   if (filters.verification !== "any") gridQueryParams.set("verification", filters.verification);
   if (filters.radiusKm !== null) gridQueryParams.set("radius", String(filters.radiusKm));
@@ -141,6 +149,7 @@ export default async function DiscoverPage({
     (filters.query ? 1 : 0) +
     filters.genders.length +
     filters.orientations.length +
+    filters.specTypes.length +
     (filters.radiusKm !== null ? 1 : 0) +
     (filters.availability !== "any" ? 1 : 0) +
     (filters.sort !== "recommended" ? 1 : 0) +

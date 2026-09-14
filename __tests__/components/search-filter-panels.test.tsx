@@ -7,6 +7,7 @@ const discoverFilters = {
   query: "",
   genders: [],
   orientations: [],
+  specTypes: [],
   lastActive: "any" as const,
   verification: "any" as const,
   radiusKm: null,

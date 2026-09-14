@@ -5,9 +5,14 @@ import { haversineDistanceKm, profileCardSelect, type ProfileCardData } from "@/
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
 import { searchDocuments } from "@/lib/search";
 import { rankRecommendedProfiles } from "@/lib/ranking/people-scoring";
+import { ARCHETYPE_DISPLAY_NAMES } from "@/lib/spec-test/archetype-labels";
+import { ARCHETYPE_KEYS, type ArchetypeKey } from "@/lib/spec-test/taxonomy";
 
 const GENDER_FILTER_VALUES = new Set<string>(GENDER_OPTIONS);
 const ORIENTATION_FILTER_VALUES = new Set<string>(ORIENTATION_OPTIONS);
+const SPEC_FILTER_VALUES = new Set<string>(ARCHETYPE_KEYS);
+
+export const SPEC_FILTER_OPTIONS = ARCHETYPE_KEYS.map((key) => ({ value: key, label: ARCHETYPE_DISPLAY_NAMES[key] }));
 
 export const AVAILABILITY_FILTER_OPTIONS = [
   { value: "any", label: "Any availability" },
@@ -59,6 +64,8 @@ export type DiscoverFilters = {
   radiusKm: number | null;
   availability: AvailabilityFilterValue;
   sort: DiscoverSortValue;
+  /** Spec Test archetypes to filter to, e.g. finding "who reads as Soft Landing" directly. */
+  specTypes: ArchetypeKey[];
 };
 
 type SearchParamValue = string | string[] | undefined;
@@ -88,6 +95,7 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
     orientations: toArray(searchParams.orientation).filter((value) =>
       ORIENTATION_FILTER_VALUES.has(value),
     ),
+    specTypes: toArray(searchParams.spec).filter((value) => SPEC_FILTER_VALUES.has(value)) as ArchetypeKey[],
     lastActive: LAST_ACTIVE_FILTER_OPTIONS.some((option) => option.value === lastActiveParam)
       ? (lastActiveParam as LastActiveFilterValue)
       : "any",
@@ -115,6 +123,7 @@ type ViewerProfile = {
   profileType: ProfileType;
   locationLat: number;
   locationLng: number;
+  specTestResults: { specType: string }[];
 };
 
 // (0, 0) is the sentinel for "location never set" - a real GPS reading landing exactly
@@ -157,6 +166,15 @@ async function buildWhere(
 
   if (filters.orientations.length > 0) {
     where.orientation = { in: filters.orientations };
+  }
+
+  if (filters.specTypes.length > 0) {
+    // Filtering by spec must respect the same publicity gate the badge itself does
+    // (Profile.specShownPublicly) - the data exists for everyone who's taken the test, but a
+    // taker who kept it private must never be filterable by it, only usable behind the
+    // scenes for ranking (see lib/spec-test/compatibility.ts).
+    where.specShownPublicly = true;
+    where.specTestResults = { some: { specType: { in: filters.specTypes } } };
   }
 
   if (filters.lastActive !== "any") {

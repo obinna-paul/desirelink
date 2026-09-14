@@ -12,7 +12,7 @@ import { generateUniqueUsername, isUsernameAvailable } from "@/lib/username";
 import { usernameFieldSchema } from "@/lib/validations/auth";
 import { recordDeviceAndMaybeAlert } from "@/lib/email/device";
 import { isPlaceholderEmail, placeholderEmailFor } from "@/lib/oauth-placeholder-email";
-import { linkSpecTestResultIfConsented } from "@/lib/spec-test";
+import { linkSpecTestResultToProfile } from "@/lib/spec-test";
 import { GENDER_UNSPECIFIED } from "@/lib/profile-options";
 
 /** Every OAuth provider registered below - the signIn callback's belt-and-suspenders
@@ -85,7 +85,7 @@ async function ensureProfileForAuthUser(user: {
 
   // No-op for a placeholder (X) email - it can never match a real Spec Test submission.
   if (updated.profile) {
-    await linkSpecTestResultIfConsented(email, updated.profile.id);
+    await linkSpecTestResultToProfile(email, updated.profile.id);
   }
 }
 

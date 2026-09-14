@@ -2,13 +2,15 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowRight, ChevronDown } from "lucide-react";
+import { getServerSession } from "next-auth";
+import { ArrowRight, Check, ChevronDown } from "lucide-react";
 
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { Button } from "@/components/ui/button";
 import { EmailCaptureForm } from "@/components/spec-test/email-capture-form";
 import { AgeBadge } from "@/components/spec-test/age-badge";
+import { authOptions } from "@/lib/auth";
 import { getSpecTestReading } from "@/lib/spec-test";
 import type { ArchetypeKey, Gender } from "@/lib/spec-test";
 import { publicPageMetadata } from "@/lib/seo";
@@ -143,7 +145,31 @@ function LearnMoreDisclosure({ children }: { children: React.ReactNode }) {
   );
 }
 
-function JoinCta({ resultId }: { resultId: string }) {
+// A signed-in taker's result is already linked to their account the moment they submitted
+// it (see app/api/spec-test/submit/route.ts's viewerProfileId) - no email step needed, and
+// "Join Udala" would be a strange thing to say to someone already a member. They get a
+// plain confirmation and a way back into the app instead.
+function JoinCta({ resultId, isSignedIn }: { resultId: string; isSignedIn: boolean }) {
+  if (isSignedIn) {
+    return (
+      <RevealSection delayMs={700} className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-card p-6 text-center shadow-card">
+        <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+          Saved to your profile - find it anytime under Profile settings.
+        </p>
+        <Button
+          asChild
+          className="h-14 w-full max-w-sm gap-2 rounded-full bg-gradient-to-r from-primary to-neon-pink text-base font-bold shadow-lift transition-transform hover:scale-[1.02] hover:opacity-95 active:scale-[0.99]"
+        >
+          <Link href="/">
+            Back to Udala
+            <ArrowRight className="h-5 w-5" aria-hidden="true" />
+          </Link>
+        </Button>
+      </RevealSection>
+    );
+  }
+
   return (
     <RevealSection delayMs={700} className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-card p-6 text-center shadow-card">
       <p className="font-heading text-xl font-bold">Meet people who match your energy on Udala.</p>
@@ -166,8 +192,9 @@ function JoinCta({ resultId }: { resultId: string }) {
 }
 
 export default async function SpecTestResultPage({ params }: { params: { id: string } }) {
-  const reading = await getSpecTestReading(params.id);
+  const [reading, session] = await Promise.all([getSpecTestReading(params.id), getServerSession(authOptions)]);
   if (!reading) notFound();
+  const isSignedIn = Boolean(session?.user?.id);
 
   if (reading.version === "v1") {
     const { reading: v1 } = reading;
@@ -236,7 +263,7 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
             </RevealSection>
           </LearnMoreDisclosure>
 
-          <JoinCta resultId={params.id} />
+          <JoinCta resultId={params.id} isSignedIn={isSignedIn} />
         </main>
 
         <PublicFooter />
@@ -364,7 +391,7 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
         </LearnMoreDisclosure>
 
         {/* 12. Share card */}
-        <JoinCta resultId={params.id} />
+        <JoinCta resultId={params.id} isSignedIn={isSignedIn} />
       </main>
 
       <PublicFooter />
