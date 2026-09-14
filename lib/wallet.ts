@@ -25,12 +25,13 @@ export const PLATFORM_FEE_RATE = 0.15;
 
 /**
  * Credits a provider's withdrawable wallet balance with their share of an
- * earning: the platform's cut (see PLATFORM_FEE_RATE) is deducted here,
- * upfront, so the provider only ever sees and keeps the net 85%. Pass `db`
- * when this needs to participate in a caller's transaction (e.g. alongside
- * a payment-event idempotency check) instead of running as its own
- * standalone write. `grossAmountCents` is the full amount paid by the
- * customer; returns the amount actually credited to the wallet.
+ * earning: the platform's cut (PLATFORM_FEE_RATE, or the provider's own
+ * platformFeeRateOverride when one is set - see that field's schema comment)
+ * is deducted here, upfront, so the provider only ever sees and keeps their
+ * net share. Pass `db` when this needs to participate in a caller's
+ * transaction (e.g. alongside a payment-event idempotency check) instead of
+ * running as its own standalone write. `grossAmountCents` is the full amount
+ * paid by the customer; returns the amount actually credited to the wallet.
  */
 export async function creditProviderWallet(
   providerId: string,
@@ -38,7 +39,12 @@ export async function creditProviderWallet(
   db: PrismaClient | Prisma.TransactionClient = prisma,
 ): Promise<number> {
   if (grossAmountCents <= 0) return 0;
-  const netAmountCents = grossAmountCents - Math.round(grossAmountCents * PLATFORM_FEE_RATE);
+  const profile = await db.profile.findUnique({
+    where: { id: providerId },
+    select: { platformFeeRateOverride: true },
+  });
+  const feeRate = profile?.platformFeeRateOverride ?? PLATFORM_FEE_RATE;
+  const netAmountCents = grossAmountCents - Math.round(grossAmountCents * feeRate);
   await db.profile.update({
     where: { id: providerId },
     data: { walletBalanceCents: { increment: netAmountCents } },

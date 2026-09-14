@@ -4,7 +4,7 @@ jest.mock("@/lib/prisma", () => {
     processedPaymentEvent: { create: jest.fn() },
     providerSubscription: { findUnique: jest.fn(), update: jest.fn() },
     transaction: { create: jest.fn() },
-    profile: { update: jest.fn() },
+    profile: { findUnique: jest.fn(), update: jest.fn() },
     post: { findFirst: jest.fn() },
     postUnlock: { upsert: jest.fn() },
     notification: { create: jest.fn() },
@@ -32,7 +32,7 @@ const mockPrisma = prisma as unknown as {
   processedPaymentEvent: { create: jest.Mock };
   providerSubscription: { findUnique: jest.Mock; update: jest.Mock };
   transaction: { create: jest.Mock };
-  profile: { update: jest.Mock };
+  profile: { findUnique: jest.Mock; update: jest.Mock };
   post: { findFirst: jest.Mock };
   postUnlock: { upsert: jest.Mock };
   notification: { create: jest.Mock };
