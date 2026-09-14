@@ -68,7 +68,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   const reading = await getSpecTestReading(params.id);
   if (!reading) {
     return publicPageMetadata({
-      title: "The Spec Test | Udala",
+      title: "The Spec Test",
       description: "Find out your spec on Udala.",
       path: `/spec-test/result/${params.id}`,
     });

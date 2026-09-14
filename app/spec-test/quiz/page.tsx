@@ -14,7 +14,7 @@ import { getActiveRetakeCooldown } from "@/lib/spec-test/retake";
 import { publicPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = publicPageMetadata({
-  title: "The Spec Test | Udala",
+  title: "The Spec Test",
   description: "Answer a few quick questions and we'll guess your spec.",
   path: "/spec-test/quiz",
 });

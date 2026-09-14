@@ -13,7 +13,7 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-import SpecTestQuizPage from "@/app/spec-test/quiz/page";
+import SpecTestQuizPage, { metadata } from "@/app/spec-test/quiz/page";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -26,6 +26,12 @@ const mockPrisma = prisma as unknown as {
 describe("Spec Test quiz page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it("keeps the page title bare, letting the root layout's template append the site name once", () => {
+    // The root layout's metadata template is "%s | Udala" - if this title already included
+    // "| Udala" itself, the rendered title would double up to "The Spec Test | Udala | Udala".
+    expect(metadata.title).toBe("The Spec Test");
   });
 
   it("renders the quiz straight away for an anonymous visitor", async () => {
