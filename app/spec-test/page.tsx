@@ -9,7 +9,10 @@ import { AgeBadge } from "@/components/spec-test/age-badge";
 import { publicPageMetadata, serializeJsonLd } from "@/lib/seo";
 import { SITE_NAME, absoluteUrl } from "@/lib/site-config";
 
-const PAGE_TITLE = "The Spec Test | Udala";
+// Bare page-specific title - the root layout's metadata template ("%s | Udala") appends the
+// site name once, so this must never itself include "| Udala" (it doubled up to
+// "The Spec Test | Udala | Udala" before this was split out).
+const PAGE_TITLE = "The Spec Test";
 const PAGE_DESCRIPTION =
   "You have a type, even if you can't describe it. Answer 24 carefully designed questions to uncover the traits, energy and little behaviours you're naturally drawn to.";
 
@@ -23,7 +26,9 @@ export default function SpecTestLandingPage() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: PAGE_TITLE,
+    // schema.org's WebPage.name conventionally matches the rendered <title>, which is the
+    // template-applied full title, not the bare page-specific PAGE_TITLE above.
+    name: `${PAGE_TITLE} | ${SITE_NAME}`,
     description: PAGE_DESCRIPTION,
     url: absoluteUrl("/spec-test"),
     isPartOf: { "@type": "WebSite", name: SITE_NAME, url: absoluteUrl("/") },

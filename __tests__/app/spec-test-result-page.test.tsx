@@ -223,6 +223,15 @@ describe("Spec Test result page", () => {
     expect(metadata.description).toBe("Composed, private, observant and surprisingly intense.");
   });
 
+  it("falls back to a bare page title for a missing result, not a pre-suffixed one", async () => {
+    mockGetReading.mockResolvedValue(null);
+    const metadata = await generateMetadata({ params: { id: "missing" } });
+    // The root layout's title template ("%s | Udala") appends the site name once - this
+    // string must never itself include "| Udala", or the rendered title doubles up to
+    // "The Spec Test | Udala | Udala".
+    expect(metadata.title).toBe("The Spec Test");
+  });
+
   it("shows a signed-in taker a confirmation and a way back into the app, not the anonymous Join CTA", async () => {
     mockSession.mockResolvedValue({ user: { id: "user-1" } });
     mockGetReading.mockResolvedValue(v2Reading());
