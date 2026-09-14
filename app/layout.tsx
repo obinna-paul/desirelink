@@ -83,6 +83,14 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#ffffff",
+  // Without this, most mobile browsers (Android Chrome especially) keep 100dvh pinned to the
+  // keyboard-closed viewport height when the on-screen keyboard opens, instead of shrinking
+  // it to the visible area above the keyboard. Anything laid out with h-dvh/100dvh (the chat
+  // window among them) then has a flex-1 scroll region sized against that stale, too-tall
+  // height - it can look unscrollable (nothing actually overflows the inflated box) with a
+  // composer floating above a gap of dead space. "resizes-content" makes the layout viewport
+  // itself shrink for the keyboard, so every such container resizes correctly instead.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
