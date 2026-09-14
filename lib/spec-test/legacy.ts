@@ -432,11 +432,18 @@ export async function getSpecTestLeads(filters: { cursor?: string; take?: number
  * email to get a result emailed is "this is mine, remember it," a separate intent from "send
  * me marketing," and conflating the two meant most takers who gave an email but skipped the
  * unrelated "Keep me updated" switch (see components/spec-test/email-capture-form.tsx) never
- * got linked at all. Deliberately does NOT feed recommendations/ranking - this codebase
- * treats those as behavior-only by design (see lib/ranking/people-scoring.ts), so this is
- * bookkeeping/attribution only for now, not a personalization signal. Matches only the newest
- * unlinked result for the email, and never throws - a failure here must never block account
- * creation.
+ * got linked at all.
+ *
+ * This is the email-based of two independent claim paths - the other is
+ * claimSpecTestResultById below, which needs no email at all. Both are attempted at every
+ * signup; either can succeed on its own, and both succeeding just means two results end up
+ * linked to the same profile (harmless - the most recent one still wins for "current spec"
+ * reads, see the nested specTestResults selects in lib/home-feed.ts, lib/recommendations.ts,
+ * lib/ranking/people-scoring.ts). Once linked, a result DOES feed both those ranking engines
+ * (lib/spec-test/compatibility.ts) - this function itself is still just attribution, but
+ * don't read "this is bookkeeping only" into what linking here enables downstream. Matches
+ * only the newest unlinked result for the email, and never throws - a failure here must never
+ * block account creation.
  */
 export async function linkSpecTestResultToProfile(email: string, profileId: string): Promise<void> {
   try {
@@ -450,5 +457,27 @@ export async function linkSpecTestResultToProfile(email: string, profileId: stri
     await prisma.specTestResult.update({ where: { id: pending.id }, data: { profileId } });
   } catch (error) {
     console.error("[spec-test] failed to link result to new profile", error);
+  }
+}
+
+/**
+ * The other claim path - see linkSpecTestResultToProfile above for how the two relate. Takes
+ * the result id straight from the spec_test_result_id cookie (lib/spec-test/claim-cookie.ts,
+ * set on every anonymous v2 submission) rather than matching on email, so it still works for
+ * the taker who clicked "Join Udala" straight off the result page and never touched the
+ * "email me this" card - there was never an email on that result to match against.
+ * `updateMany` (not `update`) so a missing, already-claimed, or otherwise stale id is a silent
+ * no-op instead of a thrown error - the cookie can easily outlive its usefulness (a second
+ * anonymous attempt overwrote it, the result's cookie-window lapsed, etc.), and none of those
+ * cases should ever block account creation.
+ */
+export async function claimSpecTestResultById(resultId: string, profileId: string): Promise<void> {
+  try {
+    await prisma.specTestResult.updateMany({
+      where: { id: resultId, profileId: null },
+      data: { profileId },
+    });
+  } catch (error) {
+    console.error("[spec-test] failed to claim result by id for new profile", error);
   }
 }

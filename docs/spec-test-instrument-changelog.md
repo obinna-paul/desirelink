@@ -725,3 +725,52 @@ filter), plus updated fixtures in `__tests__/components/profile-card.test.tsx` (
 only when `specShownPublicly` is true and a result exists) and
 `__tests__/api/profile-account-type-upgrade.test.ts`. Full suite: 581 tests, 102 suites, all
 green.
+
+## spec-v2.1 — Phase 3: claim-by-cookie, closing the "Join Udala" gap
+
+**Why.** Direct question after Phase 1 shipped: `linkSpecTestResultToProfile` only ever had an
+email to match against, which the anonymous result page only collects if the taker uses the
+"email me this" card. A taker who clicks "Join Udala" straight off the result page - arguably
+the *more* common path, since it's the primary button and "email me this" is the secondary one
+below it - never gives an email at all, so that result had no way to ever find its way to the
+account they went on to create.
+
+**The fix: a second, independent claim path that needs no email.**
+`lib/spec-test/claim-cookie.ts` (new) sets an httpOnly `spec_test_result_id` cookie on every
+anonymous v2 submission (`app/api/spec-test/submit/route.ts`), holding just that result's id.
+`claimSpecTestResultById` (new, `lib/spec-test/legacy.ts`) reads it back at both signup paths -
+`app/api/signup/route.ts` for credentials, `ensureProfileForAuthUser` in `lib/auth.ts` for
+Google/X - and claims the exact result it names, gated only on it still being unclaimed
+(`updateMany` with `profileId: null` in the `where`, never `update`, so a stale/already-claimed/
+missing id is a silent no-op rather than a thrown error).
+
+**Both claim paths always run, not either/or.** The cookie claim (by id) and the existing email
+match both fire on every signup. Either can succeed alone; both succeeding just links two
+results to the same profile, which is harmless - the most recently created one still wins for
+every "current spec" read (the nested `specTestResults` selects in `lib/home-feed.ts`,
+`lib/recommendations.ts`, `lib/ranking/people-scoring.ts` are all already ordered
+`createdAt: desc, take: 1`). This means a taker who took the quiz twice anonymously - once
+giving an email, once not - still gets a fully correct link no matter which of the two attempts
+the cookie happens to point at.
+
+**Why a cookie and not, say, matching on IP or device fingerprint.** A cookie is the simplest
+mechanism that's exactly as precise as the problem needs: it only ever identifies "the same
+browser that just took the test," makes no inference about identity, and expires on its own
+(30 days) rather than needing explicit cleanup. It's cleared proactively once used
+(`clearSpecTestResultCookie`), though that's a hygiene step, not a correctness one - a stale
+cookie is inert the moment its result gets claimed.
+
+**Fixed a stale doc comment while in the area.** `linkSpecTestResultToProfile`'s comment used to
+say linking "deliberately does NOT feed recommendations/ranking" - true when it was written,
+false as of the Phase 2 entry above (`lib/spec-test/compatibility.ts` now reads a linked
+result's spec for exactly that). Updated to point at Phase 2 instead of asserting something no
+longer accurate.
+
+**Tests.** New `__tests__/api/signup-route.test.ts` (the cookie claim fires and clears
+regardless of the signup email; it's skipped cleanly when no cookie is present; the email match
+still runs either way) and new assertions in `__tests__/api/spec-test-submit-route.test.ts`
+(the claim cookie is set on an anonymous submission, never set once a submission is already
+linked via an active session). The OAuth path (`ensureProfileForAuthUser`) reuses the same
+`claimSpecTestResultById`/`readSpecTestResultCookie` already covered by the signup-route tests,
+consistent with this file having no existing dedicated test harness of its own. Full suite: 583
+tests, 103 suites, all green.
