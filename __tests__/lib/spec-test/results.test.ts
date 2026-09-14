@@ -146,6 +146,10 @@ describe("getSpecTestReading - legacy v1 rows", () => {
       partnershipSpec: null,
       patternFlags: [],
       resultConfidence: null,
+      gender: null,
+      routingRule: null,
+      assumedAttractionTarget: null,
+      quizForm: null,
     });
 
     const reading = await getSpecTestReading("legacy-1");
@@ -154,6 +158,36 @@ describe("getSpecTestReading - legacy v1 rows", () => {
       id: "legacy-1",
       specType: "quiet_fire",
       reading: SPEC_TYPE_READINGS.quiet_fire,
+      assumedAttractionTarget: null,
+    });
+  });
+
+  it("carries a stored assumed attraction target through for a v1 row asked post-rollout", async () => {
+    mockPrisma.specTestResult.findUnique.mockResolvedValue({
+      id: "legacy-2",
+      specType: "quiet_fire",
+      instrumentVersion: "spec-v1",
+      secondarySpec: null,
+      motiveScores: null,
+      lenses: null,
+      attachment: null,
+      sparkSpec: null,
+      partnershipSpec: null,
+      patternFlags: [],
+      resultConfidence: null,
+      gender: "male",
+      routingRule: "heterosexual_v0_1",
+      assumedAttractionTarget: "female",
+      quizForm: "male_user",
+    });
+
+    const reading = await getSpecTestReading("legacy-2");
+    expect(reading).toEqual({
+      version: "v1",
+      id: "legacy-2",
+      specType: "quiet_fire",
+      reading: SPEC_TYPE_READINGS.quiet_fire,
+      assumedAttractionTarget: "female",
     });
   });
 
