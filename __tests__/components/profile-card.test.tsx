@@ -43,14 +43,14 @@ describe("ProfileCard", () => {
     const { rerender } = render(
       <ProfileCard profile={profile({ specShownPublicly: false, specTestResults: [{ specType: "soft_landing" }] })} />,
     );
-    expect(screen.queryByText(/Reads as/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/My spec is/)).not.toBeInTheDocument();
 
     rerender(<ProfileCard profile={profile({ specShownPublicly: true, specTestResults: [{ specType: "soft_landing" }] })} />);
-    expect(screen.getByText("Reads as Soft Landing")).toBeInTheDocument();
+    expect(screen.getByText("My spec is Soft Landing")).toBeInTheDocument();
   });
 
   it("shows no spec badge when the profile opted in but has no linked result", () => {
     render(<ProfileCard profile={profile({ specShownPublicly: true, specTestResults: [] })} />);
-    expect(screen.queryByText(/Reads as/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/My spec is/)).not.toBeInTheDocument();
   });
 });
