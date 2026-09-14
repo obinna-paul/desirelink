@@ -32,6 +32,49 @@ async function claimSpecTestResultFromCookie(profileId: string): Promise<void> {
   }
 }
 
+/**
+ * Gives an EXISTING member's login the same two claim paths (cookie + email match) that
+ * ensureProfileForAuthUser only ever runs for a brand-new profile (its `if (existingProfile)
+ * return` early-out skips this entirely for a returning user). Without this, someone who
+ * already has an account but took the Spec Test while logged out - the common case for a
+ * shared link opened in an in-app browser, a different device, or simply being signed out -
+ * never gets that result attached: the cookie is only ever read at signup, and a login that
+ * hits "an account with this email already exists" (app/api/signup/route.ts's 409) leaves the
+ * cookie sitting unused. Also covers a taker who never gave an email on "email me this result"
+ * and just clicked Join Udala - the cookie alone is enough, no email match needed.
+ *
+ * Deliberately skipped once the profile already has ANY SpecTestResult: per product direction,
+ * being traceable (logged in, or matched by cookie/email) means showing the member their
+ * EXISTING result, not linking a newer anonymous attempt on top of it. This never fights the
+ * 30-day retake cooldown (submit/route.ts) - that still governs when a signed-in member can
+ * add a genuinely new result; this only ever fills in a first, missing link.
+ */
+async function claimSpecTestResultsOnLogin(user: {
+  id?: string | null;
+  email?: string | null;
+}): Promise<void> {
+  if (!user.id || !user.email) return;
+
+  try {
+    const profile = await prisma.profile.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+    if (!profile) return;
+
+    const existingResult = await prisma.specTestResult.findFirst({
+      where: { profileId: profile.id },
+      select: { id: true },
+    });
+    if (existingResult) return;
+
+    await claimSpecTestResultFromCookie(profile.id);
+    await linkSpecTestResultToProfile(user.email.toLowerCase(), profile.id);
+  } catch (error) {
+    console.error("[auth] failed to claim spec test result on login", error);
+  }
+}
+
 /** Every OAuth provider registered below - the signIn callback's belt-and-suspenders
  * profile-creation check (see createUser event) needs to recognize all of them. */
 const OAUTH_PROVIDER_IDS = new Set(["google", "twitter"]);
@@ -256,6 +299,10 @@ export const authOptions: NextAuthOptions = {
           console.error(`[auth] failed to ensure ${account.provider} user profile`, error);
         });
       }
+      // Every successful sign-in (credentials included - account.provider === "credentials"
+      // fires this callback too), not just a brand-new profile - see
+      // claimSpecTestResultsOnLogin's own doc comment for why that matters.
+      await claimSpecTestResultsOnLogin(user);
       return true;
     },
     async jwt({ token, user, account, profile, trigger }) {
