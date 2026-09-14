@@ -33,7 +33,7 @@ export function profileCardSelect() {
     // it as a behavioral signal even when the taker hasn't opted into showing the badge.
     specShownPublicly: true,
     specTestResults: {
-      select: { specType: true },
+      select: { specType: true, assumedAttractionTarget: true },
       orderBy: { createdAt: "desc" },
       take: 1,
     },

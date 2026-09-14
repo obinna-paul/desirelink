@@ -85,7 +85,11 @@ export function ProfileCard({
             </p>
           )}
           {showSpec && profile.specShownPublicly && (
-            <SpecBadge specType={profile.specTestResults[0]?.specType} variant="card" />
+            <SpecBadge
+              specType={profile.specTestResults[0]?.specType}
+              assumedAttractionTarget={profile.specTestResults[0]?.assumedAttractionTarget}
+              variant="card"
+            />
           )}
         </div>
       </div>

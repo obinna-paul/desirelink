@@ -41,11 +41,23 @@ describe("ProfileCard", () => {
 
   it("shows a spec badge only when the profile has opted into showing it", () => {
     const { rerender } = render(
-      <ProfileCard profile={profile({ specShownPublicly: false, specTestResults: [{ specType: "soft_landing" }] })} />,
+      <ProfileCard
+        profile={profile({
+          specShownPublicly: false,
+          specTestResults: [{ specType: "soft_landing", assumedAttractionTarget: "male" }],
+        })}
+      />,
     );
     expect(screen.queryByText(/My spec is/)).not.toBeInTheDocument();
 
-    rerender(<ProfileCard profile={profile({ specShownPublicly: true, specTestResults: [{ specType: "soft_landing" }] })} />);
+    rerender(
+      <ProfileCard
+        profile={profile({
+          specShownPublicly: true,
+          specTestResults: [{ specType: "soft_landing", assumedAttractionTarget: "male" }],
+        })}
+      />,
+    );
     expect(screen.getByText("My spec is Soft Landing")).toBeInTheDocument();
   });
 
@@ -59,7 +71,7 @@ describe("ProfileCard", () => {
       <ProfileCard
         profile={profile({
           specShownPublicly: true,
-          specTestResults: [{ specType: "soft_landing" }],
+          specTestResults: [{ specType: "soft_landing", assumedAttractionTarget: "male" }],
           showExactLocation: true,
         })}
         showSpec={false}
@@ -72,7 +84,15 @@ describe("ProfileCard", () => {
   });
 
   it("opens a snapshot popup on badge click instead of navigating the card's own link", () => {
-    render(<ProfileCard profile={profile({ specShownPublicly: true, specTestResults: [{ specType: "soft_landing" }] })} matchScore={91} />);
+    render(
+      <ProfileCard
+        profile={profile({
+          specShownPublicly: true,
+          specTestResults: [{ specType: "soft_landing", assumedAttractionTarget: "male" }],
+        })}
+        matchScore={91}
+      />,
+    );
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /My spec is Soft Landing/ }));
@@ -80,7 +100,9 @@ describe("ProfileCard", () => {
     const dialog = screen.getByRole("dialog");
     expect(dialog).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Soft Landing" })).toBeInTheDocument();
-    expect(screen.getByText(/Affectionate, emotionally available/)).toBeInTheDocument();
+    // Prefixed to frame the summary as who this spec is drawn to, not a description of the
+    // profile owner themselves - gendered from the result's own assumedAttractionTarget.
+    expect(screen.getByText(/I like a man who is affectionate, emotionally available/)).toBeInTheDocument();
     // The card is still a link to the profile - the badge click only opened the popup, it
     // didn't replace or break the card's own navigation.
     expect(screen.getByRole("link")).toHaveAttribute("href", "/profile/mara");

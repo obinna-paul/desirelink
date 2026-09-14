@@ -6,6 +6,7 @@
 // public spec badge without pulling the interpretation layer into the client bundle.
 
 import type { ArchetypeKey } from "@/lib/spec-test/taxonomy";
+import type { Gender } from "@/lib/spec-test/gender/forms";
 
 export const ARCHETYPE_DISPLAY_NAMES: Record<ArchetypeKey, string> = {
   quiet_fire: "Quiet Fire",
@@ -56,4 +57,25 @@ export const ARCHETYPE_SUMMARIES: Record<ArchetypeKey, string> = {
 export function archetypeSummary(specType: string | null | undefined): string | null {
   if (!specType || !(specType in ARCHETYPE_SUMMARIES)) return null;
   return ARCHETYPE_SUMMARIES[specType as ArchetypeKey];
+}
+
+/** Legacy rows (predating the gender question, or a v1 row it was never asked on) have no
+ *  stored target - falls back to the same default app/spec-test/result/[id]/page.tsx uses for
+ *  the identical situation, rather than leaving the pronoun unresolved. */
+const DEFAULT_ATTRACTION_TARGET: Gender = "female";
+
+export function personWordFor(target: Gender | null | undefined): "woman" | "man" {
+  return (target ?? DEFAULT_ATTRACTION_TARGET) === "male" ? "man" : "woman";
+}
+
+/**
+ * The archetype summary is a description of the *kind of person* this spec is drawn to (the
+ * instrument measures attraction pattern, not the taker's own personality - see
+ * docs/spec-test-research.md) - "I like a woman/man who is composed, private..." completes
+ * that framing the same way the result page's own likePrompt() does for the tagline, just
+ * applied to the fuller multi-sentence summary instead of a single tagline phrase.
+ */
+export function likeSummaryPrompt(summary: string, target: Gender | null | undefined): string {
+  const lowered = summary.charAt(0).toLowerCase() + summary.slice(1);
+  return `I like a ${personWordFor(target)} who is ${lowered}`;
 }

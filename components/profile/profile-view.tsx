@@ -135,7 +135,7 @@ export function ProfileView({
       displayName: string;
       avatarUrl: string;
     } | null;
-    specTestResults: { specType: string }[];
+    specTestResults: { specType: string; assumedAttractionTarget: string | null }[];
   };
   posts: PostView[];
   tiers: PublicTierView[];
@@ -219,7 +219,11 @@ export function ProfileView({
             </div>
             {profile.specShownPublicly && (
               <div className="mt-1.5">
-                <SpecBadge specType={profile.specTestResults[0]?.specType} variant="profile" />
+                <SpecBadge
+                  specType={profile.specTestResults[0]?.specType}
+                  assumedAttractionTarget={profile.specTestResults[0]?.assumedAttractionTarget}
+                  variant="profile"
+                />
               </div>
             )}
           </div>

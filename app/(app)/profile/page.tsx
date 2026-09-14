@@ -27,7 +27,7 @@ export default async function ProfilePage({
     where: { userId: session.user.id },
     include: {
       partner: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
-      specTestResults: { select: { specType: true }, orderBy: { createdAt: "desc" }, take: 1 },
+      specTestResults: { select: { specType: true, assumedAttractionTarget: true }, orderBy: { createdAt: "desc" }, take: 1 },
     },
   });
 
