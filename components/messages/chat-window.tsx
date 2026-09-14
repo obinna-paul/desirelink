@@ -48,6 +48,7 @@ import { getPusherClient } from "@/lib/pusher-client";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { uploadMediaDirectToCloudinary } from "@/lib/client-uploads";
+import { isMobileDevice } from "@/lib/device";
 import { cn } from "@/lib/utils";
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
@@ -729,10 +730,14 @@ export function ChatWindow({
               disabled={blocked || uploadingMedia}
               onChange={(event) => handleContentChange(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  sendMessagePayload();
-                }
+                if (event.key !== "Enter" || event.shiftKey) return;
+                // On a touch device, Enter is the on-screen keyboard's own return key - there's
+                // no "hold Shift" gesture on a phone, so it has to insert a newline (the
+                // textarea's native default, left alone by not calling preventDefault below)
+                // rather than send. A physical keyboard's Enter still sends immediately.
+                if (isMobileDevice()) return;
+                event.preventDefault();
+                sendMessagePayload();
               }}
               placeholder={blocked ? "Messaging unavailable" : "Message..."}
               className="max-h-[120px] min-h-11 flex-1 resize-none overflow-y-auto rounded-[22px] border-0 bg-[hsl(var(--chat-composer))] px-4 py-3 text-[15px] leading-5 shadow-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--chat-outgoing)/0.5)]"
