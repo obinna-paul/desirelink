@@ -84,6 +84,11 @@ function renderResultCopy(copy: SpecTestResultCopy, form: RenderForm): SpecTestR
     secondaryInfluence: renderTerms(copy.secondaryInfluence, form),
     corePull: renderTerms(copy.corePull, form),
     topMotives: copy.topMotives.map((signal) => ({ ...signal, copy: renderTerms(signal.copy, form) })),
+    lensInsight: {
+      ...copy.lensInsight,
+      copy: renderTerms(copy.lensInsight.copy, form),
+      partnerNote: renderTerms(copy.lensInsight.partnerNote, form),
+    },
     whatItSaysAboutYou: renderTerms(copy.whatItSaysAboutYou, form),
     attachmentInsight: copy.attachmentInsight ? { ...copy.attachmentInsight, copy: renderTerms(copy.attachmentInsight.copy, form) } : null,
     datingLoop: copy.datingLoop.map((flag) => ({ ...flag, copy: renderTerms(flag.copy, form) })),

@@ -1,7 +1,7 @@
 import { composeSpecTestResult, type ComposeInput } from "@/lib/spec-test/interpretation/compose";
 import { ARCHETYPE_READINGS_V2 } from "@/lib/spec-test/interpretation/readings-v2";
 import { allPatternFlagCopy, evaluatePatternFlags, patternFlagIds, type PatternFlagInput } from "@/lib/spec-test/interpretation/pattern-flags";
-import { ATTACHMENT_READINGS, MOTIVE_READINGS } from "@/lib/spec-test/interpretation/signal-readings";
+import { ATTACHMENT_READINGS, LENS_INSIGHTS, MOTIVE_READINGS } from "@/lib/spec-test/interpretation/signal-readings";
 import {
   ARCHETYPE_KEYS,
   ATTACHMENT_RESPONSE_LABELS,
@@ -116,6 +116,27 @@ describe("composeSpecTestResult", () => {
     const copy = composeSpecTestResult(composeInputFor("quiet_fire", { attachment: null }));
     expect(copy.attachmentInsight).toBeNull();
   });
+
+  it("surfaces the taker's single most extreme lens, in the direction it actually leans", () => {
+    const high = composeSpecTestResult(
+      composeInputFor("quiet_fire", { lenses: { ...neutralLenses(), directnessIntrigue: 90, fastSlow: 60 } }),
+    );
+    expect(high.lensInsight.key).toBe("directnessIntrigue");
+    expect(high.lensInsight.pole).toBe("high");
+    expect(high.lensInsight.copy).toBe(LENS_INSIGHTS.directnessIntrigue.high.copy);
+
+    const low = composeSpecTestResult(
+      composeInputFor("quiet_fire", { lenses: { ...neutralLenses(), closenessAutonomy: 5 } }),
+    );
+    expect(low.lensInsight.key).toBe("closenessAutonomy");
+    expect(low.lensInsight.pole).toBe("low");
+    expect(low.lensInsight.copy).toBe(LENS_INSIGHTS.closenessAutonomy.low.copy);
+  });
+
+  it("always includes a lens insight, unlike attachment which can be null", () => {
+    const copy = composeSpecTestResult(composeInputFor("quiet_fire", { lenses: neutralLenses() }));
+    expect(copy.lensInsight).toBeTruthy();
+  });
 });
 
 describe("pattern flags require converging conditions", () => {
@@ -207,6 +228,12 @@ describe("safety lint - no clinical/diagnostic or ranking language", () => {
     }
     for (const label of ATTACHMENT_RESPONSE_LABELS) {
       strings.push(ATTACHMENT_READINGS[label].title, ATTACHMENT_READINGS[label].copy);
+    }
+    for (const key of LENS_KEYS) {
+      for (const pole of ["low", "high"] as const) {
+        const reading = LENS_INSIGHTS[key][pole];
+        strings.push(reading.title, reading.copy, reading.partnerNote);
+      }
     }
     return strings;
   }

@@ -2,8 +2,8 @@ import { renderTerms } from "@/lib/spec-test/gender/render";
 import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
 import { ARCHETYPE_READINGS_V2 } from "@/lib/spec-test/interpretation/readings-v2";
 import { allPatternFlagCopy } from "@/lib/spec-test/interpretation/pattern-flags";
-import { ATTACHMENT_READINGS, MOTIVE_READINGS } from "@/lib/spec-test/interpretation/signal-readings";
-import { ARCHETYPE_KEYS, ATTACHMENT_RESPONSE_LABELS, MOTIVE_KEYS } from "@/lib/spec-test/taxonomy";
+import { ATTACHMENT_READINGS, LENS_INSIGHTS, MOTIVE_READINGS } from "@/lib/spec-test/interpretation/signal-readings";
+import { ARCHETYPE_KEYS, ATTACHMENT_RESPONSE_LABELS, LENS_KEYS, MOTIVE_KEYS } from "@/lib/spec-test/taxonomy";
 import { expectSymmetricTemplate } from "./symmetry-helper";
 
 // Acceptance criteria from docs/spec-test-gender-implementation-plan.md §7 (Phase G2):
@@ -137,6 +137,34 @@ describe("attachment-insight copy - gender rendering", () => {
   it("is symmetric across forms for every attachment reading", () => {
     for (const label of ATTACHMENT_RESPONSE_LABELS) {
       expectSymmetricTemplate(ATTACHMENT_READINGS[label].copy);
+    }
+  });
+});
+
+describe("lens-insight copy - gender rendering", () => {
+  function allLensStrings(): string[] {
+    const strings: string[] = [];
+    for (const key of LENS_KEYS) {
+      for (const pole of ["low", "high"] as const) {
+        const reading = LENS_INSIGHTS[key][pole];
+        strings.push(reading.copy, reading.partnerNote);
+      }
+    }
+    return strings;
+  }
+
+  it("renders every lens insight under both forms without throwing, with no leaked token", () => {
+    for (const text of allLensStrings()) {
+      expect(() => renderTerms(text, "male_user")).not.toThrow();
+      expect(() => renderTerms(text, "female_user")).not.toThrow();
+      expect(renderTerms(text, "male_user")).not.toMatch(/[{}]/);
+      expect(renderTerms(text, "female_user")).not.toMatch(/[{}]/);
+    }
+  });
+
+  it("is symmetric across forms for every lens insight", () => {
+    for (const text of allLensStrings()) {
+      expectSymmetricTemplate(text);
     }
   });
 });

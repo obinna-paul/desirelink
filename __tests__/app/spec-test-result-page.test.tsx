@@ -62,6 +62,13 @@ function v2Reading(overrides: Partial<Extract<SpecTestReading, { version: "v2" }
         { key: "cognitivePlay", label: "Cognitive Play", copy: "Top motive signal two." },
         { key: "warmthResponsiveness", label: "Warmth & Responsiveness", copy: "Top motive signal three." },
       ],
+      lensInsight: {
+        key: "directnessIntrigue",
+        pole: "high",
+        title: "Lens insight title.",
+        copy: "Lens insight paragraph.",
+        partnerNote: "Lens partner note.",
+      },
       whatItSaysAboutYou: "What it says about you paragraph.",
       attachmentInsight: { label: "steadyUnderUncertainty", title: "Steady Under Uncertainty", copy: "Attachment insight paragraph." },
       datingLoop: [],
@@ -105,12 +112,16 @@ describe("Spec Test result page", () => {
     expect(screen.getByText("Top motive signal two.")).toBeInTheDocument();
     expect(screen.getByText("Top motive signal three.")).toBeInTheDocument();
     expect(screen.getByText("What it says about you paragraph.")).toBeInTheDocument();
+    expect(screen.getByText("Something you might not know about yourself")).toBeInTheDocument();
+    expect(screen.getByText("Lens insight title.")).toBeInTheDocument();
+    expect(screen.getByText("Lens insight paragraph.")).toBeInTheDocument();
     expect(screen.getByText("How you handle uncertainty")).toBeInTheDocument();
     expect(screen.getByText("Steady Under Uncertainty")).toBeInTheDocument();
     expect(screen.getByText("Attachment insight paragraph.")).toBeInTheDocument();
     expect(screen.getByText("Strength paragraph.")).toBeInTheDocument();
     expect(screen.getByText("Blind spot paragraph.")).toBeInTheDocument();
     expect(screen.getByText("Long-term fit paragraph.")).toBeInTheDocument();
+    expect(screen.getByText("Lens partner note.")).toBeInTheDocument();
     expect(screen.getByText(/Growth prompt line\./)).toBeInTheDocument();
     expect(screen.getByText("Strong match")).toBeInTheDocument();
     expect(screen.getByText(/not a diagnosis or a prediction of destiny/)).toBeInTheDocument();

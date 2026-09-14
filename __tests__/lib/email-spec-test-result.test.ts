@@ -83,6 +83,13 @@ describe("sendSpecTestResultEmail", () => {
           { key: "cognitivePlay", label: "Cognitive Play", copy: "Top motive signal two." },
           { key: "warmthResponsiveness", label: "Warmth & Responsiveness", copy: "Top motive signal three." },
         ],
+        lensInsight: {
+          key: "directnessIntrigue",
+          pole: "high",
+          title: "Lens insight title.",
+          copy: "Lens insight paragraph.",
+          partnerNote: "Lens partner note.",
+        },
         whatItSaysAboutYou: "What it says about you paragraph.",
         attachmentInsight: { label: "steadyUnderUncertainty", title: "Steady Under Uncertainty", copy: "Attachment insight paragraph." },
         datingLoop: [],

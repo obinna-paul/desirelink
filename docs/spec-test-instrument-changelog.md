@@ -427,3 +427,71 @@ already built for this, not new plumbing.
 **No instrument version bump, no schema change.** `motiveScores` and `attachment` were
 already computed and persisted for every usable v2 row (Phase 2/7 of the original v2
 rebuild) - this only adds a presentation layer over data that already existed.
+
+## spec-v2.1 — Item bank wording pass
+
+**Why.** Direct feedback: several prompts and options needed a reread to parse, and the
+overall tone read closer to a research abstract than a quiz someone would actually enjoy
+taking, on a product that should feel fun and openly flirtatious given its audience.
+
+**What changed, and what absolutely did not.** All 24 prompts and all 96 option labels in
+`lib/spec-test/items/spec-v2.ts` were rewritten for plain, first-read clarity and a lighter,
+flirtier tone. Every item id and every option id is byte-for-byte unchanged, and so is every
+option's assigned scoring dimension in `lib/spec-test/scoring/loadings.ts` (`OPTION_MOTIVE_LOADINGS`,
+`OPTION_ATTACHMENT_LOADINGS`) and `TENSION_ITEM_PAIRS` - this file never touched loadings.ts,
+so there was nothing to keep in sync beyond writing each option so it still clearly reads as
+evidence of the exact motive or attachment code the comment beside it already names. Verified
+by the full existing test suite passing unchanged, most importantly
+`__tests__/lib/spec-test/loadings.test.ts` (confirms every optionId still has a matching
+loadings entry) and the gender content-symmetry suite (confirms the `{token}` vocabulary and
+verb-agreement rule were applied correctly to the new wording).
+
+**The four attachment-scenario items** (`delayed-reply`, `fast-closeness`, `conflict-response`,
+`need-comfort`) got lighter touches than everything else - these measure a real emotional
+pattern, and the report's own hedge about honest framing (§9) argues for keeping them sincere
+enough to get a genuine answer rather than one picked because it was the funniest option.
+
+## spec-v2.1 — Two more result modules: hidden lens insight and a fuller partner brief
+
+**Why.** Direct follow-up: the result still read as a recap of answers already given, when it
+should tell the taker something they didn't already know about themselves - and the "who
+tends to work for you" section should draw on more than a single archetype label. The user
+specifically pointed to Tim LaHaye's *Why You Act the Way You Do* as the kind of holistic,
+narrative-rich character sketch to aim for.
+
+**What the report actually says about that book, checked before writing anything:** §1
+covers it directly - "The book is useful for narrative technique... Udala should borrow that
+breadth and human tone. It **should not** adopt the four temperaments as the scoring
+foundation." So this pass borrows the *technique* (weave several real signals into one
+textured character sketch, the way LaHaye connects temperament to work, conflict, love and
+blind spots) without inventing a second, untested four-type classification system layered on
+top of the actual one - which would also have meant fabricating content with no basis in the
+report, exactly what was asked not to do.
+
+**"Something you might not know about yourself"** (new section, always present). Every
+result already scores all 8 interpretive lenses (report §3 Layer B - Spark-Safety,
+Closeness-Autonomy, Fast-Slow burn, Directness-Intrigue, Private-Public, Admiration-Mutuality,
+Mind-Embodied, Exploration-Commitment), and none of the 8 were ever shown. `composeSpecTestResult`
+now picks the taker's single most extreme lens (furthest from the neutral midpoint, in either
+direction) and shows a specific, playful reveal for it
+(`lib/spec-test/interpretation/signal-readings.ts`'s new `LENS_INSIGHTS`, 16 entries: one per
+pole per lens). A lens score is extracted across several answers, not chosen directly on any
+one of them - which is exactly why this is new information to the taker rather than a recap.
+
+**A fuller partner brief, not a new type.** The existing archetype-level `longTermFit`
+paragraph is untouched, but the result page now shows a second, trait-based partner note
+right alongside it, pulled from that same selected lens
+(`LensPoleReading.partnerNote`, e.g. "Your best match is a {person} who keeps a little
+unpredictability alive, even years in.") - report §7's "person to marry" section calls this
+out explicitly: "Do not output 'Marry a Grounded Equal.' Output a **behavioral partner
+brief**." The brief a taker now sees is synthesized from two independent computed signals
+(archetype + lens), not a single label.
+
+**Voice note.** Per explicit instruction, this pass (and the item-bank pass above) avoid em
+dashes - short sentences and commas instead, which if anything reads more casual and easier
+to skim on a phone.
+
+**Tests.** New coverage in `interpretation.test.ts` (lens selection picks the correct key and
+direction, and always exists unlike attachment) and the gender content-symmetry suite (all 16
+lens entries render token-safe and symmetric across forms), plus the safety-lint test's banned
+term list now also runs against the new lens copy.
