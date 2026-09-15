@@ -111,7 +111,7 @@ export function SpecBadge({
                   <Fingerprint className="h-5 w-5 text-primary" aria-hidden="true" />
                 </span>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">The Spec Test</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">My spec is</p>
                   <h2 id={titleId} className="mt-1 font-heading text-xl font-semibold text-foreground">
                     {name}
                   </h2>
