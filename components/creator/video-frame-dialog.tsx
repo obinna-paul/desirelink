@@ -34,7 +34,13 @@ export function VideoFrameDialog({
   file: File;
   ratio: number;
   onCancel: () => void;
-  onConfirm: (result: { crop: VideoCrop; width: number; height: number; durationSeconds: number }) => void;
+  onConfirm: (result: {
+    crop: VideoCrop;
+    width: number;
+    height: number;
+    durationSeconds: number;
+    displayAspectRatioId?: string;
+  }) => void;
   /** Called when the browser can't decode this file (e.g. an unsupported codec/container), or metadata never loads within a reasonable time — otherwise the dialog is stuck forever with a disabled confirm button and no feedback. */
   onError?: () => void;
   ratioOptions?: readonly { id: string; label: string }[];
@@ -182,6 +188,7 @@ export function VideoFrameDialog({
       width: naturalSize.width,
       height: naturalSize.height,
       durationSeconds: duration,
+      displayAspectRatioId: selectedRatioId,
     });
   }
 

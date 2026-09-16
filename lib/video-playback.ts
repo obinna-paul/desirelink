@@ -87,9 +87,9 @@ export async function probeVideoManifest(src: string): Promise<number | null> {
 }
 
 /** How long to wait before looking again for a video that is still being encoded. Backs
- * off from a few seconds to half a minute: most videos are ready inside the first couple
+ * off from a moment to twenty seconds: most videos are ready inside the first couple
  * of checks, and a long one shouldn't be polled hard for minutes. */
 export function videoProcessingRetryDelayMs(attempt: number): number {
-  const delays = [3_000, 5_000, 8_000, 12_000, 20_000, 30_000];
+  const delays = [1_500, 2_500, 4_000, 6_000, 10_000, 15_000, 20_000];
   return delays[Math.min(attempt, delays.length - 1)];
 }

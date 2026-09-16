@@ -15,14 +15,13 @@ jest.mock("@/lib/client-uploads", () => ({
 type SessionModule = typeof import("@/lib/video-upload-session");
 
 const CONTEXT = {
-  displayAspectRatio: "square" as PostDisplayAspectRatio,
   maxDurationSeconds: 15 * 60,
 };
 
 function videoItem(
   name: string,
   durationSeconds = 30,
-  displayAspectRatio?: PostDisplayAspectRatio,
+  displayAspectRatio: PostDisplayAspectRatio = "square",
 ) {
   return {
     pending: {

@@ -91,7 +91,7 @@ describe("video playback helpers", () => {
     expect(first).toBeLessThanOrEqual(5_000);
     expect(later).toBeGreaterThan(first);
     // Past the end of the ramp it settles rather than growing without bound.
-    expect(videoProcessingRetryDelayMs(99)).toBe(videoProcessingRetryDelayMs(5));
+    expect(videoProcessingRetryDelayMs(99)).toBe(videoProcessingRetryDelayMs(6));
   });
 
   it("reports the manifest status a probe found", async () => {

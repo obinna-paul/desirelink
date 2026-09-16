@@ -205,7 +205,12 @@ export function PostComposer({
   useEffect(() => {
     if (session.completed.length === 0) return;
     const finished = drainCompletedMedia();
-    if (finished.length > 0) setMediaItems((prev) => [...prev, ...finished]);
+    if (finished.length > 0) {
+      const restoredRatio = finished[0].displayAspectRatio;
+      displayAspectRatioRef.current = restoredRatio;
+      setDisplayAspectRatioState(restoredRatio);
+      setMediaItems((prev) => [...prev, ...finished]);
+    }
   }, [session.completed]);
 
   useEffect(() => {
@@ -220,7 +225,9 @@ export function PostComposer({
   const uploadHint =
     "You can keep using the app while this uploads - it picks up where it left off if your connection dips, and it'll be here when you come back.";
 
-  const selectedRatio = selectedRatioValue(displayAspectRatio);
+  const selectedRatio = selectedRatioValue(
+    mediaItems[activeMediaIndex]?.displayAspectRatio ?? displayAspectRatio,
+  );
   const mediaPayload = useMemo(
     () =>
       mediaItems.map((item) => ({
@@ -325,7 +332,6 @@ export function PostComposer({
   }
 
   const uploadContext = {
-    displayAspectRatio,
     maxDurationSeconds: maxVideoDurationSeconds,
   };
 
@@ -340,11 +346,12 @@ export function PostComposer({
 
   function completeMediaReview(
     item: Omit<PreparedMediaReview, "displayAspectRatio">,
+    confirmedAspectRatio = displayAspectRatioRef.current,
   ) {
     const remainingReviews = reviewQueue.slice(1);
     const reviewedItem: PreparedMediaReview = {
       ...item,
-      displayAspectRatio: displayAspectRatioRef.current,
+      displayAspectRatio: confirmedAspectRatio,
     };
     const completedReviews = [...preparedReviews, reviewedItem];
 
@@ -513,20 +520,26 @@ export function PostComposer({
     width,
     height,
     durationSeconds,
+    displayAspectRatioId,
   }: {
     crop: VideoCrop;
     width: number;
     height: number;
     durationSeconds: number;
+    displayAspectRatioId?: string;
   }) {
     const pending = reviewQueue[0];
     if (!pending || pending.kind !== "video") return;
+    const confirmedAspectRatio = isPostDisplayAspectRatio(displayAspectRatioId)
+      ? displayAspectRatioId
+      : displayAspectRatioRef.current;
+    setDisplayAspectRatio(confirmedAspectRatio);
     completeMediaReview({
       pending,
       crop,
       videoMeta:
         width > 0 && height > 0 ? { width, height, durationSeconds } : undefined,
-    });
+    }, confirmedAspectRatio);
   }
 
   function handleVideoFrameCancel() {
