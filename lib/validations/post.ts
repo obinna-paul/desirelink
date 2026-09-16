@@ -5,7 +5,13 @@ import {
   POST_DISPLAY_ASPECT_RATIOS,
   POST_MEDIA_TYPES,
 } from "@/lib/post-shared";
-import { MAX_VIDEO_DURATION_SECONDS } from "@/lib/video-upload-constraints";
+import {
+  formatVideoDuration,
+  MAX_PREMIUM_VIDEO_DURATION_SECONDS,
+  MAX_VIDEO_DURATION_SECONDS,
+  maxVideoDurationSecondsFor,
+  VIDEO_DURATION_TOLERANCE_SECONDS,
+} from "@/lib/video-upload-constraints";
 
 const postMediaCropSchema = z.object({
   zoom: z.number().min(1).max(3),
@@ -20,7 +26,13 @@ export const postMediaItemSchema = z.object({
   type: z.enum(POST_MEDIA_TYPES),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
-  durationSeconds: z.number().positive().max(MAX_VIDEO_DURATION_SECONDS).optional(),
+  // The item-level ceiling is the longest any post may be; which ceiling THIS post gets
+  // depends on whether it is subscriber-only, so that check lives in the refinement below.
+  durationSeconds: z
+    .number()
+    .positive()
+    .max(MAX_PREMIUM_VIDEO_DURATION_SECONDS + VIDEO_DURATION_TOLERANCE_SECONDS)
+    .optional(),
   displayAspectRatio: z.enum(POST_DISPLAY_ASPECT_RATIOS).optional(),
   crop: postMediaCropSchema.optional(),
 });
@@ -49,6 +61,28 @@ export const createPostSchema = z
       message: "Write something or add an image",
       path: ["content"],
     },
+  )
+  /**
+   * Long-form video is a premium product: hours belong behind a subscription, while the
+   * public feed keeps its 15-minute clips. The tolerance is the same one the upload path
+   * uses - a browser and a transcoder disagree on a video's length by a second or two, and
+   * that must never be what rejects a post whose file already uploaded.
+   */
+  .refine(
+    (data) =>
+      (data.mediaItems ?? []).every(
+        (item) =>
+          item.type !== "video" ||
+          typeof item.durationSeconds !== "number" ||
+          item.durationSeconds <=
+            maxVideoDurationSecondsFor(data.isSubscriberOnly) + VIDEO_DURATION_TOLERANCE_SECONDS,
+      ),
+    (data) => ({
+      message: data.isSubscriberOnly
+        ? `Videos must be ${formatVideoDuration(MAX_PREMIUM_VIDEO_DURATION_SECONDS)} or shorter.`
+        : `Videos longer than ${formatVideoDuration(MAX_VIDEO_DURATION_SECONDS)} have to be published as Premium.`,
+      path: ["mediaItems"],
+    }),
   );
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;

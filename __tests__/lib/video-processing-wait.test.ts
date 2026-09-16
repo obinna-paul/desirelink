@@ -3,6 +3,9 @@
  * between "the file is on Bunny" and "the post can be published".
  */
 import {
+  MAX_PREMIUM_VIDEO_DURATION_SECONDS,
+} from "@/lib/video-upload-constraints";
+import {
   isResumableVideoWaitError,
   resumeVideoProcessing,
   VideoProcessingCancelledError,
@@ -65,7 +68,7 @@ describe("waiting for Bunny to process a video", () => {
 
     const stages: string[] = [];
     const media = await runWait(
-      resumeVideoProcessing(VIDEO_ID, 2 * 1024 * 1024 * 1024, {
+      resumeVideoProcessing(VIDEO_ID, { fileSize: 2 * 1024 * 1024 * 1024 }, {
         onProcessingStage: (stage) => stages.push(stage),
       }),
     );
@@ -101,7 +104,7 @@ describe("waiting for Bunny to process a video", () => {
     const progress: number[] = [];
     const stages: string[] = [];
     const media = await runWait(
-      resumeVideoProcessing(VIDEO_ID, 50 * 1024 * 1024, {
+      resumeVideoProcessing(VIDEO_ID, { fileSize: 50 * 1024 * 1024 }, {
         onProgress: (fraction) => progress.push(Math.round(fraction * 100)),
         onProcessingStage: (stage) => stages.push(stage),
       }),
@@ -142,7 +145,7 @@ describe("waiting for Bunny to process a video", () => {
       return statusResponse(body);
     });
 
-    const media = await runWait(resumeVideoProcessing(VIDEO_ID, 10 * 1024 * 1024));
+    const media = await runWait(resumeVideoProcessing(VIDEO_ID, { fileSize: 10 * 1024 * 1024 }));
 
     expect(media.url).toBe(PLAYLIST);
     expect(statusCalls).toBeGreaterThan(1);
@@ -164,7 +167,7 @@ describe("waiting for Bunny to process a video", () => {
       });
     });
 
-    const media = await runWait(resumeVideoProcessing(VIDEO_ID, 10 * 1024 * 1024));
+    const media = await runWait(resumeVideoProcessing(VIDEO_ID, { fileSize: 10 * 1024 * 1024 }));
     expect(media.url).toBe(PLAYLIST);
   });
 
@@ -173,7 +176,7 @@ describe("waiting for Bunny to process a video", () => {
       statusResponse({ ready: false, playable: false, state: "failed", error: "Unsupported codec" }),
     );
 
-    await expect(runWait(resumeVideoProcessing(VIDEO_ID, 1_000))).rejects.toThrow(
+    await expect(runWait(resumeVideoProcessing(VIDEO_ID, { fileSize: 1_000 }))).rejects.toThrow(
       "Unsupported codec",
     );
   });
@@ -189,7 +192,7 @@ describe("waiting for Bunny to process a video", () => {
       }),
     );
 
-    const wait = resumeVideoProcessing(VIDEO_ID, 10 * 1024 * 1024).catch((error) => error);
+    const wait = resumeVideoProcessing(VIDEO_ID, { fileSize: 10 * 1024 * 1024 }).catch((error) => error);
     // Far past both the stall timeout and a small file's budget.
     const error = await runWait(wait, 900);
 
@@ -205,7 +208,7 @@ describe("waiting for Bunny to process a video", () => {
       return statusResponse({ ready: false, playable: false, state: "processing", encodeProgress: 3 });
     });
 
-    const wait = resumeVideoProcessing(VIDEO_ID, 1_000, {
+    const wait = resumeVideoProcessing(VIDEO_ID, { fileSize: 1_000 }, {
       signal: controller.signal,
     }).catch((error) => error);
 
@@ -224,11 +227,34 @@ describe("waiting for Bunny to process a video", () => {
       }),
     );
 
-    const media = await runWait(resumeVideoProcessing(VIDEO_ID, 1_000));
+    const media = await runWait(resumeVideoProcessing(VIDEO_ID, { fileSize: 1_000 }));
     expect(media.durationSeconds).toBe(900);
   });
 
-  it("still refuses a video that is genuinely over the duration cap", async () => {
+  it("lets a premium post keep an hours-long video the free cap would refuse", async () => {
+    fetchMock.mockResolvedValue(
+      statusResponse({
+        ready: true,
+        playable: true,
+        state: "ready",
+        encodeProgress: 100,
+        url: PLAYLIST,
+        durationSeconds: 95 * 60,
+      }),
+    );
+
+    const media = await runWait(
+      resumeVideoProcessing(VIDEO_ID, {
+        fileSize: 6 * 1024 * 1024 * 1024,
+        durationSeconds: 95 * 60,
+        maxDurationSeconds: MAX_PREMIUM_VIDEO_DURATION_SECONDS,
+      }),
+    );
+
+    expect(media.durationSeconds).toBe(95 * 60);
+  });
+
+  it("still refuses a video past the ceiling its own post allows", async () => {
     fetchMock.mockResolvedValue(
       statusResponse({
         ready: true,
@@ -240,8 +266,17 @@ describe("waiting for Bunny to process a video", () => {
       }),
     );
 
-    await expect(runWait(resumeVideoProcessing(VIDEO_ID, 1_000))).rejects.toThrow(
+    await expect(runWait(resumeVideoProcessing(VIDEO_ID, { fileSize: 1_000 }))).rejects.toThrow(
       "15 minutes or shorter",
     );
+
+    await expect(
+      runWait(
+        resumeVideoProcessing(VIDEO_ID, {
+          fileSize: 1_000,
+          maxDurationSeconds: MAX_PREMIUM_VIDEO_DURATION_SECONDS,
+        }),
+      ),
+    ).resolves.toBeTruthy();
   });
 });

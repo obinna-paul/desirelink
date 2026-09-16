@@ -18,6 +18,8 @@ describe("pending video uploads", () => {
       videoId: "abc-123",
       fileName: "sunset.mov",
       fileSize: 4 * 1024 * 1024 * 1024,
+      durationSeconds: 95 * 60,
+      maxDurationSeconds: 4 * 60 * 60,
       displayAspectRatio: "portrait_3_4",
       crop: { zoom: 1.4, offsetXFrac: 0.1, offsetYFrac: -0.2 },
     });
@@ -28,6 +30,9 @@ describe("pending video uploads", () => {
       fileName: "sunset.mov",
       displayAspectRatio: "portrait_3_4",
       resumeAttempts: 0,
+      // A resumed long-form wait has to keep its own pacing and its own ceiling.
+      durationSeconds: 95 * 60,
+      maxDurationSeconds: 4 * 60 * 60,
     });
     expect(record?.crop).toEqual({ zoom: 1.4, offsetXFrac: 0.1, offsetYFrac: -0.2 });
   });
@@ -39,7 +44,7 @@ describe("pending video uploads", () => {
         videoId: "stale",
         fileName: "old.mp4",
         fileSize: 10,
-        startedAt: Date.now() - 7 * 60 * 60 * 1000,
+        startedAt: Date.now() - 25 * 60 * 60 * 1000,
         resumeAttempts: 0,
       }),
     );

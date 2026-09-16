@@ -69,15 +69,31 @@ export type BunnyUploadAuth = {
   authorizationExpire: number;
 };
 
+const UPLOAD_WINDOW_BASE_SECONDS = 6 * 60 * 60;
+const UPLOAD_WINDOW_PER_GB_SECONDS = 2 * 60 * 60;
+const UPLOAD_WINDOW_MAX_SECONDS = 24 * 60 * 60;
+
 /**
  * Signs a one-time TUS upload authorization for videoId without ever sending the API key
  * itself to the browser - the signature is SHA256(libraryId + apiKey + expire + videoId),
  * exactly as Bunny's pre-signed upload scheme expects, and the client hands this (not
- * the key) to tus-js-client. Valid for six hours: it is still scoped to this one video,
- * but does not expire halfway through a large upload on slow mobile data.
+ * the key) to tus-js-client.
+ *
+ * The window starts at six hours and grows with the file, up to a day. It stays scoped to
+ * this one video whatever its length, and the alternative is worse than a longer window:
+ * an authorization that lapses mid-upload strands a multi-gigabyte transfer that was
+ * otherwise going fine, on exactly the slow connections that need resumability most.
  */
-export function signBunnyUpload(videoId: string): BunnyUploadAuth {
-  const authorizationExpire = Math.floor(Date.now() / 1000) + 6 * 60 * 60;
+export function signBunnyUpload(videoId: string, fileSizeBytes = 0): BunnyUploadAuth {
+  const gigabytes =
+    Number.isFinite(fileSizeBytes) && fileSizeBytes > 0
+      ? fileSizeBytes / (1024 * 1024 * 1024)
+      : 0;
+  const windowSeconds = Math.min(
+    UPLOAD_WINDOW_MAX_SECONDS,
+    Math.round(UPLOAD_WINDOW_BASE_SECONDS + gigabytes * UPLOAD_WINDOW_PER_GB_SECONDS),
+  );
+  const authorizationExpire = Math.floor(Date.now() / 1000) + windowSeconds;
   const authorizationSignature = crypto
     .createHash("sha256")
     .update(`${libraryId()}${apiKey()}${authorizationExpire}${videoId}`)

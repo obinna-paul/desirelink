@@ -16,12 +16,13 @@ import * as tus from "tus-js-client";
 import {
   bunnyDirectChunkSizeBytes,
   checkReportedVideoDuration,
+  formatVideoDuration,
   getBunnyUploadTransportOrder,
   inferVideoContentType,
   MAX_VIDEO_DURATION_SECONDS,
-  PROCESSING_STALL_TIMEOUT_MS,
   videoProcessingBudgetMs,
   videoProcessingPollIntervalMs,
+  videoProcessingStallTimeoutMs,
   type BunnyUploadTransport,
 } from "@/lib/video-upload-constraints";
 import type { BunnyProcessingStage } from "@/lib/bunny-video-status";
@@ -586,6 +587,17 @@ async function playlistIsReachable(url: string): Promise<boolean> {
   }
 }
 
+/** What the composer already knows about the video it is waiting on. Both are hints for
+ * pacing the wait - Bunny is still the authority on what the video actually is. */
+export type VideoWaitContext = {
+  fileSize: number;
+  /** Source duration, when the browser could read it. A four-hour upload needs a budget
+   * measured against its running time, not only its byte count. */
+  durationSeconds?: number | null;
+  /** The longest this particular post is allowed to be (premium posts get hours). */
+  maxDurationSeconds?: number;
+};
+
 type ProcessingHandlers = {
   onProgress?: (fraction: number) => void;
   onStageChange?: (stage: BunnyProcessingStage) => void;
@@ -640,11 +652,12 @@ export class VideoProcessingCancelledError extends Error {
  */
 async function pollBunnyVideoStatus(
   videoId: string,
-  fileSize: number,
+  context: VideoWaitContext,
   { onProgress, onStageChange, signal }: ProcessingHandlers = {},
 ): Promise<BunnyReadyStatus> {
   const startedAt = Date.now();
-  const budgetMs = videoProcessingBudgetMs(fileSize);
+  const budgetMs = videoProcessingBudgetMs(context.fileSize, context.durationSeconds);
+  const stallTimeoutMs = videoProcessingStallTimeoutMs(context.durationSeconds);
   let lastMovementAt = startedAt;
   let lastSignature = "";
   let movements = 0;
@@ -661,7 +674,7 @@ async function pollBunnyVideoStatus(
     // queue, and a large file can sit there a while. That silence is expected, so the
     // stall clock only starts once something has actually moved; until then the (size
     // -scaled) budget is the only limit.
-    const stallLimitMs = movements > 1 ? PROCESSING_STALL_TIMEOUT_MS : budgetMs;
+    const stallLimitMs = movements > 1 ? stallTimeoutMs : budgetMs;
     if (now - startedAt > budgetMs || now - lastMovementAt > stallLimitMs) {
       throw new VideoStillProcessingError(videoId);
     }
@@ -758,6 +771,11 @@ export type VideoUploadHandlers = {
   /** Aborts the wait for transcoding (never the upload itself, which is already done by
    * the time a signal can matter here). */
   signal?: AbortSignal;
+  /** Source duration when the browser could measure it, used to pace the transcode wait. */
+  knownDurationSeconds?: number | null;
+  /** The duration ceiling this post may use - premium posts get hours (see
+   * lib/video-upload-constraints.ts). */
+  maxDurationSeconds?: number;
 };
 
 /**
@@ -775,7 +793,15 @@ export async function uploadVideoDirect(
   fallbackUrl: string,
   handlers: VideoUploadHandlers = {},
 ): Promise<CloudinaryUploadResult> {
-  const { onProgress, onPhaseChange, onProcessingStage, onProcessingStart, signal } = handlers;
+  const {
+    onProgress,
+    onPhaseChange,
+    onProcessingStage,
+    onProcessingStart,
+    signal,
+    knownDurationSeconds,
+    maxDurationSeconds,
+  } = handlers;
   onPhaseChange?.("preparing");
   onProgress?.(0.02);
   const auth = await withUploadRetries(async () => {
@@ -814,6 +840,7 @@ export async function uploadVideoDirect(
     const transports = getBunnyUploadTransportOrder(
       navigator.userAgent,
       isLikelyMobileBrowser(),
+      file.size,
     );
     let uploaded = false;
     let lastTransportError: unknown;
@@ -856,11 +883,19 @@ export async function uploadVideoDirect(
   onProgress?.(0.8);
 
   try {
-    return await awaitProcessedVideo(auth.videoId, file.size, {
-      onProgress,
-      onStageChange: onProcessingStage,
-      signal,
-    });
+    return await awaitProcessedVideo(
+      auth.videoId,
+      {
+        fileSize: file.size,
+        durationSeconds: knownDurationSeconds,
+        maxDurationSeconds,
+      },
+      {
+        onProgress,
+        onStageChange: onProcessingStage,
+        signal,
+      },
+    );
   } catch (error) {
     // A video Bunny rejected is dead weight in the library, and so is one the person
     // explicitly walked away from - discard both. A wait that merely ran long is neither:
@@ -882,12 +917,12 @@ export async function uploadVideoDirect(
  */
 export async function resumeVideoProcessing(
   videoId: string,
-  fileSize: number,
+  context: VideoWaitContext,
   handlers: Omit<VideoUploadHandlers, "onProcessingStart"> & { signal?: AbortSignal } = {},
 ): Promise<CloudinaryUploadResult> {
   handlers.onPhaseChange?.("processing");
   handlers.onProgress?.(0.8);
-  return awaitProcessedVideo(videoId, fileSize, {
+  return awaitProcessedVideo(videoId, context, {
     onProgress: handlers.onProgress,
     onStageChange: handlers.onProcessingStage,
     signal: handlers.signal,
@@ -898,19 +933,20 @@ export async function resumeVideoProcessing(
  * measured against the duration cap. */
 async function awaitProcessedVideo(
   videoId: string,
-  fileSize: number,
+  context: VideoWaitContext,
   { onProgress, onStageChange, signal }: ProcessingHandlers,
 ): Promise<CloudinaryUploadResult> {
-  const status = await pollBunnyVideoStatus(videoId, fileSize, {
+  const status = await pollBunnyVideoStatus(videoId, context, {
     onProgress: (fraction) => onProgress?.(0.8 + fraction * 0.2),
     onStageChange,
     signal,
   });
 
-  const duration = checkReportedVideoDuration(status.durationSeconds);
+  const limitSeconds = context.maxDurationSeconds ?? MAX_VIDEO_DURATION_SECONDS;
+  const duration = checkReportedVideoDuration(status.durationSeconds, limitSeconds);
   if (!duration.withinLimit) {
     throw new TerminalUploadError(
-      `Videos must be ${Math.round(MAX_VIDEO_DURATION_SECONDS / 60)} minutes or shorter.`,
+      `Videos must be ${formatVideoDuration(limitSeconds)} or shorter.`,
     );
   }
 

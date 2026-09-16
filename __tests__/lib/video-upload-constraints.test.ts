@@ -2,15 +2,20 @@ import {
   bunnyDirectChunkSizeBytes,
   checkReportedVideoDuration,
   formatMaxVideoUploadSize,
+  formatVideoDuration,
   getBunnyUploadTransportOrder,
   inferVideoContentType,
   isMobileChromeBrowser,
+  MAX_PREMIUM_VIDEO_DURATION_SECONDS,
+  MAX_PREMIUM_VIDEO_UPLOAD_BYTES,
   MAX_VIDEO_DURATION_SECONDS,
   MAX_VIDEO_UPLOAD_BYTES,
-  PROCESSING_STALL_TIMEOUT_MS,
+  maxVideoDurationSecondsFor,
+  maxVideoUploadBytesFor,
   VIDEO_UPLOAD_ACCEPT,
   videoProcessingBudgetMs,
   videoProcessingPollIntervalMs,
+  videoProcessingStallTimeoutMs,
 } from "@/lib/video-upload-constraints";
 
 const GIGABYTE = 1024 * 1024 * 1024;
@@ -35,6 +40,37 @@ describe("video upload constraints", () => {
     expect(getBunnyUploadTransportOrder(desktopChrome, false)).toEqual(["direct", "relay"]);
   });
 
+  it("sends a big file direct even on a relay-first browser", () => {
+    // The relay's ~3MB chunks would mean thousands of round trips; direct stays the
+    // fallback either way, so nothing loses its escape hatch.
+    expect(getBunnyUploadTransportOrder(androidFirefox, true, 40 * 1024 * 1024)).toEqual([
+      "relay",
+      "direct",
+    ]);
+    expect(getBunnyUploadTransportOrder(androidFirefox, true, 3 * GIGABYTE)).toEqual([
+      "direct",
+      "relay",
+    ]);
+  });
+
+  it("gives premium posts the long-form ceilings and keeps the feed's", () => {
+    expect(MAX_VIDEO_DURATION_SECONDS).toBe(15 * 60);
+    expect(MAX_PREMIUM_VIDEO_DURATION_SECONDS).toBe(4 * 60 * 60);
+    expect(maxVideoDurationSecondsFor(false)).toBe(MAX_VIDEO_DURATION_SECONDS);
+    expect(maxVideoDurationSecondsFor(true)).toBe(MAX_PREMIUM_VIDEO_DURATION_SECONDS);
+    expect(maxVideoUploadBytesFor(false)).toBe(MAX_VIDEO_UPLOAD_BYTES);
+    expect(maxVideoUploadBytesFor(true)).toBe(MAX_PREMIUM_VIDEO_UPLOAD_BYTES);
+    // A four-hour upload has to fit its own ceiling at a real long-form bitrate.
+    expect(MAX_PREMIUM_VIDEO_UPLOAD_BYTES).toBeGreaterThan(MAX_VIDEO_UPLOAD_BYTES);
+  });
+
+  it("names a limit the way a person would say it", () => {
+    expect(formatVideoDuration(MAX_VIDEO_DURATION_SECONDS)).toBe("15 minutes");
+    expect(formatVideoDuration(MAX_PREMIUM_VIDEO_DURATION_SECONDS)).toBe("4 hours");
+    expect(formatVideoDuration(60 * 60)).toBe("1 hour");
+    expect(formatVideoDuration(90 * 60)).toBe("1 hour 30 minutes");
+  });
+
   it("normalizes Android's generic MIME type from a supported filename", () => {
     expect(inferVideoContentType("VID_20260906_120000.MP4", "application/octet-stream")).toBe(
       "video/mp4",
@@ -54,6 +90,17 @@ describe("video upload constraints", () => {
     expect(MAX_VIDEO_DURATION_SECONDS).toBe(900);
     expect(VIDEO_UPLOAD_ACCEPT).toContain(".mkv");
     expect(VIDEO_UPLOAD_ACCEPT).toContain(".m2ts");
+  });
+
+  it("measures a premium video against the premium ceiling", () => {
+    const hourLong = 62 * 60;
+    expect(checkReportedVideoDuration(hourLong).withinLimit).toBe(false);
+    expect(
+      checkReportedVideoDuration(hourLong, MAX_PREMIUM_VIDEO_DURATION_SECONDS),
+    ).toEqual({ withinLimit: true, durationSeconds: hourLong });
+    expect(
+      checkReportedVideoDuration(5 * 60 * 60, MAX_PREMIUM_VIDEO_DURATION_SECONDS).withinLimit,
+    ).toBe(false);
   });
 
   it("forgives the sub-second disagreement between a browser and a transcoder", () => {
@@ -81,8 +128,23 @@ describe("video upload constraints", () => {
     expect(small).toBeLessThan(31 * 60 * 1000);
     expect(large).toBeGreaterThan(60 * 60 * 1000);
     // However large the file, a wait that stops moving still ends.
-    expect(videoProcessingBudgetMs(500 * GIGABYTE)).toBe(3 * 60 * 60 * 1000);
-    expect(PROCESSING_STALL_TIMEOUT_MS).toBe(15 * 60 * 1000);
+    expect(videoProcessingBudgetMs(500 * GIGABYTE)).toBe(12 * 60 * 60 * 1000);
+  });
+
+  it("budgets a long video against its running time, not only its bytes", () => {
+    const fourHours = 4 * 60 * 60;
+    // A well-compressed four-hour upload is small for its length; the bytes alone would
+    // have allowed it barely more than the base budget.
+    const bytesOnly = videoProcessingBudgetMs(6 * GIGABYTE);
+    const withRuntime = videoProcessingBudgetMs(6 * GIGABYTE, fourHours);
+
+    expect(withRuntime).toBeGreaterThan(bytesOnly);
+    expect(withRuntime).toBeGreaterThanOrEqual(fourHours * 1000);
+
+    // And a long video is allowed longer gaps between Bunny's progress steps.
+    expect(videoProcessingStallTimeoutMs(null)).toBe(15 * 60 * 1000);
+    expect(videoProcessingStallTimeoutMs(60)).toBe(15 * 60 * 1000);
+    expect(videoProcessingStallTimeoutMs(fourHours)).toBe(60 * 60 * 1000);
   });
 
   it("polls tightly at first, then backs off for a long transcode", () => {

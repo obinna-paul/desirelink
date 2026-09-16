@@ -1,16 +1,49 @@
 /**
- * The ceiling exists to bound storage and transcode cost, not to decide what a creator is
- * allowed to film - MAX_VIDEO_DURATION_SECONDS already does that. It has to clear what a
- * modern phone actually produces within that duration: 4K60 out of an iPhone runs around
- * 600MB per minute, so a full-length 15-minute clip is ~9GB, and the old 2GB ceiling
- * rejected it on selection no matter how patient the person was willing to be. Resumable
- * chunked uploads (see lib/client-uploads.ts) are what make a file this size survivable on
+ * How long a video may be, and how large its file may be.
+ *
+ * Feed video and premium video are different products. A public post is a clip - the
+ * 15-minute cap is what keeps the free feed a feed. Premium is where a creator sells
+ * long-form work (a full session, a class, a recorded show), so it gets hours, and the
+ * ceilings that go with hours.
+ *
+ * The byte ceilings exist to bound storage and transcode cost, not to decide what anyone
+ * is allowed to film, so each one is set to clear what its duration can actually produce:
+ * 4K60 out of an iPhone runs ~600MB a minute, which puts a full-length free clip near 9GB,
+ * and a four-hour premium upload at a high 1080p bitrate lands well inside 50GB. Resumable
+ * chunked uploads (see lib/client-uploads.ts) are what make files this size survivable on
  * a real connection.
  */
+export const MAX_VIDEO_DURATION_SECONDS = 15 * 60;
+export const MAX_PREMIUM_VIDEO_DURATION_SECONDS = 4 * 60 * 60;
+
 export const MAX_VIDEO_UPLOAD_BYTES = 12 * 1024 * 1024 * 1024;
+export const MAX_PREMIUM_VIDEO_UPLOAD_BYTES = 50 * 1024 * 1024 * 1024;
+
+export function maxVideoDurationSecondsFor(allowsPremium: boolean): number {
+  return allowsPremium ? MAX_PREMIUM_VIDEO_DURATION_SECONDS : MAX_VIDEO_DURATION_SECONDS;
+}
+
+export function maxVideoUploadBytesFor(allowsPremium: boolean): number {
+  return allowsPremium ? MAX_PREMIUM_VIDEO_UPLOAD_BYTES : MAX_VIDEO_UPLOAD_BYTES;
+}
+
+export function formatVideoUploadSize(bytes: number): string {
+  return `${Math.round(bytes / (1024 * 1024 * 1024))}GB`;
+}
 
 export function formatMaxVideoUploadSize(): string {
-  return `${Math.round(MAX_VIDEO_UPLOAD_BYTES / (1024 * 1024 * 1024))}GB`;
+  return formatVideoUploadSize(MAX_VIDEO_UPLOAD_BYTES);
+}
+
+/** "15 minutes", "4 hours", "1 hour 30 minutes" - for copy that has to name a limit. */
+export function formatVideoDuration(seconds: number): string {
+  const totalMinutes = Math.max(1, Math.round(seconds / 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${hours} hour${hours === 1 ? "" : "s"}`);
+  if (minutes > 0) parts.push(`${minutes} minute${minutes === 1 ? "" : "s"}`);
+  return parts.join(" ");
 }
 
 /**
@@ -40,7 +73,6 @@ export function bunnyDirectChunkSizeBytes(fileSizeBytes: number, isMobile: boole
     Math.max(BUNNY_MIN_CHUNK_BYTES, Math.ceil(fileSizeBytes / BUNNY_TARGET_CHUNK_COUNT)),
   );
 }
-export const MAX_VIDEO_DURATION_SECONDS = 15 * 60;
 
 export type BunnyUploadTransport = "direct" | "relay";
 
@@ -88,17 +120,25 @@ export function isMobileChromeBrowser(userAgent: string) {
   return isMobile && isChrome && !isAnotherChromiumBrowser;
 }
 
+/** Above this, the relay's platform-capped chunks would mean thousands of round trips
+ * through our own serverless route - an hour of extra upload on a big file. */
+const RELAY_PREFERRED_MAX_BYTES = 500 * 1024 * 1024;
+
 /**
  * Mobile Chrome talks directly to Bunny. Other mobile browsers keep the same-origin relay
- * that is already proven on those browsers. Either path may switch once if its opening TUS
- * handshake cannot transfer a byte.
+ * that is already proven on those browsers - but only while the file is small enough for
+ * the relay's ~3MB chunks to be a reasonable way to move it. A long premium upload goes
+ * direct on any browser, because the relay would need thousands of requests for it. Either
+ * path may switch once if its opening TUS handshake cannot transfer a byte, so preferring
+ * direct never removes the relay as a fallback.
  */
 export function getBunnyUploadTransportOrder(
   userAgent: string,
   isLikelyMobile: boolean,
+  fileSizeBytes = 0,
 ): BunnyUploadTransport[] {
   if (isMobileChromeBrowser(userAgent)) return ["direct", "relay"];
-  if (isLikelyMobile) return ["relay", "direct"];
+  if (isLikelyMobile && fileSizeBytes <= RELAY_PREFERRED_MAX_BYTES) return ["relay", "direct"];
   return ["direct", "relay"];
 }
 
@@ -111,45 +151,76 @@ export function getBunnyUploadTransportOrder(
  */
 export const VIDEO_DURATION_TOLERANCE_SECONDS = 5;
 
-export function checkReportedVideoDuration(seconds: number | null | undefined): {
+export function checkReportedVideoDuration(
+  seconds: number | null | undefined,
+  limitSeconds: number = MAX_VIDEO_DURATION_SECONDS,
+): {
   withinLimit: boolean;
   durationSeconds: number | undefined;
 } {
   if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds <= 0) {
     return { withinLimit: true, durationSeconds: undefined };
   }
-  if (seconds > MAX_VIDEO_DURATION_SECONDS + VIDEO_DURATION_TOLERANCE_SECONDS) {
+  if (seconds > limitSeconds + VIDEO_DURATION_TOLERANCE_SECONDS) {
     return { withinLimit: false, durationSeconds: seconds };
   }
-  return { withinLimit: true, durationSeconds: Math.min(seconds, MAX_VIDEO_DURATION_SECONDS) };
+  return { withinLimit: true, durationSeconds: Math.min(seconds, limitSeconds) };
 }
 
 /**
  * How long the composer is willing to wait for Bunny to make an uploaded video playable,
  * and how often it asks.
  *
- * A fixed ceiling is the wrong shape here: a 20MB phone clip is playable in seconds, while
- * a multi-gigabyte export can sit in Bunny's queue and then encode for far longer than any
- * single number a developer would pick. The budget therefore scales with the file, and the
- * stall timeout - not the budget - is what actually ends a hopeless wait: as long as Bunny
+ * A fixed ceiling is the wrong shape here: a 20MB phone clip is playable in seconds, a
+ * multi-gigabyte export sits in Bunny's queue first, and a four-hour premium upload has to
+ * be encoded into every rendition before the last one exists. So the budget scales with
+ * both the bytes and the running time - whichever implies the longer wait wins - and the
+ * stall timeout, not the budget, is what actually ends a hopeless wait: as long as Bunny
  * keeps reporting forward movement, waiting is the correct thing to do.
  */
 const PROCESSING_BASE_BUDGET_MS = 30 * 60 * 1000;
 const PROCESSING_BUDGET_PER_GB_MS = 20 * 60 * 1000;
-const PROCESSING_MAX_BUDGET_MS = 3 * 60 * 60 * 1000;
+/** Transcoding into several renditions runs at a small multiple of real time; budget well
+ * clear of that so a long video is never cut off while it is genuinely encoding. */
+const PROCESSING_BUDGET_DURATION_MULTIPLE = 4;
+const PROCESSING_MAX_BUDGET_MS = 12 * 60 * 60 * 1000;
 
-/** No change in Bunny's reported state or progress for this long means something is wrong
- * on their side; nothing else the client can do will move it. */
-export const PROCESSING_STALL_TIMEOUT_MS = 15 * 60 * 1000;
+const PROCESSING_MIN_STALL_TIMEOUT_MS = 15 * 60 * 1000;
+const PROCESSING_MAX_STALL_TIMEOUT_MS = 60 * 60 * 1000;
 
-export function videoProcessingBudgetMs(fileSizeBytes: number): number {
+export function videoProcessingBudgetMs(
+  fileSizeBytes: number,
+  durationSeconds?: number | null,
+): number {
   const gigabytes =
     Number.isFinite(fileSizeBytes) && fileSizeBytes > 0
       ? fileSizeBytes / (1024 * 1024 * 1024)
       : 0;
+  const runtimeMs =
+    typeof durationSeconds === "number" && Number.isFinite(durationSeconds) && durationSeconds > 0
+      ? durationSeconds * 1000 * PROCESSING_BUDGET_DURATION_MULTIPLE
+      : 0;
+
   return Math.min(
     PROCESSING_MAX_BUDGET_MS,
-    PROCESSING_BASE_BUDGET_MS + gigabytes * PROCESSING_BUDGET_PER_GB_MS,
+    PROCESSING_BASE_BUDGET_MS + Math.max(gigabytes * PROCESSING_BUDGET_PER_GB_MS, runtimeMs),
+  );
+}
+
+/**
+ * No change in Bunny's reported state or progress for this long means something is wrong
+ * on their side; nothing else the client can do will move it. Bunny's encode percentage
+ * advances in steps, and the longer the video the further apart those steps fall, so the
+ * quiet a long video is allowed grows with it.
+ */
+export function videoProcessingStallTimeoutMs(durationSeconds?: number | null): number {
+  const quietMs =
+    typeof durationSeconds === "number" && Number.isFinite(durationSeconds) && durationSeconds > 0
+      ? (durationSeconds * 1000) / 4
+      : 0;
+  return Math.min(
+    PROCESSING_MAX_STALL_TIMEOUT_MS,
+    Math.max(PROCESSING_MIN_STALL_TIMEOUT_MS, quietMs),
   );
 }
 

@@ -19,8 +19,9 @@ const STORAGE_KEY = "udala:pending-video-upload";
 
 /** Past this, a record is more likely to be abandoned than still encoding, and resuming it
  * would just re-open a wait nobody is watching for. Comfortably longer than any transcode
- * the 15-minute duration cap can produce. */
-const MAX_RECORD_AGE_MS = 6 * 60 * 60 * 1000;
+ * the premium duration cap can produce - a four-hour upload is entitled to hours of
+ * encoding, and a creator who comes back the next morning should still find it. */
+const MAX_RECORD_AGE_MS = 24 * 60 * 60 * 1000;
 
 /** How many times the composer may re-enter the wait for the same video before leaving it
  * alone - bounds a video Bunny has genuinely stalled on from re-polling on every mount. */
@@ -32,6 +33,10 @@ export type PendingVideoUpload = {
   fileSize: number;
   startedAt: number;
   resumeAttempts: number;
+  /** Source duration, when the browser could read it, and the ceiling this post may use -
+   * both only pace and bound the wait once it is resumed. */
+  durationSeconds?: number;
+  maxDurationSeconds?: number;
   displayAspectRatio?: PostDisplayAspectRatio;
   crop?: VideoCrop;
 };
@@ -44,6 +49,10 @@ function isVideoCrop(value: unknown): value is VideoCrop {
     typeof crop.offsetXFrac === "number" &&
     typeof crop.offsetYFrac === "number"
   );
+}
+
+function positiveNumberOrUndefined(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 function parse(raw: string | null): PendingVideoUpload | null {
@@ -76,6 +85,8 @@ function parse(raw: string | null): PendingVideoUpload | null {
         : 0,
     startedAt: record.startedAt,
     resumeAttempts,
+    durationSeconds: positiveNumberOrUndefined(record.durationSeconds),
+    maxDurationSeconds: positiveNumberOrUndefined(record.maxDurationSeconds),
     displayAspectRatio: isPostDisplayAspectRatio(record.displayAspectRatio)
       ? record.displayAspectRatio
       : undefined,

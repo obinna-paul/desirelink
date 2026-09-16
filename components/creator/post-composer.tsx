@@ -66,9 +66,12 @@ import {
 } from "@/lib/pending-video-uploads";
 import { cn } from "@/lib/utils";
 import {
-  formatMaxVideoUploadSize,
+  formatVideoDuration,
+  formatVideoUploadSize,
   MAX_VIDEO_DURATION_SECONDS,
-  MAX_VIDEO_UPLOAD_BYTES,
+  maxVideoDurationSecondsFor,
+  maxVideoUploadBytesFor,
+  VIDEO_DURATION_TOLERANCE_SECONDS,
   VIDEO_UPLOAD_ACCEPT,
 } from "@/lib/video-upload-constraints";
 
@@ -79,7 +82,7 @@ function formatFileSize(bytes: number) {
   return `${Math.max(0.1, bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Reads a video's duration without ever attaching it to the DOM — resolves 0 (never rejects) if the browser can't read metadata within the timeout, so an unreadable file falls through to the frame dialog's own error handling instead of blocking selection here. */
+/** Reads a video's duration without ever attaching it to the DOM — resolves 0 (never rejects) if the browser can't read metadata within the timeout, so an unreadable file falls through to the frame dialog's own error handling instead of blocking selection here. The timeout scales with the file: a phone still needs to find the moov atom of a multi-gigabyte long-form export, and giving up too early would cost the duration we use to pace its transcode wait. */
 function readVideoDurationSeconds(file: File): Promise<number> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
@@ -93,7 +96,10 @@ function readVideoDurationSeconds(file: File): Promise<number> {
       URL.revokeObjectURL(url);
       resolve(value);
     };
-    const timeout = window.setTimeout(() => finish(0), 8000);
+    const timeout = window.setTimeout(
+      () => finish(0),
+      Math.min(30_000, 8_000 + (file.size / (1024 * 1024 * 1024)) * 4_000),
+    );
     video.preload = "metadata";
     video.onloadedmetadata = () => {
       window.clearTimeout(timeout);
@@ -116,6 +122,9 @@ type PendingMediaReview = {
   kind: "image" | "video";
   metadataDetected: boolean;
   imagePurpose?: "post-image" | "post-image-normalize";
+  /** What the browser read off the file at selection, when it could. Paces the transcode
+   * wait, which for long-form video is measured against running time. */
+  durationSeconds?: number;
 };
 type PreparedMediaReview = {
   pending: PendingMediaReview;
@@ -280,6 +289,48 @@ export function PostComposer({
   );
   const activeMedia = mediaItems[activeMediaIndex];
   const canGoPremium = hasIdentityOnFile || identitySubmittedLocally;
+  /** Long-form video is a premium product, so the ceilings offered at selection follow
+   * what this creator is allowed to publish. */
+  const maxVideoDurationSeconds = maxVideoDurationSecondsFor(canPostPremiumContent);
+  const maxVideoUploadBytes = maxVideoUploadBytesFor(canPostPremiumContent);
+  // Counts video that is only selected or mid-review as well as video already uploaded, so
+  // the Premium rule is visible before someone spends an hour uploading under it.
+  const longestVideoSeconds = Math.max(
+    mediaItems.reduce(
+      (longest, item) =>
+        item.type === "video" ? Math.max(longest, item.durationSeconds ?? 0) : longest,
+      0,
+    ),
+    ...[...reviewQueue, ...preparedReviews.map((review) => review.pending)].map((pending) =>
+      pending.kind === "video" ? pending.durationSeconds ?? 0 : 0,
+    ),
+    0,
+  );
+  const requiresPremiumForLength =
+    longestVideoSeconds > MAX_VIDEO_DURATION_SECONDS + VIDEO_DURATION_TOLERANCE_SECONDS;
+  const longVideoNotice = requiresPremiumForLength
+    ? !canPostPremiumContent
+      ? `This video runs ${formatVideoDuration(longestVideoSeconds)}. Anything over ${formatVideoDuration(MAX_VIDEO_DURATION_SECONDS)} publishes as Premium, which needs a creator account.`
+      : !canGoPremium
+        ? `This video runs ${formatVideoDuration(longestVideoSeconds)}, so it publishes as Premium - verify your identity to unlock that.`
+        : !hasPricingTier
+          ? `This video runs ${formatVideoDuration(longestVideoSeconds)}, so it publishes as Premium - set up a subscription tier first.`
+          : `This video runs ${formatVideoDuration(longestVideoSeconds)}, so it publishes as Premium. The public feed keeps videos to ${formatVideoDuration(MAX_VIDEO_DURATION_SECONDS)}.`
+    : null;
+
+  // A video past the free feed's limit has exactly one place it can publish, so select it
+  // rather than letting someone discover the rule when they press Publish. The notice
+  // beside the access controls says so plainly; it is never a silent switch.
+  useEffect(() => {
+    if (!requiresPremiumForLength || postAccess === "premium") return;
+    if (canPostPremiumContent && canGoPremium && hasPricingTier) setPostAccess("premium");
+  }, [
+    canGoPremium,
+    canPostPremiumContent,
+    hasPricingTier,
+    postAccess,
+    requiresPremiumForLength,
+  ]);
   const isSubscriberOnly = canPostPremiumContent && postAccess === "premium";
   const selectedRatioOption = POST_DISPLAY_RATIO_OPTIONS.find(
     (option) => option.value === displayAspectRatio,
@@ -363,6 +414,8 @@ export function PostComposer({
             },
             onProcessingStage: setProcessingStage,
             signal: controller.signal,
+            knownDurationSeconds: videoMeta?.durationSeconds ?? pending.durationSeconds,
+            maxDurationSeconds: maxVideoDurationSeconds,
             // The bytes are on Bunny from here. Recording the video id means a reload, a
             // backgrounded tab, or a transcode that outlasts this screen costs the wait,
             // never the upload.
@@ -371,6 +424,8 @@ export function PostComposer({
                 videoId,
                 fileName: file.name,
                 fileSize: file.size,
+                durationSeconds: videoMeta?.durationSeconds ?? pending.durationSeconds,
+                maxDurationSeconds: maxVideoDurationSeconds,
                 displayAspectRatio,
                 crop,
               }),
@@ -435,11 +490,19 @@ export function PostComposer({
     if (record.displayAspectRatio) setDisplayAspectRatioState(record.displayAspectRatio);
 
     try {
-      const media = await resumeVideoProcessing(record.videoId, record.fileSize, {
-        onProgress: trackUploadProgress,
-        onProcessingStage: setProcessingStage,
-        signal: controller.signal,
-      });
+      const media = await resumeVideoProcessing(
+        record.videoId,
+        {
+          fileSize: record.fileSize,
+          durationSeconds: record.durationSeconds,
+          maxDurationSeconds: record.maxDurationSeconds ?? maxVideoDurationSeconds,
+        },
+        {
+          onProgress: trackUploadProgress,
+          onProcessingStage: setProcessingStage,
+          signal: controller.signal,
+        },
+      );
       clearPendingVideoUpload();
       setMediaItems((prev) =>
         prev.length > 0
@@ -574,21 +637,26 @@ export function PostComposer({
           lastError = `Each image must be under ${MAX_IMAGE_FILE_SIZE / (1024 * 1024)}MB.`;
           continue;
         }
-        if (isVideo && workingFile.size > MAX_VIDEO_UPLOAD_BYTES) {
-          lastError = `Each video can be up to ${formatMaxVideoUploadSize()}.`;
+        if (isVideo && workingFile.size > maxVideoUploadBytes) {
+          lastError = `Each video can be up to ${formatVideoUploadSize(maxVideoUploadBytes)}.`;
           continue;
         }
 
         if (isVideo) {
+          // A video the browser cannot measure (0) is not refused here - Bunny reports the
+          // real length once it has probed the file, and that is what publishing checks.
           const durationSeconds = await readVideoDurationSeconds(workingFile);
-          if (durationSeconds > MAX_VIDEO_DURATION_SECONDS) {
-            lastError = `Videos must be ${Math.round(MAX_VIDEO_DURATION_SECONDS / 60)} minutes or shorter.`;
+          if (durationSeconds > maxVideoDurationSeconds) {
+            lastError = canPostPremiumContent
+              ? `Videos must be ${formatVideoDuration(maxVideoDurationSeconds)} or shorter.`
+              : `Videos longer than ${formatVideoDuration(MAX_VIDEO_DURATION_SECONDS)} are for Premium posts, which need a creator account.`;
             continue;
           }
           mediaToReview.push({
             file: workingFile,
             kind: "video",
             metadataDetected: false,
+            durationSeconds: durationSeconds > 0 ? durationSeconds : undefined,
           });
           continue;
         }
@@ -755,6 +823,14 @@ export function PostComposer({
       return;
     }
 
+    if (requiresPremiumForLength && !isSubscriberOnly) {
+      setError(
+        longVideoNotice ??
+          `Videos longer than ${formatVideoDuration(MAX_VIDEO_DURATION_SECONDS)} have to be published as Premium.`,
+      );
+      return;
+    }
+
     if (isSubscriberOnly && !selectedTierId) {
       setError("Choose which tier unlocks this post.");
       return;
@@ -908,6 +984,10 @@ export function PostComposer({
               type="button"
               aria-pressed={selected}
               onClick={() => {
+                if (option.value === "free" && requiresPremiumForLength) {
+                  setError(longVideoNotice);
+                  return;
+                }
                 if (option.value === "premium" && !canPostPremiumContent) {
                   setShowProviderUpgradePrompt(true);
                   setShowIdentityPrompt(false);
@@ -956,6 +1036,12 @@ export function PostComposer({
           ? "Added to your Premium tab"
           : "Appears in the public feed"}
       </p>
+      {longVideoNotice && (
+        <p className="mt-2 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          {longVideoNotice}
+        </p>
+      )}
       {showProviderUpgradePrompt && (
         <ProviderUpgradePrompt
           intent="premium-post"
