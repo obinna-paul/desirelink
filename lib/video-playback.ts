@@ -28,3 +28,35 @@ export function getVideoTapZone(
   if (position >= 0.7) return "forward";
   return "center";
 }
+
+/**
+ * "0:07", "3:41", "1:02:05" - the format a scrub bar's time readout needs. Switches to
+ * an hours segment only once the video actually runs that long, which now happens for
+ * real: premium posts can run up to 4 hours (see lib/video-upload-constraints.ts), where
+ * a bare minutes:seconds readout would show a meaningless "142:07".
+ */
+export function formatPlaybackTime(totalSeconds: number): string {
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) return "0:00";
+
+  const whole = Math.floor(totalSeconds);
+  const hours = Math.floor(whole / 3600);
+  const minutes = Math.floor((whole % 3600) / 60);
+  const seconds = whole % 60;
+  const paddedSeconds = String(seconds).padStart(2, "0");
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${paddedSeconds}`;
+  }
+  return `${minutes}:${paddedSeconds}`;
+}
+
+/** Where along a 0-1 scrub track a pointer landed, clamped so a drag that overshoots the
+ * track's edges (a finger sliding off-screen mid-gesture) still resolves to the start or
+ * end of the video rather than an out-of-range value. */
+export function scrubFractionFromPointer(
+  clientX: number,
+  track: Pick<DOMRect, "left" | "width">,
+): number {
+  if (track.width <= 0) return 0;
+  return Math.min(1, Math.max(0, (clientX - track.left) / track.width));
+}
