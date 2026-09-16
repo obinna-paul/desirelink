@@ -3,7 +3,10 @@ import {
   getVideoPosterUrl,
   getVideoTapZone,
   isHlsVideoSource,
+  isVideoNotPublishedYet,
+  probeVideoManifest,
   scrubFractionFromPointer,
+  videoProcessingRetryDelayMs,
 } from "@/lib/video-playback";
 
 describe("video playback helpers", () => {
@@ -65,5 +68,46 @@ describe("video playback helpers", () => {
 
   it("treats a zero-width track (not yet laid out) as the start", () => {
     expect(scrubFractionFromPointer(500, { left: 0, width: 0 })).toBe(0);
+  });
+
+  it("reads a missing manifest as a video that is still being prepared", () => {
+    // Posting no longer waits for the encoder, so a clip opened moments after publishing
+    // legitimately has no manifest yet. That is not a broken video.
+    expect(isVideoNotPublishedYet(404)).toBe(true);
+    expect(isVideoNotPublishedYet(403)).toBe(true);
+  });
+
+  it("does not excuse a real failure as processing", () => {
+    expect(isVideoNotPublishedYet(500)).toBe(false);
+    expect(isVideoNotPublishedYet(200)).toBe(false);
+    expect(isVideoNotPublishedYet(undefined)).toBe(false);
+    expect(isVideoNotPublishedYet(null)).toBe(false);
+  });
+
+  it("backs off between checks instead of polling a slow encode hard", () => {
+    const first = videoProcessingRetryDelayMs(0);
+    const later = videoProcessingRetryDelayMs(3);
+
+    expect(first).toBeLessThanOrEqual(5_000);
+    expect(later).toBeGreaterThan(first);
+    // Past the end of the ramp it settles rather than growing without bound.
+    expect(videoProcessingRetryDelayMs(99)).toBe(videoProcessingRetryDelayMs(5));
+  });
+
+  it("reports the manifest status a probe found", async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ status: 404 } as Response);
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(probeVideoManifest("https://cdn.example.test/v/playlist.m3u8")).resolves.toBe(404);
+    expect(fetchMock).toHaveBeenCalledWith("https://cdn.example.test/v/playlist.m3u8", {
+      cache: "no-store",
+    });
+  });
+
+  it("answers null when the probe itself cannot run", async () => {
+    // Offline, or a pull zone that refuses cross-origin reads - unknown, not "processing".
+    global.fetch = jest.fn().mockRejectedValue(new TypeError("Failed to fetch")) as unknown as typeof fetch;
+
+    await expect(probeVideoManifest("https://cdn.example.test/v/playlist.m3u8")).resolves.toBeNull();
   });
 });

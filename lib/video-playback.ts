@@ -60,3 +60,36 @@ export function scrubFractionFromPointer(
   if (track.width <= 0) return 0;
   return Math.min(1, Math.max(0, (clientX - track.left) / track.width));
 }
+
+/**
+ * A Bunny Stream video's manifest does not exist until the encoder has written its first
+ * rendition. That gap is normal and short, and it is deliberately not something a creator
+ * waits through before posting (see lib/client-uploads.ts) - so a player that meets a
+ * missing manifest is looking at a video that is still being prepared, not a broken one.
+ *
+ * 404 and 403 are the two answers a CDN gives for "nothing published at this path yet".
+ * Anything else - a 500, a DNS failure, a malformed playlist - is a real error and says so.
+ */
+export function isVideoNotPublishedYet(status: number | undefined | null): boolean {
+  return status === 404 || status === 403;
+}
+
+/** Probes a manifest the player could not load, to tell "still encoding" apart from
+ * "genuinely broken". A request that cannot run at all (offline, a pull zone that refuses
+ * cross-origin reads) returns null: unknown, so the caller keeps its own verdict. */
+export async function probeVideoManifest(src: string): Promise<number | null> {
+  try {
+    const res = await fetch(src, { cache: "no-store" });
+    return res.status;
+  } catch {
+    return null;
+  }
+}
+
+/** How long to wait before looking again for a video that is still being encoded. Backs
+ * off from a few seconds to half a minute: most videos are ready inside the first couple
+ * of checks, and a long one shouldn't be polled hard for minutes. */
+export function videoProcessingRetryDelayMs(attempt: number): number {
+  const delays = [3_000, 5_000, 8_000, 12_000, 20_000, 30_000];
+  return delays[Math.min(attempt, delays.length - 1)];
+}

@@ -15,19 +15,10 @@ import * as tus from "tus-js-client";
 
 import {
   bunnyDirectChunkSizeBytes,
-  checkReportedVideoDuration,
-  formatVideoDuration,
   getBunnyUploadTransportOrder,
   inferVideoContentType,
-  MAX_VIDEO_DURATION_SECONDS,
-  videoProcessingBudgetMs,
-  videoProcessingPollIntervalMs,
-  videoProcessingStallTimeoutMs,
   type BunnyUploadTransport,
 } from "@/lib/video-upload-constraints";
-import type { BunnyProcessingStage } from "@/lib/bunny-video-status";
-
-export type { BunnyProcessingStage } from "@/lib/bunny-video-status";
 
 const FIRST_PARTY_UPLOAD_MAX_BYTES = 3.5 * 1024 * 1024;
 const BUNNY_MOBILE_TUS_ENDPOINT = "/api/upload/bunny-tus";
@@ -288,6 +279,9 @@ type BunnyUploadAuth = {
   authorizationSignature: string;
   authorizationExpire: number;
   contentType?: string;
+  /** Derived from the video id server-side, so it is valid the moment the video object
+   * exists - long before Bunny has encoded anything into it. */
+  playbackUrl: string;
 };
 
 /** How many times a dropped connection gets to reconnect and resume *without the upload
@@ -533,249 +527,15 @@ function uploadToBunnyViaTus(
   });
 }
 
-type BunnyReadyStatus = {
-  url: string;
-  thumbnailUrl: string;
-  width: number | null;
-  height: number | null;
-  durationSeconds: number | null;
-  /** False when playback works but Bunny is still writing higher-quality renditions. */
-  fullyTranscoded: boolean;
-};
-
-type BunnyStatusResponse = {
-  ready?: boolean;
-  playable?: boolean;
-  state?: "processing" | "playable" | "ready" | "failed";
-  stage?: BunnyProcessingStage;
-  encodeProgress?: number;
-  url?: string;
-  thumbnailUrl?: string;
-  width?: number | null;
-  height?: number | null;
-  durationSeconds?: number | null;
-  error?: string;
-};
-
-/** The video is on Bunny and still encoding - the upload is not lost, this wait is. Kept
- * distinct from a failure so the composer can keep the resume record and say so. */
-export class VideoStillProcessingError extends Error {
-  constructor(readonly videoId: string) {
-    super(
-      "This video is still being processed by the video service. Nothing is lost - reopen the composer in a few minutes and it will be waiting for you.",
-    );
-    this.name = "VideoStillProcessingError";
-  }
-}
-
-/** Repeated 401s mean the session went away mid-wait; no amount of polling fixes that. */
-const MAX_UNAUTHORIZED_POLLS = 3;
-/** Re-testing a manifest the browser cannot reach (CORS, a cold cache node) every poll is
- * wasted work, so a failed check backs off to this. */
-const PLAYLIST_RECHECK_INTERVAL_MS = 15_000;
-
-/** Confirms a partially-transcoded video really does serve its manifest before that URL
- * becomes a published post. When the check can't run at all (a pull zone that doesn't
- * answer cross-origin requests), it fails closed: the poll simply keeps waiting for the
- * full transcode, which is exactly the old behaviour. */
-async function playlistIsReachable(url: string): Promise<boolean> {
-  try {
-    const res = await fetch(url, { cache: "no-store" });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-/** What the composer already knows about the video it is waiting on. Both are hints for
- * pacing the wait - Bunny is still the authority on what the video actually is. */
-export type VideoWaitContext = {
-  fileSize: number;
-  /** Source duration, when the browser could read it. A four-hour upload needs a budget
-   * measured against its running time, not only its byte count. */
-  durationSeconds?: number | null;
-  /** The longest this particular post is allowed to be (premium posts get hours). */
-  maxDurationSeconds?: number;
-};
-
-type ProcessingHandlers = {
-  onProgress?: (fraction: number) => void;
-  onStageChange?: (stage: BunnyProcessingStage) => void;
-  /** Lets the composer stop waiting (the person chose to) without leaving a poll running
-   * behind the closed UI. */
-  signal?: AbortSignal;
-};
-
-/** Abort reason that means the person gave up on this video for good, as opposed to the
- * screen simply going away (a navigation, an unmount) with the video still wanted. Only
- * the first justifies deleting what Bunny already has. */
-export const ABANDONED_VIDEO_WAIT = "abandoned";
-
-/** The wait could not continue for a reason that has nothing to do with the video - the
- * session lapsed under it. The file is untouched on Bunny, so this must never lead to
- * discarding it. */
-export class VideoProcessingUnavailableError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "VideoProcessingUnavailableError";
-  }
-}
-
-/** True for every way a wait can end with the video still intact and still resumable -
- * the composer keeps its resume record for these and only for these. */
-export function isResumableVideoWaitError(error: unknown): boolean {
-  return (
-    error instanceof VideoStillProcessingError ||
-    error instanceof VideoProcessingUnavailableError
-  );
-}
-
-/** Thrown when the caller aborted the wait - not a failure to report anywhere. */
-export class VideoProcessingCancelledError extends Error {
-  constructor() {
-    super("Stopped waiting for this video.");
-    this.name = "VideoProcessingCancelledError";
-  }
-}
-
-/**
- * Polls our status route until Bunny can play the video back, since playback needs a
- * rendition manifest that only exists once processing starts producing one.
- *
- * Two things here are what keep a large file from hanging forever on "Processing
- * video...". First, the wait ends at the first playable rendition rather than at the last
- * one: adaptive bitrate picks up the higher qualities as Bunny finishes them, so there is
- * nothing to gain from making someone watch a progress bar until then. Second, there is no
- * fixed deadline - the budget scales with the file, and a wait only ends early when Bunny
- * stops reporting any movement at all, because a 2GB export legitimately takes longer to
- * encode than any constant a developer would have guessed.
- */
-async function pollBunnyVideoStatus(
-  videoId: string,
-  context: VideoWaitContext,
-  { onProgress, onStageChange, signal }: ProcessingHandlers = {},
-): Promise<BunnyReadyStatus> {
-  const startedAt = Date.now();
-  const budgetMs = videoProcessingBudgetMs(context.fileSize, context.durationSeconds);
-  const stallTimeoutMs = videoProcessingStallTimeoutMs(context.durationSeconds);
-  let lastMovementAt = startedAt;
-  let lastSignature = "";
-  let movements = 0;
-  let lastStage: BunnyProcessingStage | null = null;
-  let unauthorizedPolls = 0;
-  let lastPlaylistCheckAt = 0;
-  let playlistUnreachable = false;
-
-  for (;;) {
-    if (signal?.aborted) throw new VideoProcessingCancelledError();
-
-    const now = Date.now();
-    // Bunny reports nothing but "processing, 0%" while a video waits its turn in the
-    // queue, and a large file can sit there a while. That silence is expected, so the
-    // stall clock only starts once something has actually moved; until then the (size
-    // -scaled) budget is the only limit.
-    const stallLimitMs = movements > 1 ? stallTimeoutMs : budgetMs;
-    if (now - startedAt > budgetMs || now - lastMovementAt > stallLimitMs) {
-      throw new VideoStillProcessingError(videoId);
-    }
-
-    // The file is already safely on Bunny by this point - a dropped poll must never be
-    // what loses it, so a failed request just waits and asks again rather than throwing.
-    try {
-      const res = await fetch(`/api/upload/bunny-status/${videoId}`, { cache: "no-store" });
-
-      if (res.status === 401) {
-        unauthorizedPolls += 1;
-        if (unauthorizedPolls >= MAX_UNAUTHORIZED_POLLS) {
-          throw new VideoProcessingUnavailableError(
-            "Your session expired while this video was processing. Sign in again and reopen the composer - the video itself is safe.",
-          );
-        }
-      } else if (res.ok) {
-        unauthorizedPolls = 0;
-        const data = (await res.json()) as BunnyStatusResponse;
-
-        if (data.state === "failed") {
-          throw new TerminalUploadError(
-            data.error ?? "Bunny could not process this video. Try another export or file.",
-          );
-        }
-
-        const signature = `${data.state ?? ""}:${Math.round(data.encodeProgress ?? 0)}`;
-        if (signature !== lastSignature) {
-          lastSignature = signature;
-          lastMovementAt = Date.now();
-          movements += 1;
-        }
-
-        if (typeof data.encodeProgress === "number") onProgress?.(data.encodeProgress / 100);
-        if (data.stage && data.stage !== lastStage) {
-          lastStage = data.stage;
-          onStageChange?.(data.stage);
-        }
-
-        if (data.playable && data.url) {
-          const shouldCheckPlaylist =
-            !data.ready &&
-            (!playlistUnreachable || Date.now() - lastPlaylistCheckAt > PLAYLIST_RECHECK_INTERVAL_MS);
-          let usable = Boolean(data.ready);
-
-          if (!usable && shouldCheckPlaylist) {
-            lastPlaylistCheckAt = Date.now();
-            usable = await playlistIsReachable(data.url);
-            playlistUnreachable = !usable;
-          }
-
-          if (usable) {
-            return {
-              url: data.url,
-              thumbnailUrl: data.thumbnailUrl ?? "",
-              width: data.width ?? null,
-              height: data.height ?? null,
-              durationSeconds: data.durationSeconds ?? null,
-              fullyTranscoded: Boolean(data.ready),
-            };
-          }
-        }
-      }
-    } catch (error) {
-      if (
-        error instanceof TerminalUploadError ||
-        error instanceof VideoProcessingCancelledError ||
-        error instanceof VideoProcessingUnavailableError
-      ) {
-        throw error;
-      }
-      console.error("[uploads] Bunny status poll failed, retrying", error);
-    }
-
-    await waitForConnection();
-    await new Promise((resolve) =>
-      setTimeout(resolve, videoProcessingPollIntervalMs(Date.now() - startedAt)),
-    );
-  }
-}
-
 export type VideoUploadPhase =
   | "preparing"
   | "uploading"
-  | "processing"
   | "reconnecting"
   | "retrying";
 
 export type VideoUploadHandlers = {
   onProgress?: (fraction: number) => void;
   onPhaseChange?: (phase: VideoUploadPhase) => void;
-  onProcessingStage?: (stage: BunnyProcessingStage) => void;
-  onProcessingStart?: (videoId: string) => void;
-  /** Aborts the wait for transcoding (never the upload itself, which is already done by
-   * the time a signal can matter here). */
-  signal?: AbortSignal;
-  /** Source duration when the browser could measure it, used to pace the transcode wait. */
-  knownDurationSeconds?: number | null;
-  /** The duration ceiling this post may use - premium posts get hours (see
-   * lib/video-upload-constraints.ts). */
-  maxDurationSeconds?: number;
 };
 
 /**
@@ -783,25 +543,22 @@ export type VideoUploadHandlers = {
  * existing Cloudinary/local-disk path (same fallbackUrl contract as
  * uploadMediaDirectToCloudinary) when it isn't - mirrors requestSignature's own
  * 503-means-not-configured handling. Images never call this; only feed-post video goes
- * through Bunny (see lib/bunny-stream.ts's doc comment for why). `onPhaseChange` lets the
- * composer distinguish "uploading the file" from "waiting on transcoding" in its UI, and
- * `onProcessingStart` hands over the video id the moment the bytes are safely on Bunny, so
- * a wait that outlives this page can be resumed rather than re-uploaded.
+ * through Bunny (see lib/bunny-stream.ts's doc comment for why).
+ *
+ * The upload is done when the bytes are on Bunny. It does NOT wait for Bunny to finish
+ * encoding, and nothing downstream should: the playback URL is a pure function of the
+ * video id, so it can be written into a post immediately, and the player (see
+ * components/posts/post-video-player.tsx) shows a quiet "processing" state and retries by
+ * itself for the minute or two before the first rendition exists. Waiting here instead is
+ * what used to park a creator on "Processing video... 80%" for as long as someone else's
+ * encoder queue felt like taking.
  */
 export async function uploadVideoDirect(
   file: File,
   fallbackUrl: string,
   handlers: VideoUploadHandlers = {},
 ): Promise<CloudinaryUploadResult> {
-  const {
-    onProgress,
-    onPhaseChange,
-    onProcessingStage,
-    onProcessingStart,
-    signal,
-    knownDurationSeconds,
-    maxDurationSeconds,
-  } = handlers;
+  const { onProgress, onPhaseChange } = handlers;
   onPhaseChange?.("preparing");
   onProgress?.(0.02);
   const auth = await withUploadRetries(async () => {
@@ -876,84 +633,12 @@ export async function uploadVideoDirect(
     throw error;
   }
 
-  // Every byte is on Bunny from here on. Hand the video id up before the wait starts so
-  // the composer can record it: whatever happens to this tab next, the upload survives.
-  onProcessingStart?.(auth.videoId);
-  onPhaseChange?.("processing");
-  onProgress?.(0.8);
+  // Every byte is on Bunny from here on, and the playback URL was known before the upload
+  // even started - so the composer is finished. Encoding continues on Bunny's side and
+  // the player waits it out for whoever watches first, not for the person posting.
+  onProgress?.(1);
 
-  try {
-    return await awaitProcessedVideo(
-      auth.videoId,
-      {
-        fileSize: file.size,
-        durationSeconds: knownDurationSeconds,
-        maxDurationSeconds,
-      },
-      {
-        onProgress,
-        onStageChange: onProcessingStage,
-        signal,
-      },
-    );
-  } catch (error) {
-    // A video Bunny rejected is dead weight in the library, and so is one the person
-    // explicitly walked away from - discard both. A wait that merely ran long is neither:
-    // that video is still encoding, still wanted, and still resumable.
-    if (
-      error instanceof TerminalUploadError ||
-      (error instanceof VideoProcessingCancelledError && signal?.reason === ABANDONED_VIDEO_WAIT)
-    ) {
-      discardFailedBunnyVideo(auth);
-    }
-    throw error;
-  }
-}
-
-/**
- * Picks the wait back up for a video that was already uploaded - after a reload, or after
- * an earlier wait ran longer than the composer was open for. The bytes are on Bunny; all
- * this needs is the video id.
- */
-export async function resumeVideoProcessing(
-  videoId: string,
-  context: VideoWaitContext,
-  handlers: Omit<VideoUploadHandlers, "onProcessingStart"> & { signal?: AbortSignal } = {},
-): Promise<CloudinaryUploadResult> {
-  handlers.onPhaseChange?.("processing");
-  handlers.onProgress?.(0.8);
-  return awaitProcessedVideo(videoId, context, {
-    onProgress: handlers.onProgress,
-    onStageChange: handlers.onProcessingStage,
-    signal: handlers.signal,
-  });
-}
-
-/** Shared tail of both paths: wait for a playable rendition, then sanity-check what Bunny
- * measured against the duration cap. */
-async function awaitProcessedVideo(
-  videoId: string,
-  context: VideoWaitContext,
-  { onProgress, onStageChange, signal }: ProcessingHandlers,
-): Promise<CloudinaryUploadResult> {
-  const status = await pollBunnyVideoStatus(videoId, context, {
-    onProgress: (fraction) => onProgress?.(0.8 + fraction * 0.2),
-    onStageChange,
-    signal,
-  });
-
-  const limitSeconds = context.maxDurationSeconds ?? MAX_VIDEO_DURATION_SECONDS;
-  const duration = checkReportedVideoDuration(status.durationSeconds, limitSeconds);
-  if (!duration.withinLimit) {
-    throw new TerminalUploadError(
-      `Videos must be ${formatVideoDuration(limitSeconds)} or shorter.`,
-    );
-  }
-
-  return {
-    url: status.url,
-    width: status.width ?? undefined,
-    height: status.height ?? undefined,
-    durationSeconds: duration.durationSeconds,
-  };
+  // Dimensions and length deliberately come from whatever the browser measured while
+  // framing the clip, not from the encoder - asking the encoder means waiting for it.
+  return { url: auth.playbackUrl };
 }
