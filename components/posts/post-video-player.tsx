@@ -13,9 +13,11 @@ import {
 
 import type { VideoCrop } from "@/lib/post-shared";
 import {
+  formatPlaybackTime,
   getVideoPosterUrl,
   getVideoTapZone,
   isHlsVideoSource,
+  scrubFractionFromPointer,
   type VideoTapZone,
 } from "@/lib/video-playback";
 import { cn } from "@/lib/utils";
@@ -25,6 +27,8 @@ type SeekDirection = Extract<VideoTapZone, "backward" | "forward">;
 
 const DOUBLE_TAP_WINDOW_MS = 300;
 const SEEK_SECONDS = 10;
+const SCRUB_KEY_STEP_SECONDS = 5;
+const SCRUB_KEY_BIG_STEP_SECONDS = 30;
 const PLAYBACK_RATES = [0.5, 1, 1.5, 2] as const;
 
 export function PostVideoPlayer({
@@ -49,6 +53,9 @@ export function PostVideoPlayer({
   const tapTimerRef = useRef<number | null>(null);
   const feedbackTimerRef = useRef<number | null>(null);
   const playbackIconTimerRef = useRef<number | null>(null);
+  const scrubTrackRef = useRef<HTMLDivElement>(null);
+  const scrubRafRef = useRef<number | null>(null);
+  const pendingScrubTimeRef = useRef<number | null>(null);
   const [muted, setMuted] = useState(true);
   const [playbackRate, setPlaybackRate] = useState<(typeof PLAYBACK_RATES)[number]>(1);
   const [manuallyPaused, setManuallyPaused] = useState(false);
@@ -57,9 +64,23 @@ export function PostVideoPlayer({
   const [playbackState, setPlaybackState] = useState<PlaybackState>("loading");
   const [reloadKey, setReloadKey] = useState(0);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
+  // Duration and buffered progress both stay 0 (never NaN/Infinity, which the browser can
+  // briefly report before metadata loads) so every consumer can treat "0" as "unknown yet"
+  // without a separate finiteness check.
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [bufferedFraction, setBufferedFraction] = useState(0);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubTime, setScrubTime] = useState(0);
+  const [isScrubBarHovering, setIsScrubBarHovering] = useState(false);
+  const [isScrubBarFocused, setIsScrubBarFocused] = useState(false);
   const hasFramedCrop = Boolean(crop && naturalWidth && naturalHeight);
   const isHls = isHlsVideoSource(src);
   const posterUrl = getVideoPosterUrl(src);
+  const hasDuration = duration > 0;
+  const displayTime = isScrubbing ? scrubTime : currentTime;
+  const displayFraction = hasDuration ? Math.min(1, Math.max(0, displayTime / duration)) : 0;
+  const isScrubBarActive = isScrubbing || isScrubBarHovering || isScrubBarFocused;
 
   const attemptPlayback = useCallback(async () => {
     const el = videoRef.current;
@@ -87,6 +108,12 @@ export function PostVideoPlayer({
 
     setPlaybackState("loading");
     hlsManagedRef.current = false;
+    // A reload (new src, or the "Try video again" retry) starts the scrub bar over too -
+    // the old duration and position belong to whatever was previously attached.
+    setCurrentTime(0);
+    setDuration(0);
+    setBufferedFraction(0);
+    setIsScrubbing(false);
 
     if (!isHls) return;
 
@@ -194,6 +221,7 @@ export function PostVideoPlayer({
       if (tapTimerRef.current !== null) window.clearTimeout(tapTimerRef.current);
       if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
       if (playbackIconTimerRef.current !== null) window.clearTimeout(playbackIconTimerRef.current);
+      if (scrubRafRef.current !== null) window.cancelAnimationFrame(scrubRafRef.current);
     },
     [],
   );
@@ -249,10 +277,142 @@ export function PostVideoPlayer({
     if (!el || !Number.isFinite(el.currentTime)) return;
     const delta = direction === "backward" ? -SEEK_SECONDS : SEEK_SECONDS;
     const upperBound = Number.isFinite(el.duration) ? el.duration : Number.POSITIVE_INFINITY;
-    el.currentTime = Math.max(0, Math.min(upperBound, el.currentTime + delta));
+    const nextTime = Math.max(0, Math.min(upperBound, el.currentTime + delta));
+    el.currentTime = nextTime;
+    setCurrentTime(nextTime);
     setSeekFeedback(direction);
     if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
     feedbackTimerRef.current = window.setTimeout(() => setSeekFeedback(null), 650);
+  }
+
+  /** Reads how far Bunny's HLS delivery has actually buffered around the playhead, not
+   * just how far playback has reached - the scrub bar's dimmer fill, so a viewer can see
+   * how far they can drag before they'd outrun what's loaded. Recomputed on every
+   * `progress`/`timeupdate` tick rather than cached, since `buffered` is a live range the
+   * browser can extend or drop without any event of its own. */
+  function updateBufferedFraction() {
+    const el = videoRef.current;
+    if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
+    const { buffered, currentTime: playhead } = el;
+    for (let index = 0; index < buffered.length; index += 1) {
+      if (buffered.start(index) <= playhead + 0.25 && playhead <= buffered.end(index)) {
+        setBufferedFraction(Math.min(1, buffered.end(index) / el.duration));
+        return;
+      }
+    }
+  }
+
+  function timeFromScrubPointer(clientX: number): number {
+    const track = scrubTrackRef.current;
+    if (!track || duration <= 0) return 0;
+    return scrubFractionFromPointer(clientX, track.getBoundingClientRect()) * duration;
+  }
+
+  /** Seeking on every pointermove would fire a `currentTime` write - and on HLS, a
+   * network request for the new segment - many times a frame during a fast drag. The
+   * thumb still tracks the pointer immediately (via `scrubTime`); only the actual seek
+   * is coalesced to once per animation frame. */
+  function commitScrubTime(time: number) {
+    pendingScrubTimeRef.current = time;
+    if (scrubRafRef.current !== null) return;
+    scrubRafRef.current = window.requestAnimationFrame(() => {
+      scrubRafRef.current = null;
+      const pending = pendingScrubTimeRef.current;
+      pendingScrubTimeRef.current = null;
+      const el = videoRef.current;
+      if (pending !== null && el) el.currentTime = pending;
+    });
+  }
+
+  function handleScrubPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    event.stopPropagation();
+    if (duration <= 0) return;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Dragging still works via the element's own move/up handlers without capture -
+      // capture only helps it keep tracking a pointer that slides outside the bar.
+    }
+    const time = timeFromScrubPointer(event.clientX);
+    setIsScrubbing(true);
+    setScrubTime(time);
+    const el = videoRef.current;
+    if (el) el.currentTime = time;
+  }
+
+  function handleScrubPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (!isScrubbing) return;
+    event.stopPropagation();
+    const time = timeFromScrubPointer(event.clientX);
+    setScrubTime(time);
+    commitScrubTime(time);
+  }
+
+  function endScrub(event: React.PointerEvent<HTMLDivElement>) {
+    if (!isScrubbing) return;
+    event.stopPropagation();
+    if (scrubRafRef.current !== null) {
+      window.cancelAnimationFrame(scrubRafRef.current);
+      scrubRafRef.current = null;
+      pendingScrubTimeRef.current = null;
+    }
+    const time = timeFromScrubPointer(event.clientX);
+    setIsScrubbing(false);
+    setCurrentTime(time);
+    const el = videoRef.current;
+    if (el) el.currentTime = time;
+    releaseScrubPointerCapture(event);
+  }
+
+  /** A pointercancel (an interrupting system gesture, a lost touch) carries coordinates
+   * that no longer reflect an intentional drag - stop scrubbing without treating them as
+   * one more seek target. */
+  function cancelScrub(event: React.PointerEvent<HTMLDivElement>) {
+    if (!isScrubbing) return;
+    event.stopPropagation();
+    if (scrubRafRef.current !== null) {
+      window.cancelAnimationFrame(scrubRafRef.current);
+      scrubRafRef.current = null;
+      pendingScrubTimeRef.current = null;
+    }
+    setIsScrubbing(false);
+    releaseScrubPointerCapture(event);
+  }
+
+  function releaseScrubPointerCapture(event: React.PointerEvent<HTMLDivElement>) {
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Already released (e.g. this fired after a pointercancel already did).
+    }
+  }
+
+  function handleScrubKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    const el = videoRef.current;
+    if (!el || duration <= 0) return;
+
+    let nextTime: number | null = null;
+    if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+      nextTime = Math.max(
+        0,
+        el.currentTime - (event.shiftKey ? SCRUB_KEY_BIG_STEP_SECONDS : SCRUB_KEY_STEP_SECONDS),
+      );
+    } else if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+      nextTime = Math.min(
+        duration,
+        el.currentTime + (event.shiftKey ? SCRUB_KEY_BIG_STEP_SECONDS : SCRUB_KEY_STEP_SECONDS),
+      );
+    } else if (event.key === "Home") {
+      nextTime = 0;
+    } else if (event.key === "End") {
+      nextTime = duration;
+    }
+    if (nextTime === null) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    el.currentTime = nextTime;
+    setCurrentTime(nextTime);
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
@@ -355,6 +515,22 @@ export function PostVideoPlayer({
         onWaiting={() => {
           if (inViewRef.current && !manuallyPausedRef.current) setPlaybackState("loading");
         }}
+        onTimeUpdate={(event) => {
+          // A drag already owns the displayed position (`scrubTime`) - a `timeupdate`
+          // arriving mid-drag reflects the seek from a moment ago, not where the pointer
+          // is now, and applying it would make the thumb visibly stutter backwards.
+          if (!isScrubbing) setCurrentTime(event.currentTarget.currentTime);
+          updateBufferedFraction();
+        }}
+        onDurationChange={(event) => {
+          const value = event.currentTarget.duration;
+          setDuration(Number.isFinite(value) && value > 0 ? value : 0);
+        }}
+        onLoadedMetadata={(event) => {
+          const value = event.currentTarget.duration;
+          setDuration(Number.isFinite(value) && value > 0 ? value : 0);
+        }}
+        onProgress={updateBufferedFraction}
         onError={() => {
           // hls.js owns media errors while it is attached and performs the bounded
           // recovery above. Plain MP4 and native-HLS errors need the UI fallback.
@@ -429,6 +605,71 @@ export function PostVideoPlayer({
             ? "Moved forward ten seconds"
             : ""}
       </span>
+      {hasDuration && playbackState !== "error" && (
+        <div
+          data-video-control="true"
+          data-post-carousel-control="true"
+          className="absolute inset-x-3 bottom-2"
+        >
+          {isScrubBarActive && (
+            <div className="pointer-events-none mb-1.5 flex items-center justify-between">
+              <span className="rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white backdrop-blur-sm">
+                {formatPlaybackTime(displayTime)}
+              </span>
+              <span className="rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white backdrop-blur-sm">
+                {formatPlaybackTime(duration)}
+              </span>
+            </div>
+          )}
+          <div
+            ref={scrubTrackRef}
+            role="slider"
+            tabIndex={0}
+            aria-label="Seek video"
+            aria-valuemin={0}
+            aria-valuemax={Math.max(1, Math.round(duration))}
+            aria-valuenow={Math.round(displayTime)}
+            aria-valuetext={`${formatPlaybackTime(displayTime)} of ${formatPlaybackTime(duration)}`}
+            onPointerDown={handleScrubPointerDown}
+            onPointerMove={handleScrubPointerMove}
+            onPointerUp={endScrub}
+            onPointerCancel={cancelScrub}
+            onPointerEnter={() => setIsScrubBarHovering(true)}
+            onPointerLeave={() => setIsScrubBarHovering(false)}
+            onFocus={() => setIsScrubBarFocused(true)}
+            onBlur={() => setIsScrubBarFocused(false)}
+            onKeyDown={handleScrubKeyDown}
+            className="relative h-4 w-full cursor-pointer touch-none focus-visible:outline-none"
+          >
+            <span
+              className={cn(
+                "pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 rounded-full bg-white/25 transition-[height] duration-150",
+                isScrubBarActive ? "h-[5px]" : "h-[3px]",
+              )}
+            />
+            <span
+              className={cn(
+                "pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 rounded-full bg-white/45 transition-[height] duration-150",
+                isScrubBarActive ? "h-[5px]" : "h-[3px]",
+              )}
+              style={{ width: `${bufferedFraction * 100}%` }}
+            />
+            <span
+              className={cn(
+                "pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 rounded-full bg-white transition-[height] duration-150",
+                isScrubBarActive ? "h-[5px]" : "h-[3px]",
+              )}
+              style={{ width: `${displayFraction * 100}%` }}
+            />
+            {isScrubBarActive && (
+              <span
+                className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-md"
+                style={{ left: `${displayFraction * 100}%` }}
+              />
+            )}
+          </div>
+        </div>
+      )}
       <button
         type="button"
         data-video-control="true"
