@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import { authOptions } from "@/lib/auth";
 import { flagContentIfNeeded } from "@/lib/moderation";
-import { getPostByIdForViewer } from "@/lib/posts";
+import { getPostByIdForViewer, toMediaItems } from "@/lib/posts";
 import { syncPostHashtags } from "@/lib/hashtags";
 import { deleteSearchDocument, syncPostSearchDocument } from "@/lib/search";
 import { prisma } from "@/lib/prisma";
@@ -12,6 +12,11 @@ import { readJson } from "@/lib/security/request";
 import { updatePostSchema } from "@/lib/validations/post";
 import { extractMentionUsernames } from "@/lib/mentions";
 import { notifyMentionedProfiles } from "@/lib/mention-notifications";
+import {
+  formatVideoDuration,
+  MAX_VIDEO_DURATION_SECONDS,
+  VIDEO_DURATION_TOLERANCE_SECONDS,
+} from "@/lib/video-upload-constraints";
 
 function isMissingPostArchiveError(error: unknown): boolean {
   const target =
@@ -38,7 +43,14 @@ async function getCurrentProfile(userId: string) {
 async function getOwnedPost(postId: string, profileId: string) {
   const post = await prisma.post.findUnique({
     where: { id: postId },
-    select: { id: true, authorId: true, content: true, isSubscriberOnly: true, tierId: true },
+    select: {
+      id: true,
+      authorId: true,
+      content: true,
+      isSubscriberOnly: true,
+      tierId: true,
+      mediaUrls: true,
+    },
   });
 
   if (!post)
@@ -147,6 +159,19 @@ export async function PATCH(
     const wasSubscriberOnly = owned.post.isSubscriberOnly;
 
     if (!parsed.data.isSubscriberOnly) {
+      // Hours-long video is premium-only (see lib/validations/post.ts). Unlocking a post
+      // that carries one would put it in the public feed through the back door.
+      const longestVideo = toMediaItems(owned.post.mediaUrls)
+        .filter((item) => item.type === "video")
+        .reduce((longest, item) => Math.max(longest, item.durationSeconds ?? 0), 0);
+      if (longestVideo > MAX_VIDEO_DURATION_SECONDS + VIDEO_DURATION_TOLERANCE_SECONDS) {
+        return NextResponse.json(
+          {
+            error: `Videos longer than ${formatVideoDuration(MAX_VIDEO_DURATION_SECONDS)} stay Premium. Remove the video to make this post public.`,
+          },
+          { status: 400 },
+        );
+      }
       updateData.tier = { disconnect: true };
     } else if (parsed.data.tierId) {
       const tier = await prisma.creatorTier.findUnique({

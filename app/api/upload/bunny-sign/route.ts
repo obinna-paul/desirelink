@@ -4,9 +4,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createBunnyVideo, isBunnyStreamConfigured, signBunnyUpload } from "@/lib/bunny-stream";
+import { isProviderProfileType } from "@/lib/provider-types";
 import {
+  formatVideoUploadSize,
   inferVideoContentType,
-  MAX_VIDEO_UPLOAD_BYTES,
+  maxVideoUploadBytesFor,
 } from "@/lib/video-upload-constraints";
 
 /** Creates a Bunny Stream video object and returns a signed one-time TUS upload
@@ -24,7 +26,7 @@ export async function POST(req: Request) {
 
   const profile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { isSuspended: true },
+    select: { isSuspended: true, profileType: true },
   });
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   if (profile.isSuspended) {
@@ -36,12 +38,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid upload purpose" }, { status: 400 });
   }
 
-  if (
-    !Number.isFinite(body?.fileSize) ||
-    body.fileSize <= 0 ||
-    body.fileSize > MAX_VIDEO_UPLOAD_BYTES
-  ) {
-    return NextResponse.json({ error: "Videos can be up to 2GB." }, { status: 413 });
+  // Creators who can publish premium posts may upload long-form files; whether this
+  // particular post is actually premium is settled when it publishes (see
+  // lib/validations/post.ts), not here, because that choice can still change.
+  const maxBytes = maxVideoUploadBytesFor(isProviderProfileType(profile.profileType));
+  if (!Number.isFinite(body?.fileSize) || body.fileSize <= 0 || body.fileSize > maxBytes) {
+    return NextResponse.json(
+      { error: `Videos can be up to ${formatVideoUploadSize(maxBytes)}.` },
+      { status: 413 },
+    );
   }
 
   const fileName = typeof body?.fileName === "string" ? body.fileName : "video";
@@ -59,7 +64,7 @@ export async function POST(req: Request) {
         ? body.fileName.replace(/[^a-zA-Z0-9._ -]/g, "").slice(0, 80)
         : "video";
     const videoId = await createBunnyVideo(`post-${session.user.id}-${Date.now()}-${safeFileName}`);
-    const auth = signBunnyUpload(videoId);
+    const auth = signBunnyUpload(videoId, body.fileSize);
     return NextResponse.json({ ...auth, contentType }, { status: 200 });
   } catch (error) {
     console.error("[upload/bunny-sign] failed to create video", error);
