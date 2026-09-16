@@ -1,17 +1,11 @@
-import { FileImage, Loader2, RefreshCw, UploadCloud } from "lucide-react";
+import { FileImage, RefreshCw, UploadCloud } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-type UploadPhase =
-  | "image"
-  | "preparing"
-  | "uploading"
-  | "processing"
-  | "reconnecting"
-  | "retrying";
+type UploadPhase = "image" | "preparing" | "uploading" | "reconnecting" | "retrying";
 
 /**
- * The upload/processing state for media: a headline percentage, a determinate bar, and the
+ * The upload state for media: a headline percentage, a determinate bar, and the
  * phase underneath. Falls back to a sweeping indeterminate bar when no real percentage is
  * known yet (before the first progress event, or on the local-disk dev path, which reports
  * none) rather than faking a number - a bar that lies is worse than one that admits it's
@@ -38,19 +32,13 @@ export function UploadProgress({
 
   const isVideo = Boolean(phase && phase !== "image");
   const phaseIndex =
-    phase === "processing"
-      ? 2
-      : phase === "uploading" || phase === "reconnecting" || phase === "retrying"
-        ? 1
-        : 0;
+    phase === "uploading" || phase === "reconnecting" || phase === "retrying" ? 1 : 0;
   const StatusIcon =
     phase === "reconnecting" || phase === "retrying"
       ? RefreshCw
-      : phase === "processing"
-        ? Loader2
-        : phase === "image"
-          ? FileImage
-          : UploadCloud;
+      : phase === "image"
+        ? FileImage
+        : UploadCloud;
 
   return (
     <div
@@ -62,8 +50,7 @@ export function UploadProgress({
           <StatusIcon
             className={cn(
               "h-5 w-5",
-              (phase === "reconnecting" || phase === "retrying" || phase === "processing") &&
-                "motion-safe:animate-spin",
+              (phase === "reconnecting" || phase === "retrying") && "motion-safe:animate-spin",
             )}
             aria-hidden="true"
           />
@@ -98,8 +85,8 @@ export function UploadProgress({
       </div>
 
       {isVideo && (
-        <div className="grid grid-cols-3 gap-2" aria-hidden="true">
-          {["Prepare", "Upload", "Process"].map((step, index) => (
+        <div className="grid grid-cols-2 gap-2" aria-hidden="true">
+          {["Prepare", "Upload"].map((step, index) => (
             <div key={step} className="flex items-center gap-2">
               <span
                 className={cn(

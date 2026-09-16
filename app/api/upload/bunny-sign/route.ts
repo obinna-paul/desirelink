@@ -3,7 +3,12 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createBunnyVideo, isBunnyStreamConfigured, signBunnyUpload } from "@/lib/bunny-stream";
+import {
+  createBunnyVideo,
+  getBunnyPlaybackUrl,
+  isBunnyStreamConfigured,
+  signBunnyUpload,
+} from "@/lib/bunny-stream";
 import { isProviderProfileType } from "@/lib/provider-types";
 import {
   formatVideoUploadSize,
@@ -65,7 +70,13 @@ export async function POST(req: Request) {
         : "video";
     const videoId = await createBunnyVideo(`post-${session.user.id}-${Date.now()}-${safeFileName}`);
     const auth = signBunnyUpload(videoId, body.fileSize);
-    return NextResponse.json({ ...auth, contentType }, { status: 200 });
+    // The playback URL is a pure function of the video id, so it is known before a single
+    // byte moves. Handing it over now is what lets the composer finish the moment the
+    // upload does, instead of waiting on the encoder to answer for a URL we already have.
+    return NextResponse.json(
+      { ...auth, contentType, playbackUrl: getBunnyPlaybackUrl(videoId) },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("[upload/bunny-sign] failed to create video", error);
     return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 502 });

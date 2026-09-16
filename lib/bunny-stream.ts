@@ -2,12 +2,6 @@ import "server-only";
 
 import crypto from "node:crypto";
 
-import {
-  interpretBunnyVideoStatus,
-  type BunnyVideoStatus as BunnyVideoStatusResult,
-  type BunnyVideoStatusPayload,
-} from "@/lib/bunny-video-status";
-
 /**
  * Bunny Stream replaces R2 as the destination for feed-post video (see lib/r2.ts's doc
  * comment for the earlier reasoning - that still explains why video and images are
@@ -108,26 +102,6 @@ export function signBunnyUpload(videoId: string, fileSizeBytes = 0): BunnyUpload
   };
 }
 
-export type { BunnyVideoStatus } from "@/lib/bunny-video-status";
-
-/**
- * Reads a video's processing status. The interpretation - in particular what counts as
- * playable versus fully transcoded - lives in lib/bunny-video-status.ts, which documents
- * Bunny's status enum and is unit-tested on its own.
- */
-export async function getBunnyVideoStatus(videoId: string): Promise<BunnyVideoStatusResult> {
-  const res = await fetch(`${API_BASE}/library/${libraryId()}/videos/${videoId}`, {
-    headers: { AccessKey: apiKey(), Accept: "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const detail = (await res.text().catch(() => "")).slice(0, 300);
-    throw new Error(`Bunny Stream: failed to read video status (${res.status})${detail ? `: ${detail}` : ""}`);
-  }
-
-  return interpretBunnyVideoStatus((await res.json()) as BunnyVideoStatusPayload);
-}
-
 export function verifyBunnyUploadAuthorization(auth: BunnyUploadAuth): boolean {
   if (auth.libraryId !== libraryId() || auth.authorizationExpire < Math.floor(Date.now() / 1000)) {
     return false;
@@ -160,6 +134,3 @@ export function getBunnyPlaybackUrl(videoId: string): string {
   return `https://${cdnHostname()}/${videoId}/playlist.m3u8`;
 }
 
-export function getBunnyThumbnailUrl(videoId: string): string {
-  return `https://${cdnHostname()}/${videoId}/thumbnail.jpg`;
-}

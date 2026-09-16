@@ -13,9 +13,6 @@ import {
   maxVideoDurationSecondsFor,
   maxVideoUploadBytesFor,
   VIDEO_UPLOAD_ACCEPT,
-  videoProcessingBudgetMs,
-  videoProcessingPollIntervalMs,
-  videoProcessingStallTimeoutMs,
 } from "@/lib/video-upload-constraints";
 
 const GIGABYTE = 1024 * 1024 * 1024;
@@ -118,39 +115,6 @@ describe("video upload constraints", () => {
       withinLimit: true,
       durationSeconds: undefined,
     });
-  });
-
-  it("scales the processing budget with the file instead of one fixed deadline", () => {
-    const small = videoProcessingBudgetMs(20 * 1024 * 1024);
-    const large = videoProcessingBudgetMs(4 * GIGABYTE);
-
-    expect(small).toBeGreaterThanOrEqual(30 * 60 * 1000);
-    expect(small).toBeLessThan(31 * 60 * 1000);
-    expect(large).toBeGreaterThan(60 * 60 * 1000);
-    // However large the file, a wait that stops moving still ends.
-    expect(videoProcessingBudgetMs(500 * GIGABYTE)).toBe(12 * 60 * 60 * 1000);
-  });
-
-  it("budgets a long video against its running time, not only its bytes", () => {
-    const fourHours = 4 * 60 * 60;
-    // A well-compressed four-hour upload is small for its length; the bytes alone would
-    // have allowed it barely more than the base budget.
-    const bytesOnly = videoProcessingBudgetMs(6 * GIGABYTE);
-    const withRuntime = videoProcessingBudgetMs(6 * GIGABYTE, fourHours);
-
-    expect(withRuntime).toBeGreaterThan(bytesOnly);
-    expect(withRuntime).toBeGreaterThanOrEqual(fourHours * 1000);
-
-    // And a long video is allowed longer gaps between Bunny's progress steps.
-    expect(videoProcessingStallTimeoutMs(null)).toBe(15 * 60 * 1000);
-    expect(videoProcessingStallTimeoutMs(60)).toBe(15 * 60 * 1000);
-    expect(videoProcessingStallTimeoutMs(fourHours)).toBe(60 * 60 * 1000);
-  });
-
-  it("polls tightly at first, then backs off for a long transcode", () => {
-    expect(videoProcessingPollIntervalMs(0)).toBe(2_000);
-    expect(videoProcessingPollIntervalMs(5 * 60 * 1000)).toBe(5_000);
-    expect(videoProcessingPollIntervalMs(45 * 60 * 1000)).toBe(15_000);
   });
 
   it("keeps a large upload to a few hundred chunks without enlarging a phone clip's", () => {

@@ -17,13 +17,21 @@ import {
   getVideoPosterUrl,
   getVideoTapZone,
   isHlsVideoSource,
+  isVideoNotPublishedYet,
+  probeVideoManifest,
   scrubFractionFromPointer,
+  videoProcessingRetryDelayMs,
   type VideoTapZone,
 } from "@/lib/video-playback";
 import { cn } from "@/lib/utils";
 
-type PlaybackState = "loading" | "ready" | "playing" | "paused" | "error";
+type PlaybackState = "loading" | "processing" | "ready" | "playing" | "paused" | "error";
 type SeekDirection = Extract<VideoTapZone, "backward" | "forward">;
+
+/** A video posted seconds ago is normal to find still encoding; one that has not appeared
+ * after this many checks (a few minutes of backing off) is worth a manual retry instead of
+ * an endless poll. */
+const MAX_PROCESSING_CHECKS = 40;
 
 const DOUBLE_TAP_WINDOW_MS = 300;
 const SEEK_SECONDS = 10;
@@ -56,6 +64,8 @@ export function PostVideoPlayer({
   const scrubTrackRef = useRef<HTMLDivElement>(null);
   const scrubRafRef = useRef<number | null>(null);
   const pendingScrubTimeRef = useRef<number | null>(null);
+  const processingChecksRef = useRef(0);
+  const processingTimerRef = useRef<number | null>(null);
   const [muted, setMuted] = useState(true);
   const [playbackRate, setPlaybackRate] = useState<(typeof PLAYBACK_RATES)[number]>(1);
   const [manuallyPaused, setManuallyPaused] = useState(false);
@@ -81,6 +91,41 @@ export function PostVideoPlayer({
   const displayTime = isScrubbing ? scrubTime : currentTime;
   const displayFraction = hasDuration ? Math.min(1, Math.max(0, displayTime / duration)) : 0;
   const isScrubBarActive = isScrubbing || isScrubBarHovering || isScrubBarFocused;
+
+  /**
+   * Waits out a video that exists but has not been encoded yet, rather than calling it
+   * broken. Posting no longer blocks on the encoder, so a clip opened moments after it was
+   * published is expected to arrive here first - it just needs another look shortly.
+   */
+  const waitForProcessingVideo = useCallback(() => {
+    if (processingTimerRef.current !== null) return;
+    if (processingChecksRef.current >= MAX_PROCESSING_CHECKS) {
+      setPlaybackState("error");
+      return;
+    }
+
+    const delay = videoProcessingRetryDelayMs(processingChecksRef.current);
+    processingChecksRef.current += 1;
+    setPlaybackState("processing");
+    processingTimerRef.current = window.setTimeout(() => {
+      processingTimerRef.current = null;
+      setReloadKey((current) => current + 1);
+    }, delay);
+  }, []);
+
+  /** Decides which of the two a failed load was: a video still being encoded, or one that
+   * is actually broken. Only the CDN can answer that, so ask it. */
+  const handleFailedLoad = useCallback(
+    async (knownStatus?: number) => {
+      const status = knownStatus ?? (await probeVideoManifest(src));
+      if (isVideoNotPublishedYet(status)) {
+        waitForProcessingVideo();
+        return;
+      }
+      setPlaybackState("error");
+    },
+    [src, waitForProcessingVideo],
+  );
 
   const attemptPlayback = useCallback(async () => {
     const el = videoRef.current;
@@ -132,6 +177,11 @@ export function PostVideoPlayer({
       video.load();
     }
 
+    function reportHlsFailure(status?: number) {
+      if (cancelled) return;
+      void handleFailedLoad(status);
+    }
+
     void import("hls.js")
       .then(({ default: Hls }) => {
         if (cancelled) return;
@@ -153,11 +203,23 @@ export function PostVideoPlayer({
         });
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           if (cancelled) return;
+          // The encoder got there - stop counting checks so a later, unrelated hiccup
+          // starts from a full budget rather than an exhausted one.
+          processingChecksRef.current = 0;
           setPlaybackState("ready");
           void attemptPlayback();
         });
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (cancelled || !data.fatal || !hls) return;
+
+          // hls.js hands the HTTP status straight over, so a not-yet-encoded video is
+          // recognised here without a second request - and retrying the load on it would
+          // only spend this video's recovery budget on a 404 that is meant to be there.
+          const status = data.response?.code;
+          if (isVideoNotPublishedYet(status)) {
+            reportHlsFailure(status);
+            return;
+          }
 
           if (data.type === Hls.ErrorTypes.NETWORK_ERROR && networkRecoveries < 2) {
             networkRecoveries += 1;
@@ -170,7 +232,7 @@ export function PostVideoPlayer({
             return;
           }
 
-          setPlaybackState("error");
+          reportHlsFailure(status);
         });
         hls.attachMedia(video);
       })
@@ -184,7 +246,7 @@ export function PostVideoPlayer({
       video.removeAttribute("src");
       video.load();
     };
-  }, [attemptPlayback, isHls, reloadKey, src]);
+  }, [attemptPlayback, handleFailedLoad, isHls, reloadKey, src]);
 
   useEffect(() => {
     if (!hasFramedCrop) return;
@@ -222,6 +284,7 @@ export function PostVideoPlayer({
       if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
       if (playbackIconTimerRef.current !== null) window.clearTimeout(playbackIconTimerRef.current);
       if (scrubRafRef.current !== null) window.cancelAnimationFrame(scrubRafRef.current);
+      if (processingTimerRef.current !== null) window.clearTimeout(processingTimerRef.current);
     },
     [],
   );
@@ -533,8 +596,9 @@ export function PostVideoPlayer({
         onProgress={updateBufferedFraction}
         onError={() => {
           // hls.js owns media errors while it is attached and performs the bounded
-          // recovery above. Plain MP4 and native-HLS errors need the UI fallback.
-          if (!hlsManagedRef.current) setPlaybackState("error");
+          // recovery above. Plain MP4 and native-HLS errors need the UI fallback, and
+          // only the CDN can say whether this is a video still being encoded.
+          if (!hlsManagedRef.current) void handleFailedLoad();
         }}
         className={
           hasFramedCrop
@@ -550,6 +614,17 @@ export function PostVideoPlayer({
           </span>
         </div>
       )}
+      {playbackState === "processing" && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/35 px-6 text-center backdrop-blur-[1px]">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm">
+            <LoaderCircle className="h-5 w-5 motion-safe:animate-spin" aria-hidden="true" />
+          </span>
+          <p className="text-sm font-semibold text-white">Getting this video ready</p>
+          <p className="max-w-xs text-xs leading-5 text-white/80">
+            It will start playing here on its own in a moment.
+          </p>
+        </div>
+      )}
       {playbackState === "error" && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/35 px-6 backdrop-blur-[1px]">
           <button
@@ -560,6 +635,7 @@ export function PostVideoPlayer({
               event.stopPropagation();
               manuallyPausedRef.current = false;
               setManuallyPaused(false);
+              processingChecksRef.current = 0;
               setPlaybackState("loading");
               setReloadKey((current) => current + 1);
             }}
