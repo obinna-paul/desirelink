@@ -145,6 +145,9 @@ export function PostComposer({
   const hasPricingTier = tiers.length > 0;
   const inputRef = useRef<HTMLInputElement>(null);
   const piiDialogRef = useRef<HTMLDivElement>(null);
+  const displayAspectRatioRef = useRef<PostDisplayAspectRatio>(
+    DEFAULT_DISPLAY_RATIO,
+  );
   const [content, setContent] = useState("");
   const [postMode, setPostMode] = useState<PostMode>("single");
   const [displayAspectRatio, setDisplayAspectRatioState] =
@@ -226,10 +229,10 @@ export function PostComposer({
         width: item.width,
         height: item.height,
         durationSeconds: item.durationSeconds,
-        displayAspectRatio,
+        displayAspectRatio: item.displayAspectRatio,
         crop: item.crop,
       })),
-    [displayAspectRatio, mediaItems],
+    [mediaItems],
   );
   const strippedImageCount = useMemo(
     () => mediaItems.filter((image) => image.metadataDetected).length,
@@ -298,6 +301,7 @@ export function PostComposer({
     : IMAGE_CROP_PRESETS.filter((preset) => preset.id === displayAspectRatio);
 
   function setDisplayAspectRatio(value: PostDisplayAspectRatio) {
+    displayAspectRatioRef.current = value;
     setDisplayAspectRatioState(value);
     setMediaItems((current) =>
       current.map((item) => ({ ...item, displayAspectRatio: value })),
@@ -334,9 +338,15 @@ export function PostComposer({
     skipFailedUpload(uploadContext);
   }
 
-  function completeMediaReview(item: PreparedMediaReview) {
+  function completeMediaReview(
+    item: Omit<PreparedMediaReview, "displayAspectRatio">,
+  ) {
     const remainingReviews = reviewQueue.slice(1);
-    const completedReviews = [...preparedReviews, item];
+    const reviewedItem: PreparedMediaReview = {
+      ...item,
+      displayAspectRatio: displayAspectRatioRef.current,
+    };
+    const completedReviews = [...preparedReviews, reviewedItem];
 
     if (remainingReviews.length > 0) {
       setPreparedReviews(completedReviews);

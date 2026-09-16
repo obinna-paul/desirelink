@@ -45,13 +45,19 @@ export type PreparedMediaReview = {
   pending: PendingMediaReview;
   adjustedFile?: File;
   crop?: VideoCrop;
+  /** Captured when review is confirmed so background processing and retries cannot
+   * replace the creator's chosen frame with the composer's current/default frame. */
+  displayAspectRatio?: PostDisplayAspectRatio;
   /** What the browser measured while framing the video. The video service reports its own
    * dimensions and length only once it has encoded the file, which is deliberately not
    * something anyone waits for, so these are what the post is built from. */
   videoMeta?: { width: number; height: number; durationSeconds: number };
 };
 
-export type UploadedMedia = PostMediaItem & { metadataDetected: boolean };
+export type UploadedMedia = PostMediaItem & {
+  metadataDetected: boolean;
+  displayAspectRatio: PostDisplayAspectRatio;
+};
 
 export type ActiveUpload = {
   fileName: string;
@@ -77,6 +83,8 @@ export type UploadSessionState = {
 /** The composer's choices at the moment an upload starts. They are captured rather than
  * read later, because "later" may be a moment when no composer is mounted to read from. */
 export type UploadContext = {
+  /** Compatibility fallback for callers that prepared media before per-item framing was
+   * introduced. New composer items always carry their own captured ratio. */
   displayAspectRatio: PostDisplayAspectRatio;
   maxDurationSeconds: number;
 };
@@ -137,7 +145,13 @@ async function uploadOne(
   item: PreparedMediaReview,
   context: UploadContext,
 ): Promise<"uploaded" | "failed"> {
-  const { pending, adjustedFile, crop, videoMeta } = item;
+  const {
+    pending,
+    adjustedFile,
+    crop,
+    videoMeta,
+    displayAspectRatio: reviewedAspectRatio,
+  } = item;
   const file = adjustedFile ?? pending.file;
   const isVideo = pending.kind === "video";
 
@@ -188,7 +202,7 @@ async function uploadOne(
           height: media.height ?? videoMeta?.height,
           durationSeconds: duration.durationSeconds,
           type: isVideo ? "video" : "image",
-          displayAspectRatio: context.displayAspectRatio,
+          displayAspectRatio: reviewedAspectRatio ?? context.displayAspectRatio,
           metadataDetected: pending.metadataDetected,
           crop,
         },

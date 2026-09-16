@@ -19,7 +19,11 @@ const CONTEXT = {
   maxDurationSeconds: 15 * 60,
 };
 
-function videoItem(name: string, durationSeconds = 30) {
+function videoItem(
+  name: string,
+  durationSeconds = 30,
+  displayAspectRatio?: PostDisplayAspectRatio,
+) {
   return {
     pending: {
       file: new File(["x"], name, { type: "video/mp4" }),
@@ -27,6 +31,7 @@ function videoItem(name: string, durationSeconds = 30) {
       metadataDetected: false,
       durationSeconds,
     },
+    displayAspectRatio,
     videoMeta: { width: 1080, height: 1920, durationSeconds },
   };
 }
@@ -85,6 +90,20 @@ describe("video upload session", () => {
     expect(session.drainCompletedMedia()).toHaveLength(1);
     // A second composer mount must not add the same video to the draft again.
     expect(session.drainCompletedMedia()).toHaveLength(0);
+  });
+
+  it("keeps the frame chosen during review even when the composer context differs", async () => {
+    uploadVideoDirect.mockResolvedValue({ url: "https://cdn.test/v1/playlist.m3u8" });
+
+    session.startUploads(
+      [videoItem("landscape.mp4", 30, "landscape_16_9")],
+      CONTEXT,
+    );
+    await flush();
+
+    expect(session.drainCompletedMedia()[0]?.displayAspectRatio).toBe(
+      "landscape_16_9",
+    );
   });
 
   it("shows a composer that mounts mid-upload what is already in flight", async () => {
