@@ -1,11 +1,19 @@
 import {
+  bunnyDirectChunkSizeBytes,
+  checkReportedVideoDuration,
+  formatMaxVideoUploadSize,
   getBunnyUploadTransportOrder,
   inferVideoContentType,
   isMobileChromeBrowser,
   MAX_VIDEO_DURATION_SECONDS,
   MAX_VIDEO_UPLOAD_BYTES,
+  PROCESSING_STALL_TIMEOUT_MS,
   VIDEO_UPLOAD_ACCEPT,
+  videoProcessingBudgetMs,
+  videoProcessingPollIntervalMs,
 } from "@/lib/video-upload-constraints";
+
+const GIGABYTE = 1024 * 1024 * 1024;
 
 describe("video upload constraints", () => {
   const androidChrome =
@@ -39,9 +47,55 @@ describe("video upload constraints", () => {
   });
 
   it("publishes one shared size, duration, and picker contract", () => {
-    expect(MAX_VIDEO_UPLOAD_BYTES).toBe(2 * 1024 * 1024 * 1024);
+    // Has to clear a full-length 4K60 phone export (~600MB/minute), or the composer
+    // rejects it at selection however patient the creator is.
+    expect(MAX_VIDEO_UPLOAD_BYTES).toBeGreaterThanOrEqual(9 * GIGABYTE);
+    expect(formatMaxVideoUploadSize()).toBe("12GB");
     expect(MAX_VIDEO_DURATION_SECONDS).toBe(900);
     expect(VIDEO_UPLOAD_ACCEPT).toContain(".mkv");
     expect(VIDEO_UPLOAD_ACCEPT).toContain(".m2ts");
+  });
+
+  it("forgives the sub-second disagreement between a browser and a transcoder", () => {
+    expect(checkReportedVideoDuration(899.7)).toEqual({
+      withinLimit: true,
+      durationSeconds: 899.7,
+    });
+    // Accepted, but recorded at the cap so the post payload still validates.
+    expect(checkReportedVideoDuration(902)).toEqual({
+      withinLimit: true,
+      durationSeconds: MAX_VIDEO_DURATION_SECONDS,
+    });
+    expect(checkReportedVideoDuration(940).withinLimit).toBe(false);
+    expect(checkReportedVideoDuration(undefined)).toEqual({
+      withinLimit: true,
+      durationSeconds: undefined,
+    });
+  });
+
+  it("scales the processing budget with the file instead of one fixed deadline", () => {
+    const small = videoProcessingBudgetMs(20 * 1024 * 1024);
+    const large = videoProcessingBudgetMs(4 * GIGABYTE);
+
+    expect(small).toBeGreaterThanOrEqual(30 * 60 * 1000);
+    expect(small).toBeLessThan(31 * 60 * 1000);
+    expect(large).toBeGreaterThan(60 * 60 * 1000);
+    // However large the file, a wait that stops moving still ends.
+    expect(videoProcessingBudgetMs(500 * GIGABYTE)).toBe(3 * 60 * 60 * 1000);
+    expect(PROCESSING_STALL_TIMEOUT_MS).toBe(15 * 60 * 1000);
+  });
+
+  it("polls tightly at first, then backs off for a long transcode", () => {
+    expect(videoProcessingPollIntervalMs(0)).toBe(2_000);
+    expect(videoProcessingPollIntervalMs(5 * 60 * 1000)).toBe(5_000);
+    expect(videoProcessingPollIntervalMs(45 * 60 * 1000)).toBe(15_000);
+  });
+
+  it("keeps a large upload to a few hundred chunks without enlarging a phone clip's", () => {
+    expect(bunnyDirectChunkSizeBytes(40 * 1024 * 1024, true)).toBe(5 * 1024 * 1024);
+    expect(bunnyDirectChunkSizeBytes(8 * GIGABYTE, false)).toBe(20 * 1024 * 1024);
+    // Mobile keeps smaller chunks: a re-sent chunk costs more on a weak signal.
+    expect(bunnyDirectChunkSizeBytes(8 * GIGABYTE, true)).toBe(8 * 1024 * 1024);
+    expect(8 * GIGABYTE / bunnyDirectChunkSizeBytes(8 * GIGABYTE, false)).toBeLessThan(500);
   });
 });

@@ -2,6 +2,12 @@ import "server-only";
 
 import crypto from "node:crypto";
 
+import {
+  interpretBunnyVideoStatus,
+  type BunnyVideoStatus as BunnyVideoStatusResult,
+  type BunnyVideoStatusPayload,
+} from "@/lib/bunny-video-status";
+
 /**
  * Bunny Stream replaces R2 as the destination for feed-post video (see lib/r2.ts's doc
  * comment for the earlier reasoning - that still explains why video and images are
@@ -86,26 +92,14 @@ export function signBunnyUpload(videoId: string): BunnyUploadAuth {
   };
 }
 
-export type BunnyVideoStatus = {
-  state: "processing" | "ready" | "failed";
-  ready: boolean;
-  /** Bunny's own 0-100 transcode progress, clamped and defaulted to 0 - lets a caller show
-   * a real meter while waiting instead of an indeterminate spinner. */
-  encodeProgress: number;
-  width: number | null;
-  height: number | null;
-  durationSeconds: number | null;
-  error: string | null;
-};
+export type { BunnyVideoStatus } from "@/lib/bunny-video-status";
 
 /**
- * Polls a video's processing status. `ready` is true once EITHER encodeProgress reaches
- * 100 OR status reports Bunny's numeric "Finished" state (4, per Bunny's own status
- * enum ordering: Created/Uploaded/Processing/Transcoding/Finished/Error/...) - checking
- * both rather than trusting one exactly, since this environment can't reach bunny.net's
- * docs to confirm the enum value against a live response.
+ * Reads a video's processing status. The interpretation - in particular what counts as
+ * playable versus fully transcoded - lives in lib/bunny-video-status.ts, which documents
+ * Bunny's status enum and is unit-tested on its own.
  */
-export async function getBunnyVideoStatus(videoId: string): Promise<BunnyVideoStatus> {
+export async function getBunnyVideoStatus(videoId: string): Promise<BunnyVideoStatusResult> {
   const res = await fetch(`${API_BASE}/library/${libraryId()}/videos/${videoId}`, {
     headers: { AccessKey: apiKey(), Accept: "application/json" },
     cache: "no-store",
@@ -115,33 +109,7 @@ export async function getBunnyVideoStatus(videoId: string): Promise<BunnyVideoSt
     throw new Error(`Bunny Stream: failed to read video status (${res.status})${detail ? `: ${detail}` : ""}`);
   }
 
-  const data = (await res.json()) as {
-    status?: number;
-    encodeProgress?: number;
-    width?: number;
-    height?: number;
-    length?: number;
-    errorMessage?: string;
-  };
-
-  const encodeProgress = Math.min(100, Math.max(0, data.encodeProgress ?? 0));
-  const ready = data.status === 4 || encodeProgress >= 100;
-  const failed = data.status === 5 || data.status === 6;
-
-  return {
-    state: failed ? "failed" : ready ? "ready" : "processing",
-    ready,
-    encodeProgress,
-    width: data.width || null,
-    height: data.height || null,
-    durationSeconds: data.length || null,
-    error: failed
-      ? data.errorMessage ||
-        (data.status === 6
-          ? "Bunny could not receive the complete video. Please retry the upload."
-          : "Bunny could not transcode this video. Try another export or file.")
-      : null,
-  };
+  return interpretBunnyVideoStatus((await res.json()) as BunnyVideoStatusPayload);
 }
 
 export function verifyBunnyUploadAuthorization(auth: BunnyUploadAuth): boolean {

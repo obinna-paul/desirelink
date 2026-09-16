@@ -48,12 +48,25 @@ import {
 } from "@/lib/media-sniff";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import {
+  ABANDONED_VIDEO_WAIT,
+  isResumableVideoWaitError,
+  resumeVideoProcessing,
   uploadMediaDirectToCloudinary,
   uploadVideoDirect,
+  VideoProcessingCancelledError,
+  type BunnyProcessingStage,
   type VideoUploadPhase,
 } from "@/lib/client-uploads";
+import {
+  clearPendingVideoUpload,
+  markPendingVideoResumeAttempt,
+  readPendingVideoUpload,
+  savePendingVideoUpload,
+  type PendingVideoUpload,
+} from "@/lib/pending-video-uploads";
 import { cn } from "@/lib/utils";
 import {
+  formatMaxVideoUploadSize,
   MAX_VIDEO_DURATION_SECONDS,
   MAX_VIDEO_UPLOAD_BYTES,
   VIDEO_UPLOAD_ACCEPT,
@@ -108,6 +121,10 @@ type PreparedMediaReview = {
   pending: PendingMediaReview;
   adjustedFile?: File;
   crop?: VideoCrop;
+  /** What the browser measured while framing the video. Bunny reports its own dimensions
+   * and length, but only once it has probed the file - on a video accepted as soon as its
+   * first rendition plays, these stand in so the feed still frames the post correctly. */
+  videoMeta?: { width: number; height: number; durationSeconds: number };
 };
 type FailedMediaUpload = PreparedMediaReview & {
   remaining: PreparedMediaReview[];
@@ -173,6 +190,14 @@ export function PostComposer({
    * dev fallback, which has no progress signal at all) - the UI falls back to a spinner
    * only in that null case. */
   const [uploadingProgress, setUploadingProgress] = useState<number | null>(null);
+  /** Which part of Bunny's pipeline the video is in, so "Processing video..." can say
+   * something true about a wait that is legitimately long on a large file. */
+  const [processingStage, setProcessingStage] = useState<BunnyProcessingStage | null>(null);
+  /** Set while the composer is waiting on Bunny rather than on the network - the one part
+   * of an upload whose length is out of our hands, so it gets a way out. */
+  const [waitingForVideo, setWaitingForVideo] = useState(false);
+  const videoWaitAbortRef = useRef<AbortController | null>(null);
+  const resumeStartedRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showProviderUpgradePrompt, setShowProviderUpgradePrompt] =
@@ -201,11 +226,39 @@ export function PostComposer({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [showPiiWarning]);
 
+  /**
+   * A video whose transcode outlived the screen it started on is still on Bunny and still
+   * wanted - pick the wait back up rather than making someone re-upload gigabytes. The
+   * record itself expires, and caps how many times it may be retried, so this can never
+   * become a poll that outlives the video's usefulness.
+   */
+  useEffect(() => {
+    if (resumeStartedRef.current) return;
+    const pending = readPendingVideoUpload();
+    if (!pending) return;
+    resumeStartedRef.current = true;
+    void resumePendingVideo(markPendingVideoResumeAttempt(pending));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // An unmount stops the polling but keeps the video: the record survives, so the next
+  // time the composer opens it picks the same transcode back up.
+  useEffect(() => () => videoWaitAbortRef.current?.abort("unmounted"), []);
+
   useEffect(() => {
     if (activeMediaIndex > mediaItems.length - 1) {
       setActiveMediaIndex(Math.max(0, mediaItems.length - 1));
     }
   }, [activeMediaIndex, mediaItems.length]);
+
+  const uploadHint =
+    uploadingPhase !== "processing"
+      ? "Keep this screen open - it picks up where it left off if your connection dips."
+      : processingStage === "queued"
+        ? "The upload is done and your video is safe with the video service. Large files wait in line before encoding starts."
+        : processingStage === "finalizing"
+          ? "Nearly there - the last quality levels are being written."
+          : "The upload is done. Every quality level is being encoded now; longer videos take longer.";
 
   const selectedRatio = selectedRatioValue(displayAspectRatio);
   const mediaPayload = useMemo(
@@ -261,58 +314,83 @@ export function PostComposer({
     }
   }
 
-  async function uploadFile(
-    pending: PendingMediaReview,
-    adjustedFile?: File,
-    crop?: VideoCrop,
-  ): Promise<boolean> {
+  function resetUploadIndicators() {
+    setUploading(false);
+    setUploadingLabel(null);
+    setUploadingFileName(null);
+    setUploadingPhase(null);
+    setUploadingProgress(null);
+    setProcessingStage(null);
+  }
+
+  function trackUploadProgress(fraction: number) {
+    setUploadingProgress((current) => Math.max(current ?? 0, Math.round(fraction * 100)));
+  }
+
+  function describeVideoPhase(phase: VideoUploadPhase) {
+    if (phase === "processing") return "Processing video...";
+    if (phase === "reconnecting") return "Upload paused. Reconnecting...";
+    if (phase === "retrying") return "Video service interrupted. Resuming...";
+    if (phase === "preparing") return "Preparing video...";
+    return "Uploading video...";
+  }
+
+  type UploadOutcome = "uploaded" | "failed" | "cancelled";
+
+  async function uploadFile(item: PreparedMediaReview): Promise<UploadOutcome> {
+    const { pending, adjustedFile, crop, videoMeta } = item;
     const file = adjustedFile ?? pending.file;
     const isVideo = pending.kind === "video";
+    const controller = new AbortController();
+    videoWaitAbortRef.current = controller;
     setUploading(true);
     setUploadingFileName(file.name);
     setUploadingPhase(isVideo ? "preparing" : "image");
     setUploadingLabel(isVideo ? "Preparing video..." : "Uploading photo...");
     setUploadingProgress(null);
+    setProcessingStage(null);
     setError(null);
 
     try {
       const media = isVideo
-        ? await uploadVideoDirect(
-            file,
-            "/api/upload/post-media",
-            (fraction) =>
-              setUploadingProgress((current) =>
-                Math.max(current ?? 0, Math.round(fraction * 100)),
-              ),
-            (phase) => {
+        ? await uploadVideoDirect(file, "/api/upload/post-media", {
+            onProgress: trackUploadProgress,
+            onPhaseChange: (phase) => {
               setUploadingPhase(phase);
-              if (phase === "processing") {
-                setUploadingLabel("Processing video...");
-              } else if (phase === "reconnecting") {
-                setUploadingLabel("Upload paused. Reconnecting...");
-              } else if (phase === "retrying") {
-                setUploadingLabel("Video service interrupted. Resuming...");
-              } else if (phase === "preparing") {
-                setUploadingLabel("Preparing video...");
-              } else {
-                setUploadingLabel("Uploading video...");
-              }
+              setUploadingLabel(describeVideoPhase(phase));
+              // From here the file is Bunny's and the wait can be long - offer a way out.
+              if (phase === "processing") setWaitingForVideo(true);
             },
-          )
+            onProcessingStage: setProcessingStage,
+            signal: controller.signal,
+            // The bytes are on Bunny from here. Recording the video id means a reload, a
+            // backgrounded tab, or a transcode that outlasts this screen costs the wait,
+            // never the upload.
+            onProcessingStart: (videoId) =>
+              savePendingVideoUpload({
+                videoId,
+                fileName: file.name,
+                fileSize: file.size,
+                displayAspectRatio,
+                crop,
+              }),
+          })
         : await uploadMediaDirectToCloudinary(
             file,
             adjustedFile ? "post-image" : pending.imagePurpose ?? "post-image",
             "/api/upload/post-media",
-            (fraction) =>
-              setUploadingProgress((current) =>
-                Math.max(current ?? 0, Math.round(fraction * 100)),
-              ),
+            trackUploadProgress,
           );
+
+      if (isVideo) clearPendingVideoUpload();
 
       setMediaItems((prev) => [
         ...prev,
         {
           ...media,
+          width: media.width ?? videoMeta?.width,
+          height: media.height ?? videoMeta?.height,
+          durationSeconds: media.durationSeconds ?? videoMeta?.durationSeconds,
           type: isVideo ? "video" : "image",
           displayAspectRatio,
           metadataDetected: pending.metadataDetected,
@@ -320,24 +398,92 @@ export function PostComposer({
         },
       ]);
       setUploadingProgress(100);
-      return true;
+      return "uploaded";
     } catch (err) {
+      if (err instanceof VideoProcessingCancelledError) return "cancelled";
+      // A video still encoding keeps its resume record: reopening the composer picks the
+      // same video back up instead of asking for the whole file again.
+      if (isVideo && !isResumableVideoWaitError(err)) clearPendingVideoUpload();
       setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
-      return false;
+      return "failed";
     } finally {
-      setUploading(false);
-      setUploadingLabel(null);
-      setUploadingFileName(null);
-      setUploadingPhase(null);
-      setUploadingProgress(null);
+      // Only tear down the indicators if this upload still owns them - a cancelled wait
+      // can resolve long after the person started something new.
+      if (videoWaitAbortRef.current === controller) {
+        videoWaitAbortRef.current = null;
+        setWaitingForVideo(false);
+        resetUploadIndicators();
+      }
     }
+  }
+
+  /**
+   * Picks up a video that finished uploading earlier - after a reload, or after a
+   * transcode outlasted the screen it started on. The file is already on Bunny; this only
+   * waits for it, and the person can stop waiting at any point.
+   */
+  async function resumePendingVideo(record: PendingVideoUpload) {
+    const controller = new AbortController();
+    videoWaitAbortRef.current = controller;
+    setWaitingForVideo(true);
+    setUploading(true);
+    setUploadingFileName(record.fileName);
+    setUploadingPhase("processing");
+    setUploadingLabel("Finishing your video...");
+    setUploadingProgress(80);
+    setProcessingStage(null);
+    if (record.displayAspectRatio) setDisplayAspectRatioState(record.displayAspectRatio);
+
+    try {
+      const media = await resumeVideoProcessing(record.videoId, record.fileSize, {
+        onProgress: trackUploadProgress,
+        onProcessingStage: setProcessingStage,
+        signal: controller.signal,
+      });
+      clearPendingVideoUpload();
+      setMediaItems((prev) =>
+        prev.length > 0
+          ? prev
+          : [
+              {
+                ...media,
+                type: "video",
+                displayAspectRatio: record.displayAspectRatio ?? displayAspectRatio,
+                metadataDetected: false,
+                crop: record.crop,
+              },
+            ],
+      );
+      setUploadingProgress(100);
+    } catch (err) {
+      if (err instanceof VideoProcessingCancelledError) return;
+      if (!isResumableVideoWaitError(err)) clearPendingVideoUpload();
+      setError(err instanceof Error ? err.message : "That video could not be finished.");
+    } finally {
+      if (videoWaitAbortRef.current === controller) {
+        videoWaitAbortRef.current = null;
+        setWaitingForVideo(false);
+        resetUploadIndicators();
+      }
+    }
+  }
+
+  /** Walks away from a transcode. The record goes with it, so the composer does not offer
+   * the same video again on the next mount. */
+  function stopWaitingForVideo() {
+    videoWaitAbortRef.current?.abort(ABANDONED_VIDEO_WAIT);
+    videoWaitAbortRef.current = null;
+    clearPendingVideoUpload();
+    setWaitingForVideo(false);
+    resetUploadIndicators();
   }
 
   async function uploadReviewedMedia(items: PreparedMediaReview[]) {
     for (let index = 0; index < items.length; index += 1) {
       const item = items[index];
-      const succeeded = await uploadFile(item.pending, item.adjustedFile, item.crop);
-      if (!succeeded) {
+      const outcome = await uploadFile(item);
+      if (outcome === "cancelled") return;
+      if (outcome === "failed") {
         setFailedUpload({ ...item, remaining: items.slice(index + 1) });
         return;
       }
@@ -429,7 +575,7 @@ export function PostComposer({
           continue;
         }
         if (isVideo && workingFile.size > MAX_VIDEO_UPLOAD_BYTES) {
-          lastError = "Each video can be up to 2GB.";
+          lastError = `Each video can be up to ${formatMaxVideoUploadSize()}.`;
           continue;
         }
 
@@ -505,6 +651,9 @@ export function PostComposer({
 
   function handleVideoFrameConfirm({
     crop,
+    width,
+    height,
+    durationSeconds,
   }: {
     crop: VideoCrop;
     width: number;
@@ -513,7 +662,12 @@ export function PostComposer({
   }) {
     const pending = reviewQueue[0];
     if (!pending || pending.kind !== "video") return;
-    completeMediaReview({ pending, crop });
+    completeMediaReview({
+      pending,
+      crop,
+      videoMeta:
+        width > 0 && height > 0 ? { width, height, durationSeconds } : undefined,
+    });
   }
 
   function handleVideoFrameCancel() {
@@ -535,13 +689,8 @@ export function PostComposer({
 
   async function retryFailedUpload() {
     if (!failedUpload) return;
-    const remaining = failedUpload.remaining;
-    const succeeded = await uploadFile(
-      failedUpload.pending,
-      failedUpload.adjustedFile,
-      failedUpload.crop,
-    );
-    if (!succeeded) return;
+    const { remaining, ...item } = failedUpload;
+    if ((await uploadFile(item)) !== "uploaded") return;
     setFailedUpload(null);
     if (remaining.length > 0) void uploadReviewedMedia(remaining);
   }
@@ -941,6 +1090,16 @@ export function PostComposer({
     </div>
   ) : null;
 
+  const stopWaitingControl = waitingForVideo ? (
+    <button
+      type="button"
+      onClick={stopWaitingForVideo}
+      className="mt-4 text-sm font-medium text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      Stop waiting for this video
+    </button>
+  ) : null;
+
   return (
     <>
       <form
@@ -969,12 +1128,9 @@ export function PostComposer({
                   label={uploadingLabel ?? "Preparing your media..."}
                   fileName={uploadingFileName ?? undefined}
                   phase={uploadingPhase}
-                  hint={
-                    uploadingLabel === "Processing video..."
-                      ? "Getting it ready to play smoothly on every device."
-                      : "Keep this screen open - it picks up where it left off if your connection dips."
-                  }
+                  hint={uploadHint}
                 />
+                {stopWaitingControl}
               </div>
             ) : failedUploadPanel ? (
               <div className="flex min-h-[240px] items-center justify-center sm:min-h-[280px]">
@@ -1120,12 +1276,9 @@ export function PostComposer({
                     label={uploadingLabel ?? "Preparing your media..."}
                     fileName={uploadingFileName ?? undefined}
                     phase={uploadingPhase}
-                    hint={
-                      uploadingLabel === "Processing video..."
-                        ? "The upload is complete. Bunny is preparing smooth playback quality."
-                        : "You can keep this screen open while the upload resumes through brief connection changes."
-                    }
+                    hint={uploadHint}
                   />
+                  {stopWaitingControl}
                 </div>
               )}
               {!uploading && failedUploadPanel}

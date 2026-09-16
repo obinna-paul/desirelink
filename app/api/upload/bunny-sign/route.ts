@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createBunnyVideo, isBunnyStreamConfigured, signBunnyUpload } from "@/lib/bunny-stream";
 import {
+  formatMaxVideoUploadSize,
   inferVideoContentType,
   MAX_VIDEO_UPLOAD_BYTES,
 } from "@/lib/video-upload-constraints";
@@ -41,7 +42,10 @@ export async function POST(req: Request) {
     body.fileSize <= 0 ||
     body.fileSize > MAX_VIDEO_UPLOAD_BYTES
   ) {
-    return NextResponse.json({ error: "Videos can be up to 2GB." }, { status: 413 });
+    return NextResponse.json(
+      { error: `Videos can be up to ${formatMaxVideoUploadSize()}.` },
+      { status: 413 },
+    );
   }
 
   const fileName = typeof body?.fileName === "string" ? body.fileName : "video";
