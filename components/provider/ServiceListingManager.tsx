@@ -74,6 +74,7 @@ function ServiceListingForm({
   const [uploading, setUploading] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -82,12 +83,12 @@ function ServiceListingForm({
     if (!file) return;
     if (fileInputRef.current) fileInputRef.current.value = "";
 
-    setError(null);
+    setCoverError(null);
     setPreparing(true);
     try {
       setPendingFile(await prepareEditableImage(file));
     } catch (error) {
-      setError(error instanceof EditableImageError ? error.message : "This photo could not be prepared. Try again.");
+      setCoverError(error instanceof EditableImageError ? error.message : "This photo could not be prepared. Try again.");
     } finally {
       setPreparing(false);
     }
@@ -96,7 +97,7 @@ function ServiceListingForm({
   async function handleCropConfirm({ file }: { file: File; width: number; height: number }) {
     setPendingFile(null);
     setUploading(true);
-    setError(null);
+    setCoverError(null);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -108,12 +109,12 @@ function ServiceListingForm({
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(body?.error ?? "Upload failed. Please try again.");
+        setCoverError(body?.error ?? "Upload failed. Please try again.");
         return;
       }
       setForm((prev) => ({ ...prev, coverImageUrl: body.url }));
     } catch {
-      setError("Upload failed. Please try again.");
+      setCoverError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -125,7 +126,7 @@ function ServiceListingForm({
 
   function handleCropError() {
     setPendingFile(null);
-    setError("The photo preview was interrupted. Choose the photo again to retry.");
+    setCoverError("The photo preview was interrupted. Choose the photo again to retry.");
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -198,6 +199,7 @@ function ServiceListingForm({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading || preparing}
+            aria-describedby={coverError ? "service-cover-error" : undefined}
             className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:rounded-md"
           >
             {uploading || preparing ? (
@@ -215,6 +217,11 @@ function ServiceListingForm({
             onChange={handleCoverSelect}
           />
         </div>
+        {coverError && (
+          <p id="service-cover-error" role="alert" className="text-xs text-destructive">
+            {coverError}
+          </p>
+        )}
       </div>
 
       {pendingFile && (
