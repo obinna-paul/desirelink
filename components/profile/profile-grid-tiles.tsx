@@ -11,6 +11,7 @@ import {
   Play,
 } from "lucide-react";
 
+import { BlurredPreviewImage } from "@/components/posts/blurred-preview-image";
 import { formatCents } from "@/lib/creator";
 import type { PostView } from "@/lib/posts";
 import type { ServiceListingView } from "@/lib/service-listings";
@@ -74,15 +75,7 @@ export function PostGridTile({
         ariaLabel={`Locked post. ${tierLabel} to view.`}
       >
         {post.blurredPreview && (
-          <Image
-            src={post.blurredPreview.url}
-            alt=""
-            fill
-            sizes={TILE_SIZES}
-            className={
-              post.blurredPreview.cssBlur ? "object-cover blur-xl scale-110" : "object-cover"
-            }
-          />
+          <BlurredPreviewImage preview={post.blurredPreview} sizes={TILE_SIZES} />
         )}
         <div className="absolute inset-0 flex items-center justify-center bg-accent-tint/45 px-3 text-center">
           <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
