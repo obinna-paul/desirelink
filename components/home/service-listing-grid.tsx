@@ -41,7 +41,7 @@ function ServiceListingCard({
 
   return (
     <article className="group flex min-h-full flex-col overflow-hidden rounded-lg border border-border/70 bg-card transition-[border-color,box-shadow,transform] hover:border-foreground/20 hover:shadow-lift md:hover:-translate-y-0.5">
-      <Link href={`/services/${listing.id}`} className="relative aspect-[16/10] w-full overflow-hidden bg-avatar-placeholder">
+      <Link href={`/services/${listing.id}`} className="relative aspect-video w-full overflow-hidden bg-avatar-placeholder">
         {listing.coverImageUrl ? (
           <Image src={listing.coverImageUrl} alt="" fill sizes="(min-width: 768px) 33vw, 100vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
         ) : (

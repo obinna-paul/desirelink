@@ -18,12 +18,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { PublishToast } from "@/components/ui/publish-toast";
 import { VerificationRequestCard } from "@/components/verification/verification-request-card";
+import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
+import { EditableImageError, prepareEditableImage } from "@/lib/editable-image";
 import { formatCents } from "@/lib/creator";
 import { SERVICE_CATEGORY_OPTIONS } from "@/lib/account-types";
 import type { ServiceListingInput } from "@/lib/validations/service-listing";
 import type { ServiceListingView } from "@/lib/service-listings";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+// Matches the 16:9 frame every cover photo is displayed in across the discover grid,
+// the listing manager preview, and the provider's own service menu.
+const SERVICE_COVER_CROP_PRESETS = [{ id: "cover", label: "16:9", ratio: 16 / 9 }] as const;
 
 type FormState = {
   title: string;
@@ -68,24 +72,32 @@ function ServiceListingForm({
   const [form, setForm] = useState(initial);
   const [status, setStatus] = useState<"idle" | "saving">("idle");
   const [uploading, setUploading] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleCoverUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleCoverSelect(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (fileInputRef.current) fileInputRef.current.value = "";
 
-    if (!file.type.startsWith("image/")) {
-      setError("Please choose an image file.");
-      return;
+    setCoverError(null);
+    setPreparing(true);
+    try {
+      setPendingFile(await prepareEditableImage(file));
+    } catch (error) {
+      setCoverError(error instanceof EditableImageError ? error.message : "This photo could not be prepared. Try again.");
+    } finally {
+      setPreparing(false);
     }
-    if (file.size > MAX_FILE_SIZE) {
-      setError("Image must be under 5MB.");
-      return;
-    }
+  }
 
+  async function handleCropConfirm({ file }: { file: File; width: number; height: number }) {
+    setPendingFile(null);
     setUploading(true);
-    setError(null);
+    setCoverError(null);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -97,15 +109,24 @@ function ServiceListingForm({
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(body?.error ?? "Upload failed. Please try again.");
+        setCoverError(body?.error ?? "Upload failed. Please try again.");
         return;
       }
       setForm((prev) => ({ ...prev, coverImageUrl: body.url }));
     } catch {
-      setError("Upload failed. Please try again.");
+      setCoverError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
+  }
+
+  function handleCropCancel() {
+    setPendingFile(null);
+  }
+
+  function handleCropError() {
+    setPendingFile(null);
+    setCoverError("The photo preview was interrupted. Choose the photo again to retry.");
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -177,25 +198,44 @@ function ServiceListingForm({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
+            disabled={uploading || preparing}
+            aria-describedby={coverError ? "service-cover-error" : undefined}
             className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-input bg-background px-3 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:rounded-md"
           >
-            {uploading ? (
+            {uploading || preparing ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : (
               <ImageIcon className="h-4 w-4" aria-hidden="true" />
             )}
-            {uploading ? "Uploading..." : "Upload cover"}
+            {preparing ? "Preparing..." : uploading ? "Uploading..." : "Upload cover"}
           </button>
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,.heic,.heif,.avif,.bmp"
             className="hidden"
-            onChange={handleCoverUpload}
+            onChange={handleCoverSelect}
           />
         </div>
+        {coverError && (
+          <p id="service-cover-error" role="alert" className="text-xs text-destructive">
+            {coverError}
+          </p>
+        )}
       </div>
+
+      {pendingFile && (
+        <ImageCropDialog
+          key={pendingFile.name + pendingFile.lastModified}
+          file={pendingFile}
+          presets={SERVICE_COVER_CROP_PRESETS}
+          shape="square"
+          title="Adjust cover photo"
+          onCancel={handleCropCancel}
+          onConfirm={handleCropConfirm}
+          onError={handleCropError}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
@@ -310,7 +350,7 @@ function ServiceListingForm({
           type="submit"
           size="sm"
           className="w-full sm:w-auto"
-          disabled={status === "saving" || uploading}
+          disabled={status === "saving" || uploading || preparing}
         >
           {status === "saving" ? "Saving..." : submitLabel}
         </Button>
