@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Eye, Lock } from "lucide-react";
@@ -9,6 +8,7 @@ import { Eye, Lock } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getPresenceDestination, PresenceRing } from "@/components/ui/presence-avatar";
 import { Badge } from "@/components/ui/badge";
+import { BlurredPreviewImage } from "@/components/posts/blurred-preview-image";
 import { Button } from "@/components/ui/button";
 import { CommentsSheet } from "@/components/posts/comments-sheet";
 import { PostActions } from "@/components/posts/post-actions";
@@ -40,15 +40,7 @@ function LockedPostBody({
 }) {
   return (
     <div className="relative isolate flex min-h-[26rem] flex-col items-center justify-center gap-2 overflow-hidden bg-foreground px-6 text-center text-background">
-      {blurredPreview && (
-        <Image
-          src={blurredPreview.url}
-          alt=""
-          fill
-          sizes="100vw"
-          className={blurredPreview.cssBlur ? "object-cover blur-xl scale-110" : "object-cover"}
-        />
-      )}
+      {blurredPreview && <BlurredPreviewImage preview={blurredPreview} sizes="100vw" />}
       <div className="absolute inset-0 bg-foreground/70" />
 
       <div className="relative z-10 flex flex-col items-center gap-2">
