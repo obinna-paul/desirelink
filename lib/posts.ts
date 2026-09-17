@@ -2,6 +2,7 @@ import { Prisma, type ProfileType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { isPostDisplayAspectRatio, type PostMediaItem } from "@/lib/post-shared";
+import { getVideoPosterUrl } from "@/lib/video-playback";
 import { getLiveStreamIdsByProvider, getPresenceStatus, type PresenceStatus } from "@/lib/presence";
 import {
   getCreatorAccess,
@@ -264,7 +265,8 @@ function toLockedPreview(media: PostMediaItem | undefined): LockedPostPreview | 
   if (!media) return null;
 
   if (media.url.includes(".m3u8")) {
-    return { url: media.url.replace(/\/playlist\.m3u8(?:\?.*)?$/, "/thumbnail.jpg"), cssBlur: true };
+    const posterUrl = getVideoPosterUrl(media.url);
+    return posterUrl ? { url: posterUrl, cssBlur: true } : null;
   }
 
   try {
