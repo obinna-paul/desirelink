@@ -58,6 +58,12 @@ export type PreparedMediaReview = {
 export type UploadedMedia = PostMediaItem & {
   metadataDetected: boolean;
   displayAspectRatio: PostDisplayAspectRatio;
+  /** A blob URL for the file the creator already has on this device. The composer uses it
+   * immediately instead of waiting for Bunny's HLS playlist to appear after upload. It is
+   * never included in the post payload. */
+  previewUrl?: string;
+  /** Releases the browser's reference to the potentially very large local video. */
+  releasePreview?: () => void;
   /** Removes an uploaded Bunny object if the creator drops it before publishing. */
   discard?: () => void;
 };
@@ -139,6 +145,36 @@ function describeVideoPhase(phase: VideoUploadPhase): string {
   if (phase === "confirming") return "Confirming your video...";
   if (phase === "preparing") return "Preparing video...";
   return "Uploading video...";
+}
+
+function createLocalVideoPreview(file: File): {
+  previewUrl?: string;
+  releasePreview?: () => void;
+} {
+  if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function") return {};
+
+  let previewUrl: string;
+  try {
+    previewUrl = URL.createObjectURL(file);
+  } catch {
+    // Privacy-restricted browsers can block blob URLs. The remote playback URL remains a
+    // complete fallback, and a preview optimization must never turn a valid upload into
+    // an error after Bunny has already accepted it.
+    return {};
+  }
+  let released = false;
+  return {
+    previewUrl,
+    releasePreview: () => {
+      if (released) return;
+      released = true;
+      try {
+        URL.revokeObjectURL(previewUrl);
+      } catch {
+        // The browser also drops blob URLs automatically when the page closes.
+      }
+    },
+  };
 }
 
 function trackProgress(
@@ -257,6 +293,19 @@ async function uploadOne(
       media.durationSeconds ?? videoMeta?.durationSeconds ?? pending.durationSeconds,
       context.maxDurationSeconds,
     );
+    const localPreview: ReturnType<typeof createLocalVideoPreview> = isVideo
+      ? createLocalVideoPreview(file)
+      : {};
+    let discarded = false;
+    const discard =
+      media.discard || localPreview.releasePreview
+        ? () => {
+            if (discarded) return;
+            discarded = true;
+            localPreview.releasePreview?.();
+            media.discard?.();
+          }
+        : undefined;
 
     setState({
       completed: [
@@ -272,6 +321,8 @@ async function uploadOne(
           displayAspectRatio: reviewedAspectRatio,
           metadataDetected: pending.metadataDetected,
           crop,
+          ...localPreview,
+          discard,
         },
       ],
     });
@@ -375,5 +426,6 @@ export function clearUploadError(): void {
  * stale. An upload that is genuinely still running is left alone to finish. */
 export function resetUploadSession(): void {
   queue = [];
+  state.completed.forEach((item) => item.releasePreview?.());
   setState({ completed: [], failed: null, error: null });
 }

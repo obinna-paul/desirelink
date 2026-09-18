@@ -86,10 +86,11 @@ export async function probeVideoManifest(src: string): Promise<number | null> {
   }
 }
 
-/** How long to wait before looking again for a video that is still being encoded. Backs
- * off from a moment to twenty seconds: most videos are ready inside the first couple
- * of checks, and a long one shouldn't be polled hard for minutes. */
+/** How long to wait before looking again for a newly uploaded playlist. Bunny Premium
+ * Encoding/JIT usually makes it playable within seconds, so the early checks stay close
+ * enough to notice that promptly; only a genuinely longer encode backs off toward twenty
+ * seconds so it is not polled hard for minutes. */
 export function videoProcessingRetryDelayMs(attempt: number): number {
-  const delays = [1_500, 2_500, 4_000, 6_000, 10_000, 15_000, 20_000];
+  const delays = [750, 1_000, 1_500, 2_000, 3_000, 5_000, 7_500, 10_000, 15_000, 20_000];
   return delays[Math.min(attempt, delays.length - 1)];
 }

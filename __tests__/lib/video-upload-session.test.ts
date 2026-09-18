@@ -7,6 +7,8 @@ import type { PostDisplayAspectRatio } from "@/lib/post-shared";
 const uploadVideoDirect = jest.fn();
 const uploadMediaDirectToCloudinary = jest.fn();
 const discardVideoUpload = jest.fn();
+const createObjectURL = jest.fn((blob: Blob) => `blob:${(blob as File).name}`);
+const revokeObjectURL = jest.fn();
 
 jest.mock("@/lib/client-uploads", () => ({
   discardVideoUpload: (...args: unknown[]) => discardVideoUpload(...args),
@@ -60,6 +62,16 @@ describe("video upload session", () => {
     uploadVideoDirect.mockReset();
     uploadMediaDirectToCloudinary.mockReset();
     discardVideoUpload.mockReset();
+    createObjectURL.mockClear();
+    revokeObjectURL.mockClear();
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectURL,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectURL,
+    });
     session = require("@/lib/video-upload-session") as SessionModule;
   });
 
@@ -80,7 +92,9 @@ describe("video upload session", () => {
       height: 1920,
       durationSeconds: 30,
       displayAspectRatio: "square",
+      previewUrl: "blob:clip.mp4",
     });
+    expect(createObjectURL).toHaveBeenCalledWith(expect.objectContaining({ name: "clip.mp4" }));
   });
 
   it("hands finished media over exactly once", async () => {
@@ -118,9 +132,12 @@ describe("video upload session", () => {
     await flush();
     const [finished] = session.drainCompletedMedia();
 
-    expect(finished.discard).toBe(discard);
+    expect(finished.discard).toEqual(expect.any(Function));
+    finished.discard?.();
     finished.discard?.();
     expect(discard).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:clip.mp4");
   });
 
   it("warns before a full-page dismissal only while an upload is active", async () => {
@@ -314,5 +331,6 @@ describe("video upload session", () => {
     expect(session.drainCompletedMedia()).toHaveLength(0);
     expect(session.getUploadSessionState().failed).toBeNull();
     expect(session.getUploadSessionState().error).toBeNull();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:clip.mp4");
   });
 });

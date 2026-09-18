@@ -84,14 +84,14 @@ describe("video playback helpers", () => {
     expect(isVideoNotPublishedYet(null)).toBe(false);
   });
 
-  it("backs off between checks instead of polling a slow encode hard", () => {
+  it("checks JIT playback promptly, then backs off instead of polling a slow encode hard", () => {
     const first = videoProcessingRetryDelayMs(0);
     const later = videoProcessingRetryDelayMs(3);
 
-    expect(first).toBeLessThanOrEqual(5_000);
+    expect(first).toBeLessThanOrEqual(1_000);
     expect(later).toBeGreaterThan(first);
     // Past the end of the ramp it settles rather than growing without bound.
-    expect(videoProcessingRetryDelayMs(99)).toBe(videoProcessingRetryDelayMs(6));
+    expect(videoProcessingRetryDelayMs(99)).toBe(videoProcessingRetryDelayMs(9));
   });
 
   it("reports the manifest status a probe found", async () => {

@@ -41,11 +41,16 @@ const PLAYBACK_RATES = [0.5, 1, 1.5, 2] as const;
 
 export function PostVideoPlayer({
   src,
+  fallbackSrc,
   naturalWidth,
   naturalHeight,
   crop,
 }: {
   src: string;
+  /** Used by the composer when its instant local-file preview cannot be decoded on this
+   * device. The Bunny HLS URL remains a transparent fallback, not the first thing the
+   * creator has to wait for. */
+  fallbackSrc?: string;
   naturalWidth?: number;
   naturalHeight?: number;
   crop?: VideoCrop;
@@ -66,12 +71,14 @@ export function PostVideoPlayer({
   const pendingScrubTimeRef = useRef<number | null>(null);
   const processingChecksRef = useRef(0);
   const processingTimerRef = useRef<number | null>(null);
+  const fallbackAttemptedRef = useRef(false);
   const [muted, setMuted] = useState(true);
   const [playbackRate, setPlaybackRate] = useState<(typeof PLAYBACK_RATES)[number]>(1);
   const [manuallyPaused, setManuallyPaused] = useState(false);
   const [showPauseIcon, setShowPauseIcon] = useState(false);
   const [seekFeedback, setSeekFeedback] = useState<SeekDirection | null>(null);
   const [playbackState, setPlaybackState] = useState<PlaybackState>("loading");
+  const [playbackSrc, setPlaybackSrc] = useState(src);
   const [reloadKey, setReloadKey] = useState(0);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   // Duration and buffered progress both stay 0 (never NaN/Infinity, which the browser can
@@ -85,8 +92,8 @@ export function PostVideoPlayer({
   const [isScrubBarHovering, setIsScrubBarHovering] = useState(false);
   const [isScrubBarFocused, setIsScrubBarFocused] = useState(false);
   const hasFramedCrop = Boolean(crop && naturalWidth && naturalHeight);
-  const isHls = isHlsVideoSource(src);
-  const posterUrl = getVideoPosterUrl(src);
+  const isHls = isHlsVideoSource(playbackSrc);
+  const posterUrl = getVideoPosterUrl(playbackSrc);
   const hasDuration = duration > 0;
   const displayTime = isScrubbing ? scrubTime : currentTime;
   const displayFraction = hasDuration ? Math.min(1, Math.max(0, displayTime / duration)) : 0;
@@ -117,15 +124,33 @@ export function PostVideoPlayer({
    * is actually broken. Only the CDN can answer that, so ask it. */
   const handleFailedLoad = useCallback(
     async (knownStatus?: number) => {
-      const status = knownStatus ?? (await probeVideoManifest(src));
+      if (
+        fallbackSrc &&
+        playbackSrc !== fallbackSrc &&
+        !fallbackAttemptedRef.current
+      ) {
+        fallbackAttemptedRef.current = true;
+        processingChecksRef.current = 0;
+        setPlaybackState("loading");
+        setPlaybackSrc(fallbackSrc);
+        return;
+      }
+
+      const status = knownStatus ?? (await probeVideoManifest(playbackSrc));
       if (isVideoNotPublishedYet(status)) {
         waitForProcessingVideo();
         return;
       }
       setPlaybackState("error");
     },
-    [src, waitForProcessingVideo],
+    [fallbackSrc, playbackSrc, waitForProcessingVideo],
   );
+
+  useEffect(() => {
+    fallbackAttemptedRef.current = false;
+    processingChecksRef.current = 0;
+    setPlaybackSrc(src);
+  }, [src]);
 
   const attemptPlayback = useCallback(async () => {
     const el = videoRef.current;
@@ -173,7 +198,7 @@ export function PostVideoPlayer({
         setPlaybackState("error");
         return;
       }
-      video.src = src;
+      video.src = playbackSrc;
       video.load();
     }
 
@@ -199,7 +224,7 @@ export function PostVideoPlayer({
         hlsManagedRef.current = true;
 
         hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-          if (!cancelled) hls?.loadSource(src);
+          if (!cancelled) hls?.loadSource(playbackSrc);
         });
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           if (cancelled) return;
@@ -246,7 +271,7 @@ export function PostVideoPlayer({
       video.removeAttribute("src");
       video.load();
     };
-  }, [attemptPlayback, handleFailedLoad, isHls, reloadKey, src]);
+  }, [attemptPlayback, handleFailedLoad, isHls, playbackSrc, reloadKey]);
 
   useEffect(() => {
     if (!hasFramedCrop) return;
@@ -276,7 +301,7 @@ export function PostVideoPlayer({
   useEffect(() => {
     const el = videoRef.current;
     if (el) el.playbackRate = playbackRate;
-  }, [playbackRate, reloadKey, src]);
+  }, [playbackRate, playbackSrc, reloadKey]);
 
   useEffect(
     () => () => {
@@ -542,7 +567,7 @@ export function PostVideoPlayer({
     >
       <video
         ref={videoRef}
-        src={isHls ? undefined : src}
+        src={isHls ? undefined : playbackSrc}
         poster={posterUrl}
         muted={muted}
         loop

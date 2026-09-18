@@ -646,7 +646,9 @@ export function PostComposer({
     const { post } = await res.json();
     if (post) onCreated(post);
     // The draft this session was holding media for is published, so nothing left in it
-    // belongs to the next one.
+    // belongs to the next one. The remote Bunny URL remains in the post; the local blob
+    // URL only existed to make this composer's preview immediate while Bunny prepared HLS.
+    mediaItemsRef.current.forEach((item) => item.releasePreview?.());
     resetUploadSession();
     setContent("");
     mediaItemsRef.current = [];
@@ -1113,7 +1115,8 @@ export function PostComposer({
                   {activeMedia?.type === "video" ? (
                     <PostVideoPlayer
                       key={activeMedia.url}
-                      src={activeMedia.url}
+                      src={activeMedia.previewUrl ?? activeMedia.url}
+                      fallbackSrc={activeMedia.previewUrl ? activeMedia.url : undefined}
                       naturalWidth={activeMedia.width}
                       naturalHeight={activeMedia.height}
                       crop={activeMedia.crop}
