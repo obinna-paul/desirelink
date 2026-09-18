@@ -13,10 +13,10 @@ import type { LockedPostPreview } from "@/lib/posts";
  * can 404; retrying with the player's own backoff schedule catches up once the frame is
  * ready instead of leaving the paywall looking like a plain dark screen.
  *
- * 10 attempts on this schedule spans just under two minutes - short of the unlocked
- * player's own much longer budget (this is a glance-at-a-grid image, not something a
- * viewer is staring at waiting for), but long enough to outlast a normal encode instead
- * of giving up on a video that was published moments ago.
+ * 10 attempts on the player's own backoff schedule - short of the unlocked player's much
+ * larger check budget (this is a glance-at-a-grid image, not something a viewer is
+ * staring at waiting for), but long enough to outlast a normal encode instead of giving
+ * up on a video that was published moments ago.
  */
 const MAX_RETRIES = 10;
 
