@@ -45,7 +45,7 @@ export function BlurredPreviewImage({
 
   const src =
     attempt === 0 ? preview.url : `${preview.url}${preview.url.includes("?") ? "&" : "?"}retry=${attempt}`;
-  const blurClassName = preview.cssBlur ? "blur-md scale-110" : "";
+  const blurClassName = preview.cssBlur ? "blur scale-110" : "";
 
   return (
     <Image
