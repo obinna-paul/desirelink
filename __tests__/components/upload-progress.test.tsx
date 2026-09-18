@@ -3,18 +3,19 @@ import { render, screen } from "@testing-library/react";
 import { UploadProgress } from "@/components/ui/upload-progress";
 
 describe("UploadProgress", () => {
-  it("makes provider confirmation explicit after all bytes are sent", () => {
+  it("keeps final upload confirmation generic for users", () => {
     render(
       <UploadProgress
         progress={100}
-        label="Confirming your video..."
-        hint="Your video has been sent."
+        label="Upload complete"
+        hint="Finishing up..."
         fileName="premium.mp4"
         phase="confirming"
       />,
     );
 
-    expect(screen.getByText("Confirming your video...")).toBeInTheDocument();
+    expect(screen.getByText("Upload complete")).toBeInTheDocument();
+    expect(screen.getByText("Finishing up...")).toBeInTheDocument();
     expect(screen.getByText("100%")).toBeInTheDocument();
     expect(screen.getByText("Confirm")).toHaveClass("font-semibold");
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");

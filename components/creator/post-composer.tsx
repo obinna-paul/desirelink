@@ -250,7 +250,7 @@ export function PostComposer({
       return "The connection was interrupted. Your progress is safe and the upload is resuming automatically.";
     }
     if (active.phase === "confirming") {
-      return "Your video has been sent. We’re confirming Bunny received it so a lost final response can’t turn a successful upload into an error.";
+      return "Finishing up...";
     }
 
     const hasByteProgress = active.totalBytes > 0 && active.bytesUploaded > 0;

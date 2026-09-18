@@ -142,7 +142,7 @@ export function useUploadSession(): UploadSessionState {
 function describeVideoPhase(phase: VideoUploadPhase): string {
   if (phase === "reconnecting") return "Upload paused. Reconnecting...";
   if (phase === "retrying") return "Video service interrupted. Resuming...";
-  if (phase === "confirming") return "Confirming your video...";
+  if (phase === "confirming") return "Upload complete";
   if (phase === "preparing") return "Preparing video...";
   return "Uploading video...";
 }
