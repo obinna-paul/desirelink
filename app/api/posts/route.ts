@@ -13,6 +13,11 @@ import { readJson } from "@/lib/security/request";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { hasIdentityOnFile } from "@/lib/verification";
 import { notifyMentionedProfiles } from "@/lib/mention-notifications";
+import {
+  classifyBunnyVideoUploadState,
+  getBunnyVideoIdFromPlaybackUrl,
+  getBunnyVideoUploadState,
+} from "@/lib/bunny-stream";
 
 function isMissingSchemaError(
   error: unknown,
@@ -131,6 +136,56 @@ export async function POST(req: Request) {
       url,
       type: "image" as const,
     }));
+
+  // Defense in depth: the browser waits for a playable Bunny rendition before completing
+  // an upload, but an older open tab or a hand-crafted request must not publish a post
+  // whose HLS URL still returns nothing. Cloudinary/local videos do not match this library.
+  const bunnyVideoIds = Array.from(new Set(mediaItems.flatMap((item) => {
+    if (item.type !== "video") return [];
+    const videoId = getBunnyVideoIdFromPlaybackUrl(item.url);
+    return videoId ? [videoId] : [];
+  })));
+  if (bunnyVideoIds.length > 0) {
+    try {
+      const readiness = await Promise.all(
+        bunnyVideoIds.map(async (videoId) =>
+          classifyBunnyVideoUploadState(
+            await getBunnyVideoUploadState(videoId),
+          ),
+        ),
+      );
+      if (readiness.includes("failed")) {
+        return NextResponse.json(
+          {
+            error:
+              "This video could not be prepared. Remove it and upload it again.",
+            code: "VIDEO_PROCESSING_FAILED",
+          },
+          { status: 422 },
+        );
+      }
+      if (readiness.some((state) => state !== "playable")) {
+        return NextResponse.json(
+          {
+            error:
+              "This video is still being prepared. Wait a moment and publish again.",
+            code: "VIDEO_NOT_READY",
+          },
+          { status: 409 },
+        );
+      }
+    } catch (error) {
+      console.error("[posts] Bunny playback validation failed", error);
+      return NextResponse.json(
+        {
+          error:
+            "We could not verify this video for playback. Please try publishing again.",
+          code: "VIDEO_STATUS_UNAVAILABLE",
+        },
+        { status: 503 },
+      );
+    }
+  }
   const storedMediaItems = mediaItems.map((item) => ({
     ...item,
     lockedPreviewMode:

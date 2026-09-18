@@ -50,16 +50,28 @@ describe("POST /api/upload/bunny-status", () => {
     mockVerify.mockReturnValue(true);
   });
 
-  it("returns Bunny's authoritative accepted state for the signed video", async () => {
-    const state = { status: 2, storageSize: 1_024, hasOriginal: true, encodeProgress: 4 };
+  it("returns Bunny's authoritative readiness state for the signed video", async () => {
+    const state = {
+      status: 2,
+      storageSize: 1_024,
+      hasOriginal: true,
+      encodeProgress: 4,
+      availableResolutions: null,
+    };
     mockGetState.mockResolvedValue(state);
-    mockClassify.mockReturnValue("accepted");
+    mockClassify.mockReturnValue("processing");
 
     const response = await POST(postRequest(auth));
 
     expect(response).toMatchObject({
       status: 200,
-      body: { result: "accepted", status: 2, storageSize: 1_024, encodeProgress: 4 },
+      body: {
+        result: "processing",
+        status: 2,
+        storageSize: 1_024,
+        encodeProgress: 4,
+        availableResolutions: null,
+      },
     });
     expect(mockVerify).toHaveBeenCalledWith(auth);
     expect(mockGetState).toHaveBeenCalledWith("video-1");

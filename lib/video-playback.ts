@@ -63,9 +63,9 @@ export function scrubFractionFromPointer(
 
 /**
  * A Bunny Stream video's manifest does not exist until the encoder has written its first
- * rendition. That gap is normal and short, and it is deliberately not something a creator
- * waits through before posting (see lib/client-uploads.ts) - so a player that meets a
- * missing manifest is looking at a video that is still being prepared, not a broken one.
+ * rendition. New uploads now wait for that first rendition before they can be published,
+ * but this remains necessary for old posts and brief CDN propagation delays: a player that
+ * meets a missing manifest may still be looking at preparation rather than a broken file.
  *
  * 404 and 403 are the two answers a CDN gives for "nothing published at this path yet".
  * Anything else - a 500, a DNS failure, a malformed playlist - is a real error and says so.

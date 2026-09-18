@@ -144,6 +144,7 @@ export type BunnyVideoUploadState = {
   storageSize: number;
   hasOriginal: boolean;
   encodeProgress: number;
+  availableResolutions: string | null;
 };
 
 /**
@@ -170,27 +171,59 @@ export async function getBunnyVideoUploadState(videoId: string): Promise<BunnyVi
     storageSize?: unknown;
     hasOriginal?: unknown;
     encodeProgress?: unknown;
+    availableResolutions?: unknown;
   };
   return {
     status: typeof data.status === "number" ? data.status : 0,
     storageSize: typeof data.storageSize === "number" ? data.storageSize : 0,
     hasOriginal: data.hasOriginal === true,
     encodeProgress: typeof data.encodeProgress === "number" ? data.encodeProgress : 0,
+    availableResolutions:
+      typeof data.availableResolutions === "string"
+        ? data.availableResolutions
+        : null,
   };
 }
 
-/** Status 0 alone can be the empty video object created before upload, but Bunny can also
- * report 0 briefly after preserving the original. Its documented model uses 5 and 6 for
- * failed processing/upload states; all other non-zero states mean the source has been
- * accepted and may already be encoding or ready for playback. `hasOriginal` is conclusive.
- * `storageSize` alone is deliberately not enough: a partial TUS object must never be
- * mistaken for a completed upload. */
+export type BunnyVideoReadiness =
+  | "playable"
+  | "processing"
+  | "failed"
+  | "incomplete";
+
+/**
+ * Distinguishes "Bunny has the source" from "a viewer can play it". That difference is
+ * critical with JIT encoding: a video may have the original and a non-zero status while
+ * its HLS manifest still returns 404. `availableResolutions` is the first authoritative
+ * evidence that Bunny produced a rendition; status 4 and JIT status 8 both expose it.
+ *
+ * Statuses 5 and 6 are Bunny's explicit processing/upload failures. Other non-zero states
+ * (including the JIT pre-processing states) are still processing until a rendition exists.
+ * `storageSize` alone is deliberately not enough because a partial TUS object has bytes.
+ */
 export function classifyBunnyVideoUploadState(
   video: BunnyVideoUploadState,
-): "accepted" | "failed" | "incomplete" {
+): BunnyVideoReadiness {
   if (video.status === 5 || video.status === 6) return "failed";
-  if (video.status > 0 || video.hasOriginal) return "accepted";
+  if (video.availableResolutions?.trim()) return "playable";
+  if (video.status > 0 || video.hasOriginal) return "processing";
   return "incomplete";
+}
+
+/** Returns a Bunny video id only for a playback URL belonging to this deployment's CDN. */
+export function getBunnyVideoIdFromPlaybackUrl(url: string): string | null {
+  if (!isBunnyStreamConfigured()) return null;
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" || parsed.hostname !== cdnHostname()) return null;
+    const match = parsed.pathname.match(
+      /^\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/playlist\.m3u8$/i,
+    );
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Adaptive-bitrate HLS manifest - what actually gets played, via hls.js on browsers

@@ -27,6 +27,8 @@ type MockTusOptions = {
 };
 
 describe("direct video uploads", () => {
+  let fetchMock: jest.SpyInstance;
+
   beforeEach(() => {
     window.localStorage.clear();
     mockFindPreviousUploads.mockReset();
@@ -54,6 +56,21 @@ describe("direct video uploads", () => {
         options.onSuccess?.({});
       },
     }));
+    fetchMock = jest.spyOn(global, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          result: "playable",
+          status: 8,
+          availableResolutions: "240p,360p",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+  });
+
+  afterEach(() => {
+    fetchMock.mockRestore();
+    jest.useRealTimers();
   });
 
   it("reuses a saved Bunny authorization and resumes its acknowledged upload URL", async () => {
@@ -118,12 +135,34 @@ describe("direct video uploads", () => {
         });
       },
     }));
-    const fetchMock = jest.spyOn(global, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({ result: "accepted", status: 2 }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
+    fetchMock
+      .mockReset()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ result: "processing", status: 2 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            result: "playable",
+            status: 8,
+            availableResolutions: "240p",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            result: "playable",
+            status: 8,
+            availableResolutions: "240p",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
 
     await expect(uploadVideoDirect(file, "/api/upload/post-media")).resolves.toMatchObject({
       url: auth.playbackUrl,
@@ -134,7 +173,75 @@ describe("direct video uploads", () => {
       expect.objectContaining({ method: "POST" }),
     );
     expect(window.localStorage.getItem(cacheKey)).toBeNull();
-    fetchMock.mockRestore();
+  });
+
+  it("retries readiness without uploading a completed file again", async () => {
+    const file = new File([new Uint8Array(1_000)], "already-sent.mp4", {
+      type: "video/mp4",
+      lastModified: 321,
+    });
+    const auth = {
+      tusEndpoint: "https://video.bunnycdn.com/tusupload",
+      libraryId: "12345",
+      videoId: "completed-video-id",
+      authorizationSignature: "signed",
+      authorizationExpire: Math.floor(Date.now() / 1000) + 60 * 60,
+      contentType: "video/mp4",
+      playbackUrl: "https://videos.example.test/completed-video-id/playlist.m3u8",
+      uploadComplete: true,
+    };
+    const cacheKey = `udala:bunny-upload:v2:${encodeURIComponent(
+      [file.name, file.size, file.lastModified, file.type].join(":"),
+    )}`;
+    window.localStorage.setItem(cacheKey, JSON.stringify(auth));
+
+    await expect(uploadVideoDirect(file, "/api/upload/post-media")).resolves.toMatchObject({
+      url: auth.playbackUrl,
+    });
+
+    expect(mockUpload).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem(cacheKey)).toBeNull();
+  });
+
+  it("keeps a completed upload for a readiness-only retry when Bunny is still processing", async () => {
+    jest.useFakeTimers();
+    const file = new File([new Uint8Array(1_000)], "stuck.mp4", {
+      type: "video/mp4",
+      lastModified: 322,
+    });
+    const auth = {
+      tusEndpoint: "https://video.bunnycdn.com/tusupload",
+      libraryId: "12345",
+      videoId: "stuck-video-id",
+      authorizationSignature: "signed",
+      authorizationExpire: Math.floor(Date.now() / 1000) + 60 * 60,
+      contentType: "video/mp4",
+      playbackUrl: "https://videos.example.test/stuck-video-id/playlist.m3u8",
+      uploadComplete: true,
+    };
+    const cacheKey = `udala:bunny-upload:v2:${encodeURIComponent(
+      [file.name, file.size, file.lastModified, file.type].join(":"),
+    )}`;
+    window.localStorage.setItem(cacheKey, JSON.stringify(auth));
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ result: "processing", status: 7 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const upload = expect(
+      uploadVideoDirect(file, "/api/upload/post-media"),
+    ).rejects.toThrow(/upload complete.*still processing/i);
+    await jest.runAllTimersAsync();
+    await upload;
+
+    expect(mockUpload).not.toHaveBeenCalled();
+    expect(JSON.parse(window.localStorage.getItem(cacheKey) ?? "null")).toMatchObject({
+      videoId: auth.videoId,
+      uploadComplete: true,
+    });
   });
 
   it("switches network routes when the opening TUS handshake transfers no bytes", async () => {
@@ -214,7 +321,7 @@ describe("direct video uploads", () => {
         },
       ])
       .mockResolvedValueOnce([]);
-    const fetchMock = jest.spyOn(global, "fetch").mockResolvedValueOnce(
+    fetchMock.mockReset().mockResolvedValueOnce(
       new Response(JSON.stringify({ deleted: true }), { status: 200 }),
     );
 
@@ -226,6 +333,5 @@ describe("direct video uploads", () => {
       "/api/upload/bunny-abort",
       expect.objectContaining({ method: "POST", keepalive: true }),
     );
-    fetchMock.mockRestore();
   });
 });

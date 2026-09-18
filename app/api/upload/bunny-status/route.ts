@@ -39,6 +39,7 @@ export async function POST(req: Request) {
       status: video.status,
       storageSize: video.storageSize,
       encodeProgress: video.encodeProgress,
+      availableResolutions: video.availableResolutions,
     });
   } catch (error) {
     console.error("[upload/bunny-status] failed", error);

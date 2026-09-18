@@ -49,9 +49,9 @@ export type PreparedMediaReview = {
   /** Captured when review is confirmed so background processing and retries cannot
    * replace the creator's chosen frame with the composer's current/default frame. */
   displayAspectRatio: PostDisplayAspectRatio;
-  /** What the browser measured while framing the video. The video service reports its own
-   * dimensions and length only once it has encoded the file, which is deliberately not
-   * something anyone waits for, so these are what the post is built from. */
+  /** What the browser measured while framing the video. These remain the source of the
+   * creator's chosen layout while the upload waits only for its first playable rendition,
+   * not for every output resolution to finish. */
   videoMeta?: { width: number; height: number; durationSeconds: number };
 };
 
@@ -59,8 +59,8 @@ export type UploadedMedia = PostMediaItem & {
   metadataDetected: boolean;
   displayAspectRatio: PostDisplayAspectRatio;
   /** A blob URL for the file the creator already has on this device. The composer uses it
-   * immediately instead of waiting for Bunny's HLS playlist to appear after upload. It is
-   * never included in the post payload. */
+   * for an immediate local preview once the upload is ready. It is never included in the
+   * post payload. */
   previewUrl?: string;
   /** Releases the browser's reference to the potentially very large local video. */
   releasePreview?: () => void;
@@ -142,7 +142,7 @@ export function useUploadSession(): UploadSessionState {
 function describeVideoPhase(phase: VideoUploadPhase): string {
   if (phase === "reconnecting") return "Upload paused. Reconnecting...";
   if (phase === "retrying") return "Video service interrupted. Resuming...";
-  if (phase === "confirming") return "Upload complete";
+  if (phase === "confirming") return "Finishing video...";
   if (phase === "preparing") return "Preparing video...";
   return "Uploading video...";
 }

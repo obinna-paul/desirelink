@@ -71,8 +71,8 @@ export async function POST(req: Request) {
     const videoId = await createBunnyVideo(`post-${session.user.id}-${Date.now()}-${safeFileName}`);
     const auth = signBunnyUpload(videoId, body.fileSize);
     // The playback URL is a pure function of the video id, so it is known before a single
-    // byte moves. Handing it over now is what lets the composer finish the moment the
-    // upload does, instead of waiting on the encoder to answer for a URL we already have.
+    // byte moves. The client still waits for Bunny to expose a playable rendition before
+    // it completes the upload; knowing the URL early does not imply playback readiness.
     return NextResponse.json(
       { ...auth, contentType, playbackUrl: getBunnyPlaybackUrl(videoId) },
       { status: 200 },

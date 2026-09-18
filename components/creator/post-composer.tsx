@@ -627,44 +627,50 @@ export function PostComposer({
     setSubmitting(true);
     setError(null);
 
-    const res = await fetch("/api/posts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content: content.trim(),
-        mediaItems: mediaPayload,
-        isSubscriberOnly,
-        lockedPreviewMode: isSubscriberOnly ? lockedPreviewMode : "hidden",
-        tierId: isSubscriberOnly ? selectedTierId : undefined,
-        postType: "standard",
-      }),
-    });
+    try {
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: content.trim(),
+          mediaItems: mediaPayload,
+          isSubscriberOnly,
+          lockedPreviewMode: isSubscriberOnly ? lockedPreviewMode : "hidden",
+          tierId: isSubscriberOnly ? selectedTierId : undefined,
+          postType: "standard",
+        }),
+      });
 
-    setSubmitting(false);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error ?? "Couldn't publish post. Please try again.");
+        return;
+      }
 
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      setError(body?.error ?? "Couldn't publish post. Please try again.");
-      return;
+      const { post } = await res.json();
+      if (post) onCreated(post);
+      // The draft this session was holding media for is published, so nothing left in it
+      // belongs to the next one. The remote Bunny URL remains in the post; the local blob
+      // URL only existed to make this composer's preview immediate.
+      mediaItemsRef.current.forEach((item) => item.releasePreview?.());
+      resetUploadSession();
+      setContent("");
+      mediaItemsRef.current = [];
+      setMediaItems([]);
+      setActiveMediaIndex(0);
+      setPostMode("single");
+      setPostAccess("free");
+      setLockedPreviewMode("hidden");
+      setSelectedTierId(tiers.length === 1 ? tiers[0].id : null);
+      setPiiAcknowledged(false);
+      setPendingFindings([]);
+    } catch {
+      // A dropped publish request must not leave the composer permanently disabled. The
+      // uploaded media and local preview stay in the draft so the creator can retry.
+      setError("Couldn't publish post. Please check your connection and try again.");
+    } finally {
+      setSubmitting(false);
     }
-
-    const { post } = await res.json();
-    if (post) onCreated(post);
-    // The draft this session was holding media for is published, so nothing left in it
-    // belongs to the next one. The remote Bunny URL remains in the post; the local blob
-    // URL only existed to make this composer's preview immediate while Bunny prepared HLS.
-    mediaItemsRef.current.forEach((item) => item.releasePreview?.());
-    resetUploadSession();
-    setContent("");
-    mediaItemsRef.current = [];
-    setMediaItems([]);
-    setActiveMediaIndex(0);
-    setPostMode("single");
-    setPostAccess("free");
-    setLockedPreviewMode("hidden");
-    setSelectedTierId(tiers.length === 1 ? tiers[0].id : null);
-    setPiiAcknowledged(false);
-    setPendingFindings([]);
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -1028,7 +1034,7 @@ export function PostComposer({
           onClick={() => void retryFailedUpload()}
           className="h-11 flex-1 rounded-[8px] bg-foreground text-background hover:bg-foreground/90"
         >
-          Try upload again
+          Try again
         </Button>
         <Button
           type="button"
@@ -1046,7 +1052,7 @@ export function PostComposer({
     <>
       <form
         onSubmit={handleSubmit}
-        aria-busy={uploading}
+        aria-busy={uploading || submitting}
         className="overflow-hidden border-y border-border/80 bg-card md:rounded-[8px] md:border md:shadow-card"
       >
         {modeControls}

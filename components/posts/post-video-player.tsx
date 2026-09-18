@@ -99,11 +99,8 @@ export function PostVideoPlayer({
   const displayFraction = hasDuration ? Math.min(1, Math.max(0, displayTime / duration)) : 0;
   const isScrubBarActive = isScrubbing || isScrubBarHovering || isScrubBarFocused;
 
-  /**
-   * Waits out a video that exists but has not been encoded yet, rather than calling it
-   * broken. Posting no longer blocks on the encoder, so a clip opened moments after it was
-   * published is expected to arrive here first - it just needs another look shortly.
-   */
+  /** Waits out old posts and brief CDN propagation delays rather than calling a video
+   * broken immediately. New posts are also guarded server-side before publication. */
   const waitForProcessingVideo = useCallback(() => {
     if (processingTimerRef.current !== null) return;
     if (processingChecksRef.current >= MAX_PROCESSING_CHECKS) {
