@@ -37,6 +37,7 @@ const post: PostView = {
   mediaItems: [],
   postType: "standard",
   isSubscriberOnly: false,
+  lockedPreviewMode: "hidden",
   locked: false,
   lockReason: null,
   requiredTier: null,

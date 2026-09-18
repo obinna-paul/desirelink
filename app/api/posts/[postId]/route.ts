@@ -154,6 +154,25 @@ export async function PATCH(
   }
 
   const updateData: Prisma.PostUpdateInput = { content: parsed.data.content };
+  const existingMediaItems = toMediaItems(owned.post.mediaUrls);
+  const nextSubscriberOnly =
+    parsed.data.isSubscriberOnly ?? owned.post.isSubscriberOnly;
+  if (
+    existingMediaItems.length > 0 &&
+    (parsed.data.lockedPreviewMode !== undefined ||
+      parsed.data.isSubscriberOnly === false)
+  ) {
+    const lockedPreviewMode = nextSubscriberOnly
+      ? parsed.data.lockedPreviewMode ??
+        existingMediaItems.find((item) => item.lockedPreviewMode)
+          ?.lockedPreviewMode ??
+        "hidden"
+      : "hidden";
+    updateData.mediaUrls = existingMediaItems.map((item) => ({
+      ...item,
+      lockedPreviewMode,
+    }));
+  }
   if (parsed.data.isSubscriberOnly !== undefined) {
     updateData.isSubscriberOnly = parsed.data.isSubscriberOnly;
     const wasSubscriberOnly = owned.post.isSubscriberOnly;
@@ -161,7 +180,7 @@ export async function PATCH(
     if (!parsed.data.isSubscriberOnly) {
       // Hours-long video is premium-only (see lib/validations/post.ts). Unlocking a post
       // that carries one would put it in the public feed through the back door.
-      const longestVideo = toMediaItems(owned.post.mediaUrls)
+      const longestVideo = existingMediaItems
         .filter((item) => item.type === "video")
         .reduce((longest, item) => Math.max(longest, item.durationSeconds ?? 0), 0);
       if (longestVideo > MAX_VIDEO_DURATION_SECONDS + VIDEO_DURATION_TOLERANCE_SECONDS) {

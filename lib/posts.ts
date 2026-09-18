@@ -1,7 +1,12 @@
 import { Prisma, type ProfileType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { isPostDisplayAspectRatio, type PostMediaItem } from "@/lib/post-shared";
+import {
+  isLockedPreviewMode,
+  isPostDisplayAspectRatio,
+  type LockedPreviewMode,
+  type PostMediaItem,
+} from "@/lib/post-shared";
 import { getVideoPosterUrl } from "@/lib/video-playback";
 import { getLiveStreamIdsByProvider, getPresenceStatus, type PresenceStatus } from "@/lib/presence";
 import {
@@ -161,13 +166,15 @@ export type PostView = {
   mediaItems: PostMediaItem[];
   postType: "standard" | "live";
   isSubscriberOnly: boolean;
+  /** What a locked viewer may see. Legacy posts resolve to the privacy-first hidden mode. */
+  lockedPreviewMode: LockedPreviewMode;
   locked: boolean;
   lockReason: PostLockReason | null;
   /** The tier that unlocks this post, when locked - null for a free post, an unlocked
    * post, or a premium post with no tier assigned (any active subscription unlocks it). */
   requiredTier: RequiredTier | null;
   /** A heavily blurred still image safe to show someone who hasn't unlocked this post -
-   * see toLockedPreview. Null for an unlocked post, or a locked post with no media. */
+   * see toLockedPreview. Null unless the creator explicitly chose a blurred preview. */
   blurredPreview: LockedPostPreview | null;
   /** A subscribe pitch attached to this specific post - see PostSubscribePrompt. Only
    * ever set by getPublicFeedPosts on eligible free posts in the For You feed. */
@@ -215,6 +222,10 @@ export function toMediaItems(value: unknown): PostMediaItem[] {
         {
           url: item.url,
           type: item.type,
+          lockedPreviewMode:
+            "lockedPreviewMode" in item && isLockedPreviewMode(item.lockedPreviewMode)
+              ? item.lockedPreviewMode
+              : undefined,
           width: typeof item.width === "number" ? item.width : undefined,
           height: typeof item.height === "number" ? item.height : undefined,
           durationSeconds:
@@ -291,6 +302,13 @@ function toLockedPreview(media: PostMediaItem | undefined): LockedPostPreview | 
   }
 }
 
+export function getLockedPostPreview(
+  mediaItems: PostMediaItem[],
+  mode: LockedPreviewMode,
+): LockedPostPreview | null {
+  return mode === "blurred" ? toLockedPreview(mediaItems[0]) : null;
+}
+
 function toCommentView(comment: RawComment, liveStreamIds: Map<string, string>): PostCommentView {
   return {
     id: comment.id,
@@ -346,16 +364,23 @@ function toPostView(
   const lockReason: PostLockReason | null = post.isSubscriberOnly && !unlocked ? "subscriber_only" : null;
   const locked = lockReason !== null;
   const mediaItems = toMediaItems(post.mediaUrls);
+  // Existing posts predate this preference and therefore carry no media-level value.
+  // Privacy wins on ambiguity: absent or invalid values always mean fully hidden.
+  const lockedPreviewMode =
+    mediaItems.find((item) => item.lockedPreviewMode)?.lockedPreviewMode ?? "hidden";
 
   return {
     id: post.id,
     isSubscriberOnly: post.isSubscriberOnly,
+    lockedPreviewMode,
     postType: post.postType,
     createdAt: post.createdAt.toISOString(),
     locked,
     lockReason,
     requiredTier: locked ? requiredTier : null,
-    blurredPreview: locked ? toLockedPreview(mediaItems[0]) : null,
+    blurredPreview: locked
+      ? getLockedPostPreview(mediaItems, lockedPreviewMode)
+      : null,
     subscribePrompt: null,
     viewCount: post.viewCount,
     isPinned: post.pinnedAt !== null,

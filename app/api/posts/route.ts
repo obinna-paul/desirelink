@@ -79,7 +79,13 @@ export async function POST(req: Request) {
     );
   }
 
-  const { content, isSubscriberOnly, tierId, postType } = parsed.data;
+  const {
+    content,
+    isSubscriberOnly,
+    lockedPreviewMode,
+    tierId,
+    postType,
+  } = parsed.data;
   const canPostPremiumContent = isProviderProfileType(profile.profileType);
   if (isSubscriberOnly && !canPostPremiumContent) {
     return NextResponse.json(
@@ -125,6 +131,11 @@ export async function POST(req: Request) {
       url,
       type: "image" as const,
     }));
+  const storedMediaItems = mediaItems.map((item) => ({
+    ...item,
+    lockedPreviewMode:
+      canPostPremiumContent && isSubscriberOnly ? lockedPreviewMode : "hidden",
+  }));
 
   let post: {
     id: string;
@@ -139,7 +150,7 @@ export async function POST(req: Request) {
       data: {
         authorId: profile.id,
         content: content.trim(),
-        mediaUrls: mediaItems,
+        mediaUrls: storedMediaItems,
         postType,
         isSubscriberOnly: canPostPremiumContent ? isSubscriberOnly : false,
         tierId: canPostPremiumContent && isSubscriberOnly ? tierId : null,

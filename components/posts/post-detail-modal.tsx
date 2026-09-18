@@ -19,7 +19,7 @@ import { AccountTypeBadge } from "@/components/profile/account-type-badge";
 import type { ProfileType } from "@prisma/client";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { cn } from "@/lib/utils";
-import type { PostMediaItem } from "@/lib/post-shared";
+import type { LockedPreviewMode, PostMediaItem } from "@/lib/post-shared";
 
 /** Instagram-style desktop split view: media on the left, post header/caption/comments on the right. */
 export function PostDetailModal({
@@ -32,6 +32,7 @@ export function PostDetailModal({
   author,
   viewerCanManage,
   isSubscriberOnly,
+  lockedPreviewMode,
   isPinned,
   liked,
   reactionCount,
@@ -58,6 +59,7 @@ export function PostDetailModal({
   } & VerificationBadgeProfile;
   viewerCanManage: boolean;
   isSubscriberOnly: boolean;
+  lockedPreviewMode: LockedPreviewMode;
   isPinned: boolean;
   liked: boolean;
   reactionCount: number;
@@ -204,6 +206,7 @@ export function PostDetailModal({
                 postId={postId}
                 initialContent={caption ?? ""}
                 initialSubscriberOnly={isSubscriberOnly}
+                initialLockedPreviewMode={lockedPreviewMode}
                 isPinned={isPinned}
               />
             ) : (

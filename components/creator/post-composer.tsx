@@ -19,6 +19,7 @@ import { ProgressRing } from "@/components/ui/progress-ring";
 import { UploadProgress } from "@/components/ui/upload-progress";
 import { ImageCropDialog } from "@/components/creator/image-crop-dialog";
 import { HashtagTextarea } from "@/components/creator/hashtag-textarea";
+import { LockedPreviewPicker } from "@/components/creator/locked-preview-picker";
 import { TierPicker } from "@/components/creator/tier-picker";
 import { VideoFrameDialog } from "@/components/creator/video-frame-dialog";
 import { ProviderUpgradePrompt } from "@/components/settings/provider-upgrade-prompt";
@@ -30,6 +31,7 @@ import {
   POST_DISPLAY_RATIO_OPTIONS,
   isPostDisplayAspectRatio,
   type PostDisplayAspectRatio,
+  type LockedPreviewMode,
   type VideoCrop,
 } from "@/lib/post-shared";
 import type { PostView } from "@/lib/posts";
@@ -165,6 +167,8 @@ export function PostComposer({
   const mediaItemsRef = useRef<UploadedMedia[]>([]);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [postAccess, setPostAccess] = useState<PostAccess>("free");
+  const [lockedPreviewMode, setLockedPreviewMode] =
+    useState<LockedPreviewMode>("hidden");
   const [selectedTierId, setSelectedTierId] = useState<string | null>(
     tiers.length === 1 ? tiers[0].id : null,
   );
@@ -630,6 +634,7 @@ export function PostComposer({
         content: content.trim(),
         mediaItems: mediaPayload,
         isSubscriberOnly,
+        lockedPreviewMode: isSubscriberOnly ? lockedPreviewMode : "hidden",
         tierId: isSubscriberOnly ? selectedTierId : undefined,
         postType: "standard",
       }),
@@ -656,6 +661,7 @@ export function PostComposer({
     setActiveMediaIndex(0);
     setPostMode("single");
     setPostAccess("free");
+    setLockedPreviewMode("hidden");
     setSelectedTierId(tiers.length === 1 ? tiers[0].id : null);
     setPiiAcknowledged(false);
     setPendingFindings([]);
@@ -938,6 +944,14 @@ export function PostComposer({
           <p className="mt-1.5 text-xs text-muted-foreground">
             Subscribers to this tier or higher will see this post.
           </p>
+        </div>
+      )}
+      {postAccess === "premium" && (
+        <div className="mt-5 border-t border-border/70 pt-5">
+          <LockedPreviewPicker
+            value={lockedPreviewMode}
+            onChange={setLockedPreviewMode}
+          />
         </div>
       )}
     </fieldset>

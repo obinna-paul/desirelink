@@ -16,6 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { HashtagTextarea } from "@/components/creator/hashtag-textarea";
+import { LockedPreviewPicker } from "@/components/creator/locked-preview-picker";
+import type { LockedPreviewMode } from "@/lib/post-shared";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { cn } from "@/lib/utils";
 
@@ -25,11 +27,13 @@ export function PostOwnerControls({
   postId,
   initialContent,
   initialSubscriberOnly,
+  initialLockedPreviewMode,
   isPinned,
 }: {
   postId: string;
   initialContent: string;
   initialSubscriberOnly: boolean;
+  initialLockedPreviewMode: LockedPreviewMode;
   isPinned: boolean;
 }) {
   const router = useRouter();
@@ -41,6 +45,8 @@ export function PostOwnerControls({
   const [isSubscriberOnly, setIsSubscriberOnly] = useState(
     initialSubscriberOnly,
   );
+  const [lockedPreviewMode, setLockedPreviewMode] =
+    useState<LockedPreviewMode>(initialLockedPreviewMode);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -97,6 +103,7 @@ export function PostOwnerControls({
     setError(null);
     setContent(initialContent);
     setIsSubscriberOnly(initialSubscriberOnly);
+    setLockedPreviewMode(initialLockedPreviewMode);
     setEditOpen(true);
   }
 
@@ -184,6 +191,7 @@ export function PostOwnerControls({
         action: "edit",
         content: content.trim(),
         isSubscriberOnly,
+        lockedPreviewMode: isSubscriberOnly ? lockedPreviewMode : "hidden",
       }),
     });
     const body = await res.json().catch(() => null);
@@ -350,6 +358,12 @@ export function PostOwnerControls({
                   onCheckedChange={setIsSubscriberOnly}
                 />
               </label>
+              {isSubscriberOnly && (
+                <LockedPreviewPicker
+                  value={lockedPreviewMode}
+                  onChange={setLockedPreviewMode}
+                />
+              )}
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button
                 type="submit"

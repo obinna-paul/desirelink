@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  LOCKED_PREVIEW_MODES,
   MAX_POST_MEDIA_ITEMS,
   POST_DISPLAY_ASPECT_RATIOS,
   POST_MEDIA_TYPES,
@@ -49,6 +50,7 @@ export const createPostSchema = z
       )
       .optional(),
     isSubscriberOnly: z.boolean(),
+    lockedPreviewMode: z.enum(LOCKED_PREVIEW_MODES).default("hidden"),
     tierId: z.string().min(1).optional(),
     postType: z.enum(["standard", "live"]).default("standard"),
   })
@@ -99,6 +101,7 @@ export const updatePostSchema = z.discriminatedUnion("action", [
       .min(1, "Post can't be empty")
       .max(2000, "Posts must be 2000 characters or fewer"),
     isSubscriberOnly: z.boolean().optional(),
+    lockedPreviewMode: z.enum(LOCKED_PREVIEW_MODES).optional(),
     tierId: z.string().min(1).nullable().optional(),
   }),
   z.object({

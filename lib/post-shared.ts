@@ -4,6 +4,16 @@ export const MAX_POST_IMAGES = MAX_POST_MEDIA_ITEMS;
 export const POST_MEDIA_TYPES = ["image", "video"] as const;
 export type PostMediaType = (typeof POST_MEDIA_TYPES)[number];
 
+export const LOCKED_PREVIEW_MODES = ["hidden", "blurred"] as const;
+export type LockedPreviewMode = (typeof LOCKED_PREVIEW_MODES)[number];
+
+export function isLockedPreviewMode(value: unknown): value is LockedPreviewMode {
+  return (
+    typeof value === "string" &&
+    (LOCKED_PREVIEW_MODES as readonly string[]).includes(value)
+  );
+}
+
 /**
  * A video isn't re-encoded on upload, so it can't be pixel-cropped like an image is.
  * Instead the frame/adjust step records where the creator chose to pan and zoom within
@@ -19,6 +29,9 @@ export type VideoCrop = {
 export type PostMediaItem = {
   url: string;
   type: PostMediaType;
+  /** Stored with the media so this privacy preference can roll out without requiring a
+   * database migration. Legacy media has no value and is deliberately treated as hidden. */
+  lockedPreviewMode?: LockedPreviewMode;
   width?: number;
   height?: number;
   durationSeconds?: number;

@@ -316,6 +316,7 @@ export function PostCard({
               postId={post.id}
               initialContent={post.content ?? ""}
               initialSubscriberOnly={post.isSubscriberOnly}
+              initialLockedPreviewMode={post.lockedPreviewMode}
               isPinned={post.isPinned}
             />
           ) : (
@@ -389,6 +390,7 @@ export function PostCard({
             author={post.author}
             viewerCanManage={post.viewerCanManage}
             isSubscriberOnly={post.isSubscriberOnly}
+            lockedPreviewMode={post.lockedPreviewMode}
             isPinned={post.isPinned}
             liked={liked}
             reactionCount={reactionCount}
