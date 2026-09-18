@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 
+import { AdminVideoPlayer } from "@/components/admin/admin-video-player";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 
 export type LightboxMedia = { url: string; type: "image" | "video"; alt?: string } | null;
@@ -54,8 +55,7 @@ export function MediaLightbox({ media, onClose }: { media: LightboxMedia; onClos
         onClick={(event) => event.stopPropagation()}
       >
         {media.type === "video" ? (
-          // eslint-disable-next-line jsx-a11y/media-has-caption -- admin-only review tool, source has no captions to provide
-          <video src={media.url} controls autoPlay className="max-h-[90vh] max-w-full rounded-lg" />
+          <AdminVideoPlayer src={media.url} />
         ) : (
           // Plain <img>, not next/image - the viewport is unknown ahead of time (full available
           // screen space) and this is a one-off admin viewer, not a layout that benefits from

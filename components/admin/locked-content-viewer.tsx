@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Expand, Lock, ShieldAlert } from "lucide-react";
+import { Expand, Lock, Play, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { MediaLightbox, type LightboxMedia } from "@/components/admin/media-lightbox";
+import { getVideoPosterUrl, isHlsVideoSource } from "@/lib/video-playback";
 
 /** Kept local rather than imported from lib/admin/content.ts (server-only) - see the same
  * pattern/reasoning in account-record.tsx. */
@@ -74,13 +75,26 @@ export function LockedContentViewer({
                 aria-label={`View full size ${item.type}`}
                 className="group relative aspect-square w-full overflow-hidden rounded-lg bg-secondary"
               >
-                {item.type === "video" ? (
+                {item.type === "video" && isHlsVideoSource(item.url) ? (
+                  <Image
+                    src={getVideoPosterUrl(item.url) ?? item.url}
+                    alt=""
+                    fill
+                    unoptimized
+                    sizes="200px"
+                    className="object-cover"
+                  />
+                ) : item.type === "video" ? (
                   <video src={item.url} className="h-full w-full object-cover" muted playsInline />
                 ) : (
                   <Image src={item.url} alt="" fill sizes="200px" className="object-cover" />
                 )}
                 <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
-                  <Expand className="h-5 w-5 text-white" aria-hidden="true" />
+                  {item.type === "video" ? (
+                    <Play className="h-6 w-6 fill-white text-white" aria-hidden="true" />
+                  ) : (
+                    <Expand className="h-5 w-5 text-white" aria-hidden="true" />
+                  )}
                 </span>
               </button>
             ))}
