@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 jest.mock("@/components/layout/public-header", () => ({ PublicHeader: () => null }));
 jest.mock("@/components/spec-test/age-badge", () => ({ AgeBadge: () => null }));
@@ -18,5 +18,10 @@ describe("Spec Test landing page", () => {
     expect(script).not.toBeNull();
     const jsonLd = JSON.parse(script!.innerHTML) as { name: string };
     expect(jsonLd.name).toBe("The Spec Test | Udala");
+  });
+
+  it("advertises the official 28-question test", () => {
+    render(<SpecTestLandingPage />);
+    expect(screen.getByText(/answer 28 carefully designed questions/i)).toBeInTheDocument();
   });
 });

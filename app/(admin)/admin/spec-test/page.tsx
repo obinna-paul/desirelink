@@ -17,7 +17,7 @@ import {
   getSpecTestPilotAnalytics,
   reviewSpecTestPilot,
   SPEC_TYPE_READINGS,
-  INSTRUMENT_VERSION,
+  V3_INSTRUMENT_VERSION,
 } from "@/lib/spec-test";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -27,8 +27,8 @@ const GENDER_LABELS: Record<string, string> = { male: "Man", female: "Woman" };
 const CONFIDENCE_BADGE_LABELS: Record<string, string> = { clear: "Clear", blend: "Blend", split: "Split" };
 
 const FORM_LABELS: Record<"male_user" | "female_user", string> = {
-  male_user: "Woman takers (male_user)",
-  female_user: "Man takers (female_user)",
+  male_user: "Man takers · shown women",
+  female_user: "Woman takers · shown men",
 };
 
 export const dynamic = "force-dynamic";
@@ -72,12 +72,12 @@ export default async function AdminSpecTestLeadsPage({
   ] = await Promise.all([
     getSpecTestLeads({ take: 50, cursor: searchParams?.cursor }),
     getSpecTestProfileResults({ take: 50, cursor: searchParams?.resultsCursor }),
-    getSpecTestTypeDistribution(INSTRUMENT_VERSION),
-    getSpecTestConfidenceMix(INSTRUMENT_VERSION),
-    getSpecTestDataSplitCounts(INSTRUMENT_VERSION),
-    getSpecTestItemAnalytics(INSTRUMENT_VERSION),
-    getSpecTestConfidenceMixByForm(INSTRUMENT_VERSION),
-    getSpecTestTypeDistributionByForm(INSTRUMENT_VERSION),
+    getSpecTestTypeDistribution(V3_INSTRUMENT_VERSION),
+    getSpecTestConfidenceMix(V3_INSTRUMENT_VERSION),
+    getSpecTestDataSplitCounts(V3_INSTRUMENT_VERSION),
+    getSpecTestItemAnalytics(V3_INSTRUMENT_VERSION),
+    getSpecTestConfidenceMixByForm(V3_INSTRUMENT_VERSION),
+    getSpecTestTypeDistributionByForm(V3_INSTRUMENT_VERSION),
     getSpecTestPilotAnalytics(),
   ]);
   const pilotReview = reviewSpecTestPilot(pilotAnalytics);
@@ -354,7 +354,7 @@ export default async function AdminSpecTestLeadsPage({
           <div>
             <h2 className="text-sm font-semibold text-foreground">
               Type distribution{" "}
-              <span className="font-normal text-muted-foreground">({INSTRUMENT_VERSION})</span>
+              <span className="font-normal text-muted-foreground">({V3_INSTRUMENT_VERSION})</span>
             </h2>
             <p className="mt-1 text-[11px] text-muted-foreground/70">
               Current instrument only; legacy versions are intentionally excluded.
@@ -376,7 +376,7 @@ export default async function AdminSpecTestLeadsPage({
 
         <section className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
           <h2 className="text-sm font-semibold text-foreground">
-            Confidence mix <span className="font-normal text-muted-foreground">({INSTRUMENT_VERSION})</span>
+            Confidence mix <span className="font-normal text-muted-foreground">({V3_INSTRUMENT_VERSION})</span>
           </h2>
           {confidenceMix.totalAttempts === 0 ? (
             <p className="text-xs text-muted-foreground">No v2 submit attempts yet.</p>
@@ -423,7 +423,7 @@ export default async function AdminSpecTestLeadsPage({
       <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
-            By form <span className="font-normal text-muted-foreground">({INSTRUMENT_VERSION})</span>
+            By form <span className="font-normal text-muted-foreground">({V3_INSTRUMENT_VERSION})</span>
           </h2>
           <p className="mt-1 text-[11px] text-muted-foreground/70">
             Gender only ever changes which pronouns the questions use (Spec Test gender
@@ -483,11 +483,11 @@ export default async function AdminSpecTestLeadsPage({
 
       <div>
         <h2 className="mb-2 text-sm font-semibold text-foreground">
-          Item analytics <span className="font-normal text-muted-foreground">({INSTRUMENT_VERSION})</span>
+          Item analytics <span className="font-normal text-muted-foreground">({V3_INSTRUMENT_VERSION})</span>
         </h2>
         {itemAnalytics.every((row) => row.answeredCount === 0 && row.skippedCount === 0) ? (
           <div className="rounded-2xl border border-dashed border-border/60 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm md:rounded-xl md:bg-transparent md:shadow-none">
-            No v2 responses yet.
+            No official v3 responses yet.
           </div>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-border/60 bg-card shadow-sm">

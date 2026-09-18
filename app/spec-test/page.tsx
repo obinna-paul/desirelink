@@ -14,7 +14,7 @@ import { SITE_NAME, absoluteUrl } from "@/lib/site-config";
 // "The Spec Test | Udala | Udala" before this was split out).
 const PAGE_TITLE = "The Spec Test";
 const PAGE_DESCRIPTION =
-  "You have a type, even if you can't describe it. Answer 24 carefully designed questions to uncover the traits, energy and little behaviours you're naturally drawn to.";
+  "You have a type, even if you can't describe it. Answer 28 carefully designed questions to uncover the traits, energy and little behaviours you're naturally drawn to.";
 
 export const metadata: Metadata = publicPageMetadata({
   title: PAGE_TITLE,
@@ -83,7 +83,7 @@ export default function SpecTestLandingPage() {
           className="mt-[clamp(0.75rem,2.6dvh,1.2rem)] px-[1.35rem] text-center text-[clamp(0.8rem,1.9dvh,0.9rem)] leading-snug text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500"
           style={{ animationDelay: "200ms" }}
         >
-          Answer 24 carefully designed questions to uncover the traits, energy and little
+          Answer 28 carefully designed questions to uncover the traits, energy and little
           behaviours you&apos;re naturally drawn to&mdash;and what they reveal about you.
         </p>
 
@@ -105,10 +105,7 @@ export default function SpecTestLandingPage() {
           className="mt-[clamp(0.6rem,2.1dvh,1rem)] text-center text-[clamp(0.7rem,1.6dvh,0.75rem)] text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
           style={{ animationDelay: "320ms" }}
         >
-          {/* Estimate, not yet measured against real completion times - see
-              docs/spec-test-v2-implementation-plan.md open decision D-5. Revisit once Phase 7
-              analytics show the real median for the 24-item v2 instrument. */}
-          Free &middot; Private &middot; About 5 minutes
+          Free &middot; Private &middot; About 6 minutes
         </p>
 
         <div className="mt-[clamp(1rem,3.5dvh,1.6rem)] border-t border-border/60 pt-[clamp(0.5rem,2.2dvh,1rem)] text-center">

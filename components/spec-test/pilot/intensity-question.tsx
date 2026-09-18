@@ -1,6 +1,8 @@
 "use client";
 
-import type { IntensityItemV3 } from "@/lib/spec-test/items/spec-v3-pilot";
+import type { IntensityItemV3 } from "@/lib/spec-test/items/spec-v3";
+import { renderTerms } from "@/lib/spec-test/gender/render";
+import type { RenderForm } from "@/lib/spec-test/gender/terms";
 import { cn } from "@/lib/utils";
 
 type IntensityQuestionProps = {
@@ -8,16 +10,17 @@ type IntensityQuestionProps = {
   value: number | null;
   onChange: (rating: 1 | 2 | 3 | 4 | 5 | 6 | 7) => void;
   disabled?: boolean;
+  form?: RenderForm;
 };
 
 const RATINGS = [1, 2, 3, 4, 5, 6, 7] as const;
 
-export function IntensityQuestion({ item, value, onChange, disabled = false }: IntensityQuestionProps) {
+export function IntensityQuestion({ item, value, onChange, disabled = false, form = "neutral" }: IntensityQuestionProps) {
   return (
     <fieldset className="flex min-w-0 flex-col gap-5" disabled={disabled}>
-      <legend className="font-heading text-xl font-bold sm:text-2xl">{item.prompt}</legend>
+      <legend className="font-heading text-xl font-bold sm:text-2xl">{renderTerms(item.prompt, form)}</legend>
       <p className="text-sm leading-6 text-muted-foreground">
-        Choose the point that best reflects attraction—not whether the quality is generally good.
+        No right answer. How strong is the pull?
       </p>
       <div className="grid grid-cols-7 gap-2" aria-label="Attraction intensity from 1 to 7">
         {RATINGS.map((rating) => (
@@ -46,8 +49,8 @@ export function IntensityQuestion({ item, value, onChange, disabled = false }: I
         ))}
       </div>
       <div className="flex justify-between gap-4 text-xs font-medium text-muted-foreground">
-        <span>{item.lowLabel}</span>
-        <span className="text-right">{item.highLabel}</span>
+        <span>{renderTerms(item.lowLabel, form)}</span>
+        <span className="text-right">{renderTerms(item.highLabel, form)}</span>
       </div>
     </fieldset>
   );

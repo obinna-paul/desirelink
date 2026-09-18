@@ -7,11 +7,14 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveSpecType, scoreSpecTestAnswers, specTestQuestionIds, type SpecTestAnswers } from "@/lib/spec-test";
 import { itemBankForVersion } from "@/lib/spec-test/items";
+import { SPEC_TEST_ITEMS_V3, V3_INSTRUMENT_VERSION } from "@/lib/spec-test/items/spec-v3";
 import { decideSpecTestResultForVersion } from "@/lib/spec-test/scoring/decide";
+import { decideSpecTestResultV3 } from "@/lib/spec-test/scoring/v3";
+import { validateV3PilotResponses } from "@/lib/spec-test/scoring/pilot-v3";
 import { evaluatePatternFlags } from "@/lib/spec-test/interpretation/pattern-flags";
 import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
 import { GENDERS, routeForm } from "@/lib/spec-test/gender/forms";
-import type { SpecTestResponseV2 } from "@/lib/spec-test/response";
+import type { SpecTestResponseV2, SpecTestResponseV3 } from "@/lib/spec-test/response";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { getClientIp, readJson } from "@/lib/security/request";
 import { setSpecTestResultCookie } from "@/lib/spec-test/claim-cookie";
@@ -123,6 +126,111 @@ const v2PayloadSchema = z.object({
   responses: z.array(v2ResponseSchema),
   contextAnswers: z.record(z.unknown()).optional(),
 });
+
+const v3ElapsedMs = z.number().finite().min(0).max(24 * 60 * 60 * 1_000);
+const v3PresentedIndex = z.number().int().min(0).max(3).nullable();
+const v3ResponseSchema = z.discriminatedUnion("kind", [
+  z.object({
+    itemId: z.string().min(1),
+    kind: z.literal("best_worst"),
+    bestOptionId: z.string().min(1).nullable(),
+    worstOptionId: z.string().min(1).nullable(),
+    bestPresentedIndex: v3PresentedIndex,
+    worstPresentedIndex: v3PresentedIndex,
+    elapsedMs: v3ElapsedMs,
+    skipped: z.boolean().optional(),
+  }),
+  z.object({
+    itemId: z.string().min(1),
+    kind: z.literal("intensity"),
+    rating: z.number().int().min(1).max(7).nullable(),
+    elapsedMs: v3ElapsedMs,
+    skipped: z.boolean().optional(),
+  }),
+  z.object({
+    itemId: z.string().min(1),
+    kind: z.literal("single_choice"),
+    optionId: z.string().min(1).nullable(),
+    presentedIndex: v3PresentedIndex,
+    elapsedMs: v3ElapsedMs,
+    skipped: z.boolean().optional(),
+  }),
+]);
+
+const v3PayloadSchema = z.object({
+  instrumentVersion: z.literal(V3_INSTRUMENT_VERSION),
+  gender: z.enum(GENDERS),
+  responses: z.array(v3ResponseSchema),
+});
+
+async function submitV3(
+  payload: z.infer<typeof v3PayloadSchema>,
+  viewerProfileId: string | null,
+): Promise<NextResponse> {
+  if (viewerProfileId) {
+    const cooldown = await getActiveRetakeCooldown(viewerProfileId, V3_INSTRUMENT_VERSION);
+    if (cooldown) {
+      return NextResponse.json(
+        {
+          error: `You can retake the Spec Test on ${cooldown.nextEligibleAt.toLocaleDateString("en-US", { month: "long", day: "numeric" })}.`,
+          nextEligibleAt: cooldown.nextEligibleAt.toISOString(),
+          resultId: cooldown.resultId,
+        },
+        { status: 429 },
+      );
+    }
+  }
+
+  const responses = payload.responses as SpecTestResponseV3[];
+  if (
+    responses.length !== SPEC_TEST_ITEMS_V3.length ||
+    validateV3PilotResponses(SPEC_TEST_ITEMS_V3, responses, { requireComplete: true }).length > 0
+  ) {
+    return NextResponse.json({ error: "Answer set does not match this version of the quiz." }, { status: 400 });
+  }
+
+  const routing = routeForm(payload.gender);
+  const decision = decideSpecTestResultV3(SPEC_TEST_ITEMS_V3, responses);
+  if (decision.confidence === "low_signal") {
+    await bumpInstrumentStat(V3_INSTRUMENT_VERSION, "lowSignalCount");
+    await bumpFormStat(V3_INSTRUMENT_VERSION, routing.quizForm, "lowSignalCount");
+    return NextResponse.json({ lowSignal: true, flags: decision.qualityFlags }, { status: 200 });
+  }
+
+  const result = await prisma.specTestResult.create({
+    data: {
+      specType: decision.primarySpec,
+      instrumentVersion: V3_INSTRUMENT_VERSION,
+      scores: decision.probabilities,
+      answers: responses as Prisma.InputJsonValue,
+      secondarySpec: decision.secondarySpec,
+      motiveScores: { motives: decision.motiveScores, facets: decision.motiveFacets },
+      lenses: decision.lenses,
+      attachment: decision.attachment === null ? Prisma.JsonNull : decision.attachment,
+      sparkSpec: decision.sparkPrimarySpec,
+      partnershipSpec: decision.partnershipPrimarySpec,
+      patternFlags: evaluatePatternFlags({
+        motiveScores: decision.motiveScores,
+        lenses: decision.lenses,
+        attachment: decision.attachment,
+      }).map((flag) => flag.id),
+      resultConfidence: decision.confidence,
+      responseQuality: decision.quality,
+      dataSplit: "development",
+      gender: payload.gender,
+      routingRule: routing.routingRule,
+      assumedAttractionTarget: routing.assumedAttractionTarget,
+      quizForm: routing.quizForm,
+      profileId: viewerProfileId,
+    },
+    select: { id: true },
+  });
+
+  if (!viewerProfileId) setSpecTestResultCookie(result.id);
+  await bumpInstrumentStat(V3_INSTRUMENT_VERSION, "submittedCount");
+  await bumpFormStat(V3_INSTRUMENT_VERSION, routing.quizForm, "submittedCount");
+  return NextResponse.json({ resultId: result.id, confidence: decision.confidence }, { status: 201 });
+}
 
 async function submitV2(payload: z.infer<typeof v2PayloadSchema>, viewerProfileId: string | null): Promise<NextResponse> {
   const bank = itemBankForVersion(payload.instrumentVersion);
@@ -276,15 +384,27 @@ export async function POST(req: Request) {
       return await submitLegacy(answers);
     }
 
-    const parsed = v2PayloadSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: GENERIC_V2_ERROR }, { status: 400 });
-    }
-
     const session = await getServerSession(authOptions);
     const viewerProfile = session?.user?.id
       ? await prisma.profile.findUnique({ where: { userId: session.user.id }, select: { id: true } })
       : null;
+
+    if (
+      body &&
+      typeof body === "object" &&
+      (body as Record<string, unknown>).instrumentVersion === V3_INSTRUMENT_VERSION
+    ) {
+      const parsedV3 = v3PayloadSchema.safeParse(body);
+      if (!parsedV3.success) {
+        return NextResponse.json({ error: "Answer set does not match this version of the quiz." }, { status: 400 });
+      }
+      return await submitV3(parsedV3.data, viewerProfile?.id ?? null);
+    }
+
+    const parsed = v2PayloadSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: GENERIC_V2_ERROR }, { status: 400 });
+    }
 
     return await submitV2(parsed.data, viewerProfile?.id ?? null);
   } catch (error) {

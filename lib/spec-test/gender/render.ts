@@ -22,7 +22,7 @@ function capitalize(value: string): string {
  * before it ships - and degrades to the bare word with its braces stripped in production,
  * so a taker never sees a literal "{token}" on the page.
  */
-export function renderTerms(template: string, form: RenderForm): string {
+export function renderTerms(template: string, form: RenderForm, environment = process.env.NODE_ENV): string {
   const table = TERM_TABLES[form];
 
   return template.replace(TOKEN_PATTERN, (_match, rawToken: string) => {
@@ -30,7 +30,7 @@ export function renderTerms(template: string, form: RenderForm): string {
     const key = (rawToken.charAt(0).toLowerCase() + rawToken.slice(1)) as TokenKey;
 
     if (!isKnownToken(key)) {
-      if (process.env.NODE_ENV !== "production") {
+      if (environment !== "production") {
         throw new Error(`renderTerms: unknown token "{${rawToken}}" (form: ${form})`);
       }
       return rawToken;

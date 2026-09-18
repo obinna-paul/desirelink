@@ -4,6 +4,48 @@ Every change to the v2 item bank, loadings, centroids, or scoring constants gets
 here, per docs/spec-test-v2-implementation-plan.md §14. This is what makes a post-pilot
 refit (plan §12) a diff against a documented history instead of an archaeology exercise.
 
+## spec-v3.0 — Official 28-question replacement
+
+Promoted the 28-item design into the public Spec Test after direct comprehension feedback.
+The old 24-item interface remains readable only for historical result compatibility; all new
+public submissions use `spec-v3.0`. The former `/spec-test/pilot` URL redirects to the main
+quiz, while historical anonymous pilot records remain untouched.
+
+**Question experience.** The instrument keeps the balanced 16 best–worst blocks, eight
+independent seven-point intensity anchors, and four uncertainty scenarios, but rewrites every
+prompt and option in shorter, conversational language. Situations use familiar Nigerian
+social context where it improves clarity (weddings, house parties, gist, plans scattering)
+without making slang knowledge a requirement. Comparative controls are labelled “My type”
+and “Not really” instead of research terminology.
+
+**Gender presentation.** A required first step asks whether the taker is a woman or man.
+Under the existing `heterosexual_v0_1` product rule, a man sees woman/she wording and a woman
+sees man/he wording. The server derives the form and assumed target; clients cannot submit a
+form directly. Gender changes presentation only and never enters scoring.
+
+**Archetype decision.** Each of the eight balanced attraction dimensions maps transparently
+to one public archetype. The strongest measured dimension is primary and the next strongest
+is secondary: warmth→Soft Landing, reliability→Grounded Equal, vitality→Electric Charmer,
+agency→Ambitious Icon, cognitive play→Brilliant Tease, novelty→Free Spirit, contained depth
+→Quiet Fire, and aesthetic selectivity→Beautiful Mystery. This one-to-one mapping removes
+the prior centroid-scale bias and makes every archetype reachable from valid answers.
+
+**Result detail.** Official v3 submissions populate the existing rich result model—primary
+and secondary archetypes, motives/facets, lenses, ordinary-language uncertainty response,
+pattern flags, gender-routed copy, and the original archetype portrait system. Because this
+instrument does not independently measure a durable Partnership type, it does not manufacture
+a Spark/Partnership split; the primary pattern fills both compatibility fields.
+
+**Quality limits.** More than three skips, five or more answered items below 650ms, or a
+profile spread below 0.12 withholds the branded result and offers a retake. A result is clear
+only when the top-two score gap is at least 0.18 and total profile spread is at least 0.35;
+otherwise it is shown as a blend. These thresholds remain engineering safeguards, not
+population-calibrated cut points.
+
+**Claim boundary.** This is the official product experience, but remains a playful,
+research-informed beta rather than a clinically validated psychological assessment. The
+public landing and result disclaimer retain that distinction.
+
 ## spec-v2.0 — Phase 1 (instrument core)
 
 Initial build of the v2 scoring engine. Nothing in this version has been shown to a real

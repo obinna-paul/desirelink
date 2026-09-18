@@ -5,6 +5,7 @@ jest.mock("@/lib/prisma", () => ({
 }));
 jest.mock("@/lib/username", () => ({ isUsernameAvailable: jest.fn().mockResolvedValue(true) }));
 jest.mock("@/lib/email/notifications", () => ({ sendSignupOtpEmail: jest.fn().mockResolvedValue(true) }));
+jest.mock("@/lib/turnstile", () => ({ isTurnstileConfigured: jest.fn().mockReturnValue(false), verifyTurnstileToken: jest.fn() }));
 jest.mock("@/lib/spec-test", () => ({
   linkSpecTestResultToProfile: jest.fn().mockResolvedValue(undefined),
   claimSpecTestResultById: jest.fn().mockResolvedValue(undefined),

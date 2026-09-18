@@ -1,379 +1,326 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, Loader2 } from "lucide-react";
+import { ArrowRight, ChevronLeft, Loader2 } from "lucide-react";
 
+import { BestWorstQuestion, type BestWorstSelection } from "@/components/spec-test/pilot/best-worst-question";
+import { IntensityQuestion } from "@/components/spec-test/pilot/intensity-question";
+import { SingleChoiceQuestion } from "@/components/spec-test/pilot/single-choice-question";
 import { Button } from "@/components/ui/button";
 import { ProgressRing } from "@/components/ui/progress-ring";
-import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
-import { INSTRUMENT_VERSION, type SectionKey } from "@/lib/spec-test/taxonomy";
 import { routeForm, type Gender } from "@/lib/spec-test/gender/forms";
-import { renderTerms } from "@/lib/spec-test/gender/render";
 import type { RenderForm } from "@/lib/spec-test/gender/terms";
-import type { SpecTestResponseV2 } from "@/lib/spec-test/response";
-import { cn } from "@/lib/utils";
+import { SPEC_TEST_ITEMS_V3, V3_INSTRUMENT_VERSION, type SpecItemV3 } from "@/lib/spec-test/items/spec-v3";
+import type { SpecTestResponseV3 } from "@/lib/spec-test/response";
 
-/**
- * Anonymous, single-page quiz wizard for the v2.1 instrument
- * (docs/spec-test-research.md, docs/spec-test-v2-implementation-plan.md Phase 3,
- * docs/spec-test-gender-implementation-plan.md Phase G4): a one-question gender step, three
- * sectioned batches of scenario items (each with a one-line intro, rendered for the chosen
- * gender's form), then a submit to the server (which does the actual scoring - see
- * lib/spec-test/scoring/) and a redirect to the shareable result page. A low-signal server
- * response (too fast, too straight-lined, or too many skips) surfaces an honest retake prompt
- * instead of a result.
- *
- * The gender step's scope notice and "doesn't affect your result" explainer were both removed
- * on direct request, in favor of just the bare question and its two options - kept minimal.
- *
- * There is no separate age-gate click-through screen: the "18+" badge is shown on every
- * Spec Test page (see AgeBadge), and the platform's actual binding age confirmation happens
- * at account signup (components/auth/auth-shell.tsx) - an anonymous quiz taker who never
- * signs up was never bound by that confirmation anyway, so a second click-through here was
- * redundant friction rather than a real additional safeguard. Removed on direct request.
- *
- * The two optional context questions from Phase 3 are removed per the gender plan's DG-2
- * (docs/spec-test-gender-report.md §Exec: "no relationship-status or relationship-intent
- * question").
- *
- * The submit route (app/api/spec-test/submit/route.ts) also still accepts the old v1
- * `{ answers }` shape as a compatibility safety net, but this component only ever sends the
- * v2 `{ instrumentVersion, gender, responses }` shape - see that route's file comment for why
- * the legacy branch is being kept rather than deleted outright.
- */
+const DRAFT_STORAGE_KEY = "spec-test-draft-v3";
+const TOTAL_ITEMS = SPEC_TEST_ITEMS_V3.length;
+const PHASE_STARTS = new Set([0, 16, 24]);
 
-const SELECT_HOLD_MS = 380;
-const EXIT_MS = 200;
-const DRAFT_STORAGE_KEY = "spec-test-draft-v2";
-const TOTAL_ITEMS = SPEC_TEST_ITEMS_V2.length;
-
-const SECTION_ORDER: SectionKey[] = ["spark", "pattern", "partnership"];
-
-const SECTION_INTRO_COPY: Record<SectionKey, { title: string; body: string }> = {
-  spark: {
-    title: "First, some snap reactions.",
-    body: "Go with your gut here - there are no good answers, only revealing ones.",
+const PHASE_COPY: Record<number, { eyebrow: string; title: string; body: string }> = {
+  0: {
+    eyebrow: "Part 1 of 3",
+    title: "First: what catches your eye?",
+    body: "No overthinking. Pick the answer that pulls you in, then the one that does the least for you.",
   },
-  pattern: {
-    title: "Now, how you actually behave.",
-    body: "Once someone's caught your interest, what do you actually do about it?",
+  16: {
+    eyebrow: "Part 2 of 3",
+    title: "Quick gut check",
+    body: "Tell us how strongly each quality pulls you in. Your first reaction is enough.",
   },
-  partnership: {
-    title: "Last stretch.",
-    body: "What do you actually need for it to last, once the spark isn't doing all the work?",
+  24: {
+    eyebrow: "Part 3 of 3",
+    title: "Last four",
+    body: "A few real-life moments. Choose what you would naturally do first.",
   },
 };
 
-/** Shown as "Woman"/"Man" (matching the platform's own profile vocabulary - plan §8 DG-5)
- *  while the stored/submitted value stays "female"/"male" (matching the report's data model). */
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [
-  { value: "female", label: "Woman" },
-  { value: "male", label: "Man" },
+  { value: "female", label: "I’m a woman" },
+  { value: "male", label: "I’m a man" },
 ];
 
-type Step = "gender" | "section-intro" | "question" | "submitting" | "low-signal";
+type Step = "gender" | "phase-intro" | "question" | "submitting" | "low-signal";
 
-type DraftShape = {
-  instrumentVersion: string;
+type Draft = {
+  instrumentVersion: typeof V3_INSTRUMENT_VERSION;
   gender: Gender | null;
-  itemIndex: number;
-  responses: Record<string, SpecTestResponseV2>;
+  responses: Record<string, SpecTestResponseV3>;
   optionOrders: Record<string, number[]>;
 };
 
-function emptyDraft(): DraftShape {
-  return {
-    instrumentVersion: INSTRUMENT_VERSION,
-    gender: null,
-    itemIndex: 0,
-    responses: {},
-    optionOrders: {},
-  };
+type WorkingAnswer =
+  | { kind: "best_worst"; selection: BestWorstSelection }
+  | { kind: "intensity"; rating: 1 | 2 | 3 | 4 | 5 | 6 | 7 | null }
+  | { kind: "single_choice"; optionId: string | null };
+
+function emptyDraft(): Draft {
+  return { instrumentVersion: V3_INSTRUMENT_VERSION, gender: null, responses: {}, optionOrders: {} };
 }
 
-function loadDraft(): DraftShape {
+function loadDraft(): Draft {
   if (typeof window === "undefined") return emptyDraft();
   try {
-    const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY);
-    if (!raw) return emptyDraft();
-    const parsed = JSON.parse(raw) as DraftShape;
-    if (parsed.instrumentVersion !== INSTRUMENT_VERSION) return emptyDraft();
-    return parsed;
+    const parsed = JSON.parse(window.localStorage.getItem(DRAFT_STORAGE_KEY) ?? "null") as Draft | null;
+    if (!parsed || parsed.instrumentVersion !== V3_INSTRUMENT_VERSION) return emptyDraft();
+    return { ...emptyDraft(), ...parsed };
   } catch {
     return emptyDraft();
   }
 }
 
-function saveDraft(draft: DraftShape) {
-  if (typeof window === "undefined") return;
+function saveDraft(draft: Draft) {
   try {
     window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
   } catch {
-    // best-effort only - a private window or full storage should never block the quiz
+    // A blocked or full local store should never stop the test.
   }
 }
 
 function clearDraft() {
-  if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(DRAFT_STORAGE_KEY);
   } catch {
-    // ignore
+    // Best effort only.
   }
 }
 
-/** Fisher-Yates over the four canonical option positions, so which option lands where on
- *  screen varies per taker (report §5: "Randomize answer order when technically feasible,
- *  while preserving analytics") - the submitted optionId always identifies the option
- *  itself, never its on-screen position. */
-function shuffledCanonicalIndexes(): number[] {
+function shuffledIndexes(): number[] {
   const indexes = [0, 1, 2, 3];
-  for (let i = indexes.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [indexes[i], indexes[j]] = [indexes[j], indexes[i]];
+  for (let index = indexes.length - 1; index > 0; index -= 1) {
+    const other = Math.floor(Math.random() * (index + 1));
+    [indexes[index], indexes[other]] = [indexes[other], indexes[index]];
   }
   return indexes;
 }
 
-/** The stored `itemIndex` only advances after the post-select hold timer finishes (see
- *  `selectOption`) - if a taker answers an item and then closes the tab inside that ~380ms
- *  window, the draft persists with the response recorded but `itemIndex` still pointing at
- *  the now-answered item. Trusting that stale index on resume would re-show a question that
- *  already has an answer and, worse, skip its section-intro entirely (since intros are only
- *  marked "shown" on the normal forward transition) - the intro would then wrongly surface
- *  after the *next* item instead of before this one. Deriving resume position from which
- *  items already have a recorded response, instead of the stored index, sidesteps the whole
- *  class of index/response desync - it also matches "if they've already provided any answer,
- *  assume from that point" (the resume behavior already agreed on for this flow). */
-function resumeItemIndex(draft: DraftShape): number {
-  const firstUnanswered = SPEC_TEST_ITEMS_V2.findIndex((item) => !draft.responses[item.id]);
-  return firstUnanswered === -1 ? TOTAL_ITEMS : firstUnanswered;
+function firstUnansweredIndex(responses: Record<string, SpecTestResponseV3>): number {
+  const index = SPEC_TEST_ITEMS_V3.findIndex((item) => !responses[item.id]);
+  return index === -1 ? TOTAL_ITEMS : index;
 }
 
-function computeInitialStep(draft: DraftShape, resumeIndex: number): Step {
-  if (!draft.gender) return "gender";
-  if (resumeIndex >= TOTAL_ITEMS) return "submitting";
-  if (resumeIndex === 0) return "section-intro";
-  const currentSection = SPEC_TEST_ITEMS_V2[resumeIndex].section;
-  const previousSection = SPEC_TEST_ITEMS_V2[resumeIndex - 1].section;
-  return currentSection === previousSection ? "question" : "section-intro";
+function workingAnswer(item: SpecItemV3 | undefined, response?: SpecTestResponseV3): WorkingAnswer {
+  if (!item || item.kind === "intensity") {
+    return {
+      kind: "intensity",
+      rating: response?.kind === "intensity" && !response.skipped ? response.rating : null,
+    };
+  }
+  if (item.kind === "best_worst") {
+    return {
+      kind: "best_worst",
+      selection: {
+        bestOptionId: response?.kind === "best_worst" && !response.skipped ? response.bestOptionId : null,
+        worstOptionId: response?.kind === "best_worst" && !response.skipped ? response.worstOptionId : null,
+      },
+    };
+  }
+  return {
+    kind: "single_choice",
+    optionId: response?.kind === "single_choice" && !response.skipped ? response.optionId : null,
+  };
+}
+
+function phaseLabel(index: number): string {
+  if (index < 16) return "What catches your eye";
+  if (index < 24) return "How strong is the pull";
+  return "Your relationship instinct";
 }
 
 export function SpecTestQuizFlow() {
   const router = useRouter();
-  const initialDraftRef = useRef<DraftShape | null>(null);
-  if (initialDraftRef.current === null) initialDraftRef.current = loadDraft();
-  const initialDraft = initialDraftRef.current;
-  const resumeIndexRef = useRef<number | null>(null);
-  if (resumeIndexRef.current === null) resumeIndexRef.current = resumeItemIndex(initialDraft);
-  const resumeIndex = resumeIndexRef.current;
+  const initialRef = useRef<Draft | null>(null);
+  if (initialRef.current === null) initialRef.current = loadDraft();
+  const initial = initialRef.current;
+  const initialIndex = firstUnansweredIndex(initial.responses);
 
-  const [step, setStep] = useState<Step>(() => computeInitialStep(initialDraft, resumeIndex));
-  const [gender, setGender] = useState<Gender | null>(initialDraft.gender);
-  const [itemIndex, setItemIndex] = useState(resumeIndex);
-  const [responses, setResponses] = useState<Record<string, SpecTestResponseV2>>(initialDraft.responses);
-  const [optionOrders, setOptionOrders] = useState<Record<string, number[]>>(() => {
-    const base = { ...initialDraft.optionOrders };
-    const startItem = SPEC_TEST_ITEMS_V2[Math.min(resumeIndex, TOTAL_ITEMS - 1)];
-    if (startItem && !base[startItem.id]) base[startItem.id] = shuffledCanonicalIndexes();
-    return base;
+  const [step, setStep] = useState<Step>(() => {
+    if (!initial.gender) return "gender";
+    if (initialIndex >= TOTAL_ITEMS) return "submitting";
+    return PHASE_STARTS.has(initialIndex) ? "phase-intro" : "question";
   });
-  const [shownSectionIntros, setShownSectionIntros] = useState<Set<SectionKey>>(() => {
-    const shown = new Set<SectionKey>();
-    for (let i = 0; i < resumeIndex; i += 1) {
-      shown.add(SPEC_TEST_ITEMS_V2[i].section);
-    }
-    return shown;
-  });
-  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
-  // Separate from selectedOptionId on purpose: selectedOptionId also gets pre-filled with an
-  // item's existing answer when goToItem navigates back to it (so the prior pick still shows
-  // highlighted), but that must never disable the controls the way an actual in-flight
-  // selection does - isLocked is the real "ignore clicks, we're mid-transition" flag.
-  const [isLocked, setIsLocked] = useState(false);
-  const [isExiting, setIsExiting] = useState(false);
+  const [gender, setGender] = useState<Gender | null>(initial.gender);
+  const [itemIndex, setItemIndex] = useState(initialIndex);
+  const [responses, setResponses] = useState(initial.responses);
+  const [optionOrders, setOptionOrders] = useState(initial.optionOrders);
+  const [answer, setAnswer] = useState<WorkingAnswer>(() =>
+    workingAnswer(SPEC_TEST_ITEMS_V3[initialIndex], initial.responses[SPEC_TEST_ITEMS_V3[initialIndex]?.id]),
+  );
   const [error, setError] = useState<string | null>(null);
   const [lowSignalFlags, setLowSignalFlags] = useState<string[]>([]);
+  const itemStartedAt = useRef(Date.now());
+  const submittingRef = useRef(false);
 
-  const itemStartRef = useRef<number>(Date.now());
-  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const currentItem = SPEC_TEST_ITEMS_V3[itemIndex];
+  const form: RenderForm = gender ? routeForm(gender).quizForm : "neutral";
+  const currentOrder = currentItem?.kind === "intensity"
+    ? []
+    : optionOrders[currentItem?.id] ?? [0, 1, 2, 3];
 
   useEffect(() => {
-    return () => timeoutsRef.current.forEach(clearTimeout);
-  }, []);
+    if (!currentItem) return;
+    setAnswer(workingAnswer(currentItem, responses[currentItem.id]));
+    itemStartedAt.current = Date.now();
+    setError(null);
+  }, [currentItem, responses]);
 
-  // Fires the submit whenever the wizard steps into "submitting" - both a draft resumed
-  // mid-submit (every item answered, but the request never completed - e.g. the tab closed
-  // right after the last answer) and the normal last-item-answered transition out of
-  // goToItem. Doing it here rather than calling submit() directly from goToItem matters: that
-  // call runs inside a setTimeout closure scheduled before the last answer's setResponses
-  // update commits, so it would submit a stale responses map missing the final answer. An
-  // effect keyed on `step` instead runs after the commit, on the render that already has it.
-  useEffect(() => {
-    if (step === "submitting" && !error) void submit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
-
-  // Persist a draft on every meaningful change so a reload mid-quiz resumes without losing
-  // answers or re-asking gender (plan §8 acceptance criteria) - not written while submitting/
-  // low-signal, since those are terminal-ish states the draft shouldn't try to restore into.
   useEffect(() => {
     if (step === "submitting" || step === "low-signal") return;
-    saveDraft({
-      instrumentVersion: INSTRUMENT_VERSION,
-      gender,
-      itemIndex,
-      responses,
-      optionOrders,
-    });
-  }, [step, gender, itemIndex, responses, optionOrders]);
+    saveDraft({ instrumentVersion: V3_INSTRUMENT_VERSION, gender, responses, optionOrders });
+  }, [gender, optionOrders, responses, step]);
 
-  const currentItem = SPEC_TEST_ITEMS_V2[itemIndex];
-  // The router of who's described in item text (report §3/§9) - gender only ever changes
-  // this rendering form, never the score. "neutral" only appears here defensively; the
-  // gender step always runs before any item, so a real taker never sees it.
-  const form: RenderForm = gender ? routeForm(gender).quizForm : "neutral";
+  useEffect(() => {
+    if (step !== "submitting" || submittingRef.current || !gender) return;
+    submittingRef.current = true;
+    const orderedResponses = SPEC_TEST_ITEMS_V3.map((item) => responses[item.id]).filter(
+      (response): response is SpecTestResponseV3 => Boolean(response),
+    );
+
+    void fetch("/api/spec-test/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instrumentVersion: V3_INSTRUMENT_VERSION, gender, responses: orderedResponses }),
+    })
+      .then(async (response) => {
+        const body = (await response.json().catch(() => null)) as {
+          resultId?: string;
+          lowSignal?: boolean;
+          flags?: string[];
+          error?: string;
+        } | null;
+        if (!response.ok) {
+          if (body?.resultId) {
+            clearDraft();
+            router.push(`/spec-test/result/${body.resultId}`);
+            return;
+          }
+          throw new Error(body?.error ?? "We couldn’t score your answers. Please try again.");
+        }
+        if (body?.lowSignal) {
+          clearDraft();
+          setLowSignalFlags(Array.isArray(body.flags) ? body.flags : []);
+          setStep("low-signal");
+          return;
+        }
+        if (!body?.resultId) throw new Error("We couldn’t find your result. Please try again.");
+        clearDraft();
+        router.push(`/spec-test/result/${body.resultId}`);
+      })
+      .catch((cause: unknown) => {
+        setError(cause instanceof Error ? cause.message : "We couldn’t score your answers. Please try again.");
+      });
+  }, [gender, responses, router, step]);
 
   function chooseGender(value: Gender) {
     setGender(value);
-    goToItem(0);
+    setItemIndex(0);
+    setStep("phase-intro");
   }
 
-  function goToItem(index: number, opts: { skipIntroCheck?: boolean } = {}) {
-    if (index >= TOTAL_ITEMS) {
-      setItemIndex(index);
-      setStep("submitting");
-      return;
-    }
-    const item = SPEC_TEST_ITEMS_V2[index];
-    setOptionOrders((prev) => (prev[item.id] ? prev : { ...prev, [item.id]: shuffledCanonicalIndexes() }));
-    setItemIndex(index);
-    setSelectedOptionId(responses[item.id]?.optionId ?? null);
-    setIsLocked(false);
-    setIsExiting(false);
-
-    const needsIntro = !opts.skipIntroCheck && !shownSectionIntros.has(item.section);
-    if (needsIntro) {
-      setStep("section-intro");
-    } else {
-      itemStartRef.current = Date.now();
-      setStep("question");
-    }
+  function ensureOptionOrder(item: SpecItemV3 | undefined) {
+    if (!item || item.kind === "intensity" || optionOrders[item.id]) return;
+    setOptionOrders((current) => ({ ...current, [item.id]: shuffledIndexes() }));
   }
 
   function continueFromIntro() {
-    if (!currentItem) return;
-    setShownSectionIntros((prev) => new Set(prev).add(currentItem.section));
-    itemStartRef.current = Date.now();
+    ensureOptionOrder(currentItem);
+    itemStartedAt.current = Date.now();
     setStep("question");
   }
 
-  function recordAnswer(optionId: string | null, presentedIndex: number | null, skipped: boolean) {
-    if (!currentItem) return;
-    const elapsedMs = Date.now() - itemStartRef.current;
-    const response: SpecTestResponseV2 = {
+  function responseForCurrent(skipped = false): SpecTestResponseV3 | null {
+    if (!currentItem) return null;
+    const elapsedMs = Math.max(0, Date.now() - itemStartedAt.current);
+    if (currentItem.kind === "best_worst") {
+      const selection = answer.kind === "best_worst"
+        ? answer.selection
+        : { bestOptionId: null, worstOptionId: null };
+      if (!skipped && (!selection.bestOptionId || !selection.worstOptionId)) return null;
+      return {
+        itemId: currentItem.id,
+        kind: "best_worst",
+        bestOptionId: skipped ? null : selection.bestOptionId,
+        worstOptionId: skipped ? null : selection.worstOptionId,
+        bestPresentedIndex: skipped ? null : currentOrder.findIndex((index) => currentItem.options[index].id === selection.bestOptionId),
+        worstPresentedIndex: skipped ? null : currentOrder.findIndex((index) => currentItem.options[index].id === selection.worstOptionId),
+        elapsedMs,
+        skipped: skipped || undefined,
+      };
+    }
+    if (currentItem.kind === "intensity") {
+      const rating = answer.kind === "intensity" ? answer.rating : null;
+      if (!skipped && rating === null) return null;
+      return { itemId: currentItem.id, kind: "intensity", rating: skipped ? null : rating, elapsedMs, skipped: skipped || undefined };
+    }
+    const optionId = answer.kind === "single_choice" ? answer.optionId : null;
+    if (!skipped && !optionId) return null;
+    return {
       itemId: currentItem.id,
-      optionId,
-      presentedIndex,
+      kind: "single_choice",
+      optionId: skipped ? null : optionId,
+      presentedIndex: skipped ? null : currentOrder.findIndex((index) => currentItem.options[index].id === optionId),
       elapsedMs,
       skipped: skipped || undefined,
     };
-    setResponses((prev) => ({ ...prev, [currentItem.id]: response }));
   }
 
-  function selectOption(optionId: string, presentedIndex: number, event: MouseEvent<HTMLButtonElement>) {
-    if (isLocked) return; // already mid-transition - ignore a fast double tap
-    event.currentTarget.blur();
+  function commitCurrent(skipped = false) {
+    const response = responseForCurrent(skipped);
+    if (!response) {
+      setError(currentItem?.kind === "best_worst"
+        ? "Choose one “My type” and one “Not really” to continue."
+        : "Choose an answer to continue.");
+      return;
+    }
+    const nextResponses = { ...responses, [response.itemId]: response };
+    const nextIndex = itemIndex + 1;
+    setResponses(nextResponses);
+    setItemIndex(nextIndex);
 
-    setSelectedOptionId(optionId);
-    setIsLocked(true);
-    recordAnswer(optionId, presentedIndex, false);
-
-    const holdTimeout = setTimeout(() => {
-      setIsExiting(true);
-      const exitTimeout = setTimeout(() => goToItem(itemIndex + 1), EXIT_MS);
-      timeoutsRef.current.push(exitTimeout);
-    }, SELECT_HOLD_MS);
-    timeoutsRef.current.push(holdTimeout);
-  }
-
-  function skipItem() {
-    if (isLocked) return;
-    recordAnswer(null, null, true);
-    goToItem(itemIndex + 1);
+    if (nextIndex >= TOTAL_ITEMS) {
+      setStep("submitting");
+      return;
+    }
+    ensureOptionOrder(SPEC_TEST_ITEMS_V3[nextIndex]);
+    setStep(PHASE_STARTS.has(nextIndex) ? "phase-intro" : "question");
   }
 
   function goBack() {
-    if (isLocked || itemIndex === 0) return;
-    goToItem(itemIndex - 1, { skipIntroCheck: true });
+    if (itemIndex <= 0) return;
+    const previousIndex = itemIndex - 1;
+    setItemIndex(previousIndex);
+    ensureOptionOrder(SPEC_TEST_ITEMS_V3[previousIndex]);
+    setStep("question");
+  }
+
+  function retrySubmit() {
+    submittingRef.current = false;
+    setError(null);
+    setStep("submitting");
   }
 
   function restart() {
     clearDraft();
+    submittingRef.current = false;
     setResponses({});
     setOptionOrders({});
-    setShownSectionIntros(new Set());
-    setError(null);
-    setSelectedOptionId(null);
-    setIsLocked(false);
     setItemIndex(0);
-    // Gender is kept, not re-asked - a low-signal retake is about the answers, not the form.
-    setStep("section-intro");
-  }
-
-  async function submit() {
-    setStep("submitting");
     setError(null);
-
-    const orderedResponses: SpecTestResponseV2[] = SPEC_TEST_ITEMS_V2.map(
-      (item) => responses[item.id] ?? { itemId: item.id, optionId: null, presentedIndex: null, elapsedMs: 0, skipped: true },
-    );
-
-    try {
-      const res = await fetch("/api/spec-test/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          instrumentVersion: INSTRUMENT_VERSION,
-          gender,
-          responses: orderedResponses,
-        }),
-      });
-      const body = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        // The retake-cooldown rejection (see submit/route.ts) means this taker already has a
-        // scored result - most commonly reached here via a stale, fully-answered draft that
-        // auto-resubmits on reopening the quiz (computeInitialStep resumes straight into
-        // "submitting"). Sending them to that existing result instead of a dead "Try again"
-        // loop is the only path forward that isn't just repeating the same rejected request.
-        if (typeof body?.resultId === "string") {
-          clearDraft();
-          router.push(`/spec-test/result/${body.resultId}`);
-          return;
-        }
-        setError(body?.error ?? "Something went wrong scoring your answers. Please try again.");
-        return;
-      }
-      if (body?.lowSignal) {
-        setLowSignalFlags(Array.isArray(body.flags) ? body.flags : []);
-        clearDraft();
-        setStep("low-signal");
-        return;
-      }
-
-      clearDraft();
-      router.push(`/spec-test/result/${body.resultId}`);
-    } catch {
-      setError("Something went wrong scoring your answers. Please try again.");
-    }
+    setLowSignalFlags([]);
+    setStep("phase-intro");
   }
 
   if (step === "gender") {
     return (
       <div className="flex flex-col items-center gap-6 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-500">
-        <h1 className="font-heading text-2xl font-bold sm:text-3xl">What&apos;s your gender?</h1>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">Before we start</p>
+          <h1 className="font-heading text-2xl font-bold sm:text-3xl">What’s your gender?</h1>
+          <p className="text-sm leading-6 text-muted-foreground">
+            We’ll use this to phrase the questions about the people you’re attracted to.
+          </p>
+        </div>
         <div className="flex w-full max-w-xs flex-col gap-3">
           {GENDER_OPTIONS.map((option) => (
             <button
@@ -381,7 +328,7 @@ export function SpecTestQuizFlow() {
               type="button"
               onClick={() => chooseGender(option.value)}
               data-testid={`spec-gender-${option.value}`}
-              className="rounded-2xl border border-border bg-card px-4 py-3.5 text-sm font-semibold transition-colors hover:border-primary/60 hover:bg-accent-tint/70"
+              className="min-h-12 rounded-2xl border border-border bg-card px-4 py-3.5 text-sm font-semibold transition-colors hover:border-primary/60 hover:bg-accent-tint/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {option.label}
             </button>
@@ -393,17 +340,18 @@ export function SpecTestQuizFlow() {
 
   if (step === "submitting") {
     return (
-      <div className="flex flex-col items-center gap-4 py-12 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+      <div className="flex flex-col items-center gap-4 py-12 text-center" role="status">
         {error ? (
           <>
+            <h1 className="font-heading text-2xl font-bold">Your answers are still here</h1>
             <p className="text-sm text-destructive">{error}</p>
-            <Button onClick={() => void submit()}>Try again</Button>
+            <Button size="lg" className="min-h-11 w-full max-w-xs" onClick={retrySubmit}>Try again</Button>
           </>
         ) : (
           <>
-            <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
-            <p className="font-heading text-lg font-semibold">Reading your answers...</p>
-            <p className="text-sm text-muted-foreground">Calculating your spec.</p>
+            <Loader2 className="h-8 w-8 animate-spin text-primary motion-reduce:animate-none" aria-hidden="true" />
+            <h1 className="font-heading text-2xl font-bold">Finding your Spec…</h1>
+            <p className="text-sm text-muted-foreground">Putting the full picture together.</p>
           </>
         )}
       </div>
@@ -412,126 +360,107 @@ export function SpecTestQuizFlow() {
 
   if (step === "low-signal") {
     return (
-      <div className="flex flex-col items-center gap-4 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
-        <h1 className="font-heading text-xl font-bold">We couldn&apos;t get a clear read</h1>
-        <p className="text-sm text-muted-foreground">
-          A few answers came back too fast, too uniform, or too inconsistent to score honestly.
-          Rather than guess, we&apos;d rather you try again when you&apos;ve got a few uninterrupted
-          minutes.
+      <div className="flex flex-col items-center gap-5 py-6 text-center" role="alert">
+        <h1 className="font-heading text-2xl font-bold">We need one more honest go</h1>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Your answers didn’t give us a clear enough pattern. Take it again and trust your first reaction—we’d rather
+          be honest than force the wrong result.
         </p>
-        {lowSignalFlags.length > 0 && (
-          <p className="text-xs text-muted-foreground/70">({lowSignalFlags.join(", ")})</p>
-        )}
-        <Button size="lg" onClick={restart} className="w-full max-w-xs" data-testid="spec-take-again">
+        {lowSignalFlags.length > 0 && <span className="sr-only">{lowSignalFlags.join(", ")}</span>}
+        <Button size="lg" className="min-h-11 w-full max-w-xs" onClick={restart} data-testid="spec-take-again">
           Take it again
         </Button>
       </div>
     );
   }
 
-  if (step === "section-intro") {
-    if (!currentItem) return null;
-    const copy = SECTION_INTRO_COPY[currentItem.section];
-    const sectionNumber = SECTION_ORDER.indexOf(currentItem.section) + 1;
+  if (step === "phase-intro") {
+    const copy = PHASE_COPY[itemIndex] ?? PHASE_COPY[0];
     return (
-      <div className="flex flex-col items-center gap-5 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-500">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Section {sectionNumber} of {SECTION_ORDER.length}
-        </p>
-        <h1 className="font-heading text-2xl font-bold sm:text-3xl">{copy.title}</h1>
-        <p className="text-sm text-muted-foreground">{copy.body}</p>
-        <Button size="lg" onClick={continueFromIntro} className="w-full max-w-xs" data-testid="spec-continue">
-          Continue
+      <div className="flex flex-col items-center gap-5 py-4 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-500">
+        <p className="text-xs font-semibold uppercase tracking-wide text-primary">{copy.eyebrow}</p>
+        <div className="space-y-2">
+          <h1 className="font-heading text-2xl font-bold sm:text-3xl">{copy.title}</h1>
+          <p className="text-sm leading-6 text-muted-foreground">{copy.body}</p>
+        </div>
+        <Button size="lg" className="min-h-11 w-full max-w-xs gap-2" onClick={continueFromIntro} data-testid="spec-continue">
+          Let’s go
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
     );
   }
 
-  // step === "question"
   if (!currentItem) return null;
-  const order = optionOrders[currentItem.id] ?? [0, 1, 2, 3];
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-7" data-testid="spec-question">
       <div className="flex items-center gap-3">
-        {itemIndex > 0 && (
-          <button
-            type="button"
-            onClick={goBack}
-            disabled={isLocked}
-            aria-label="Back to previous question"
-            data-testid="spec-back"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent-tint hover:text-foreground disabled:opacity-40"
-          >
-            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-          </button>
-        )}
-        <ProgressRing progress={(itemIndex / TOTAL_ITEMS) * 100} size={40} className="shrink-0 text-primary" />
-        <p className="text-xs font-medium text-muted-foreground">
-          Question {itemIndex + 1} of {TOTAL_ITEMS}
-        </p>
         <button
           type="button"
-          onClick={skipItem}
-          disabled={isLocked}
+          onClick={goBack}
+          disabled={itemIndex === 0}
+          aria-label="Back to previous question"
+          data-testid="spec-back"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent-tint hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-30"
+        >
+          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+        </button>
+        <ProgressRing progress={(itemIndex / TOTAL_ITEMS) * 100} size={40} className="shrink-0 text-primary" />
+        <div>
+          <p className="text-xs font-semibold text-foreground">{phaseLabel(itemIndex)}</p>
+          <p className="text-xs text-muted-foreground">Question {itemIndex + 1} of {TOTAL_ITEMS}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => commitCurrent(true)}
           data-testid="spec-skip"
-          className="ml-auto text-xs font-medium text-muted-foreground underline underline-offset-4 disabled:opacity-40"
+          className="ml-auto min-h-11 px-2 text-xs font-medium text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Skip
         </button>
       </div>
 
-      <div
-        key={currentItem.id}
-        className={cn(
-          "flex flex-col gap-6",
-          isExiting
-            ? "motion-safe:animate-out motion-safe:fade-out motion-safe:slide-out-to-top-2 motion-safe:duration-200"
-            : "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300",
-        )}
-      >
-        <h1 className="font-heading text-xl font-bold sm:text-2xl">{renderTerms(currentItem.prompt, form)}</h1>
+      {currentItem.kind === "best_worst" && (
+        <BestWorstQuestion
+          item={currentItem}
+          value={answer.kind === "best_worst" ? answer.selection : { bestOptionId: null, worstOptionId: null }}
+          onChange={(selection) => {
+            setAnswer({ kind: "best_worst", selection });
+            setError(null);
+          }}
+          optionOrder={currentOrder}
+          form={form}
+        />
+      )}
+      {currentItem.kind === "intensity" && (
+        <IntensityQuestion
+          item={currentItem}
+          value={answer.kind === "intensity" ? answer.rating : null}
+          onChange={(rating) => {
+            setAnswer({ kind: "intensity", rating });
+            setError(null);
+          }}
+          form={form}
+        />
+      )}
+      {currentItem.kind === "single_choice" && (
+        <SingleChoiceQuestion
+          item={currentItem}
+          value={answer.kind === "single_choice" ? answer.optionId : null}
+          onChange={(optionId) => {
+            setAnswer({ kind: "single_choice", optionId });
+            setError(null);
+          }}
+          optionOrder={currentOrder}
+          form={form}
+        />
+      )}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
-
-        <div className="flex flex-col gap-3">
-          {order.map((canonicalIndex, presentedIndex) => {
-            const option = currentItem.options[canonicalIndex];
-            const isSelected = selectedOptionId === option.id;
-            const isDimmed = selectedOptionId !== null && !isSelected;
-
-            return (
-              <button
-                key={option.id}
-                type="button"
-                disabled={isLocked}
-                onClick={(event) => selectOption(option.id, presentedIndex, event)}
-                style={{ animationDelay: `${presentedIndex * 45}ms` }}
-                data-testid="spec-option"
-                className={cn(
-                  "flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left text-sm font-medium",
-                  "transition-[border-color,background-color,opacity,transform] duration-200 ease-out active:scale-[0.98]",
-                  "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:fill-mode-both",
-                  isSelected
-                    ? "border-primary bg-accent-tint"
-                    : "border-border bg-card hover:border-primary/60 hover:bg-accent-tint/70",
-                  isDimmed && "opacity-40",
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors duration-200",
-                    isSelected ? "bg-primary text-primary-foreground" : "bg-accent-tint text-primary",
-                  )}
-                >
-                  {isSelected ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : presentedIndex + 1}
-                </span>
-                {renderTerms(option.label, form)}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {error && <p className="text-sm font-medium text-destructive" role="alert">{error}</p>}
+      <Button size="lg" className="min-h-11 w-full" onClick={() => commitCurrent(false)} data-testid="spec-next">
+        {itemIndex === TOTAL_ITEMS - 1 ? "Show me my Spec" : "Next question"}
+      </Button>
     </div>
   );
 }

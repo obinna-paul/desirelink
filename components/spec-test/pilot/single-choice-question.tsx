@@ -2,7 +2,9 @@
 
 import { Check } from "lucide-react";
 
-import type { UncertaintyItemV3 } from "@/lib/spec-test/items/spec-v3-pilot";
+import type { UncertaintyItemV3 } from "@/lib/spec-test/items/spec-v3";
+import { renderTerms } from "@/lib/spec-test/gender/render";
+import type { RenderForm } from "@/lib/spec-test/gender/terms";
 import { cn } from "@/lib/utils";
 
 type SingleChoiceQuestionProps = {
@@ -11,6 +13,7 @@ type SingleChoiceQuestionProps = {
   onChange: (optionId: string) => void;
   optionOrder?: number[];
   disabled?: boolean;
+  form?: RenderForm;
 };
 
 export function SingleChoiceQuestion({
@@ -19,11 +22,12 @@ export function SingleChoiceQuestion({
   onChange,
   optionOrder = [0, 1, 2, 3],
   disabled = false,
+  form = "neutral",
 }: SingleChoiceQuestionProps) {
   return (
     <fieldset className="flex min-w-0 flex-col gap-5" disabled={disabled}>
-      <legend className="font-heading text-xl font-bold sm:text-2xl">{item.prompt}</legend>
-      <p className="text-sm leading-6 text-muted-foreground">Choose the response closest to your first instinct.</p>
+      <legend className="font-heading text-xl font-bold sm:text-2xl">{renderTerms(item.prompt, form)}</legend>
+      <p className="text-sm leading-6 text-muted-foreground">Go with your first instinct.</p>
       <div className="flex flex-col gap-3">
         {optionOrder.map((canonicalIndex) => {
           const option = item.options[canonicalIndex];
@@ -56,7 +60,7 @@ export function SingleChoiceQuestion({
               >
                 {selected && <Check className="h-4 w-4" />}
               </span>
-              <span>{option.label}</span>
+              <span>{renderTerms(option.label, form)}</span>
             </label>
           );
         })}

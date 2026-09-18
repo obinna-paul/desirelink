@@ -43,25 +43,13 @@ describe("renderTerms - basic substitution", () => {
 });
 
 describe("renderTerms - unknown tokens", () => {
-  const originalEnv = process.env.NODE_ENV;
-
-  function setNodeEnv(value: string) {
-    Object.defineProperty(process.env, "NODE_ENV", { value, configurable: true });
-  }
-
-  afterEach(() => {
-    setNodeEnv(originalEnv ?? "test");
-  });
-
   it("throws in development for an unknown token", () => {
-    setNodeEnv("development");
-    expect(() => renderTerms("{typo}", "male_user")).toThrow(/unknown token/i);
+    expect(() => renderTerms("{typo}", "male_user", "development")).toThrow(/unknown token/i);
   });
 
   it("strips the braces rather than leaking them in production", () => {
-    setNodeEnv("production");
-    expect(renderTerms("{typo}", "male_user")).toBe("typo");
-    expect(renderTerms("Some {typo} text.", "male_user")).not.toMatch(/[{}]/);
+    expect(renderTerms("{typo}", "male_user", "production")).toBe("typo");
+    expect(renderTerms("Some {typo} text.", "male_user", "production")).not.toMatch(/[{}]/);
   });
 });
 

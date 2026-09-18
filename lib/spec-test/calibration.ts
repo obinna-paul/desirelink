@@ -23,8 +23,9 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
+import { SPEC_TEST_ITEMS_V3, V3_INSTRUMENT_VERSION } from "@/lib/spec-test/items/spec-v3";
 import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
-import type { SpecTestResponseV2 } from "@/lib/spec-test/response";
+import type { SpecTestResponseV2, SpecTestResponseV3 } from "@/lib/spec-test/response";
 import type { QuizForm } from "@/lib/spec-test/gender/forms";
 
 export type ItemOptionAnalytics = {
@@ -87,8 +88,19 @@ export async function getSpecTestItemAnalytics(
     optionCounts: Map<string, number>;
   };
 
+  const bank = instrumentVersion === V3_INSTRUMENT_VERSION
+    ? SPEC_TEST_ITEMS_V3.map((item) => ({
+        id: item.id,
+        options: item.kind === "intensity"
+          ? ([1, 2, 3, 4, 5, 6, 7] as const).map((rating) => ({
+              id: `rating-${rating}`,
+              label: rating === 1 ? `1 — ${item.lowLabel}` : rating === 7 ? `7 — ${item.highLabel}` : String(rating),
+            }))
+          : item.options,
+      }))
+    : SPEC_TEST_ITEMS_V2.map((item) => ({ id: item.id, options: item.options }));
   const byItem = new Map<string, Bucket>();
-  for (const item of SPEC_TEST_ITEMS_V2) {
+  for (const item of bank) {
     byItem.set(item.id, { answered: 0, skipped: 0, elapsed: [], positions: [0, 0, 0, 0], optionCounts: new Map() });
   }
 
@@ -96,25 +108,37 @@ export async function getSpecTestItemAnalytics(
     const responses = row.answers;
     if (!Array.isArray(responses)) continue;
 
-    for (const raw of responses as unknown as SpecTestResponseV2[]) {
+    for (const raw of responses as unknown as Array<SpecTestResponseV2 | SpecTestResponseV3>) {
       const bucket = byItem.get(raw?.itemId);
       if (!bucket) continue;
 
-      if (raw.skipped || raw.optionId === null) {
+      const isSkipped = raw.skipped ||
+        ("kind" in raw && raw.kind === "best_worst" && (!raw.bestOptionId || !raw.worstOptionId)) ||
+        ("kind" in raw && raw.kind === "intensity" && raw.rating === null) ||
+        ("optionId" in raw && raw.optionId === null);
+      if (isSkipped) {
         bucket.skipped += 1;
         continue;
       }
 
       bucket.answered += 1;
       if (typeof raw.elapsedMs === "number") bucket.elapsed.push(raw.elapsedMs);
-      if (typeof raw.presentedIndex === "number" && raw.presentedIndex >= 0 && raw.presentedIndex <= 3) {
-        bucket.positions[raw.presentedIndex] += 1;
+      if ("kind" in raw && raw.kind === "best_worst") {
+        if (typeof raw.bestPresentedIndex === "number") bucket.positions[raw.bestPresentedIndex] += 1;
+        if (raw.bestOptionId) bucket.optionCounts.set(raw.bestOptionId, (bucket.optionCounts.get(raw.bestOptionId) ?? 0) + 1);
+      } else if ("kind" in raw && raw.kind === "intensity") {
+        const optionId = `rating-${raw.rating}`;
+        bucket.optionCounts.set(optionId, (bucket.optionCounts.get(optionId) ?? 0) + 1);
+      } else if ("optionId" in raw && raw.optionId) {
+        if (typeof raw.presentedIndex === "number" && raw.presentedIndex >= 0 && raw.presentedIndex <= 3) {
+          bucket.positions[raw.presentedIndex] += 1;
+        }
+        bucket.optionCounts.set(raw.optionId, (bucket.optionCounts.get(raw.optionId) ?? 0) + 1);
       }
-      bucket.optionCounts.set(raw.optionId, (bucket.optionCounts.get(raw.optionId) ?? 0) + 1);
     }
   }
 
-  return SPEC_TEST_ITEMS_V2.map((item) => {
+  return bank.map((item) => {
     const bucket = byItem.get(item.id) as Bucket;
     const total = bucket.answered + bucket.skipped;
 

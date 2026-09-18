@@ -1,103 +1,106 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { rest } from "msw";
 import * as navigation from "next/navigation";
 
 import { SpecTestQuizFlow } from "@/components/spec-test/quiz-flow";
-import { server } from "@/test/msw/server";
-import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
-import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
 import { routeForm, type Gender } from "@/lib/spec-test/gender/forms";
 import { renderTerms } from "@/lib/spec-test/gender/render";
-import type { SpecTestResponseV2 } from "@/lib/spec-test/response";
+import { SPEC_TEST_ITEMS_V3, V3_INSTRUMENT_VERSION } from "@/lib/spec-test/items/spec-v3";
+import type { SpecTestResponseV3 } from "@/lib/spec-test/response";
+import { server } from "@/test/msw/server";
 
 const mockRouter = (navigation as unknown as { __mockRouter: { push: jest.Mock } }).__mockRouter;
-
 const SUBMIT_URL = "http://localhost/api/spec-test/submit";
-const TOTAL_ITEMS = SPEC_TEST_ITEMS_V2.length;
 
 type SubmitPayload = {
   instrumentVersion: string;
   gender: Gender;
-  responses: SpecTestResponseV2[];
+  responses: SpecTestResponseV3[];
 };
-
-// The hold-then-exit animation before advancing to the next item (see SELECT_HOLD_MS/EXIT_MS
-// in the component) uses real setTimeouts - fake timers make the whole quiz driveable in a
-// single synchronous-feeling test instead of a genuinely ~15s wall-clock run.
-async function advancePastTransition() {
-  await act(async () => {
-    await jest.advanceTimersByTimeAsync(700);
-  });
-}
 
 async function startQuiz(gender: Gender = "male") {
   fireEvent.click(await screen.findByTestId(`spec-gender-${gender}`));
-  fireEvent.click(await screen.findByTestId("spec-continue")); // spark section intro
+  fireEvent.click(await screen.findByTestId("spec-continue"));
 }
 
-async function answerCurrentItem() {
-  const options = await screen.findAllByTestId("spec-option");
-  fireEvent.click(options[0]);
-  await advancePastTransition();
+async function answerCurrentItem(index: number) {
+  const item = SPEC_TEST_ITEMS_V3[index];
+  await screen.findByText(`Question ${index + 1} of ${SPEC_TEST_ITEMS_V3.length}`);
+
+  if (item.kind === "best_worst") {
+    fireEvent.click(screen.getAllByText("My type")[0]);
+    fireEvent.click(screen.getAllByText("Not really")[1]);
+  } else if (item.kind === "intensity") {
+    fireEvent.click(screen.getByRole("radio", { name: "5" }));
+  } else {
+    fireEvent.click(screen.getAllByRole("radio")[0]);
+  }
+
+  fireEvent.click(screen.getByTestId("spec-next"));
 }
 
-/** Answers every item in the bank, crossing every section intro along the way. */
-async function completeAllItems() {
-  for (let i = 0; i < TOTAL_ITEMS; i += 1) {
-    const continueButtons = screen.queryAllByTestId("spec-continue");
-    if (continueButtons.length > 0) {
-      fireEvent.click(continueButtons[0]);
-    }
-    await answerCurrentItem();
+async function completeQuiz() {
+  for (let index = 0; index < SPEC_TEST_ITEMS_V3.length; index += 1) {
+    const intro = screen.queryByTestId("spec-continue");
+    if (intro) fireEvent.click(intro);
+    await answerCurrentItem(index);
   }
 }
 
-describe("SpecTestQuizFlow (v2)", () => {
+describe("SpecTestQuizFlow (official v3)", () => {
   beforeEach(() => {
     window.localStorage.clear();
-    jest.useFakeTimers();
+    mockRouter.push.mockClear();
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
+  afterEach(() => window.localStorage.clear());
+
+  it("asks gender before showing any scored item", async () => {
+    render(<SpecTestQuizFlow />);
+
+    expect(await screen.findByText(/what’s your gender/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("spec-question")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("spec-continue")).not.toBeInTheDocument();
+  });
+
+  it("renders a woman for a male taker and a man for a female taker", async () => {
+    const firstItem = SPEC_TEST_ITEMS_V3[0];
+    if (firstItem.kind !== "best_worst") throw new Error("Expected the official test to begin with a best-worst item.");
+    const male = render(<SpecTestQuizFlow />);
+    await startQuiz("male");
+    expect(await screen.findByText(renderTerms(firstItem.options[0].label, routeForm("male").quizForm))).toHaveTextContent("woman");
+
+    male.unmount();
     window.localStorage.clear();
+    render(<SpecTestQuizFlow />);
+    await startQuiz("female");
+    expect(await screen.findByText(renderTerms(firstItem.options[0].label, routeForm("female").quizForm))).toHaveTextContent("man");
   });
 
-  it("walks the gender question, all sections, and submits a full v2 payload", async () => {
+  it("submits all 28 questions using the official version and opens the detailed result", async () => {
     let capturedBody: SubmitPayload | null = null;
     server.use(
       rest.post(SUBMIT_URL, async (req, res, ctx) => {
         capturedBody = await req.json();
-        return res(ctx.status(201), ctx.json({ resultId: "result-abc", confidence: "clear" }));
+        return res(ctx.status(201), ctx.json({ resultId: "result-v3", confidence: "clear" }));
       }),
     );
 
     render(<SpecTestQuizFlow />);
-
     await startQuiz("male");
-    await completeAllItems();
+    await completeQuiz();
 
     await waitFor(() => expect(capturedBody).not.toBeNull());
-
-    expect(capturedBody!.instrumentVersion).toBe(INSTRUMENT_VERSION);
+    expect(capturedBody!.instrumentVersion).toBe(V3_INSTRUMENT_VERSION);
     expect(capturedBody!.gender).toBe("male");
-    expect(capturedBody!.responses).toHaveLength(TOTAL_ITEMS);
-
-    const bankIds = new Set(SPEC_TEST_ITEMS_V2.map((item) => item.id));
-    for (const response of capturedBody!.responses) {
-      expect(bankIds.has(response.itemId)).toBe(true);
-      const item = SPEC_TEST_ITEMS_V2.find((candidate) => candidate.id === response.itemId)!;
-      const validOptionIds = new Set(item.options.map((option) => option.id));
-      expect(response.optionId).not.toBeNull();
-      expect(validOptionIds.has(response.optionId!)).toBe(true);
-      expect(typeof response.elapsedMs).toBe("number");
-      expect([0, 1, 2, 3]).toContain(response.presentedIndex);
-    }
-
-    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith("/spec-test/result/result-abc"));
+    expect(capturedBody!.responses).toHaveLength(28);
+    expect(capturedBody!.responses.map((response) => response.itemId)).toEqual(
+      SPEC_TEST_ITEMS_V3.map((item) => item.id),
+    );
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith("/spec-test/result/result-v3"));
   });
 
-  it("lets the taker skip an item and still submits a full response set", async () => {
+  it("supports skips and still includes every item in the payload", async () => {
     let capturedBody: SubmitPayload | null = null;
     server.use(
       rest.post(SUBMIT_URL, async (req, res, ctx) => {
@@ -108,228 +111,61 @@ describe("SpecTestQuizFlow (v2)", () => {
 
     render(<SpecTestQuizFlow />);
     await startQuiz();
-
     fireEvent.click(screen.getByTestId("spec-skip"));
-    await advancePastTransition();
-
-    for (let i = 1; i < TOTAL_ITEMS; i += 1) {
-      const continueButtons = screen.queryAllByTestId("spec-continue");
-      if (continueButtons.length > 0) fireEvent.click(continueButtons[0]);
-      await answerCurrentItem();
+    for (let index = 1; index < SPEC_TEST_ITEMS_V3.length; index += 1) {
+      const intro = screen.queryByTestId("spec-continue");
+      if (intro) fireEvent.click(intro);
+      await answerCurrentItem(index);
     }
 
     await waitFor(() => expect(capturedBody).not.toBeNull());
-    expect(capturedBody!.responses).toHaveLength(TOTAL_ITEMS);
-    const firstItemResponse = capturedBody!.responses.find((r) => r.itemId === SPEC_TEST_ITEMS_V2[0].id)!;
-    expect(firstItemResponse.skipped).toBe(true);
-    expect(firstItemResponse.optionId).toBeNull();
+    expect(capturedBody!.responses).toHaveLength(28);
+    expect(capturedBody!.responses[0]).toMatchObject({ itemId: SPEC_TEST_ITEMS_V3[0].id, skipped: true });
   });
 
-  it("supports going back to a previous question and re-answering it", async () => {
+  it("preserves gender and progress across a remount", async () => {
+    const first = render(<SpecTestQuizFlow />);
+    await startQuiz("female");
+    await answerCurrentItem(0);
+    await screen.findByText("Question 2 of 28");
+
+    first.unmount();
     render(<SpecTestQuizFlow />);
-    await startQuiz();
 
-    await answerCurrentItem(); // item 0 answered, now on item 1 (still within spark, no intro)
-    expect(await screen.findByText(SPEC_TEST_ITEMS_V2[1].prompt)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId("spec-back"));
-    expect(await screen.findByText(SPEC_TEST_ITEMS_V2[0].prompt)).toBeInTheDocument();
+    expect(screen.queryByTestId("spec-gender-female")).not.toBeInTheDocument();
+    expect(await screen.findByText("Question 2 of 28")).toBeInTheDocument();
+    expect(screen.getByText(renderTerms(SPEC_TEST_ITEMS_V3[1].prompt, "female_user"))).toBeInTheDocument();
   });
 
-  it("lets the taker change an already-answered question after going back to it, instead of getting stuck", async () => {
-    let capturedBody: SubmitPayload | null = null;
+  it("keeps gender when the server asks for an honest retake", async () => {
     server.use(
-      rest.post(SUBMIT_URL, async (req, res, ctx) => {
-        capturedBody = await req.json();
-        return res(ctx.status(201), ctx.json({ resultId: "result-changed", confidence: "clear" }));
-      }),
-    );
-
-    render(<SpecTestQuizFlow />);
-    await startQuiz();
-
-    await answerCurrentItem(); // item 0 answered, now on item 1
-    await answerCurrentItem(); // item 1 answered, now on item 2
-    fireEvent.click(screen.getByTestId("spec-back")); // back to item 1 (itemIndex > 0, so a back button exists here)
-    expect(await screen.findByText(SPEC_TEST_ITEMS_V2[1].prompt)).toBeInTheDocument();
-
-    // Landing back on an already-answered question must not disable every control - this is
-    // the exact bug: selectedOptionId got pre-filled from the existing answer and was also
-    // being used as the "mid-transition, ignore all clicks" lock.
-    expect(screen.getByTestId("spec-back")).not.toBeDisabled();
-    expect(screen.getByTestId("spec-skip")).not.toBeDisabled();
-    const options = await screen.findAllByTestId("spec-option");
-    for (const option of options) expect(option).not.toBeDisabled();
-
-    // Pick a different on-screen option than the one originally chosen for item 1 (the option
-    // order is stable across the back-navigation, so a different position is guaranteed to be
-    // a different underlying option).
-    fireEvent.click(options[1]);
-    await advancePastTransition();
-
-    // Must have actually advanced past item 1, not gotten stuck on it.
-    expect(await screen.findByText(SPEC_TEST_ITEMS_V2[2].prompt)).toBeInTheDocument();
-
-    for (let i = 2; i < TOTAL_ITEMS; i += 1) {
-      const continueButtons = screen.queryAllByTestId("spec-continue");
-      if (continueButtons.length > 0) fireEvent.click(continueButtons[0]);
-      await answerCurrentItem();
-    }
-
-    await waitFor(() => expect(capturedBody).not.toBeNull());
-    const revisedResponse = capturedBody!.responses.find((r) => r.itemId === SPEC_TEST_ITEMS_V2[1].id)!;
-    const validOptionIds = new Set(SPEC_TEST_ITEMS_V2[1].options.map((option) => option.id));
-    expect(revisedResponse.optionId).not.toBeNull();
-    expect(validOptionIds.has(revisedResponse.optionId!)).toBe(true);
-  });
-
-  it("shows a retake prompt on a low-signal server response, without navigating", async () => {
-    server.use(
-      rest.post(SUBMIT_URL, async (_req, res, ctx) => res(ctx.status(200), ctx.json({ lowSignal: true, flags: ["too_fast"] }))),
-    );
-
-    render(<SpecTestQuizFlow />);
-    await startQuiz();
-    await completeAllItems();
-
-    expect(await screen.findByText(/couldn't get a clear read/i)).toBeInTheDocument();
-    expect(mockRouter.push).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByTestId("spec-take-again"));
-    expect(await screen.findByTestId("spec-continue")).toBeInTheDocument();
-  });
-
-  it("keeps the chosen gender on a low-signal retake instead of re-asking it", async () => {
-    let capturedBody: SubmitPayload | null = null;
-    server.use(
-      rest.post(SUBMIT_URL, async (req, res, ctx) => {
-        capturedBody = await req.json();
-        return res(ctx.status(200), ctx.json({ lowSignal: true, flags: ["too_fast"] }));
-      }),
+      rest.post(SUBMIT_URL, async (_req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ lowSignal: true, flags: ["too_fast"] })),
+      ),
     );
 
     render(<SpecTestQuizFlow />);
     await startQuiz("female");
-    await completeAllItems();
-    expect(await screen.findByText(/couldn't get a clear read/i)).toBeInTheDocument();
-    await waitFor(() => expect(capturedBody).not.toBeNull());
-    expect(capturedBody!.gender).toBe("female");
+    await completeQuiz();
 
+    expect(await screen.findByText(/one more honest go/i)).toBeInTheDocument();
+    expect(mockRouter.push).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId("spec-take-again"));
-    // Retake lands straight on a section intro, not the gender step.
     expect(await screen.findByTestId("spec-continue")).toBeInTheDocument();
     expect(screen.queryByTestId("spec-gender-female")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("spec-gender-male")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId("spec-continue"));
-    // The retake's form is still female_user (male referent) - confirmed by answering up to
-    // the first tokenized item ("hosting-party", index 6) and checking its rendered text,
-    // rather than running a second full 24-item submission.
-    for (let i = 0; i < 6; i += 1) {
-      await answerCurrentItem();
-    }
-    const hostingItem = SPEC_TEST_ITEMS_V2.find((item) => item.id === "hosting-party")!;
-    expect(await screen.findByText(renderTerms(hostingItem.prompt, "female_user"))).toBeInTheDocument();
   });
 
-  it("redirects to the taker's existing result on a retake-cooldown rejection, instead of dead-ending on a retry loop", async () => {
-    // Mirrors the real-world trigger: a fully-answered draft auto-resubmits on reopening the
-    // quiz (computeInitialStep resumes straight into "submitting"), and the server rejects it
-    // because this taker already has a result within the 30-day cooldown (submit/route.ts).
+  it("redirects to a protected recent result when the cooldown endpoint returns its id", async () => {
     server.use(
       rest.post(SUBMIT_URL, async (_req, res, ctx) =>
-        res(
-          ctx.status(429),
-          ctx.json({
-            error: "You can retake the Spec Test on October 14.",
-            nextEligibleAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-            resultId: "already-scored-result",
-          }),
-        ),
+        res(ctx.status(429), ctx.json({ error: "Come back later.", resultId: "recent-v3-result" })),
       ),
     );
 
     render(<SpecTestQuizFlow />);
     await startQuiz();
-    await completeAllItems();
+    await completeQuiz();
 
-    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith("/spec-test/result/already-scored-result"));
-    // Never shows the dead "Try again" retry state for this case - there's somewhere useful
-    // to go instead.
-    expect(screen.queryByText(/retake the Spec Test/i)).not.toBeInTheDocument();
-  });
-
-  it("persists progress across a remount (draft survives a reload)", async () => {
-    const first = render(<SpecTestQuizFlow />);
-    await startQuiz();
-    await answerCurrentItem();
-    await answerCurrentItem();
-    expect(await screen.findByText(SPEC_TEST_ITEMS_V2[2].prompt)).toBeInTheDocument();
-
-    // A page reload unmounts the old tree and mounts a fresh one against the same
-    // localStorage - simulated here without a real navigation.
-    first.unmount();
-    render(<SpecTestQuizFlow />);
-    expect(await screen.findByText(SPEC_TEST_ITEMS_V2[2].prompt)).toBeInTheDocument();
-  });
-
-  it("resumes a draft on the taker's chosen form without ever re-asking gender", async () => {
-    const first = render(<SpecTestQuizFlow />);
-    await startQuiz("female");
-    await answerCurrentItem();
-
-    first.unmount();
-    render(<SpecTestQuizFlow />);
-
-    // Never re-shown the gender step, and the female_user form (male referent) is still in use.
-    expect(screen.queryByTestId("spec-gender-female")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("spec-gender-male")).not.toBeInTheDocument();
-    const hostingItem = SPEC_TEST_ITEMS_V2.find((item) => item.id === "hosting-party");
-    if (hostingItem) {
-      // Not necessarily the item on screen right now - this just confirms the form used for
-      // rendering resolves the same way the report/plan require (§8 acceptance criteria).
-      expect(renderTerms(hostingItem.prompt, routeForm("female").quizForm)).toContain("man");
-    }
-  });
-
-  it("resumes past an already-answered item even if the advance transition never finished (tab closed mid-hold)", async () => {
-    const first = render(<SpecTestQuizFlow />);
-    await startQuiz("male");
-
-    // Answer item 0 but unmount before the hold-then-advance timer fires - simulates closing
-    // the tab in the ~380ms window between picking an answer and itemIndex actually
-    // advancing, which is exactly when a stale draft (itemIndex still 0, but responses
-    // already has item 0) gets persisted.
-    const options = await screen.findAllByTestId("spec-option");
-    fireEvent.click(options[0]);
-    first.unmount();
-
-    render(<SpecTestQuizFlow />);
-
-    // Must resume on item 1, not re-ask the already-answered item 0, and not show a
-    // redundant section intro (item 1 is in the same section as item 0, whose intro was
-    // already shown before item 0 was first presented).
-    expect(await screen.findByText(SPEC_TEST_ITEMS_V2[1].prompt)).toBeInTheDocument();
-    expect(screen.queryByTestId("spec-continue")).not.toBeInTheDocument();
-  });
-
-  it("renders no scored item until the gender question is answered", async () => {
-    render(<SpecTestQuizFlow />);
-
-    expect(await screen.findByText(/what's your gender/i)).toBeInTheDocument();
-    expect(screen.queryByTestId("spec-continue")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("spec-option")).not.toBeInTheDocument();
-  });
-
-  it("renders items using the taker's own form, differing only in the substituted terms", async () => {
-    const hostingItem = SPEC_TEST_ITEMS_V2.find((item) => item.id === "hosting-party")!;
-    const maleUserText = renderTerms(hostingItem.prompt, "male_user");
-    const femaleUserText = renderTerms(hostingItem.prompt, "female_user");
-
-    expect(maleUserText).not.toEqual(femaleUserText);
-    expect(maleUserText).toContain("woman");
-    expect(femaleUserText).toContain("man");
-    // Same template underneath - the two forms only ever differ in the rendered term.
-    expect(maleUserText.replace("woman", "{person}")).toEqual(femaleUserText.replace("man", "{person}"));
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith("/spec-test/result/recent-v3-result"));
   });
 });

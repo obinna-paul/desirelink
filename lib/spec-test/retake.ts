@@ -21,11 +21,14 @@ export type ActiveRetakeCooldown = {
  * exact same answer to "is this profile blocked right now, and if so by which result":
  * submit/route.ts enforces it against a POST, and app/spec-test/quiz/page.tsx checks it before
  * rendering the quiz at all - a signed-in taker inside the cooldown gets sent straight to
- * their existing result instead of answering all 24 questions only to be told that at the end.
+ * their existing result instead of answering all 28 questions only to be told that at the end.
  */
-export async function getActiveRetakeCooldown(profileId: string): Promise<ActiveRetakeCooldown | null> {
+export async function getActiveRetakeCooldown(
+  profileId: string,
+  instrumentVersion?: string,
+): Promise<ActiveRetakeCooldown | null> {
   const lastResult = await prisma.specTestResult.findFirst({
-    where: { profileId },
+    where: { profileId, instrumentVersion },
     orderBy: { createdAt: "desc" },
     select: { id: true, createdAt: true },
   });

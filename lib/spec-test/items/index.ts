@@ -9,6 +9,14 @@ import { SPEC_TEST_ITEMS_V2, type SpecItemV2 } from "@/lib/spec-test/items/spec-
 
 export type { SpecItemV2, SpecItemOptionV2 } from "@/lib/spec-test/items/spec-v2";
 export {
+  SPEC_TEST_ITEMS_V3,
+  V3_BEST_WORST_ITEMS,
+  V3_INTENSITY_ITEMS,
+  V3_UNCERTAINTY_ITEMS,
+  V3_INSTRUMENT_VERSION,
+  type SpecItemV3,
+} from "@/lib/spec-test/items/spec-v3";
+export {
   SPEC_TEST_ITEMS_V3_PILOT,
   V3_PILOT_BEST_WORST_ITEMS,
   V3_PILOT_INTENSITY_ITEMS,

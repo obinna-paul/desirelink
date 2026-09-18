@@ -2,7 +2,9 @@
 
 import { Check } from "lucide-react";
 
-import type { BestWorstItemV3 } from "@/lib/spec-test/items/spec-v3-pilot";
+import type { BestWorstItemV3 } from "@/lib/spec-test/items/spec-v3";
+import { renderTerms } from "@/lib/spec-test/gender/render";
+import type { RenderForm } from "@/lib/spec-test/gender/terms";
 import { cn } from "@/lib/utils";
 
 export type BestWorstSelection = {
@@ -16,6 +18,7 @@ type BestWorstQuestionProps = {
   onChange: (value: BestWorstSelection) => void;
   optionOrder?: number[];
   disabled?: boolean;
+  form?: RenderForm;
 };
 
 /** Accessible pilot control for comparative blocks. Both judgments remain visible at once,
@@ -27,6 +30,7 @@ export function BestWorstQuestion({
   onChange,
   optionOrder = [0, 1, 2, 3],
   disabled = false,
+  form = "neutral",
 }: BestWorstQuestionProps) {
   function select(optionId: string, pole: "best" | "worst") {
     if (pole === "best") {
@@ -44,10 +48,9 @@ export function BestWorstQuestion({
 
   return (
     <fieldset className="flex min-w-0 flex-col gap-5" disabled={disabled}>
-      <legend className="font-heading text-xl font-bold sm:text-2xl">{item.prompt}</legend>
+      <legend className="font-heading text-xl font-bold sm:text-2xl">{renderTerms(item.prompt, form)}</legend>
       <p className="text-sm leading-6 text-muted-foreground">
-        Choose one as <span className="font-semibold text-foreground">Most</span> and a different one as{" "}
-        <span className="font-semibold text-foreground">Least</span>. Both answers matter.
+        First choose your biggest yes. Then choose the one that does the least for you.
       </p>
 
       <div className="flex flex-col gap-3">
@@ -65,12 +68,12 @@ export function BestWorstQuestion({
                 (isBest || isWorst) && "border-primary/70 bg-accent-tint/50",
               )}
             >
-              <p className="px-1 pb-3 text-sm font-medium leading-6">{option.label}</p>
-              <div className="grid grid-cols-2 gap-2" role="group" aria-label={`Rate: ${option.label}`}>
+              <p className="px-1 pb-3 text-sm font-medium leading-6">{renderTerms(option.label, form)}</p>
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label={`Rate: ${renderTerms(option.label, form)}`}>
                 <button
                   type="button"
                   aria-pressed={isBest}
-                  aria-label={`Most: ${option.label}`}
+                  aria-label={`Most: ${renderTerms(option.label, form)}`}
                   data-testid={`v3-most-${option.id}`}
                   onClick={() => select(option.id, "best")}
                   className={cn(
@@ -83,12 +86,12 @@ export function BestWorstQuestion({
                   )}
                 >
                   {isBest && <Check className="h-4 w-4" aria-hidden="true" />}
-                  Most
+                  My type
                 </button>
                 <button
                   type="button"
                   aria-pressed={isWorst}
-                  aria-label={`Least: ${option.label}`}
+                  aria-label={`Least: ${renderTerms(option.label, form)}`}
                   data-testid={`v3-least-${option.id}`}
                   onClick={() => select(option.id, "worst")}
                   className={cn(
@@ -101,7 +104,7 @@ export function BestWorstQuestion({
                   )}
                 >
                   {isWorst && <Check className="h-4 w-4" aria-hidden="true" />}
-                  Least
+                  Not really
                 </button>
               </div>
             </div>

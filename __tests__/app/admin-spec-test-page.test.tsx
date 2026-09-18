@@ -39,6 +39,7 @@ jest.mock("@/lib/spec-test", () => ({
   }),
   SPEC_TYPE_READINGS: { grounded_equal: { name: "The Grounded Equal" } },
   INSTRUMENT_VERSION: "spec-v2.1",
+  V3_INSTRUMENT_VERSION: "spec-v3.0",
 }));
 
 import AdminSpecTestLeadsPage from "@/app/(admin)/admin/spec-test/page";
@@ -108,8 +109,8 @@ describe("Admin Spec Test page - members who've taken the test", () => {
 
     await AdminSpecTestLeadsPage({ searchParams: {} });
 
-    expect(mockGetTypeDistribution).toHaveBeenCalledWith("spec-v2.1");
-    expect(mockGetTypeDistributionByForm).toHaveBeenCalledWith("spec-v2.1");
+    expect(mockGetTypeDistribution).toHaveBeenCalledWith("spec-v3.0");
+    expect(mockGetTypeDistributionByForm).toHaveBeenCalledWith("spec-v3.0");
   });
 
   it("shows option wording and choice rates in item analytics", async () => {

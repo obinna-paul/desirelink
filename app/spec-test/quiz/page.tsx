@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getActiveRetakeCooldown } from "@/lib/spec-test/retake";
+import { V3_INSTRUMENT_VERSION } from "@/lib/spec-test/items/spec-v3";
 import { publicPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = publicPageMetadata({
@@ -27,7 +28,7 @@ export default async function SpecTestQuizPage() {
   const viewerProfile = session?.user?.id
     ? await prisma.profile.findUnique({ where: { userId: session.user.id }, select: { id: true } })
     : null;
-  const cooldown = viewerProfile ? await getActiveRetakeCooldown(viewerProfile.id) : null;
+  const cooldown = viewerProfile ? await getActiveRetakeCooldown(viewerProfile.id, V3_INSTRUMENT_VERSION) : null;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -36,7 +37,7 @@ export default async function SpecTestQuizPage() {
         <div className="rounded-3xl border border-border/60 bg-card p-6 shadow-card sm:p-8">
           {cooldown ? (
             // Checked up front rather than only at submit time: without this, a signed-in
-            // taker inside the cooldown would answer all 24 questions before ever being told
+            // taker inside the cooldown would answer all 28 questions before ever being told
             // there's nothing new to score - see submit/route.ts's own 429 for the same check,
             // enforced there as the actual guard.
             <div className="flex flex-col items-center gap-5 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-500">

@@ -27,7 +27,7 @@ describe("BestWorstQuestion", () => {
   it("explains both judgments and exposes native toggle state", () => {
     render(<ControlledQuestion />);
     expect(screen.getByText(item.prompt)).toBeInTheDocument();
-    expect(screen.getByText(/both answers matter/i)).toBeInTheDocument();
+    expect(screen.getByText(/biggest yes/i)).toBeInTheDocument();
 
     const most = screen.getByTestId(`v3-most-${item.options[0].id}`);
     const least = screen.getByTestId(`v3-least-${item.options[1].id}`);

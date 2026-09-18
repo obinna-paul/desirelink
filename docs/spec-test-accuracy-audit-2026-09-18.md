@@ -6,6 +6,15 @@
 
 ## Implementation progress
 
+- **2026-09-19 — `spec-v3.0` made the official public test.** At product direction, the
+  balanced 28-item design now replaces the old 24-item interface and emits the full existing
+  archetype result. The copy was rewritten for quick, enjoyable comprehension by a Nigerian
+  audience; gender is asked first and routes opposite-gender wording without affecting the
+  score. The classifier uses a transparent one-dimension/one-archetype decision, making all
+  eight archetypes reachable and eliminating the defective centroid-space comparison. This
+  promotion happened before a large external calibration sample was collected, so the test
+  remains explicitly research-informed beta and its thresholds require ongoing monitoring.
+
 - **2026-09-18 — Phase 0, analytics foundation complete.** Type distributions now require an
   explicit instrument version, form-level distributions apply the same version filter, all
   eight archetypes remain visible when their count is zero, and item analytics expose option
