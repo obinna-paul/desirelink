@@ -13,6 +13,17 @@ import type { LockedPostPreview } from "@/lib/posts";
  * ready instead of leaving the paywall looking like a plain dark screen. */
 const MAX_RETRIES = 5;
 
+/**
+ * `unoptimized` skips next/image's default behavior of fetching the source through
+ * Next's own image-optimization proxy (a server-side request from Vercel's
+ * infrastructure). Bunny's CDN hotlink-protects its hostnames by referrer, which that
+ * proxied request doesn't carry - it 403s there the same way a bare curl does, even
+ * though a real browser request (like the unlocked player's <video poster>) sails
+ * through with the page's own referrer intact. Skipping the proxy makes the browser
+ * fetch this image directly, the same way the poster already does. Cloudinary's blurred
+ * stills don't need this - they're unaffected either way - but there's no reason to send
+ * an already-tiny, pre-blurred asset through a second re-encode.
+ */
 export function BlurredPreviewImage({
   preview,
   sizes,
@@ -42,6 +53,7 @@ export function BlurredPreviewImage({
       src={src}
       alt=""
       fill
+      unoptimized
       sizes={sizes}
       className={["object-cover", blurClassName, className].filter(Boolean).join(" ")}
       onError={() => {
