@@ -23,6 +23,7 @@ import { useSyncExternalStore } from "react";
 
 import type { PostDisplayAspectRatio, PostMediaItem, VideoCrop } from "@/lib/post-shared";
 import {
+  discardVideoUpload,
   uploadMediaDirectToCloudinary,
   uploadVideoDirect,
   type VideoUploadPhase,
@@ -57,6 +58,8 @@ export type PreparedMediaReview = {
 export type UploadedMedia = PostMediaItem & {
   metadataDetected: boolean;
   displayAspectRatio: PostDisplayAspectRatio;
+  /** Removes an uploaded Bunny object if the creator drops it before publishing. */
+  discard?: () => void;
 };
 
 export type ActiveUpload = {
@@ -65,6 +68,11 @@ export type ActiveUpload = {
   label: string;
   /** 0-100, or null while nothing measurable has happened yet. */
   progress: number | null;
+  bytesUploaded: number;
+  totalBytes: number;
+  /** Smoothed transfer speed and ETA are omitted until enough bytes have moved. */
+  bytesPerSecond: number | null;
+  etaSeconds: number | null;
 };
 
 export type FailedUpload = {
@@ -96,6 +104,8 @@ const EMPTY_STATE: UploadSessionState = {
 let state: UploadSessionState = EMPTY_STATE;
 let queue: PreparedMediaReview[] = [];
 let running = false;
+let progressSample: { at: number; bytes: number; bytesPerSecond: number | null } | null = null;
+let lastProgressRenderAt = 0;
 const listeners = new Set<() => void>();
 
 function setState(patch: Partial<UploadSessionState>) {
@@ -126,16 +136,59 @@ export function useUploadSession(): UploadSessionState {
 function describeVideoPhase(phase: VideoUploadPhase): string {
   if (phase === "reconnecting") return "Upload paused. Reconnecting...";
   if (phase === "retrying") return "Video service interrupted. Resuming...";
+  if (phase === "confirming") return "Confirming your video...";
   if (phase === "preparing") return "Preparing video...";
   return "Uploading video...";
 }
 
-function trackProgress(fraction: number) {
+function trackProgress(
+  fraction: number,
+  detail?: { uploadedBytes: number; totalBytes: number },
+) {
   const active = state.active;
   if (!active) return;
+  const now = Date.now();
   const next = Math.max(active.progress ?? 0, Math.round(fraction * 100));
-  if (next === active.progress) return;
-  setState({ active: { ...active, progress: next } });
+  let bytesPerSecond = active.bytesPerSecond;
+  let etaSeconds = active.etaSeconds;
+  const bytesUploaded = detail
+    ? Math.max(active.bytesUploaded, detail.uploadedBytes)
+    : active.bytesUploaded;
+  const totalBytes = detail?.totalBytes ?? active.totalBytes;
+
+  if (detail && progressSample && detail.uploadedBytes > progressSample.bytes) {
+    const elapsedSeconds = (now - progressSample.at) / 1000;
+    if (elapsedSeconds >= 0.75) {
+      const currentSpeed = (detail.uploadedBytes - progressSample.bytes) / elapsedSeconds;
+      bytesPerSecond = progressSample.bytesPerSecond
+        ? progressSample.bytesPerSecond * 0.7 + currentSpeed * 0.3
+        : currentSpeed;
+      progressSample = { at: now, bytes: detail.uploadedBytes, bytesPerSecond };
+    }
+  } else if (detail && (!progressSample || detail.uploadedBytes > progressSample.bytes)) {
+    progressSample = { at: now, bytes: detail.uploadedBytes, bytesPerSecond };
+  }
+
+  if (bytesPerSecond && bytesPerSecond > 0 && totalBytes > bytesUploaded) {
+    etaSeconds = Math.ceil((totalBytes - bytesUploaded) / bytesPerSecond);
+  } else if (bytesUploaded >= totalBytes && totalBytes > 0) {
+    etaSeconds = 0;
+  }
+
+  // Percentage changes can be far apart on a 50GB file. Refresh byte/speed details at a
+  // measured cadence as well, without re-rendering on every low-level XHR progress event.
+  if (next === active.progress && now - lastProgressRenderAt < 1_000) return;
+  lastProgressRenderAt = now;
+  setState({
+    active: {
+      ...active,
+      progress: next,
+      bytesUploaded,
+      totalBytes,
+      bytesPerSecond,
+      etaSeconds,
+    },
+  });
 }
 
 async function uploadOne(
@@ -151,6 +204,23 @@ async function uploadOne(
   } = item;
   const file = adjustedFile ?? pending.file;
   const isVideo = pending.kind === "video";
+  const preUploadDuration = checkReportedVideoDuration(
+    videoMeta?.durationSeconds ?? pending.durationSeconds,
+    context.maxDurationSeconds,
+  );
+
+  // Never upload a file and only then reject it for a duration the browser already knew.
+  // That creates the exact false-failure experience where Bunny has the video but the app
+  // says the upload failed. Validate the known duration before a single byte is sent.
+  if (isVideo && !preUploadDuration.withinLimit) {
+    setState({
+      error: `Videos must be ${formatVideoDuration(context.maxDurationSeconds)} or shorter.`,
+    });
+    return "failed";
+  }
+
+  progressSample = null;
+  lastProgressRenderAt = 0;
 
   setState({
     active: {
@@ -158,6 +228,10 @@ async function uploadOne(
       phase: isVideo ? "preparing" : "image",
       label: isVideo ? "Preparing video..." : "Uploading photo...",
       progress: null,
+      bytesUploaded: 0,
+      totalBytes: file.size,
+      bytesPerSecond: null,
+      etaSeconds: null,
     },
     error: null,
   });
@@ -183,12 +257,6 @@ async function uploadOne(
       media.durationSeconds ?? videoMeta?.durationSeconds ?? pending.durationSeconds,
       context.maxDurationSeconds,
     );
-    if (!duration.withinLimit) {
-      setState({
-        error: `Videos must be ${formatVideoDuration(context.maxDurationSeconds)} or shorter.`,
-      });
-      return "failed";
-    }
 
     setState({
       completed: [
@@ -197,6 +265,8 @@ async function uploadOne(
           ...media,
           width: media.width ?? videoMeta?.width,
           height: media.height ?? videoMeta?.height,
+          // A provider-reported duration discovered only after transfer belongs to post
+          // validation, not upload failure. Keep the accepted media and its real duration.
           durationSeconds: duration.durationSeconds,
           type: isVideo ? "video" : "image",
           displayAspectRatio: reviewedAspectRatio,
@@ -219,6 +289,14 @@ async function uploadOne(
  * here - never dropped. */
 async function drainQueue(context: UploadContext) {
   running = true;
+  const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+    event.preventDefault();
+    event.returnValue = "";
+  };
+  // In-app navigation is safe because this module remains alive. A full refresh or tab
+  // close releases the browser's File handle, so let the browser guard against an
+  // accidental dismissal while a large upload is still moving.
+  window.addEventListener("beforeunload", warnBeforeUnload);
   try {
     while (queue.length > 0) {
       const [item, ...rest] = queue;
@@ -230,6 +308,7 @@ async function drainQueue(context: UploadContext) {
       }
     }
   } finally {
+    window.removeEventListener("beforeunload", warnBeforeUnload);
     running = false;
     if (state.active) setState({ active: null });
   }
@@ -258,6 +337,9 @@ export function retryFailedUpload(context: UploadContext): void {
 export function skipFailedUpload(context: UploadContext): void {
   const failed = state.failed;
   if (!failed) return;
+  if (failed.item.pending.kind === "video") {
+    void discardVideoUpload(failed.item.adjustedFile ?? failed.item.pending.file);
+  }
   setState({ failed: null, error: null });
   enqueue(failed.remaining, context);
 }
@@ -271,6 +353,18 @@ export function drainCompletedMedia(): UploadedMedia[] {
   const completed = state.completed;
   setState({ completed: [] });
   return completed;
+}
+
+/** Returns media claimed by a composer to the session when that composer unmounts before
+ * publishing. This closes the small handoff gap between "upload completed" and "post
+ * published": navigating away at either point keeps the already-uploaded draft intact. */
+export function retainCompletedMedia(items: UploadedMedia[]): void {
+  if (items.length === 0) return;
+  const knownUrls = new Set(state.completed.map((item) => item.url));
+  const additions = items.filter((item) => !knownUrls.has(item.url));
+  if (additions.length > 0) {
+    setState({ completed: [...state.completed, ...additions] });
+  }
 }
 
 export function clearUploadError(): void {

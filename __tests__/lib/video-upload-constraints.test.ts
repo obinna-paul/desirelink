@@ -1,4 +1,5 @@
 import {
+  bunnyChunkStallTimeoutMs,
   bunnyDirectChunkSizeBytes,
   checkReportedVideoDuration,
   formatMaxVideoUploadSize,
@@ -123,5 +124,11 @@ describe("video upload constraints", () => {
     // Mobile keeps smaller chunks: a re-sent chunk costs more on a weak signal.
     expect(bunnyDirectChunkSizeBytes(8 * GIGABYTE, true)).toBe(8 * 1024 * 1024);
     expect(8 * GIGABYTE / bunnyDirectChunkSizeBytes(8 * GIGABYTE, false)).toBeLessThan(500);
+  });
+
+  it("does not mistake a slow large chunk for a stalled request", () => {
+    expect(bunnyChunkStallTimeoutMs(3 * 1024 * 1024)).toBeGreaterThan(2 * 60 * 1000);
+    expect(bunnyChunkStallTimeoutMs(20 * 1024 * 1024)).toBeGreaterThan(10 * 60 * 1000);
+    expect(bunnyChunkStallTimeoutMs(100 * 1024 * 1024)).toBe(15 * 60 * 1000);
   });
 });

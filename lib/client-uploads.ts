@@ -14,6 +14,7 @@
 import * as tus from "tus-js-client";
 
 import {
+  bunnyChunkStallTimeoutMs,
   bunnyDirectChunkSizeBytes,
   getBunnyUploadTransportOrder,
   inferVideoContentType,
@@ -22,6 +23,11 @@ import {
 
 const FIRST_PARTY_UPLOAD_MAX_BYTES = 3.5 * 1024 * 1024;
 const BUNNY_MOBILE_TUS_ENDPOINT = "/api/upload/bunny-tus";
+const UPLOAD_CONTROL_REQUEST_TIMEOUT_MS = 20_000;
+const BUNNY_MAX_NO_PROGRESS_RETRY_MS = 15 * 60 * 1000;
+const BUNNY_COMPLETION_ACK_TIMEOUT_MS = 15_000;
+const BUNNY_CONFIRMATION_DELAYS_MS = [0, 1_500, 3_500] as const;
+const BUNNY_AUTH_CACHE_PREFIX = "udala:bunny-upload:v2:";
 
 /** Longest a single reconnect wait sits before retrying anyway - the `online` event is the
  * fast path, this is the backstop so a browser that misreports offline (or never fires the
@@ -44,11 +50,13 @@ type CloudinaryUploadResult = {
   width?: number;
   height?: number;
   durationSeconds?: number;
+  /** Draft-only cleanup. It is deliberately omitted from the post payload. */
+  discard?: () => void;
 };
 
 async function requestSignature(purpose: string): Promise<SignedUpload | null> {
   return withUploadRetries(async () => {
-    const signRes = await fetch("/api/upload/sign", {
+    const signRes = await fetchWithTimeout("/api/upload/sign", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ purpose }),
@@ -71,6 +79,20 @@ async function requestSignature(purpose: string): Promise<SignedUpload | null> {
 class TerminalUploadError extends Error {}
 
 class ProviderReachabilityError extends Error {}
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs = UPLOAD_CONTROL_REQUEST_TIMEOUT_MS,
+) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
 
 function browserIsOffline() {
   return typeof navigator !== "undefined" && navigator.onLine === false;
@@ -284,12 +306,89 @@ type BunnyUploadAuth = {
   playbackUrl: string;
 };
 
-/** How many times a dropped connection gets to reconnect and resume *without the upload
- * advancing in between* before giving up for good - bounds a pathological flap
- * (on/offline/on/offline...). The budget resets whenever bytes actually move, because a
- * multi-gigabyte upload over mobile data can legitimately survive a dozen tunnels, and a
- * lifetime cap of three would have killed it somewhere in the middle for no good reason. */
-const MAX_RECONNECT_RESUMES = 3;
+type VideoProgress = {
+  uploadedBytes: number;
+  totalBytes: number;
+};
+
+function bunnyAuthCacheKey(file: File) {
+  return `${BUNNY_AUTH_CACHE_PREFIX}${encodeURIComponent(
+    [file.name, file.size, file.lastModified, file.type].join(":"),
+  )}`;
+}
+
+function readCachedBunnyAuth(file: File): BunnyUploadAuth | null {
+  try {
+    const key = bunnyAuthCacheKey(file);
+    const parsed = JSON.parse(window.localStorage.getItem(key) ?? "null") as Partial<BunnyUploadAuth> | null;
+    const isUsable =
+      parsed &&
+      typeof parsed.tusEndpoint === "string" &&
+      typeof parsed.libraryId === "string" &&
+      typeof parsed.videoId === "string" &&
+      typeof parsed.authorizationSignature === "string" &&
+      typeof parsed.authorizationExpire === "number" &&
+      typeof parsed.playbackUrl === "string" &&
+      parsed.authorizationExpire > Math.floor(Date.now() / 1000) + 5 * 60;
+
+    if (isUsable) return parsed as BunnyUploadAuth;
+    window.localStorage.removeItem(key);
+  } catch {
+    // Storage may be blocked in private mode. The upload still works for this tab.
+  }
+  return null;
+}
+
+function cacheBunnyAuth(file: File, auth: BunnyUploadAuth) {
+  try {
+    window.localStorage.setItem(bunnyAuthCacheKey(file), JSON.stringify(auth));
+  } catch {
+    // A resumable upload must not depend on localStorage being available.
+  }
+}
+
+function clearCachedBunnyAuth(file: File) {
+  try {
+    window.localStorage.removeItem(bunnyAuthCacheKey(file));
+  } catch {
+    // Nothing to clean up when storage is unavailable.
+  }
+}
+
+type BunnyConfirmation = "accepted" | "failed" | "incomplete" | "unavailable";
+
+async function confirmBunnyUpload(auth: BunnyUploadAuth): Promise<BunnyConfirmation> {
+  let lastResult: BunnyConfirmation = "unavailable";
+
+  for (const delay of BUNNY_CONFIRMATION_DELAYS_MS) {
+    if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+    try {
+      const res = await fetchWithTimeout(
+        "/api/upload/bunny-status",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            videoId: auth.videoId,
+            libraryId: auth.libraryId,
+            authorizationExpire: auth.authorizationExpire,
+            authorizationSignature: auth.authorizationSignature,
+          }),
+        },
+        10_000,
+      );
+      if (!res.ok) continue;
+      const body = (await res.json().catch(() => null)) as { result?: BunnyConfirmation } | null;
+      if (body?.result === "accepted" || body?.result === "failed") return body.result;
+      if (body?.result === "incomplete") lastResult = "incomplete";
+    } catch {
+      // A failed confirmation request is not proof that the upload failed. Keep the
+      // resumable upload metadata and let the ordinary retry path continue from its offset.
+    }
+  }
+
+  return lastResult;
+}
 
 /**
  * tus-js-client defaults to `Infinity` - i.e. the ENTIRE file in a single PATCH. That
@@ -308,8 +407,39 @@ const MAX_RECONNECT_RESUMES = 3;
  */
 const BUNNY_MOBILE_CHUNK_SIZE = 3 * 1024 * 1024;
 
-function discardFailedBunnyVideo(auth: BunnyUploadAuth) {
-  void fetch("/api/upload/bunny-abort", {
+function bunnyTusFingerprint(
+  file: File,
+  auth: BunnyUploadAuth,
+  transport: BunnyUploadTransport,
+) {
+  return [
+    "udala-bunny-v2",
+    auth.libraryId,
+    auth.videoId,
+    transport,
+    file.name,
+    file.size,
+    file.lastModified,
+  ].join("-");
+}
+
+async function forgetStoredBunnyUploads(file: File, auth: BunnyUploadAuth) {
+  await Promise.all(
+    (["direct", "relay"] as const).map(async (transport) => {
+      const previous = await tus.defaultOptions.urlStorage.findUploadsByFingerprint(
+        bunnyTusFingerprint(file, auth, transport),
+      );
+      await Promise.all(
+        previous.map((upload) =>
+          tus.defaultOptions.urlStorage.removeUpload(upload.urlStorageKey),
+        ),
+      );
+    }),
+  ).catch(() => undefined);
+}
+
+async function requestDiscardBunnyVideo(auth: BunnyUploadAuth) {
+  await fetch("/api/upload/bunny-abort", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -320,6 +450,27 @@ function discardFailedBunnyVideo(auth: BunnyUploadAuth) {
     }),
     keepalive: true,
   }).catch(() => undefined);
+}
+
+function discardBunnyUpload(file: File, auth: BunnyUploadAuth) {
+  clearCachedBunnyAuth(file);
+  void Promise.allSettled([
+    forgetStoredBunnyUploads(file, auth),
+    requestDiscardBunnyVideo(auth),
+  ]);
+}
+
+/** Called when the creator removes a resumable failure from the draft. Retrying preserves
+ * Bunny's object and offset; explicitly removing it does the opposite and cleans both the
+ * provider object and the local resume pointers. */
+export async function discardVideoUpload(file: File): Promise<void> {
+  const auth = readCachedBunnyAuth(file);
+  if (!auth) return;
+  clearCachedBunnyAuth(file);
+  await Promise.allSettled([
+    forgetStoredBunnyUploads(file, auth),
+    requestDiscardBunnyVideo(auth),
+  ]);
 }
 
 type TusResponseLike = {
@@ -424,26 +575,101 @@ function uploadToBunnyViaTus(
   auth: BunnyUploadAuth,
   transport: BunnyUploadTransport,
   canSwitchTransport: boolean,
-  onProgress?: (fraction: number) => void,
+  onProgress?: (fraction: number, detail?: VideoProgress) => void,
   onPhaseChange?: (phase: VideoUploadPhase) => void
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    let reconnectResumes = 0;
     let bytesUploaded = 0;
-    let bytesAtLastFailure = -1;
+    let lastProgressAt = Date.now();
     let settled = false;
+    let hasStoredUpload = false;
+    let resumeTimer: ReturnType<typeof setTimeout> | null = null;
+    let stallTimer: ReturnType<typeof setTimeout> | null = null;
+    let completionTimer: ReturnType<typeof setTimeout> | null = null;
     const useFirstPartyTransport = transport === "relay";
+    const chunkSize = useFirstPartyTransport
+      ? BUNNY_MOBILE_CHUNK_SIZE
+      : bunnyDirectChunkSizeBytes(file.size, isLikelyMobileBrowser());
+    const stallTimeoutMs = bunnyChunkStallTimeoutMs(chunkSize);
     const contentType =
       auth.contentType ?? inferVideoContentType(file.name, file.type) ?? "video/mp4";
 
+    const clearRecoveryTimers = () => {
+      if (resumeTimer) clearTimeout(resumeTimer);
+      if (stallTimer) clearTimeout(stallTimer);
+      if (completionTimer) clearTimeout(completionTimer);
+      resumeTimer = null;
+      stallTimer = null;
+      completionTimer = null;
+    };
+
+    const canKeepRecovering = () =>
+      Date.now() - lastProgressAt < BUNNY_MAX_NO_PROGRESS_RETRY_MS &&
+      auth.authorizationExpire > Math.floor(Date.now() / 1000) + 60;
+
+    const failAfterRecoveryWindow = (message: string, status?: number) => {
+      if (settled) return;
+      settled = true;
+      clearRecoveryTimers();
+      void upload.abort(false);
+      reject(
+        new BunnyTusTransportError(
+          message,
+          true,
+          Math.max(bytesUploaded, hasStoredUpload ? 1 : 0),
+          status,
+        ),
+      );
+    };
+
+    const resumeAfterInterruption = (phase: VideoUploadPhase) => {
+      if (settled || resumeTimer) return;
+      if (!canKeepRecovering()) {
+        failAfterRecoveryWindow(
+          "We couldn't reconnect to the video service. Your uploaded progress is saved — tap Try upload again to continue.",
+        );
+        return;
+      }
+
+      onPhaseChange?.(phase);
+      const noProgressMs = Date.now() - lastProgressAt;
+      const delay = Math.min(30_000, 1_000 * 2 ** Math.min(5, Math.floor(noProgressMs / 30_000)));
+      void waitForConnection().then(() => {
+        if (settled) return;
+        resumeTimer = setTimeout(() => {
+          resumeTimer = null;
+          if (settled) return;
+          onPhaseChange?.("uploading");
+          upload.start();
+        }, delay);
+      });
+    };
+
+    const armStallWatchdog = () => {
+      if (stallTimer) clearTimeout(stallTimer);
+      if (settled) return;
+      stallTimer = setTimeout(() => {
+        stallTimer = null;
+        if (settled) return;
+        if (!canKeepRecovering()) {
+          failAfterRecoveryWindow(
+            "The video upload stopped responding. Your uploaded progress is saved — tap Try upload again to continue.",
+          );
+          return;
+        }
+        const recoveryPhase = browserIsOffline() ? "reconnecting" : "retrying";
+        onPhaseChange?.(recoveryPhase);
+        void upload.abort(false).then(() => resumeAfterInterruption(recoveryPhase));
+      }, stallTimeoutMs);
+    };
+
     const upload = new tus.Upload(file, {
       endpoint: useFirstPartyTransport ? BUNNY_MOBILE_TUS_ENDPOINT : auth.tusEndpoint,
-      chunkSize: useFirstPartyTransport
-        ? BUNNY_MOBILE_CHUNK_SIZE
-        : bunnyDirectChunkSizeBytes(file.size, isLikelyMobileBrowser()),
-      // Each authorization belongs to a newly-created Bunny video. Persisting its upload
-      // URL in Chrome's storage cannot safely resume a later attempt with a new video ID.
-      storeFingerprintForResuming: false,
+      chunkSize,
+      // The fingerprint includes Bunny's video id, so a later selection of this exact file
+      // can safely recover the same upload URL without mixing two video objects.
+      fingerprint: async () => bunnyTusFingerprint(file, auth, transport),
+      storeFingerprintForResuming: true,
       removeFingerprintOnSuccess: true,
       // A modest bump over tus-js-client's own default ([0, 1000, 3000, 5000], ~9s total) -
       // covers more of the "still connected but flaky" case automatically without leaving
@@ -460,15 +686,30 @@ function uploadToBunnyViaTus(
         LibraryId: auth.libraryId,
       },
       metadata: { filename: file.name, filetype: contentType, title: file.name },
+      onBeforeRequest: () => {
+        armStallWatchdog();
+      },
+      onAfterResponse: () => {
+        if (stallTimer) clearTimeout(stallTimer);
+        stallTimer = null;
+      },
       onError: (error) => {
         if (settled) return;
+        if (stallTimer) clearTimeout(stallTimer);
+        stallTimer = null;
         console.error("[uploads] Bunny TUS upload failed", error);
         const failure = describeTusFailure(error);
 
         // If the provider has not accepted a single byte, a different network route is
         // safer than repeatedly restarting the same failed browser handshake.
-        if (failure.retryable && bytesUploaded === 0 && canSwitchTransport) {
+        if (
+          failure.retryable &&
+          bytesUploaded === 0 &&
+          !hasStoredUpload &&
+          canSwitchTransport
+        ) {
           settled = true;
+          clearRecoveryTimers();
           reject(
             new BunnyTusTransportError(
               failure.message,
@@ -480,29 +721,28 @@ function uploadToBunnyViaTus(
           return;
         }
 
-        // Progress since the last interruption means the connection is usable and the
-        // resume worked - this is a fresh interruption, not a flap.
-        if (bytesUploaded > bytesAtLastFailure) reconnectResumes = 0;
-        bytesAtLastFailure = bytesUploaded;
+        if (failure.retryable && canKeepRecovering()) {
+          // Resumes from the last chunk the server acknowledged. A time-based recovery
+          // window keeps long premium uploads alive through repeated connection changes
+          // without leaving a genuinely dead upload spinning forever.
+          resumeAfterInterruption(browserIsOffline() ? "reconnecting" : "retrying");
+          return;
+        }
 
-        if (failure.retryable && reconnectResumes < MAX_RECONNECT_RESUMES) {
-          reconnectResumes += 1;
-          onPhaseChange?.(browserIsOffline() ? "reconnecting" : "retrying");
-          // Resumes from the last chunk the server acknowledged (see chunkSize above) -
-          // only the interrupted chunk is re-sent, never the whole file.
-          void waitForConnection().then(() => {
-            onPhaseChange?.("uploading");
-            upload.start();
-          });
+        if (failure.retryable) {
+          failAfterRecoveryWindow(
+            "We couldn't reconnect to the video service. Your uploaded progress is saved — tap Try upload again to continue.",
+            failure.status,
+          );
           return;
         }
 
         // tus-js-client's own error carries a raw HTTP request/response dump ("originated
         // from request (method: PATCH, url: ..., response code: n/a...)") - useful for
         // debugging, meaningless and alarming as user-facing text. Surface a plain retry
-        // message instead - reached only once reconnect resumes are exhausted, or the
-        // failure wasn't about connectivity at all.
+        // message instead - reached only when the failure was not about connectivity.
         settled = true;
+        clearRecoveryTimers();
         reject(
           new BunnyTusTransportError(
             failure.message,
@@ -514,27 +754,68 @@ function uploadToBunnyViaTus(
       },
       onProgress: (uploadedBytes, bytesTotal) => {
         if (settled) return;
+        if (uploadedBytes > bytesUploaded) lastProgressAt = Date.now();
         bytesUploaded = Math.max(bytesUploaded, uploadedBytes);
-        if (bytesTotal > 0) onProgress?.(uploadedBytes / bytesTotal);
+        if (bytesTotal > 0 && uploadedBytes >= bytesTotal) {
+          onPhaseChange?.("confirming");
+          if (!completionTimer) {
+            completionTimer = setTimeout(() => {
+              completionTimer = null;
+              if (settled) return;
+              settled = true;
+              clearRecoveryTimers();
+              void upload.abort(false);
+              reject(
+                new BunnyTusTransportError(
+                  "The video was sent, but the final receipt was interrupted. Confirming it with the video service...",
+                  true,
+                  Math.max(bytesUploaded, uploadedBytes),
+                ),
+              );
+            }, BUNNY_COMPLETION_ACK_TIMEOUT_MS);
+          }
+        } else {
+          armStallWatchdog();
+        }
+        if (bytesTotal > 0) {
+          onProgress?.(uploadedBytes / bytesTotal, { uploadedBytes, totalBytes: bytesTotal });
+        }
       },
       onSuccess: () => {
         if (settled) return;
         settled = true;
+        clearRecoveryTimers();
         resolve();
       },
     });
-    upload.start();
+
+    // tus-js-client stores the provider's upload URL. If this file is selected again
+    // after a reload or after the recovery window, continue from Bunny's acknowledged
+    // offset instead of creating a second upload and starting at zero.
+    void upload.findPreviousUploads()
+      .then((previous) => {
+        if (settled) return;
+        if (previous[0]) {
+          hasStoredUpload = true;
+          upload.resumeFromPreviousUpload(previous[0]);
+        }
+        upload.start();
+      })
+      .catch(() => {
+        if (!settled) upload.start();
+      });
   });
 }
 
 export type VideoUploadPhase =
   | "preparing"
   | "uploading"
+  | "confirming"
   | "reconnecting"
   | "retrying";
 
 export type VideoUploadHandlers = {
-  onProgress?: (fraction: number) => void;
+  onProgress?: (fraction: number, detail?: VideoProgress) => void;
   onPhaseChange?: (phase: VideoUploadPhase) => void;
 };
 
@@ -561,8 +842,9 @@ export async function uploadVideoDirect(
   const { onProgress, onPhaseChange } = handlers;
   onPhaseChange?.("preparing");
   onProgress?.(0.02);
-  const auth = await withUploadRetries(async () => {
-    const signRes = await fetch("/api/upload/bunny-sign", {
+  const cachedAuth = readCachedBunnyAuth(file);
+  const auth = cachedAuth ?? await withUploadRetries(async () => {
+    const signRes = await fetchWithTimeout("/api/upload/bunny-sign", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -579,7 +861,9 @@ export async function uploadVideoDirect(
       const body = await signRes.json().catch(() => null);
       throw new TerminalUploadError(body?.error ?? "Upload failed. Please try again.");
     }
-    return (await signRes.json()) as BunnyUploadAuth;
+    const signed = (await signRes.json()) as BunnyUploadAuth;
+    cacheBunnyAuth(file, signed);
+    return signed;
   });
 
   if (!auth) {
@@ -610,7 +894,7 @@ export async function uploadVideoDirect(
           auth,
           transport,
           index < transports.length - 1,
-          (fraction) => onProgress?.(0.04 + fraction * 0.76),
+          (fraction, detail) => onProgress?.(0.04 + fraction * 0.96, detail),
           onPhaseChange,
         );
         uploaded = true;
@@ -629,7 +913,33 @@ export async function uploadVideoDirect(
 
     if (!uploaded) throw lastTransportError ?? new Error("Video upload failed.");
   } catch (error) {
-    discardFailedBunnyVideo(auth);
+    onPhaseChange?.("confirming");
+    const confirmation = await confirmBunnyUpload(auth);
+    if (confirmation === "accepted") {
+      onProgress?.(1, { uploadedBytes: file.size, totalBytes: file.size });
+      clearCachedBunnyAuth(file);
+      let discarded = false;
+      return {
+        url: auth.playbackUrl,
+        discard: () => {
+          if (discarded) return;
+          discarded = true;
+          discardBunnyUpload(file, auth);
+        },
+      };
+    }
+
+    // A retryable interruption keeps both the Bunny video and its TUS URL so the retry
+    // button (or reselecting after a reload) continues at the saved offset.
+    const hasProviderProgress =
+      error instanceof BunnyTusTransportError && error.bytesUploaded > 0;
+    if (
+      confirmation === "failed" ||
+      (!(error instanceof BunnyTusTransportError && error.retryable) && !hasProviderProgress)
+    ) {
+      clearCachedBunnyAuth(file);
+      discardBunnyUpload(file, auth);
+    }
     throw error;
   }
 
@@ -637,8 +947,17 @@ export async function uploadVideoDirect(
   // even started - so the composer is finished. Encoding continues on Bunny's side and
   // the player waits it out for whoever watches first, not for the person posting.
   onProgress?.(1);
+  clearCachedBunnyAuth(file);
 
   // Dimensions and length deliberately come from whatever the browser measured while
   // framing the clip, not from the encoder - asking the encoder means waiting for it.
-  return { url: auth.playbackUrl };
+  let discarded = false;
+  return {
+    url: auth.playbackUrl,
+    discard: () => {
+      if (discarded) return;
+      discarded = true;
+      discardBunnyUpload(file, auth);
+    },
+  };
 }

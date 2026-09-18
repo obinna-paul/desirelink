@@ -9,6 +9,10 @@ export const maxDuration = 300;
 const BUNNY_TUS_ORIGIN = "https://video.bunnycdn.com";
 const BUNNY_TUS_PATH = "/tusupload";
 const MAX_CHUNK_BYTES = 3.25 * 1024 * 1024;
+// A 3MB relay chunk can legitimately take over a minute on weak mobile upstream. The
+// route itself has a five-minute budget, so leave enough room for the device transfer and
+// Bunny's acknowledgement instead of manufacturing a retry at exactly sixty seconds.
+const UPSTREAM_TIMEOUT_MS = 240_000;
 
 const REQUEST_HEADERS = [
   "authorizationexpire",
@@ -102,6 +106,7 @@ async function relay(req: Request, context: RouteContext) {
       headers: forwardedRequestHeaders(req),
       body: body && body.byteLength > 0 ? body : undefined,
       cache: "no-store",
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
 
     if (!upstream.ok && upstream.status !== 204) {

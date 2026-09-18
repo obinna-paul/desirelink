@@ -74,6 +74,29 @@ export function bunnyDirectChunkSizeBytes(fileSizeBytes: number, isMobile: boole
   );
 }
 
+const BUNNY_MIN_STALL_TIMEOUT_MS = 2 * 60 * 1000;
+const BUNNY_MAX_STALL_TIMEOUT_MS = 15 * 60 * 1000;
+const BUNNY_SLOW_UPLOAD_BYTES_PER_SECOND = 32 * 1024;
+const BUNNY_STALL_RESPONSE_GRACE_MS = 60 * 1000;
+
+/**
+ * A fixed two-minute watchdog makes a valid large chunk look dead on a slow uplink. Size
+ * the backstop for a genuinely weak ~256Kbps upload, then add time for Bunny to acknowledge
+ * it. Real network failures still surface through XHR immediately; this timer only handles
+ * a request that becomes completely silent.
+ */
+export function bunnyChunkStallTimeoutMs(chunkSizeBytes: number): number {
+  const estimatedTransferMs =
+    (Math.max(0, chunkSizeBytes) / BUNNY_SLOW_UPLOAD_BYTES_PER_SECOND) * 1000;
+  return Math.min(
+    BUNNY_MAX_STALL_TIMEOUT_MS,
+    Math.max(
+      BUNNY_MIN_STALL_TIMEOUT_MS,
+      Math.ceil(estimatedTransferMs + BUNNY_STALL_RESPONSE_GRACE_MS),
+    ),
+  );
+}
+
 export type BunnyUploadTransport = "direct" | "relay";
 
 const VIDEO_TYPES_BY_EXTENSION: Record<string, string> = {

@@ -15,6 +15,17 @@ import crypto from "node:crypto";
 
 const API_BASE = "https://video.bunnycdn.com";
 export const BUNNY_TUS_ENDPOINT = "https://video.bunnycdn.com/tusupload";
+const BUNNY_CONTROL_REQUEST_TIMEOUT_MS = 20_000;
+
+async function bunnyFetch(input: string, init: RequestInit) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), BUNNY_CONTROL_REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 export function isBunnyStreamConfigured(): boolean {
   return Boolean(
@@ -41,7 +52,7 @@ function cdnHostname(): string {
  * returning its guid (videoId). This call carries the API key, so it only ever runs
  * server-side - the client never sees it. */
 export async function createBunnyVideo(title: string): Promise<string> {
-  const res = await fetch(`${API_BASE}/library/${libraryId()}/videos`, {
+  const res = await bunnyFetch(`${API_BASE}/library/${libraryId()}/videos`, {
     method: "POST",
     headers: { AccessKey: apiKey(), "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ title }),
@@ -63,9 +74,9 @@ export type BunnyUploadAuth = {
   authorizationExpire: number;
 };
 
-const UPLOAD_WINDOW_BASE_SECONDS = 6 * 60 * 60;
-const UPLOAD_WINDOW_PER_GB_SECONDS = 2 * 60 * 60;
-const UPLOAD_WINDOW_MAX_SECONDS = 24 * 60 * 60;
+const UPLOAD_WINDOW_BASE_SECONDS = 24 * 60 * 60;
+const UPLOAD_WINDOW_PER_GB_SECONDS = 5 * 60 * 60;
+const UPLOAD_WINDOW_MAX_SECONDS = 14 * 24 * 60 * 60;
 
 /**
  * Signs a one-time TUS upload authorization for videoId without ever sending the API key
@@ -73,10 +84,10 @@ const UPLOAD_WINDOW_MAX_SECONDS = 24 * 60 * 60;
  * exactly as Bunny's pre-signed upload scheme expects, and the client hands this (not
  * the key) to tus-js-client.
  *
- * The window starts at six hours and grows with the file, up to a day. It stays scoped to
- * this one video whatever its length, and the alternative is worse than a longer window:
- * an authorization that lapses mid-upload strands a multi-gigabyte transfer that was
- * otherwise going fine, on exactly the slow connections that need resumability most.
+ * The window starts at a day and grows with the file, up to two weeks. The token stays
+ * scoped to this one video whatever its length. A 50GB premium upload can take several
+ * days on a slow uplink; expiring its authorization mid-transfer would strand an upload
+ * that TUS could otherwise keep resuming safely.
  */
 export function signBunnyUpload(videoId: string, fileSizeBytes = 0): BunnyUploadAuth {
   const gigabytes =
@@ -117,7 +128,7 @@ export function verifyBunnyUploadAuthorization(auth: BunnyUploadAuth): boolean {
 }
 
 export async function deleteBunnyVideo(videoId: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/library/${libraryId()}/videos/${videoId}`, {
+  const res = await bunnyFetch(`${API_BASE}/library/${libraryId()}/videos/${videoId}`, {
     method: "DELETE",
     headers: { AccessKey: apiKey(), Accept: "application/json" },
     cache: "no-store",
@@ -126,6 +137,60 @@ export async function deleteBunnyVideo(videoId: string): Promise<void> {
     const detail = (await res.text().catch(() => "")).slice(0, 300);
     throw new Error(`Bunny Stream: failed to discard video (${res.status})${detail ? `: ${detail}` : ""}`);
   }
+}
+
+export type BunnyVideoUploadState = {
+  status: number;
+  storageSize: number;
+  hasOriginal: boolean;
+  encodeProgress: number;
+};
+
+/**
+ * Reads Bunny's authoritative state for a video after an ambiguous browser-side TUS
+ * result. A mobile connection can deliver the final chunk and lose only the response;
+ * in that case the dashboard already has the video even though tus-js-client saw an
+ * error. The app must ask Bunny before telling the creator that the upload failed.
+ */
+export async function getBunnyVideoUploadState(videoId: string): Promise<BunnyVideoUploadState> {
+  const res = await bunnyFetch(`${API_BASE}/library/${libraryId()}/videos/${videoId}`, {
+    method: "GET",
+    headers: { AccessKey: apiKey(), Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => "")).slice(0, 300);
+    throw new Error(
+      `Bunny Stream: failed to confirm video (${res.status})${detail ? `: ${detail}` : ""}`,
+    );
+  }
+
+  const data = (await res.json()) as {
+    status?: unknown;
+    storageSize?: unknown;
+    hasOriginal?: unknown;
+    encodeProgress?: unknown;
+  };
+  return {
+    status: typeof data.status === "number" ? data.status : 0,
+    storageSize: typeof data.storageSize === "number" ? data.storageSize : 0,
+    hasOriginal: data.hasOriginal === true,
+    encodeProgress: typeof data.encodeProgress === "number" ? data.encodeProgress : 0,
+  };
+}
+
+/** Status 0 alone can be the empty video object created before upload, but Bunny can also
+ * report 0 briefly after preserving the original. Its documented model uses 5 and 6 for
+ * failed processing/upload states; all other non-zero states mean the source has been
+ * accepted and may already be encoding or ready for playback. `hasOriginal` is conclusive.
+ * `storageSize` alone is deliberately not enough: a partial TUS object must never be
+ * mistaken for a completed upload. */
+export function classifyBunnyVideoUploadState(
+  video: BunnyVideoUploadState,
+): "accepted" | "failed" | "incomplete" {
+  if (video.status === 5 || video.status === 6) return "failed";
+  if (video.status > 0 || video.hasOriginal) return "accepted";
+  return "incomplete";
 }
 
 /** Adaptive-bitrate HLS manifest - what actually gets played, via hls.js on browsers
