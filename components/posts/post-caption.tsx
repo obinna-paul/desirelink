@@ -14,7 +14,7 @@ export function PostCaption({ content }: { content: string }) {
   const displayText = expanded || !isLong ? content : collapsedText;
 
   return (
-    <p className="font-heading whitespace-pre-wrap px-3 text-[14.5px] italic leading-6 md:px-4">
+    <p className="whitespace-pre-wrap px-3 text-[14.5px] leading-6 md:px-4">
       <SocialText content={displayText} />
       {isLong && (expanded ? " " : "… ")}
       {isLong && (
