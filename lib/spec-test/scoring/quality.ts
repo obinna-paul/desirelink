@@ -46,6 +46,12 @@ export type QualityAssessment = {
   flags: QualityFlag[];
 };
 
+export type QualityAssessmentOptions = {
+  /** v2.0/v2.1 treated the authored tension-pair heuristic as blocking. v2.2 keeps the flag
+   * for analysis but no longer rejects a coherent Spark/Partnership distinction as invalid. */
+  contradictionMode?: "blocking" | "diagnostic";
+};
+
 function findResponse(responses: SpecTestResponseV2[], itemId: string): SpecTestResponseV2 | undefined {
   return responses.find((response) => response.itemId === itemId);
 }
@@ -55,7 +61,11 @@ function chosenDimension(itemId: string, response: SpecTestResponseV2 | undefine
   return OPTION_MOTIVE_LOADINGS[response.optionId];
 }
 
-export function assessResponseQuality(items: SpecItemV2[], responses: SpecTestResponseV2[]): QualityAssessment {
+export function assessResponseQuality(
+  items: SpecItemV2[],
+  responses: SpecTestResponseV2[],
+  { contradictionMode = "blocking" }: QualityAssessmentOptions = {},
+): QualityAssessment {
   const flags: QualityFlag[] = [];
 
   const skipCount = responses.filter((response) => response.skipped || response.optionId === null).length;
@@ -90,6 +100,8 @@ export function assessResponseQuality(items: SpecItemV2[], responses: SpecTestRe
     flags.push("contradiction");
   }
 
-  const quality: ResponseQuality = flags.length > 0 ? "low_signal" : "usable";
+  const blockingFlags =
+    contradictionMode === "diagnostic" ? flags.filter((flag) => flag !== "contradiction") : flags;
+  const quality: ResponseQuality = blockingFlags.length > 0 ? "low_signal" : "usable";
   return { quality, flags };
 }

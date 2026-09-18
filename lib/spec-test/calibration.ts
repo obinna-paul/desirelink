@@ -29,6 +29,9 @@ import type { QuizForm } from "@/lib/spec-test/gender/forms";
 
 export type ItemOptionAnalytics = {
   optionId: string;
+  /** Raw, tokenized item-bank label. The admin surface renders it with neutral terms so an
+   *  analyst can inspect what respondents actually saw without duplicating item content. */
+  label: string;
   chosenCount: number;
   /** Share of this item's ANSWERED (non-skipped) responses that picked this option. */
   choiceRate: number;
@@ -126,6 +129,7 @@ export async function getSpecTestItemAnalytics(
         const chosenCount = bucket.optionCounts.get(option.id) ?? 0;
         return {
           optionId: option.id,
+          label: option.label,
           chosenCount,
           choiceRate: bucket.answered > 0 ? chosenCount / bucket.answered : 0,
         };

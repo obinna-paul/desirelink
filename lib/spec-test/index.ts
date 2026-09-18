@@ -15,7 +15,55 @@ export * from "@/lib/spec-test/taxonomy";
 export * from "@/lib/spec-test/response";
 export type { SpecItemV2, SpecItemOptionV2 } from "@/lib/spec-test/items/spec-v2";
 export { SPEC_TEST_ITEMS_V2, itemBankForVersion } from "@/lib/spec-test/items";
-export { decideSpecTestResult, type SpecTestDecision } from "@/lib/spec-test/scoring/decide";
+export {
+  SPEC_TEST_ITEMS_V3_PILOT,
+  V3_PILOT_INSTRUMENT_VERSION,
+  type SpecItemV3Pilot,
+} from "@/lib/spec-test/items/spec-v3-pilot";
+export {
+  analyzeV3PilotBank,
+  scoreV3PilotAttraction,
+  scoreV3PilotUncertainty,
+  validateV3PilotResponses,
+  type V3PilotAttractionProfile,
+  type V3PilotBankDiagnostics,
+} from "@/lib/spec-test/scoring/pilot-v3";
+export {
+  getSpecTestPilotAnalytics,
+  type PilotFunnelPoint,
+  type PilotItemAnalytics,
+  type PilotMotiveDistribution,
+  type SpecTestPilotAnalytics,
+} from "@/lib/spec-test/pilot-analytics";
+export {
+  reviewSpecTestPilot,
+  V3_PILOT_REVIEW_THRESHOLDS,
+  type PilotReviewGate,
+  type PilotReviewWarning,
+  type SpecTestPilotReview,
+} from "@/lib/spec-test/pilot-review";
+export {
+  decideSpecTestResult,
+  decideSpecTestResultForVersion,
+  decideSpecTestResultV22,
+  type SpecTestDecision,
+} from "@/lib/spec-test/scoring/decide";
+export {
+  analyzeScoreSpace,
+  analyzeSingleAnswerPerturbations,
+  buildScoringLaboratoryReport,
+  searchArchetypeReachability,
+  searchV22ArchetypeReachability,
+  simulateNullDistribution,
+  simulateV22NullDecisions,
+  type ArchetypeReachabilityDiagnostic,
+  type DecisionNullSimulationDiagnostics,
+  type NullSimulationDiagnostics,
+  type PerturbationDiagnostics,
+  type ScoreSpaceDiagnostics,
+  type ScoringHealthFlag,
+  type ScoringLaboratoryReport,
+} from "@/lib/spec-test/scoring/diagnostics";
 export { assessResponseQuality, SKIP_CAP, type QualityFlag } from "@/lib/spec-test/scoring/quality";
 export { composeSpecTestResult, type ComposeInput, type SpecTestResultCopy } from "@/lib/spec-test/interpretation/compose";
 export { ARCHETYPE_READINGS_V2, type ArchetypeReadingV2 } from "@/lib/spec-test/interpretation/readings-v2";

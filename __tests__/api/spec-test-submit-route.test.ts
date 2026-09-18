@@ -24,8 +24,10 @@ import { getServerSession } from "next-auth";
 import { POST } from "@/app/api/spec-test/submit/route";
 import { prisma } from "@/lib/prisma";
 import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
-import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
+import { INSTRUMENT_VERSION, LEGACY_INSTRUMENT_VERSION_V2_1 } from "@/lib/spec-test/taxonomy";
 import { specTestQuestionIds } from "@/lib/spec-test";
+import { ARCHETYPE_CENTROIDS } from "@/lib/spec-test/scoring/archetypes";
+import { OPTION_MOTIVE_LOADINGS } from "@/lib/spec-test/scoring/loadings";
 
 const mockSession = getServerSession as jest.Mock;
 const mockPrisma = prisma as unknown as {
@@ -47,7 +49,14 @@ function post(body: unknown, ip = "203.0.113.1") {
 
 function v2ResponsePayload(overrides: Record<string, "a" | "b" | "c" | "d" | "skip"> = {}, gender: "male" | "female" = "male") {
   const responses = SPEC_TEST_ITEMS_V2.map((item, index) => {
-    const choice = overrides[item.id] ?? (["a", "b", "c", "d"] as const)[index % 4];
+    const strongestElectricOptionIndex = item.options.reduce((bestIndex, option, optionIndex) => {
+      const bestDimension = OPTION_MOTIVE_LOADINGS[item.options[bestIndex].id];
+      const dimension = OPTION_MOTIVE_LOADINGS[option.id];
+      const bestValue = bestDimension ? ARCHETYPE_CENTROIDS.electric_charmer[bestDimension] : -Infinity;
+      const value = dimension ? ARCHETYPE_CENTROIDS.electric_charmer[dimension] : -Infinity;
+      return value > bestValue ? optionIndex : bestIndex;
+    }, 0);
+    const choice = overrides[item.id] ?? (["a", "b", "c", "d"] as const)[strongestElectricOptionIndex];
     if (choice === "skip") {
       return { itemId: item.id, optionId: null, presentedIndex: null, elapsedMs: 0, skipped: true };
     }
@@ -165,6 +174,19 @@ describe("POST /api/spec-test/submit - v2 payload", () => {
     const response = await post({ ...payload, instrumentVersion: "spec-v99" }, "203.0.113.12");
     expect(response.status).toBe(400);
     expect(mockPrisma.specTestResult.create).not.toHaveBeenCalled();
+  });
+
+  it("keeps accepting v2.1 payloads through the preserved legacy classifier", async () => {
+    mockPrisma.specTestResult.create.mockResolvedValue({ id: "v21-result-1" });
+    const payload = v2ResponsePayload();
+    const response = await post(
+      { ...payload, instrumentVersion: LEGACY_INSTRUMENT_VERSION_V2_1 },
+      "203.0.113.121",
+    );
+
+    expect(response.status).toBe(201);
+    const data = mockPrisma.specTestResult.create.mock.calls[0][0].data;
+    expect(data.instrumentVersion).toBe(LEGACY_INSTRUMENT_VERSION_V2_1);
   });
 
   it("rejects a response set with a missing item (wrong length)", async () => {

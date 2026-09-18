@@ -9,7 +9,12 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { SPEC_TYPE_READINGS } from "@/lib/spec-test/legacy";
-import { INSTRUMENT_VERSION, type ArchetypeKey, type ResultConfidence } from "@/lib/spec-test/taxonomy";
+import {
+  ARCHETYPE_KEYS,
+  INSTRUMENT_VERSION,
+  type ArchetypeKey,
+  type ResultConfidence,
+} from "@/lib/spec-test/taxonomy";
 import { QUIZ_FORMS, type QuizForm } from "@/lib/spec-test/gender/forms";
 
 export type SpecTypeDistributionRow = {
@@ -18,20 +23,40 @@ export type SpecTypeDistributionRow = {
   count: number;
 };
 
-/** Counts every persisted result (both instrument versions - specType is the same eight
- *  keys either way) grouped by archetype, sorted most common first. */
-export async function getSpecTestTypeDistribution(): Promise<SpecTypeDistributionRow[]> {
-  const rows = await prisma.specTestResult.groupBy({
-    by: ["specType"],
-    _count: { _all: true },
-    orderBy: { _count: { specType: "desc" } },
-  });
-
-  return rows.map((row) => ({
+function completeTypeDistribution(
+  rows: { specType: string; _count: { _all: number } }[],
+): SpecTypeDistributionRow[] {
+  const present = new Set(rows.map((row) => row.specType));
+  const mapped = rows.map((row) => ({
     specType: row.specType,
     name: SPEC_TYPE_READINGS[row.specType as ArchetypeKey]?.name ?? row.specType,
     count: row._count._all,
   }));
+
+  for (const specType of ARCHETYPE_KEYS) {
+    if (present.has(specType)) continue;
+    mapped.push({
+      specType,
+      name: SPEC_TYPE_READINGS[specType]?.name ?? specType,
+      count: 0,
+    });
+  }
+
+  return mapped.sort((a, b) => b.count - a.count);
+}
+
+/** Counts persisted results for exactly one instrument version, grouped by archetype and
+ *  sorted most common first. Versions must never be combined here: v1, v2.0 and v2.1 use
+ *  different items/scoring, so an aggregate across them is not an instrument-health metric. */
+export async function getSpecTestTypeDistribution(instrumentVersion: string): Promise<SpecTypeDistributionRow[]> {
+  const rows = await prisma.specTestResult.groupBy({
+    by: ["specType"],
+    where: { instrumentVersion },
+    _count: { _all: true },
+    orderBy: { _count: { specType: "desc" } },
+  });
+
+  return completeTypeDistribution(rows);
 }
 
 export type ConfidenceMix = {
@@ -130,23 +155,21 @@ export type FormTypeDistribution = { quizForm: QuizForm; rows: SpecTypeDistribut
  *  distribution" by form) - unlike the confidence mix above, this needs no extra table: every
  *  persisted row already carries its own quizForm (or null, for pre-gender rows, which this
  *  intentionally excludes since they can't be attributed to either form). */
-export async function getSpecTestTypeDistributionByForm(): Promise<FormTypeDistribution[]> {
+export async function getSpecTestTypeDistributionByForm(
+  instrumentVersion: string,
+): Promise<FormTypeDistribution[]> {
   return Promise.all(
     QUIZ_FORMS.map(async (quizForm): Promise<FormTypeDistribution> => {
       const rows = await prisma.specTestResult.groupBy({
         by: ["specType"],
-        where: { quizForm },
+        where: { instrumentVersion, quizForm },
         _count: { _all: true },
         orderBy: { _count: { specType: "desc" } },
       });
 
       return {
         quizForm,
-        rows: rows.map((row) => ({
-          specType: row.specType,
-          name: SPEC_TYPE_READINGS[row.specType as ArchetypeKey]?.name ?? row.specType,
-          count: row._count._all,
-        })),
+        rows: completeTypeDistribution(rows),
       };
     }),
   );

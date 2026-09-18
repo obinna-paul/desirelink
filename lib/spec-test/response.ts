@@ -16,3 +16,37 @@ export type SpecTestResponseV2 = {
   elapsedMs: number;
   skipped?: boolean;
 };
+
+export type BestWorstResponseV3 = {
+  itemId: string;
+  kind: "best_worst";
+  bestOptionId: string | null;
+  worstOptionId: string | null;
+  bestPresentedIndex: number | null;
+  worstPresentedIndex: number | null;
+  elapsedMs: number;
+  skipped?: boolean;
+};
+
+export type IntensityResponseV3 = {
+  itemId: string;
+  kind: "intensity";
+  /** Seven-point scale. Four is the explicitly neutral midpoint. */
+  rating: 1 | 2 | 3 | 4 | 5 | 6 | 7 | null;
+  elapsedMs: number;
+  skipped?: boolean;
+};
+
+export type SingleChoiceResponseV3 = {
+  itemId: string;
+  kind: "single_choice";
+  optionId: string | null;
+  presentedIndex: number | null;
+  elapsedMs: number;
+  skipped?: boolean;
+};
+
+export type SpecTestResponseV3 =
+  | BestWorstResponseV3
+  | IntensityResponseV3
+  | SingleChoiceResponseV3;

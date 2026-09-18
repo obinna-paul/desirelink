@@ -31,6 +31,7 @@ const ACTION_LABELS: Record<AdminAuditAction, string> = {
   "finance.refund_escrow": "Refunded escrow",
   "admin.role_change": "Changed admin role",
   "support.resolve": "Resolved support ticket",
+  "spec_test.pilot_export": "Exported Spec Test pilot data",
 };
 
 const ACTIONS = Object.keys(ACTION_LABELS) as AdminAuditAction[];

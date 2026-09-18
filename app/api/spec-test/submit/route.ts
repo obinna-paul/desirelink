@@ -7,7 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveSpecType, scoreSpecTestAnswers, specTestQuestionIds, type SpecTestAnswers } from "@/lib/spec-test";
 import { itemBankForVersion } from "@/lib/spec-test/items";
-import { decideSpecTestResult } from "@/lib/spec-test/scoring/decide";
+import { decideSpecTestResultForVersion } from "@/lib/spec-test/scoring/decide";
 import { evaluatePatternFlags } from "@/lib/spec-test/interpretation/pattern-flags";
 import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
 import { GENDERS, routeForm } from "@/lib/spec-test/gender/forms";
@@ -195,7 +195,7 @@ async function submitV2(payload: z.infer<typeof v2PayloadSchema>, viewerProfileI
   }));
 
   // Scored server-side only, same rationale as the legacy path above.
-  const decision = decideSpecTestResult(bank, responses);
+  const decision = decideSpecTestResultForVersion(payload.instrumentVersion, bank, responses);
 
   if (decision.confidence === "low_signal") {
     // report §6.2: "Offer a retake rather than false precision" - nothing shareable exists

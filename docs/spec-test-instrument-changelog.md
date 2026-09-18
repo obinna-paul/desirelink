@@ -796,3 +796,96 @@ already a member.
 renders on a full v2 result, a signed-in result, and a v1 legacy result. Full suite: 584 tests,
 103 suites, all green (`ShareButton` itself has no dedicated test file - pre-existing, already
 shipped in three other places in the app, so none was added for this integration either).
+
+## spec-v2.2 — Forced-choice scoring correction
+
+**Why the version changed.** The v2.1 response vector always summed to 200 (mean 25 across
+eight dimensions), while its hand-authored archetype centroids summed to 365–460. Absolute
+squared distance therefore favored low-total centroids: a seeded 5,000-response uniform null
+simulation classified 49.1% as Grounded Equal, 0.16% as Ambitious Icon and 0.02% as Brilliant
+Tease. This is a scoring-semantics change, not a tuning change, so old rows and old-version
+submissions keep the v2.1 classifier.
+
+**New classifier.** `lib/spec-test/scoring/forced-choice.ts` treats each answer relative to the
+three alternatives shown beside it. For each archetype, option utilities come from the same
+provisional centroid descriptions, but item log probabilities are centered at their uniform-
+choice expectation and divided by their accumulated null standard deviation. Additive
+centroid-level differences therefore cancel. The public motive/facet vector is independently
+chance-centered: one null SD maps to 15 points around a neutral 50. Skipped items contribute
+nothing to any dimension or archetype.
+
+**Decision gates.** A maximum standardized pattern signal below 2.25 returns low signal with
+`insufficient_pattern`; a clear result requires evidence at least 3.0 and a 0.15 primary/
+secondary probability margin. The old authored contradiction heuristic remains available in
+quality diagnostics but is non-blocking; it is not yet persisted as an analytics field. A
+Spark/Partnership split requires at least six answered motive items in each section, so the
+current four-item Partnership section cannot overrule the overall result.
+
+**Null audit.** With the same seeded 5,000 uniform-response run, v2.2 withholds 90.14% as low
+signal. Among the 493 usable null outliers, winner shares range from 9.7% to 15.0%; Grounded
+Equal is 13.2%. These figures validate removal of the structural fallback, not real-world
+accuracy. Constants remain provisional until pilot data and a hold-out sample support fitting.
+
+**Compatibility.** `spec-v2.0` and `spec-v2.1` resolve the unchanged item ids but route through
+the preserved distance classifier. `spec-v2.2` alone uses the replacement. Historical result
+rows are never rescored.
+
+## spec-v3-pilot.1 — Balanced measurement-model foundation (not live)
+
+**Status.** This is a research/pilot contract only. It is not registered in the production
+submit route and does not replace `spec-v2.2`.
+
+**Question structure.** The pilot bank contains 16 four-option best–worst attraction blocks,
+eight independent seven-point motive-intensity anchors, and four separately scored response-
+under-uncertainty scenarios. Partnership is no longer mixed into the attraction classifier.
+
+**Balance.** The comparative blocks use a balanced incomplete-block design. Each of the eight
+scoring dimensions appears exactly eight times, and every possible pair of dimensions appears
+together three or four times. This equalizes score opportunity and varies opponents rather
+than repeatedly matching the same motives against one another.
+
+**Provisional scoring.** A best choice contributes +1 and a least choice contributes -1 to
+their respective dimensions. Seven-point anchors map linearly from -1 through 0 to +1. The
+pilot scorer exposes comparative and absolute evidence separately, plus a clearly marked
+unstandardized mean for research inspection. It does not assign an archetype. Development-
+sample standardization, prototype fitting, and hold-out validation are required before any
+v3 production decision rule is added.
+
+**Pilot collection flow.** A separate `/spec-test/pilot` page is available only when
+`SPEC_TEST_V3_PILOT_ENABLED=true`. It starts with explicit research consent, supports all three
+question types, randomizes comparative and uncertainty option order, resumes a versioned local
+draft, permits back/skip, preserves answers after a save failure, and ends with a research-only
+thank-you rather than a fabricated archetype result. The live `/spec-test/quiz` remains v2.2.
+
+**Interaction accessibility.** Best–worst uses explicit Most and Least buttons and prevents
+the same option occupying both poles. Intensity and uncertainty use native radio controls.
+Controls are keyboard operable, retain visible labels and focus states, do not rely on color
+alone, and have touch targets at least 44px high.
+
+**Storage and consent boundary.** The dedicated pilot endpoint and page share the same server-
+side feature flag. Submission requires the exact versioned consent value and complete,
+validated item records. `SpecTestPilotSubmission` stores raw responses, separate attraction
+and uncertainty profiles, quality flags, and an 80/20 development/hold-out tag. The table has
+no profile or email relation; pilot rows cannot become public results or ranking inputs.
+
+**Pilot analytics.** `SpecTestPilotAttempt` records only an anonymous client-generated attempt
+id, consent/instrument versions, and the highest completed question. Monotonic updates prevent
+out-of-order requests from making progress move backward. The admin dashboard shows the real
+completion funnel, quality flags, split counts, motive means/SD/ranges, development-versus-
+hold-out means, and item-level best/least, rating, choice, skip, timing, and position data.
+Quality-flagged submissions remain in operational and item diagnostics but are excluded from
+motive summaries that might later influence model fitting.
+
+**Predeclared review gates.** The dashboard now separates insufficient evidence from a failed
+criterion. Modeling review requires 375 quality-clean completions: 300 development plus 75
+untouched hold-out. Once 50 starts/submissions exist, completion must be at least 70% and the
+flagged-submission rate at most 15%. Automatic review warnings cover excessive skipping,
+dominant options, position effects, intensity endpoint pile-ups, compressed motive variance,
+and development/hold-out drift. A passing state means “ready for modeling review,” never
+“validated” or “ready to launch.”
+
+**Research export.** Superadmins can download one de-identified long-form analysis CSV. The
+query is restricted to the exact instrument and consent versions. It includes item-level
+choices plus provisional scores but excludes submission/attempt ids, identity fields, exact
+timestamps, IP addresses, and free text; elapsed time is rounded, participant order is
+shuffled for each export, caching is disabled, and the download is audit-logged.

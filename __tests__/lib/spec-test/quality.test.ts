@@ -83,6 +83,22 @@ describe("response quality gating", () => {
     });
     const result = assessResponseQuality(SPEC_TEST_ITEMS_V2, responses);
     expect(result.flags).toContain("contradiction");
+    expect(result.quality).toBe("low_signal");
+  });
+
+  it("keeps contradiction as a non-blocking diagnostic for spec-v2.2", () => {
+    const responses = cleanResponses().map((r) => {
+      if (r.itemId === "compliment-deepest") return answered("compliment-deepest", "b");
+      if (r.itemId === "friend-introduction") return answered("friend-introduction", "b");
+      if (r.itemId === "attractive-life") return answered("attractive-life", "a");
+      if (r.itemId === "lasting-partnership") return answered("lasting-partnership", "a");
+      return r;
+    });
+    const result = assessResponseQuality(SPEC_TEST_ITEMS_V2, responses, {
+      contradictionMode: "diagnostic",
+    });
+    expect(result.flags).toContain("contradiction");
+    expect(result.quality).toBe("usable");
   });
 
   it("does not flag contradiction when only one tension pair is opposed", () => {

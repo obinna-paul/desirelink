@@ -14,11 +14,14 @@ import {
   getSpecTestTypeDistributionByForm,
   getSpecTestItemAnalytics,
   getSpecTestDataSplitCounts,
+  getSpecTestPilotAnalytics,
+  reviewSpecTestPilot,
   SPEC_TYPE_READINGS,
   INSTRUMENT_VERSION,
 } from "@/lib/spec-test";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { renderTerms } from "@/lib/spec-test/gender/render";
 
 const GENDER_LABELS: Record<string, string> = { male: "Man", female: "Woman" };
 const CONFIDENCE_BADGE_LABELS: Record<string, string> = { clear: "Clear", blend: "Blend", split: "Split" };
@@ -65,16 +68,19 @@ export default async function AdminSpecTestLeadsPage({
     itemAnalytics,
     confidenceMixByForm,
     typeDistributionByForm,
+    pilotAnalytics,
   ] = await Promise.all([
     getSpecTestLeads({ take: 50, cursor: searchParams?.cursor }),
     getSpecTestProfileResults({ take: 50, cursor: searchParams?.resultsCursor }),
-    getSpecTestTypeDistribution(),
+    getSpecTestTypeDistribution(INSTRUMENT_VERSION),
     getSpecTestConfidenceMix(INSTRUMENT_VERSION),
     getSpecTestDataSplitCounts(INSTRUMENT_VERSION),
     getSpecTestItemAnalytics(INSTRUMENT_VERSION),
     getSpecTestConfidenceMixByForm(INSTRUMENT_VERSION),
-    getSpecTestTypeDistributionByForm(),
+    getSpecTestTypeDistributionByForm(INSTRUMENT_VERSION),
+    getSpecTestPilotAnalytics(),
   ]);
+  const pilotReview = reviewSpecTestPilot(pilotAnalytics);
 
   return (
     <div className="flex flex-col gap-6 md:gap-8">
@@ -86,9 +92,274 @@ export default async function AdminSpecTestLeadsPage({
         </p>
       </div>
 
+      <section
+        aria-labelledby="pilot-health-heading"
+        className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 id="pilot-health-heading" className="text-sm font-semibold text-foreground">
+                v3 research pilot <span className="font-normal text-muted-foreground">({pilotAnalytics.instrumentVersion})</span>
+              </h2>
+              <Badge variant={pilotReview.status === "ready_for_modeling" ? "trust" : "outline"}>
+                {pilotReview.status === "ready_for_modeling"
+                  ? "Ready for modeling review"
+                  : pilotReview.status === "review_required"
+                    ? "Review required"
+                    : "Collecting evidence"}
+              </Badge>
+            </div>
+            <p className="mt-1 max-w-3xl text-[11px] leading-4 text-muted-foreground/70">
+              Anonymous research data only. These submissions do not create public Specs or feed recommendations.
+              Hold-out comparisons are monitoring signals, never permission to retune against the hold-out sample.
+            </p>
+          </div>
+          <Link
+            href="/api/admin/spec-test/pilot/export.csv"
+            className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg border border-border/70 px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Download de-identified CSV
+          </Link>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-border/40 p-3">
+            <p className="text-[11px] text-muted-foreground">Consented starts</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{pilotAnalytics.startedAttempts}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 p-3">
+            <p className="text-[11px] text-muted-foreground">Completed submissions</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{pilotAnalytics.completedSubmissions}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 p-3">
+            <p className="text-[11px] text-muted-foreground">Completion rate</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{formatPercent(pilotAnalytics.completionRate)}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 p-3">
+            <p className="text-[11px] text-muted-foreground">Development / hold-out</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">
+              {pilotAnalytics.dataSplit.development} / {pilotAnalytics.dataSplit.holdout}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+          <div className="overflow-x-auto rounded-xl border border-border/40">
+            <table className="w-full min-w-[620px] text-left text-xs">
+              <caption className="px-3 py-2 text-left text-xs font-semibold text-foreground">
+                Predeclared evidence gates
+              </caption>
+              <thead>
+                <tr className="border-y border-border/40 text-muted-foreground">
+                  <th className="px-3 py-2 font-medium">Gate</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 text-right font-medium">Current</th>
+                  <th className="px-3 py-2 text-right font-medium">Target</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pilotReview.gates.map((reviewGate) => (
+                  <tr key={reviewGate.id} className="border-b border-border/30 last:border-0">
+                    <td className="px-3 py-2">
+                      <p className="font-medium text-foreground">{reviewGate.label}</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">{reviewGate.detail}</p>
+                    </td>
+                    <td className="px-3 py-2">
+                      <Badge variant={reviewGate.state === "pass" ? "trust" : "outline"}>
+                        {reviewGate.state === "pass" ? "Pass" : reviewGate.state === "fail" ? "Fail" : "Pending"}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{reviewGate.current}</td>
+                    <td className="px-3 py-2 text-right text-muted-foreground">{reviewGate.target}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="rounded-xl border border-border/40 p-3" aria-labelledby="pilot-warning-heading">
+            <div className="flex items-center justify-between gap-3">
+              <h3 id="pilot-warning-heading" className="text-xs font-semibold text-foreground">
+                Automatic review warnings
+              </h3>
+              <Badge variant="outline">{pilotReview.warnings.length}</Badge>
+            </div>
+            {pilotReview.warnings.length === 0 ? (
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                No threshold has fired. Warnings remain inactive until their minimum sample size is reached.
+              </p>
+            ) : (
+              <ul className="mt-3 flex flex-col gap-3">
+                {pilotReview.warnings.map((warning) => (
+                  <li key={warning.id} className="border-l-2 border-primary/50 pl-3">
+                    <p className="text-xs font-medium text-foreground">Review: {warning.title}</p>
+                    <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{warning.detail}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        {pilotAnalytics.startedAttempts === 0 ? (
+          <p className="text-xs text-muted-foreground">No pilot attempts yet.</p>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+            <div className="overflow-x-auto rounded-xl border border-border/40">
+              <table className="w-full min-w-[420px] text-left text-xs">
+                <caption className="px-3 py-2 text-left text-xs font-semibold text-foreground">Completion funnel</caption>
+                <thead>
+                  <tr className="border-y border-border/40 text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">Milestone</th>
+                    <th className="px-3 py-2 text-right font-medium">Reached</th>
+                    <th className="px-3 py-2 text-right font-medium">Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pilotAnalytics.funnel.map((point) => (
+                    <tr key={point.completedCount} className="border-b border-border/30 last:border-0">
+                      <td className="px-3 py-2 text-foreground">{point.label}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{point.attemptsReached}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{formatPercent(point.reachRate)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-border/40">
+              <table className="w-full min-w-[700px] text-left text-xs">
+                <caption className="px-3 py-2 text-left text-xs font-semibold text-foreground">
+                  Motive score distributions <span className="font-normal text-muted-foreground">(quality-clean rows)</span>
+                </caption>
+                <thead>
+                  <tr className="border-y border-border/40 text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">Dimension</th>
+                    <th className="px-3 py-2 text-right font-medium">N</th>
+                    <th className="px-3 py-2 text-right font-medium">Mean ± SD</th>
+                    <th className="px-3 py-2 text-right font-medium">Range</th>
+                    <th className="px-3 py-2 text-right font-medium">Dev mean</th>
+                    <th className="px-3 py-2 text-right font-medium">Hold-out mean</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pilotAnalytics.motives.map((motive) => (
+                    <tr key={motive.dimension} className="border-b border-border/30 last:border-0">
+                      <td className="px-3 py-2 font-medium text-foreground">{motive.label}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{motive.count}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                        {motive.mean === null ? "—" : `${motive.mean.toFixed(2)} ± ${motive.standardDeviation?.toFixed(2)}`}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                        {motive.minimum === null ? "—" : `${motive.minimum.toFixed(2)} to ${motive.maximum?.toFixed(2)}`}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                        {motive.developmentMean?.toFixed(2) ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                        {motive.holdoutMean?.toFixed(2) ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-medium text-foreground">Quality flags:</span>
+          <span className="text-muted-foreground">
+            {pilotAnalytics.qualityClean.total} clean · {pilotAnalytics.qualityFlaggedSubmissions} flagged submissions
+          </span>
+          {Object.keys(pilotAnalytics.qualityFlagCounts).length === 0 ? (
+            <span className="text-muted-foreground">None recorded</span>
+          ) : (
+            Object.entries(pilotAnalytics.qualityFlagCounts).map(([flag, count]) => (
+              <Badge key={flag} variant="outline">{flag}: {count}</Badge>
+            ))
+          )}
+        </div>
+
+        <details className="rounded-xl border border-border/40">
+          <summary className="cursor-pointer px-3 py-3 text-xs font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            Pilot item diagnostics ({pilotAnalytics.items.length} items)
+          </summary>
+          <div className="overflow-x-auto border-t border-border/40">
+            <table className="w-full min-w-[980px] text-left text-xs">
+              <thead>
+                <tr className="border-b border-border/40 text-muted-foreground">
+                  <th className="px-3 py-2 font-medium">Item</th>
+                  <th className="px-3 py-2 font-medium">Type</th>
+                  <th className="px-3 py-2 text-right font-medium">Answered</th>
+                  <th className="px-3 py-2 text-right font-medium">Skip</th>
+                  <th className="px-3 py-2 text-right font-medium">Median</th>
+                  <th className="px-3 py-2 font-medium">Distribution</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pilotAnalytics.items.map((item) => (
+                  <tr key={item.itemId} className="border-b border-border/30 align-top last:border-0">
+                    <td className="max-w-[18rem] px-3 py-2">
+                      <p className="font-medium text-foreground">{item.itemId}</p>
+                      <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{item.prompt}</p>
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">{item.kind.replaceAll("_", " ")}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{item.answeredCount}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{formatPercent(item.skipRate)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{(item.medianElapsedMs / 1000).toFixed(1)}s</td>
+                    <td className="min-w-[28rem] px-3 py-2 text-[11px] leading-4">
+                      {item.kind === "best_worst" && (
+                        <ul className="flex flex-col gap-1">
+                          {item.options.map((option) => (
+                            <li key={option.optionId} className="grid grid-cols-[1fr_auto_auto] gap-2">
+                              <span className="text-muted-foreground">{option.label}</span>
+                              <span className="tabular-nums text-foreground">Most {formatPercent(option.bestRate)}</span>
+                              <span className="tabular-nums text-foreground">Least {formatPercent(option.worstRate)}</span>
+                            </li>
+                          ))}
+                          <li className="mt-1 text-muted-foreground">
+                            Position spread — Most: {item.bestPositionCounts.join(" / ")}; Least: {item.worstPositionCounts.join(" / ")}
+                          </li>
+                        </ul>
+                      )}
+                      {item.kind === "intensity" && (
+                        <p className="text-muted-foreground">
+                          Ratings 1–7: {item.ratingCounts.join(" / ")} · mean {item.meanRating?.toFixed(2) ?? "—"} · median {item.medianRating?.toFixed(1) ?? "—"}
+                        </p>
+                      )}
+                      {item.kind === "single_choice" && (
+                        <ul className="flex flex-col gap-1">
+                          {item.options.map((option) => (
+                            <li key={option.optionId} className="flex justify-between gap-3">
+                              <span className="text-muted-foreground">{option.label}</span>
+                              <span className="shrink-0 tabular-nums text-foreground">{option.chosenCount} · {formatPercent(option.choiceRate)}</span>
+                            </li>
+                          ))}
+                          <li className="mt-1 text-muted-foreground">Position spread: {item.positionCounts.join(" / ")}</li>
+                        </ul>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <section className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
-          <h2 className="text-sm font-semibold text-foreground">Type distribution</h2>
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Type distribution{" "}
+              <span className="font-normal text-muted-foreground">({INSTRUMENT_VERSION})</span>
+            </h2>
+            <p className="mt-1 text-[11px] text-muted-foreground/70">
+              Current instrument only; legacy versions are intentionally excluded.
+            </p>
+          </div>
           {typeDistribution.length === 0 ? (
             <p className="text-xs text-muted-foreground">No results yet.</p>
           ) : (
@@ -220,7 +491,7 @@ export default async function AdminSpecTestLeadsPage({
           </div>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-border/60 bg-card shadow-sm">
-            <table className="w-full min-w-[640px] text-left text-xs">
+            <table className="w-full min-w-[920px] text-left text-xs">
               <thead>
                 <tr className="border-b border-border/60 text-muted-foreground">
                   <th className="px-3 py-2 font-medium">Item</th>
@@ -228,6 +499,7 @@ export default async function AdminSpecTestLeadsPage({
                   <th className="px-3 py-2 font-medium">Skip rate</th>
                   <th className="px-3 py-2 font-medium">Median time</th>
                   <th className="px-3 py-2 font-medium">Position spread (1-4)</th>
+                  <th className="px-3 py-2 font-medium">Option choices</th>
                 </tr>
               </thead>
               <tbody>
@@ -238,6 +510,23 @@ export default async function AdminSpecTestLeadsPage({
                     <td className="px-3 py-2 text-muted-foreground">{formatPercent(row.skipRate)}</td>
                     <td className="px-3 py-2 text-muted-foreground">{(row.medianElapsedMs / 1000).toFixed(1)}s</td>
                     <td className="px-3 py-2 text-muted-foreground">{row.positionCounts.join(" / ")}</td>
+                    <td className="px-3 py-2">
+                      <ul className="flex min-w-[22rem] flex-col gap-1.5">
+                        {row.options.map((option, optionIndex) => (
+                          <li key={option.optionId} className="flex items-start gap-2 text-[11px] leading-4">
+                            <span className="w-5 shrink-0 font-semibold text-foreground">
+                              {String.fromCharCode(65 + optionIndex)}
+                            </span>
+                            <span className="min-w-0 flex-1 text-muted-foreground">
+                              {renderTerms(option.label, "neutral")}
+                            </span>
+                            <span className="shrink-0 tabular-nums text-foreground">
+                              {option.chosenCount} &middot; {formatPercent(option.choiceRate)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </td>
                   </tr>
                 ))}
               </tbody>

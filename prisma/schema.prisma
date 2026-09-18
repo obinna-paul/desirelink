@@ -1319,6 +1319,42 @@ model SpecTestFormStat {
   @@id([instrumentVersion, quizForm])
 }
 
+/** Anonymous research submissions for the feature-flagged v3 pilot. These rows never power
+ * public results, profile badges, recommendations, or marketing. The pilot deliberately has
+ * no Profile relation so signing in cannot silently turn research responses into identity
+ * data. */
+model SpecTestPilotSubmission {
+  id                 String   @id @default(cuid())
+  attemptId          String?  @unique
+  instrumentVersion  String
+  consentVersion     String
+  responses          Json
+  attractionProfile  Json
+  uncertaintyProfile Json
+  qualityFlags       String[] @default([])
+  dataSplit          String   @default("development")
+  createdAt          DateTime @default(now())
+
+  @@index([instrumentVersion, createdAt])
+  @@index([instrumentVersion, dataSplit])
+}
+
+/** Anonymous completion telemetry for the v3 pilot. It records only how far an attempt got,
+ * never item answers, identity, IP address, or browser fingerprint. Client-generated ids let
+ * a local resumable draft update the same counter without creating an account relation. */
+model SpecTestPilotAttempt {
+  id                    String   @id
+  instrumentVersion     String
+  consentVersion        String
+  highestCompletedIndex Int      @default(0)
+  completedAt           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([instrumentVersion, highestCompletedIndex])
+  @@index([instrumentVersion, completedAt])
+}
+
 // --- Live streaming & gifting -------------------------------------------------
 
 model LiveStream {

@@ -19,6 +19,24 @@ jest.mock("@/lib/spec-test", () => ({
   getSpecTestTypeDistributionByForm: jest.fn().mockResolvedValue([]),
   getSpecTestItemAnalytics: jest.fn().mockResolvedValue([]),
   getSpecTestDataSplitCounts: jest.fn().mockResolvedValue({ development: 0, holdout: 0 }),
+  getSpecTestPilotAnalytics: jest.fn().mockResolvedValue({
+    instrumentVersion: "spec-v3-pilot.1",
+    startedAttempts: 0,
+    completedSubmissions: 0,
+    completionRate: 0,
+    dataSplit: { development: 0, holdout: 0 },
+    qualityClean: { total: 0, development: 0, holdout: 0 },
+    qualityFlaggedSubmissions: 0,
+    qualityFlagCounts: {},
+    funnel: [],
+    motives: [],
+    items: [],
+  }),
+  reviewSpecTestPilot: jest.fn().mockReturnValue({
+    status: "collecting",
+    gates: [],
+    warnings: [],
+  }),
   SPEC_TYPE_READINGS: { grounded_equal: { name: "The Grounded Equal" } },
   INSTRUMENT_VERSION: "spec-v2.1",
 }));
@@ -26,11 +44,21 @@ jest.mock("@/lib/spec-test", () => ({
 import AdminSpecTestLeadsPage from "@/app/(admin)/admin/spec-test/page";
 import { getServerSession } from "next-auth";
 import { requireCapability } from "@/lib/admin/access";
-import { getSpecTestProfileResults } from "@/lib/spec-test";
+import {
+  getSpecTestItemAnalytics,
+  getSpecTestProfileResults,
+  getSpecTestTypeDistribution,
+  getSpecTestTypeDistributionByForm,
+  getSpecTestPilotAnalytics,
+} from "@/lib/spec-test";
 
 const mockSession = getServerSession as jest.Mock;
 const mockRequireCapability = requireCapability as jest.Mock;
 const mockGetProfileResults = getSpecTestProfileResults as jest.Mock;
+const mockGetTypeDistribution = getSpecTestTypeDistribution as jest.Mock;
+const mockGetTypeDistributionByForm = getSpecTestTypeDistributionByForm as jest.Mock;
+const mockGetItemAnalytics = getSpecTestItemAnalytics as jest.Mock;
+const mockGetPilotAnalytics = getSpecTestPilotAnalytics as jest.Mock;
 
 describe("Admin Spec Test page - members who've taken the test", () => {
   beforeEach(() => {
@@ -73,6 +101,81 @@ describe("Admin Spec Test page - members who've taken the test", () => {
     render(jsx);
 
     expect(screen.getByText("No registered member has taken the test yet.")).toBeInTheDocument();
+  });
+
+  it("requests every type distribution for the current instrument version", async () => {
+    mockGetProfileResults.mockResolvedValue({ items: [], nextCursor: null });
+
+    await AdminSpecTestLeadsPage({ searchParams: {} });
+
+    expect(mockGetTypeDistribution).toHaveBeenCalledWith("spec-v2.1");
+    expect(mockGetTypeDistributionByForm).toHaveBeenCalledWith("spec-v2.1");
+  });
+
+  it("shows option wording and choice rates in item analytics", async () => {
+    mockGetProfileResults.mockResolvedValue({ items: [], nextCursor: null });
+    mockGetItemAnalytics.mockResolvedValue([
+      {
+        itemId: "crowded-event",
+        answeredCount: 10,
+        skippedCount: 0,
+        skipRate: 0,
+        medianElapsedMs: 3200,
+        positionCounts: [2, 3, 2, 3],
+        options: [
+          { optionId: "crowded-event-a", label: "The quiet {person} in the corner.", chosenCount: 6, choiceRate: 0.6 },
+          { optionId: "crowded-event-b", label: "The lively {person} in the room.", chosenCount: 2, choiceRate: 0.2 },
+          { optionId: "crowded-event-c", label: "The focused {person} in charge.", chosenCount: 1, choiceRate: 0.1 },
+          { optionId: "crowded-event-d", label: "The polished {person} leaving early.", chosenCount: 1, choiceRate: 0.1 },
+        ],
+      },
+    ]);
+
+    const jsx = await AdminSpecTestLeadsPage({ searchParams: {} });
+    render(jsx);
+
+    expect(screen.getByText("The quiet person in the corner.")).toBeInTheDocument();
+    expect(screen.getByText("6 · 60%")).toBeInTheDocument();
+  });
+
+  it("shows the isolated v3 pilot funnel and hold-out monitoring", async () => {
+    mockGetProfileResults.mockResolvedValue({ items: [], nextCursor: null });
+    mockGetPilotAnalytics.mockResolvedValue({
+      instrumentVersion: "spec-v3-pilot.1",
+      startedAttempts: 10,
+      completedSubmissions: 6,
+      completionRate: 0.6,
+      dataSplit: { development: 5, holdout: 1 },
+      qualityClean: { total: 4, development: 3, holdout: 1 },
+      qualityFlaggedSubmissions: 2,
+      qualityFlagCounts: { too_fast: 2 },
+      funnel: [
+        { completedCount: 0, label: "Consented / started", attemptsReached: 10, reachRate: 1 },
+        { completedCount: 28, label: "Submitted all questions", attemptsReached: 6, reachRate: 0.6 },
+      ],
+      motives: [
+        {
+          dimension: "warmthResponsiveness",
+          label: "Warmth & Responsiveness",
+          count: 6,
+          mean: 0.2,
+          standardDeviation: 0.1,
+          minimum: 0,
+          maximum: 0.4,
+          developmentMean: 0.18,
+          holdoutMean: 0.3,
+        },
+      ],
+      items: [],
+    });
+
+    const jsx = await AdminSpecTestLeadsPage({ searchParams: {} });
+    render(jsx);
+
+    expect(screen.getByText("v3 research pilot")).toBeInTheDocument();
+    expect(screen.getAllByText("60%")).toHaveLength(2);
+    expect(screen.getByText("Warmth & Responsiveness")).toBeInTheDocument();
+    expect(screen.getByText("too_fast: 2")).toBeInTheDocument();
   });
 
   it("links pagination through a separate cursor param from the Leads list", async () => {

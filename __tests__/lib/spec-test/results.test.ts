@@ -4,9 +4,11 @@ jest.mock("@/lib/prisma", () => ({
 
 import { prisma } from "@/lib/prisma";
 import { getSpecTestReading } from "@/lib/spec-test/results";
-import { decideSpecTestResult } from "@/lib/spec-test/scoring/decide";
+import { decideSpecTestResultForVersion } from "@/lib/spec-test/scoring/decide";
 import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
 import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
+import { ARCHETYPE_CENTROIDS } from "@/lib/spec-test/scoring/archetypes";
+import { OPTION_MOTIVE_LOADINGS } from "@/lib/spec-test/scoring/loadings";
 import { SPEC_TYPE_READINGS } from "@/lib/spec-test/legacy";
 import { routeForm } from "@/lib/spec-test/gender/forms";
 import type { SpecTestResponseV2 } from "@/lib/spec-test/response";
@@ -15,7 +17,13 @@ const mockPrisma = prisma as unknown as { specTestResult: { findUnique: jest.Moc
 
 function baselineResponses(): SpecTestResponseV2[] {
   return SPEC_TEST_ITEMS_V2.map((item, index) => {
-    const optionIndex = index % 4;
+    const optionIndex = item.options.reduce((bestIndex, option, candidateIndex) => {
+      const bestDimension = OPTION_MOTIVE_LOADINGS[item.options[bestIndex].id];
+      const dimension = OPTION_MOTIVE_LOADINGS[option.id];
+      const bestValue = bestDimension ? ARCHETYPE_CENTROIDS.electric_charmer[bestDimension] : -Infinity;
+      const value = dimension ? ARCHETYPE_CENTROIDS.electric_charmer[dimension] : -Infinity;
+      return value > bestValue ? candidateIndex : bestIndex;
+    }, index % 4);
     return {
       itemId: item.id,
       optionId: item.options[optionIndex].id,
@@ -28,7 +36,7 @@ function baselineResponses(): SpecTestResponseV2[] {
 describe("getSpecTestReading - v2 round-trip", () => {
   it("reads back a v2 row into the same primary/secondary/confidence the engine produced", async () => {
     const responses = baselineResponses();
-    const decision = decideSpecTestResult(SPEC_TEST_ITEMS_V2, responses);
+    const decision = decideSpecTestResultForVersion(INSTRUMENT_VERSION, SPEC_TEST_ITEMS_V2, responses);
     if (decision.quality !== "usable") throw new Error("fixture expected a usable decision");
 
     // Mirrors exactly what app/api/spec-test/submit/route.ts writes for a v2 row.
@@ -65,7 +73,7 @@ describe("getSpecTestReading - v2 round-trip", () => {
 describe("getSpecTestReading - gender rendering", () => {
   it("renders copy for the row's stored quizForm, and stores the routing artifacts as-is", async () => {
     const responses = baselineResponses();
-    const decision = decideSpecTestResult(SPEC_TEST_ITEMS_V2, responses);
+    const decision = decideSpecTestResultForVersion(INSTRUMENT_VERSION, SPEC_TEST_ITEMS_V2, responses);
     if (decision.quality !== "usable") throw new Error("fixture expected a usable decision");
     const routing = routeForm("male");
 
@@ -102,7 +110,7 @@ describe("getSpecTestReading - gender rendering", () => {
 
   it("falls back to neutral rendering when a v2 row has no stored gender/form", async () => {
     const responses = baselineResponses();
-    const decision = decideSpecTestResult(SPEC_TEST_ITEMS_V2, responses);
+    const decision = decideSpecTestResultForVersion(INSTRUMENT_VERSION, SPEC_TEST_ITEMS_V2, responses);
     if (decision.quality !== "usable") throw new Error("fixture expected a usable decision");
 
     mockPrisma.specTestResult.findUnique.mockResolvedValue({

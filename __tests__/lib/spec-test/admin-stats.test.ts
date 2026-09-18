@@ -30,18 +30,28 @@ describe("getSpecTestTypeDistribution", () => {
       { specType: "grounded_equal", _count: { _all: 7 } },
     ]);
 
-    const rows = await getSpecTestTypeDistribution();
+    const rows = await getSpecTestTypeDistribution("spec-v2.1");
 
-    expect(rows).toEqual([
+    expect(mockPrisma.specTestResult.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { instrumentVersion: "spec-v2.1" } }),
+    );
+
+    expect(rows.slice(0, 2)).toEqual([
       { specType: "quiet_fire", name: SPEC_TYPE_READINGS.quiet_fire.name, count: 12 },
       { specType: "grounded_equal", name: SPEC_TYPE_READINGS.grounded_equal.name, count: 7 },
     ]);
+    expect(rows).toHaveLength(8);
+    expect(rows.find((row) => row.specType === "electric_charmer")?.count).toBe(0);
   });
 
   it("falls back to the raw key for an unrecognized specType rather than throwing", async () => {
     mockPrisma.specTestResult.groupBy.mockResolvedValue([{ specType: "mystery_key", _count: { _all: 1 } }]);
-    const rows = await getSpecTestTypeDistribution();
-    expect(rows[0]).toEqual({ specType: "mystery_key", name: "mystery_key", count: 1 });
+    const rows = await getSpecTestTypeDistribution("spec-v2.1");
+    expect(rows.find((row) => row.specType === "mystery_key")).toEqual({
+      specType: "mystery_key",
+      name: "mystery_key",
+      count: 1,
+    });
   });
 });
 
@@ -122,18 +132,30 @@ describe("getSpecTestTypeDistributionByForm (gender plan Phase G6)", () => {
   beforeEach(() => jest.clearAllMocks());
 
   it("groups the type distribution separately for each quizForm", async () => {
-    mockPrisma.specTestResult.groupBy.mockImplementation(({ where }: { where: { quizForm: string } }) => {
-      if (where.quizForm === "male_user") {
-        return Promise.resolve([{ specType: "quiet_fire", _count: { _all: 3 } }]);
-      }
-      return Promise.resolve([{ specType: "grounded_equal", _count: { _all: 2 } }]);
-    });
+    mockPrisma.specTestResult.groupBy.mockImplementation(
+      ({ where }: { where: { instrumentVersion: string; quizForm: string } }) => {
+        expect(where.instrumentVersion).toBe("spec-v2.1");
+        if (where.quizForm === "male_user") {
+          return Promise.resolve([{ specType: "quiet_fire", _count: { _all: 3 } }]);
+        }
+        return Promise.resolve([{ specType: "grounded_equal", _count: { _all: 2 } }]);
+      },
+    );
 
-    const [maleUser, femaleUser] = await getSpecTestTypeDistributionByForm();
+    const [maleUser, femaleUser] = await getSpecTestTypeDistributionByForm("spec-v2.1");
 
     expect(maleUser.quizForm).toBe("male_user");
-    expect(maleUser.rows).toEqual([{ specType: "quiet_fire", name: SPEC_TYPE_READINGS.quiet_fire.name, count: 3 }]);
+    expect(maleUser.rows.find((row) => row.specType === "quiet_fire")).toEqual({
+      specType: "quiet_fire",
+      name: SPEC_TYPE_READINGS.quiet_fire.name,
+      count: 3,
+    });
+    expect(maleUser.rows.find((row) => row.specType === "electric_charmer")?.count).toBe(0);
     expect(femaleUser.quizForm).toBe("female_user");
-    expect(femaleUser.rows).toEqual([{ specType: "grounded_equal", name: SPEC_TYPE_READINGS.grounded_equal.name, count: 2 }]);
+    expect(femaleUser.rows.find((row) => row.specType === "grounded_equal")).toEqual({
+      specType: "grounded_equal",
+      name: SPEC_TYPE_READINGS.grounded_equal.name,
+      count: 2,
+    });
   });
 });

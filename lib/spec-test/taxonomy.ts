@@ -5,14 +5,16 @@
 // so nothing downstream may assume these lists' length or order.
 
 /**
- * Bumped from "spec-v2.0" in Phase G3 (docs/spec-test-gender-implementation-plan.md §8,
- * open decision DG-3): the item bank's option ids/loadings/centroids are unchanged, but the
- * taker's experience changed (a gender question now precedes every scored item, and item/
- * reading/pattern-flag text is now rendered per form), and DG-3 wants the exact bank pinned
- * per version for §11 Stage 5's per-form structural comparison. "spec-v2.0" is kept resolvable
- * (see lib/spec-test/items/index.ts) so any pre-gender row or test fixture still validates.
+ * v2.2 replaces v2.1's absolute centroid-distance classifier with a forced-choice-native,
+ * chance-centered evidence model. Item and option ids are unchanged, but scoring semantics
+ * changed materially, so v2.0 and v2.1 remain separately resolvable and route to their legacy
+ * classifier (lib/spec-test/scoring/decide.ts).
  */
-export const INSTRUMENT_VERSION = "spec-v2.1" as const;
+export const INSTRUMENT_VERSION = "spec-v2.2" as const;
+
+/** The immediately preceding instrument. v2.2 keeps the same item ids but changes the
+ * scoring model, so old submissions must remain routed to the absolute-distance classifier. */
+export const LEGACY_INSTRUMENT_VERSION_V2_1 = "spec-v2.1" as const;
 
 /** The version this replaced - kept as a named constant (not a bare string literal) so its
  *  one remaining use, registering it in the item-bank lookup, is traceable to this comment

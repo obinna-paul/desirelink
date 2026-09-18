@@ -50,6 +50,7 @@ describe("getSpecTestItemAnalytics", () => {
     expect(first.positionCounts[0]).toBe(2); // two answers presented at position 0
     expect(first.positionCounts[1]).toBe(1);
     const firstOptionStats = first.options.find((o) => o.optionId === firstItem.options[0].id)!;
+    expect(firstOptionStats.label).toBe(firstItem.options[0].label);
     expect(firstOptionStats.chosenCount).toBe(2);
     expect(firstOptionStats.choiceRate).toBeCloseTo(2 / 3);
 

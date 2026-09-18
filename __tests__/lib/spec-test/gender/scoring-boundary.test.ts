@@ -1,9 +1,10 @@
 import fs from "fs";
 import path from "path";
 
-import { decideSpecTestResult } from "@/lib/spec-test/scoring/decide";
+import { decideSpecTestResult, decideSpecTestResultForVersion } from "@/lib/spec-test/scoring/decide";
 import { SPEC_TEST_ITEMS_V2 } from "@/lib/spec-test/items/spec-v2";
 import type { SpecTestResponseV2 } from "@/lib/spec-test/response";
+import { INSTRUMENT_VERSION } from "@/lib/spec-test/taxonomy";
 
 // Acceptance criteria from docs/spec-test-gender-implementation-plan.md §6 (Phase G1),
 // principle 1: "Gender contributes exactly zero to the score, and we prove it mechanically."
@@ -50,6 +51,10 @@ describe("decideSpecTestResult cannot see gender", () => {
     expect(decideSpecTestResult.length).toBe(2);
   });
 
+  it("the version router's third parameter is instrument version, never gender or form", () => {
+    expect(decideSpecTestResultForVersion.length).toBe(3);
+  });
+
   it("produces an identical decision for identical input, with nothing else able to vary it", () => {
     const responses: SpecTestResponseV2[] = SPEC_TEST_ITEMS_V2.map((item, i) => {
       const suffix = (["a", "b", "c", "d"] as const)[i % 4];
@@ -60,6 +65,9 @@ describe("decideSpecTestResult cannot see gender", () => {
     const first = decideSpecTestResult(SPEC_TEST_ITEMS_V2, responses);
     const second = decideSpecTestResult(SPEC_TEST_ITEMS_V2, [...responses]);
     expect(first).toEqual(second);
+    expect(decideSpecTestResultForVersion(INSTRUMENT_VERSION, SPEC_TEST_ITEMS_V2, responses)).toEqual(
+      decideSpecTestResultForVersion(INSTRUMENT_VERSION, SPEC_TEST_ITEMS_V2, [...responses]),
+    );
   });
 });
 
