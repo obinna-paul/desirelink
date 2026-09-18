@@ -49,6 +49,7 @@ import { useFocusTrap } from "@/lib/use-focus-trap";
 import {
   clearUploadError,
   drainCompletedMedia,
+  retainCompletedMedia,
   resetUploadSession,
   retryFailedUpload as retrySessionUpload,
   skipFailedUpload,
@@ -74,6 +75,14 @@ const MAX_IMAGE_FILE_SIZE = 30 * 1024 * 1024;
 function formatFileSize(bytes: number) {
   if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   return `${Math.max(0.1, bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatTimeRemaining(seconds: number) {
+  if (seconds < 60) return "less than a minute";
+  if (seconds < 60 * 60) return `about ${Math.max(1, Math.round(seconds / 60))} min`;
+  const hours = Math.floor(seconds / (60 * 60));
+  const minutes = Math.round((seconds % (60 * 60)) / 60);
+  return minutes > 0 ? `about ${hours} hr ${minutes} min` : `about ${hours} hr`;
 }
 
 /** Reads a video's duration without ever attaching it to the DOM — resolves 0 (never rejects) if the browser can't read metadata within the timeout, so an unreadable file falls through to the frame dialog's own error handling instead of blocking selection here. The timeout scales with the file: a phone still needs to find the moov atom of a multi-gigabyte long-form export, and giving up too early would cost the duration we use to pace its transcode wait. */
@@ -153,6 +162,7 @@ export function PostComposer({
   const [displayAspectRatio, setDisplayAspectRatioState] =
     useState<PostDisplayAspectRatio>(DEFAULT_DISPLAY_RATIO);
   const [mediaItems, setMediaItems] = useState<UploadedMedia[]>([]);
+  const mediaItemsRef = useRef<UploadedMedia[]>([]);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [postAccess, setPostAccess] = useState<PostAccess>("free");
   const [selectedTierId, setSelectedTierId] = useState<string | null>(
@@ -209,9 +219,20 @@ export function PostComposer({
       const restoredRatio = finished[0].displayAspectRatio;
       displayAspectRatioRef.current = restoredRatio;
       setDisplayAspectRatioState(restoredRatio);
-      setMediaItems((prev) => [...prev, ...finished]);
+      setMediaItems((prev) => {
+        const next = [...prev, ...finished];
+        mediaItemsRef.current = next;
+        return next;
+      });
     }
   }, [session.completed]);
+
+  useEffect(
+    () => () => {
+      retainCompletedMedia(mediaItemsRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (activeMediaIndex > mediaItems.length - 1) {
@@ -219,11 +240,31 @@ export function PostComposer({
     }
   }, [activeMediaIndex, mediaItems.length]);
 
-  // True now that the upload lives outside this component: it keeps going through a dipped
-  // connection and through leaving Create, and the finished video is waiting here on the
-  // way back. Only closing or reloading the tab ends it.
-  const uploadHint =
-    "You can keep using the app while this uploads - it picks up where it left off if your connection dips, and it'll be here when you come back.";
+  const uploadHint = (() => {
+    const active = session.active;
+    if (!active) return undefined;
+    if (active.phase === "reconnecting") {
+      return "Your connection is offline. Keep this tab open — the upload will continue automatically from the saved point.";
+    }
+    if (active.phase === "retrying") {
+      return "The connection was interrupted. Your progress is safe and the upload is resuming automatically.";
+    }
+    if (active.phase === "confirming") {
+      return "Finishing up...";
+    }
+
+    const hasByteProgress = active.totalBytes > 0 && active.bytesUploaded > 0;
+    const transfer = hasByteProgress
+      ? `${formatFileSize(active.bytesUploaded)} of ${formatFileSize(active.totalBytes)} uploaded`
+      : null;
+    const eta = active.etaSeconds && active.etaSeconds > 0
+      ? formatTimeRemaining(active.etaSeconds)
+      : null;
+    const measurement = [transfer, eta].filter(Boolean).join(" · ");
+    const freedom =
+      "You can use the rest of the app while this runs. Keep this tab open; brief connection drops resume automatically.";
+    return measurement ? `${measurement}. ${freedom}` : freedom;
+  })();
 
   const selectedRatio = selectedRatioValue(
     mediaItems[activeMediaIndex]?.displayAspectRatio ?? displayAspectRatio,
@@ -310,16 +351,23 @@ export function PostComposer({
   function setDisplayAspectRatio(value: PostDisplayAspectRatio) {
     displayAspectRatioRef.current = value;
     setDisplayAspectRatioState(value);
-    setMediaItems((current) =>
-      current.map((item) => ({ ...item, displayAspectRatio: value })),
-    );
+    setMediaItems((current) => {
+      const next = current.map((item) => ({ ...item, displayAspectRatio: value }));
+      mediaItemsRef.current = next;
+      return next;
+    });
   }
 
   function setMode(nextMode: PostMode) {
     setPostMode(nextMode);
     setError(null);
     if (nextMode === "single" && mediaItems.length > 1) {
-      setMediaItems((current) => current.slice(0, 1));
+      setMediaItems((current) => {
+        current.slice(1).forEach((item) => item.discard?.());
+        const next = current.slice(0, 1);
+        mediaItemsRef.current = next;
+        return next;
+      });
       setActiveMediaIndex(0);
     }
   }
@@ -444,7 +492,10 @@ export function PostComposer({
           // A video the browser cannot measure (0) is not refused here - Bunny reports the
           // real length once it has probed the file, and that is what publishing checks.
           const durationSeconds = await readVideoDurationSeconds(workingFile);
-          if (durationSeconds > maxVideoDurationSeconds) {
+          if (
+            durationSeconds >
+            maxVideoDurationSeconds + VIDEO_DURATION_TOLERANCE_SECONDS
+          ) {
             lastError = canPostPremiumContent
               ? `Videos must be ${formatVideoDuration(maxVideoDurationSeconds)} or shorter.`
               : `Videos longer than ${formatVideoDuration(MAX_VIDEO_DURATION_SECONDS)} are for Premium posts, which need a creator account.`;
@@ -560,7 +611,12 @@ export function PostComposer({
   }
 
   function removeMedia(url: string) {
-    setMediaItems((prev) => prev.filter((existing) => existing.url !== url));
+    setMediaItems((prev) => {
+      prev.find((existing) => existing.url === url)?.discard?.();
+      const next = prev.filter((existing) => existing.url !== url);
+      mediaItemsRef.current = next;
+      return next;
+    });
   }
 
   async function publishPost() {
@@ -590,9 +646,12 @@ export function PostComposer({
     const { post } = await res.json();
     if (post) onCreated(post);
     // The draft this session was holding media for is published, so nothing left in it
-    // belongs to the next one.
+    // belongs to the next one. The remote Bunny URL remains in the post; the local blob
+    // URL only existed to make this composer's preview immediate while Bunny prepared HLS.
+    mediaItemsRef.current.forEach((item) => item.releasePreview?.());
     resetUploadSession();
     setContent("");
+    mediaItemsRef.current = [];
     setMediaItems([]);
     setActiveMediaIndex(0);
     setPostMode("single");
@@ -1056,7 +1115,8 @@ export function PostComposer({
                   {activeMedia?.type === "video" ? (
                     <PostVideoPlayer
                       key={activeMedia.url}
-                      src={activeMedia.url}
+                      src={activeMedia.previewUrl ?? activeMedia.url}
+                      fallbackSrc={activeMedia.previewUrl ? activeMedia.url : undefined}
                       naturalWidth={activeMedia.width}
                       naturalHeight={activeMedia.height}
                       crop={activeMedia.crop}

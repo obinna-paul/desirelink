@@ -6,8 +6,12 @@ import type { PostDisplayAspectRatio } from "@/lib/post-shared";
 
 const uploadVideoDirect = jest.fn();
 const uploadMediaDirectToCloudinary = jest.fn();
+const discardVideoUpload = jest.fn();
+const createObjectURL = jest.fn((blob: Blob) => `blob:${(blob as File).name}`);
+const revokeObjectURL = jest.fn();
 
 jest.mock("@/lib/client-uploads", () => ({
+  discardVideoUpload: (...args: unknown[]) => discardVideoUpload(...args),
   uploadVideoDirect: (...args: unknown[]) => uploadVideoDirect(...args),
   uploadMediaDirectToCloudinary: (...args: unknown[]) => uploadMediaDirectToCloudinary(...args),
 }));
@@ -57,6 +61,17 @@ describe("video upload session", () => {
     jest.resetModules();
     uploadVideoDirect.mockReset();
     uploadMediaDirectToCloudinary.mockReset();
+    discardVideoUpload.mockReset();
+    createObjectURL.mockClear();
+    revokeObjectURL.mockClear();
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectURL,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectURL,
+    });
     session = require("@/lib/video-upload-session") as SessionModule;
   });
 
@@ -77,7 +92,9 @@ describe("video upload session", () => {
       height: 1920,
       durationSeconds: 30,
       displayAspectRatio: "square",
+      previewUrl: "blob:clip.mp4",
     });
+    expect(createObjectURL).toHaveBeenCalledWith(expect.objectContaining({ name: "clip.mp4" }));
   });
 
   it("hands finished media over exactly once", async () => {
@@ -89,6 +106,55 @@ describe("video upload session", () => {
     expect(session.drainCompletedMedia()).toHaveLength(1);
     // A second composer mount must not add the same video to the draft again.
     expect(session.drainCompletedMedia()).toHaveLength(0);
+  });
+
+  it("restores already-uploaded draft media after the composer navigates away", async () => {
+    uploadVideoDirect.mockResolvedValue({ url: "https://cdn.test/v1/playlist.m3u8" });
+    session.startUploads([videoItem("clip.mp4")], CONTEXT);
+    await flush();
+    const claimed = session.drainCompletedMedia();
+
+    session.retainCompletedMedia(claimed);
+    session.retainCompletedMedia(claimed);
+
+    expect(session.drainCompletedMedia()).toHaveLength(1);
+    expect(session.drainCompletedMedia()).toHaveLength(0);
+  });
+
+  it("preserves the provider cleanup action until uploaded media leaves the draft", async () => {
+    const discard = jest.fn();
+    uploadVideoDirect.mockResolvedValue({
+      url: "https://cdn.test/v1/playlist.m3u8",
+      discard,
+    });
+
+    session.startUploads([videoItem("clip.mp4")], CONTEXT);
+    await flush();
+    const [finished] = session.drainCompletedMedia();
+
+    expect(finished.discard).toEqual(expect.any(Function));
+    finished.discard?.();
+    finished.discard?.();
+    expect(discard).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:clip.mp4");
+  });
+
+  it("warns before a full-page dismissal only while an upload is active", async () => {
+    const pending = deferred<{ url: string }>();
+    uploadVideoDirect.mockReturnValue(pending.promise);
+    session.startUploads([videoItem("long.mp4")], CONTEXT);
+    await flush();
+
+    const duringUpload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(duringUpload);
+    expect(duringUpload.defaultPrevented).toBe(true);
+
+    pending.resolve({ url: "https://cdn.test/v1/playlist.m3u8" });
+    await flush();
+    const afterUpload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(afterUpload);
+    expect(afterUpload.defaultPrevented).toBe(false);
   });
 
   it("keeps the frame chosen during review even when the composer context differs", async () => {
@@ -108,8 +174,17 @@ describe("video upload session", () => {
   it("shows a composer that mounts mid-upload what is already in flight", async () => {
     const pending = deferred<{ url: string }>();
     uploadVideoDirect.mockImplementation(
-      (_file: File, _fallback: string, handlers: { onProgress?: (f: number) => void }) => {
-        handlers.onProgress?.(0.42);
+      (
+        _file: File,
+        _fallback: string,
+        handlers: {
+          onProgress?: (
+            fraction: number,
+            detail?: { uploadedBytes: number; totalBytes: number },
+          ) => void;
+        },
+      ) => {
+        handlers.onProgress?.(0.42, { uploadedBytes: 420, totalBytes: 1_000 });
         return pending.promise;
       },
     );
@@ -121,6 +196,8 @@ describe("video upload session", () => {
     expect(session.getUploadSessionState().active).toMatchObject({
       fileName: "long.mp4",
       progress: 42,
+      bytesUploaded: 420,
+      totalBytes: 1_000,
     });
 
     pending.resolve({ url: "https://cdn.test/v1/playlist.m3u8" });
@@ -195,6 +272,9 @@ describe("video upload session", () => {
     const finished = session.drainCompletedMedia();
     expect(finished).toHaveLength(1);
     expect(session.getUploadSessionState().failed).toBeNull();
+    expect(discardVideoUpload).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "bad.mp4" }),
+    );
   });
 
   it("refuses a video past the ceiling its post allows, without adding it", async () => {
@@ -205,6 +285,7 @@ describe("video upload session", () => {
 
     expect(session.getUploadSessionState().error).toContain("15 minutes or shorter");
     expect(session.drainCompletedMedia()).toHaveLength(0);
+    expect(uploadVideoDirect).not.toHaveBeenCalled();
   });
 
   it("lets a premium post keep a video the free ceiling would refuse", async () => {
@@ -250,5 +331,6 @@ describe("video upload session", () => {
     expect(session.drainCompletedMedia()).toHaveLength(0);
     expect(session.getUploadSessionState().failed).toBeNull();
     expect(session.getUploadSessionState().error).toBeNull();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:clip.mp4");
   });
 });

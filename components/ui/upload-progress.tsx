@@ -2,7 +2,13 @@ import { FileImage, RefreshCw, UploadCloud } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-type UploadPhase = "image" | "preparing" | "uploading" | "reconnecting" | "retrying";
+type UploadPhase =
+  | "image"
+  | "preparing"
+  | "uploading"
+  | "confirming"
+  | "reconnecting"
+  | "retrying";
 
 /**
  * The upload state for media: a headline percentage, a determinate bar, and the
@@ -32,9 +38,15 @@ export function UploadProgress({
 
   const isVideo = Boolean(phase && phase !== "image");
   const phaseIndex =
-    phase === "uploading" || phase === "reconnecting" || phase === "retrying" ? 1 : 0;
+    phase === "confirming"
+      ? 2
+      : phase === "uploading" || phase === "reconnecting" || phase === "retrying"
+        ? 1
+        : 0;
+  const isWaiting =
+    phase === "confirming" || phase === "reconnecting" || phase === "retrying";
   const StatusIcon =
-    phase === "reconnecting" || phase === "retrying"
+    isWaiting
       ? RefreshCw
       : phase === "image"
         ? FileImage
@@ -50,7 +62,7 @@ export function UploadProgress({
           <StatusIcon
             className={cn(
               "h-5 w-5",
-              (phase === "reconnecting" || phase === "retrying") && "motion-safe:animate-spin",
+              isWaiting && "motion-safe:animate-spin",
             )}
             aria-hidden="true"
           />
@@ -85,8 +97,8 @@ export function UploadProgress({
       </div>
 
       {isVideo && (
-        <div className="grid grid-cols-2 gap-2" aria-hidden="true">
-          {["Prepare", "Upload"].map((step, index) => (
+        <div className="grid grid-cols-3 gap-2" aria-hidden="true">
+          {["Prepare", "Upload", "Confirm"].map((step, index) => (
             <div key={step} className="flex items-center gap-2">
               <span
                 className={cn(
