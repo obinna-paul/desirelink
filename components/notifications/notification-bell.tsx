@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bell, CheckCheck } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import useSWR from "swr";
@@ -29,6 +30,7 @@ const fetcher = async (url: string) => {
 };
 
 export function NotificationBell() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const { data, mutate, isLoading } = useSWR<NotificationResponse>("/api/notifications", fetcher, {
     refreshInterval: 30_000,
@@ -90,35 +92,75 @@ export function NotificationBell() {
                 ))}
               </div>
             ) : data?.items.length ? (
-              data.items.map((item) => (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  onClick={() => {
-                    setOpen(false);
-                    if (!item.readAt) void markRead(item.id);
-                  }}
-                  className={cn(
-                    "flex min-h-[72px] gap-3 border-b border-border px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/70",
-                    !item.readAt && "bg-primary/[0.06]"
-                  )}
-                >
-                  <Avatar className="h-10 w-10 shrink-0 border border-border">
-                    <AvatarImage src={item.actor?.avatarUrl ?? ""} alt="" />
-                    <AvatarFallback>{item.actor?.displayName.slice(0, 2).toUpperCase() ?? "U"}</AvatarFallback>
-                  </Avatar>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-start justify-between gap-3">
-                      <span className="text-sm font-semibold text-foreground">{item.title}</span>
-                      {!item.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />}
+              data.items.map((item) => {
+                const profileHref = item.actor ? `/profile/${item.actor.username}` : null;
+
+                const goToActor = (event: MouseEvent) => {
+                  event.stopPropagation();
+                  setOpen(false);
+                  if (!item.readAt) void markRead(item.id);
+                };
+
+                const goToTarget = () => {
+                  setOpen(false);
+                  if (!item.readAt) void markRead(item.id);
+                  router.push(item.href);
+                };
+
+                return (
+                  <div
+                    key={item.id}
+                    role="link"
+                    tabIndex={0}
+                    onClick={goToTarget}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        goToTarget();
+                      }
+                    }}
+                    className={cn(
+                      "flex min-h-[72px] cursor-pointer gap-3 border-b border-border px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/70",
+                      !item.readAt && "bg-primary/[0.06]"
+                    )}
+                  >
+                    {profileHref ? (
+                      <Link href={profileHref} onClick={goToActor} className="shrink-0">
+                        <Avatar className="h-10 w-10 border border-border">
+                          <AvatarImage src={item.actor?.avatarUrl ?? ""} alt="" />
+                          <AvatarFallback>{item.actor?.displayName.slice(0, 2).toUpperCase() ?? "U"}</AvatarFallback>
+                        </Avatar>
+                      </Link>
+                    ) : (
+                      <Avatar className="h-10 w-10 shrink-0 border border-border">
+                        <AvatarImage src={item.actor?.avatarUrl ?? ""} alt="" />
+                        <AvatarFallback>{item.actor?.displayName.slice(0, 2).toUpperCase() ?? "U"}</AvatarFallback>
+                      </Avatar>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-start justify-between gap-3">
+                        <span className="text-sm font-semibold text-foreground">
+                          {profileHref && item.actor && item.title.startsWith(item.actor.displayName) ? (
+                            <>
+                              <Link href={profileHref} onClick={goToActor} className="hover:underline">
+                                {item.actor.displayName}
+                              </Link>
+                              {item.title.slice(item.actor.displayName.length)}
+                            </>
+                          ) : (
+                            item.title
+                          )}
+                        </span>
+                        {!item.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />}
+                      </span>
+                      <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-muted-foreground">{item.body}</span>
+                      <span className="mt-1 block text-[11px] text-muted-foreground/80">
+                        {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+                      </span>
                     </span>
-                    <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-muted-foreground">{item.body}</span>
-                    <span className="mt-1 block text-[11px] text-muted-foreground/80">
-                      {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
-                    </span>
-                  </span>
-                </Link>
-              ))
+                  </div>
+                );
+              })
             ) : (
               <div className="px-6 py-10 text-center">
                 <Bell className="mx-auto h-6 w-6 text-muted-foreground/50" aria-hidden="true" />
