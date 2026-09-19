@@ -52,7 +52,15 @@ export default async function DiscoverPage({
         take: 1,
       },
       specTestResults: {
-        select: { specType: true, secondarySpec: true, sparkSpec: true, partnershipSpec: true },
+        select: {
+          specType: true,
+          secondarySpec: true,
+          sparkSpec: true,
+          partnershipSpec: true,
+          motiveScores: true,
+          lenses: true,
+          attachment: true,
+        },
         orderBy: { createdAt: "desc" },
         take: 1,
       },

@@ -83,6 +83,38 @@ describe("searchDiscoverProfiles", () => {
     expect(result.profiles).toHaveLength(5);
     expect(result.hasMore).toBe(false);
   });
+
+  it("keeps exact coordinates and private Spec vectors inside the server-side ranking layer", async () => {
+    mockPrisma.profile.findMany.mockResolvedValue([{
+      id: "candidate-1",
+      username: "candidate",
+      displayName: "Candidate",
+      profileType: "EXPLORER",
+      locationLat: 6.5,
+      locationLng: 3.3,
+      createdAt: new Date("2026-09-01T00:00:00.000Z"),
+      lastActiveAt: new Date("2026-09-01T00:00:00.000Z"),
+      isTrustedMember: false,
+      isVerified: false,
+      isVerifiedCreator: false,
+      isVerifiedServiceProvider: false,
+      availabilityStatuses: [],
+      specShownPublicly: false,
+      specTestResults: [{
+        specType: "grounded_equal",
+        assumedAttractionTarget: "female",
+        motiveScores: { motives: { warmthResponsiveness: 75 } },
+        lenses: { sparkSafety: 75 },
+        attachment: { anxiety: 25, avoidance: 25 },
+      }],
+    }]);
+
+    const result = await searchDiscoverProfiles(parseDiscoverFilters({}), null);
+
+    expect(result.profiles[0]).not.toHaveProperty("locationLat");
+    expect(result.profiles[0]).not.toHaveProperty("locationLng");
+    expect(result.profiles[0].specTestResults).toEqual([]);
+  });
 });
 
 describe("suggestDiscoverProfiles", () => {

@@ -1,9 +1,8 @@
 import type { AvailabilityStatusType, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { haversineDistanceKm, profileCardSelect } from "@/lib/home-feed";
-import { specCompatibilityWeight } from "@/lib/spec-test/compatibility";
-import type { ArchetypeKey } from "@/lib/spec-test/taxonomy";
+import { haversineDistanceKm, profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
+import { scoreSpecVectorCompatibility } from "@/lib/spec-test/vector-compatibility";
 import { normalizeMatchPriority } from "@/lib/match-priority";
 
 const DEFAULT_RECOMMENDATION_LIMIT = 6;
@@ -25,6 +24,20 @@ const ACTIVE_CHAT_STATUSES = new Set<AvailabilityStatusType>([
 function recommendationProfileSelect() {
   return {
     ...profileCardSelect(),
+    specTestResults: {
+      select: {
+        specType: true,
+        assumedAttractionTarget: true,
+        secondarySpec: true,
+        sparkSpec: true,
+        partnershipSpec: true,
+        motiveScores: true,
+        lenses: true,
+        attachment: true,
+      },
+      orderBy: { createdAt: "desc" as const },
+      take: 1,
+    },
     locationLat: true,
     locationLng: true,
     openToChat: true,
@@ -50,16 +63,26 @@ function viewerProfileSelect() {
       take: 1,
     },
     specTestResults: {
-      select: { specType: true, secondarySpec: true, sparkSpec: true, partnershipSpec: true },
+      select: {
+        specType: true,
+        secondarySpec: true,
+        sparkSpec: true,
+        partnershipSpec: true,
+        motiveScores: true,
+        lenses: true,
+        attachment: true,
+      },
       orderBy: { createdAt: "desc" },
       take: 1,
     },
   } satisfies Prisma.ProfileSelect;
 }
 
-export type RecommendationProfileData = Prisma.ProfileGetPayload<{
+type RankableRecommendationProfileData = Prisma.ProfileGetPayload<{
   select: ReturnType<typeof recommendationProfileSelect>;
 }>;
+
+export type RecommendationProfileData = ProfileCardData;
 
 type ViewerRecommendationProfile = Prisma.ProfileGetPayload<{
   select: ReturnType<typeof viewerProfileSelect>;
@@ -86,7 +109,7 @@ function hasUsableLocation(profile: {
 
 function scoreProximity(
   viewer: ViewerRecommendationProfile,
-  candidate: RecommendationProfileData
+  candidate: RankableRecommendationProfileData
 ): { score: number; reasons: string[] } {
   if (hasUsableLocation(viewer) && hasUsableLocation(candidate)) {
     const distanceKm = haversineDistanceKm(
@@ -121,7 +144,7 @@ function scoreProximity(
 
 function scoreAvailability(
   viewer: ViewerRecommendationProfile,
-  candidate: RecommendationProfileData
+  candidate: RankableRecommendationProfileData
 ): { score: number; reasons: string[] } {
   const viewerStatus = viewer.availabilityStatuses[0]?.status;
   const candidateStatus = candidate.availabilityStatuses[0]?.status;
@@ -163,44 +186,51 @@ function scoreActivity(updatedAt: Date): { score: number; reasons: string[] } {
   return { score: 0, reasons: [] };
 }
 
-/** The "preference overlap" this section's own subtitle already promises - see
- *  lib/spec-test/compatibility.ts for the weighting rationale. Capped below proximity's top
- *  score (25) since it's a newer, unvalidated signal, but above availability's top (12) -
- *  this is meant to matter, not be a tiebreaker. Neither side having taken the test (the
- *  common case today) contributes 0, same as every other term when its signal is absent. */
+/** The "preference overlap" this section's own subtitle already promises. Uses continuous
+ * Spec vectors where possible and the provisional archetype table only for legacy rows.
+ * Capped below proximity's top score (25) because matching outcomes are not yet validated,
+ * but above availability's top (12) - this is meant to matter, not be a tiebreaker. Missing
+ * Spec data contributes 0, same as every other term when its signal is absent. */
 function scoreSpec(
   viewer: ViewerRecommendationProfile,
-  candidate: RecommendationProfileData,
+  candidate: RankableRecommendationProfileData,
 ): { score: number; reasons: string[] } {
   const priority = normalizeMatchPriority(viewer.matchPriority);
-  const result = viewer.specTestResults[0];
-  const viewerSpec = (
-    priority === "SPARK"
-      ? result?.sparkSpec ?? result?.specType
-      : priority === "PARTNERSHIP"
-        ? result?.partnershipSpec ?? result?.specType
-        : result?.specType
-  ) as ArchetypeKey | undefined;
-  const candidateSpec = candidate.specTestResults[0]?.specType as ArchetypeKey | undefined;
-  const weight = specCompatibilityWeight(viewerSpec, candidateSpec);
+  const compatibility = scoreSpecVectorCompatibility(
+    viewer.specTestResults,
+    candidate.specTestResults,
+    priority,
+  );
+  const weight = compatibility.score;
   if (weight <= 0) return { score: 0, reasons: [] };
 
-  const reason =
+  const maxScore = priority === "BALANCED" ? 15 : 20;
+  const score = Math.round(weight * maxScore);
+  if (score <= 0) return { score: 0, reasons: [] };
+
+  const result = viewer.specTestResults[0];
+  const candidateResult = candidate.specTestResults[0];
+  const viewerSpec = priority === "SPARK"
+    ? result?.sparkSpec ?? result?.specType
+    : priority === "PARTNERSHIP"
+      ? result?.partnershipSpec ?? result?.specType
+      : result?.specType;
+  const fallbackReason =
     priority === "SPARK"
       ? "Strong chemistry fit"
       : priority === "PARTNERSHIP"
         ? "Strong long-term fit"
-        : viewerSpec === candidateSpec
+        : viewerSpec === candidateResult?.specType
           ? "Shares your spec"
           : "Great spec match";
-  const maxScore = priority === "BALANCED" ? 15 : 20;
-  return { score: Math.round(weight * maxScore), reasons: [reason] };
+  const reason = compatibility.source === "vector" ? compatibility.reason : fallbackReason;
+  return { score, reasons: reason ? [reason] : [] };
 }
 
 function scoreCandidate(
   viewer: ViewerRecommendationProfile,
-  candidate: RecommendationProfileData
-): ProfileRecommendation {
+  candidate: RankableRecommendationProfileData
+): ProfileRecommendation & { candidateUpdatedAt: Date } {
   const proximity = scoreProximity(viewer, candidate);
   const availability = scoreAvailability(viewer, candidate);
   const activity = scoreActivity(candidate.updatedAt);
@@ -208,9 +238,34 @@ function scoreCandidate(
 
   const compatibilityScore = Math.round(proximity.score + availability.score + activity.score + spec.score);
 
+  // Ranking requires private vector details and exact coordinates, but the returned profile
+  // crosses a server/client boundary. Project back to the established public card shape so
+  // internal Spec signals (and ranking-only location fields) can never leak through JSON.
+  const {
+    locationLat,
+    locationLng,
+    openToChat,
+    openToMeet,
+    updatedAt,
+    specTestResults,
+    ...publicProfile
+  } = candidate;
+  void locationLat;
+  void locationLng;
+  void openToChat;
+  void openToMeet;
+  void updatedAt;
+  const publicSpecResults = publicProfile.specShownPublicly
+    ? specTestResults.map(({ specType, assumedAttractionTarget }) => ({
+        specType,
+        assumedAttractionTarget,
+      }))
+    : [];
+
   return {
-    profile: candidate,
+    profile: { ...publicProfile, specTestResults: publicSpecResults },
     compatibilityScore,
+    candidateUpdatedAt: candidate.updatedAt,
     // Spec first when it fires - it's the most personal signal available (an explicit
     // self-report, not an inference from behavior/location), so it's worth leading with.
     reasons: [...spec.reasons, ...proximity.reasons, ...availability.reasons, ...activity.reasons]
@@ -249,7 +304,11 @@ export async function getPersonalizedRecommendations(
       if (b.compatibilityScore !== a.compatibilityScore) {
         return b.compatibilityScore - a.compatibilityScore;
       }
-      return b.profile.updatedAt.getTime() - a.profile.updatedAt.getTime();
+      return b.candidateUpdatedAt.getTime() - a.candidateUpdatedAt.getTime();
     })
-    .slice(0, clampLimit(limit));
+    .slice(0, clampLimit(limit))
+    .map(({ candidateUpdatedAt, ...recommendation }) => {
+      void candidateUpdatedAt;
+      return recommendation;
+    });
 }

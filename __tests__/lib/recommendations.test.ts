@@ -6,6 +6,7 @@ jest.mock("@/lib/prisma", () => ({
 
 import { prisma } from "@/lib/prisma";
 import { getPersonalizedRecommendations } from "@/lib/recommendations";
+import { LENS_KEYS, SCORING_DIMENSION_KEYS } from "@/lib/spec-test/taxonomy";
 
 const mockPrisma = prisma as unknown as {
   profile: { findUnique: jest.Mock; findMany: jest.Mock };
@@ -52,6 +53,22 @@ function baseCandidate(overrides: Record<string, unknown> = {}) {
     openToMeet: false,
     updatedAt: new Date("2000-01-01"),
     ...overrides,
+  };
+}
+
+function vectorResult(value: number) {
+  return {
+    specType: "grounded_equal",
+    motiveScores: {
+      motives: Object.fromEntries(
+        SCORING_DIMENSION_KEYS
+          .filter((key) => key !== "containedDepthPrivacy" && key !== "aestheticSelectivity")
+          .map((key) => [key, value]),
+      ),
+      facets: { containedDepthPrivacy: value, aestheticSelectivity: value },
+    },
+    lenses: Object.fromEntries(LENS_KEYS.map((key) => [key, value])),
+    attachment: { anxiety: value, avoidance: value },
   };
 }
 
@@ -107,5 +124,28 @@ describe("getPersonalizedRecommendations - spec compatibility term", () => {
 
     expect(results![0].reasons).not.toContain("Great spec match");
     expect(results![0].reasons).not.toContain("Shares your spec");
+  });
+
+  it("uses full vectors before archetype labels and explains the alignment", async () => {
+    mockPrisma.profile.findUnique.mockResolvedValue(
+      baseProfile({ specTestResults: [vectorResult(70)] }),
+    );
+    mockPrisma.profile.findMany.mockResolvedValue([
+      baseCandidate({ id: "opposed", specTestResults: [vectorResult(0)] }),
+      baseCandidate({ id: "aligned", specShownPublicly: true, specTestResults: [vectorResult(70)] }),
+    ]);
+
+    const results = await getPersonalizedRecommendations("user-1");
+    const aligned = results!.find((result) => result.profile.id === "aligned")!;
+    const opposed = results!.find((result) => result.profile.id === "opposed")!;
+
+    expect(aligned.compatibilityScore - opposed.compatibilityScore).toBe(15);
+    expect(aligned.reasons).toContain("Your Spec profiles align");
+    expect(aligned.profile.specTestResults).toEqual([
+      { specType: "grounded_equal", assumedAttractionTarget: undefined },
+    ]);
+    expect(aligned.profile).not.toHaveProperty("locationLat");
+    expect(aligned.profile.specTestResults[0]).not.toHaveProperty("motiveScores");
+    expect(opposed.profile.specTestResults).toEqual([]);
   });
 });

@@ -7,6 +7,9 @@ jest.mock("@/components/spec-test/email-capture-form", () => ({ EmailCaptureForm
 jest.mock("@/lib/spec-test", () => ({ getSpecTestReading: jest.fn() }));
 jest.mock("next-auth", () => ({ getServerSession: jest.fn() }));
 jest.mock("@/lib/auth", () => ({ authOptions: {} }));
+jest.mock("@/lib/prisma", () => ({
+  prisma: { profile: { findUnique: jest.fn() } },
+}));
 
 import SpecTestResultPage, { generateMetadata } from "@/app/spec-test/result/[id]/page";
 import { getSpecTestReading } from "@/lib/spec-test";
@@ -14,10 +17,12 @@ import { getServerSession } from "next-auth";
 import { notFound } from "next/navigation";
 import type { SpecTestReading } from "@/lib/spec-test/results";
 import { SPEC_TYPE_READINGS } from "@/lib/spec-test/legacy";
+import { prisma } from "@/lib/prisma";
 
 const mockGetReading = getSpecTestReading as jest.Mock;
 const mockSession = getServerSession as jest.Mock;
 const mockNotFound = notFound as unknown as jest.Mock;
+const mockProfileFindUnique = prisma.profile.findUnique as jest.Mock;
 
 function v2Reading(overrides: Partial<Extract<SpecTestReading, { version: "v2" }>> = {}): Extract<SpecTestReading, { version: "v2" }> {
   return {
@@ -92,6 +97,7 @@ describe("Spec Test result page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSession.mockResolvedValue(null);
+    mockProfileFindUnique.mockResolvedValue({ matchPriority: "BALANCED" });
   });
 
   it("calls notFound for a missing result", async () => {

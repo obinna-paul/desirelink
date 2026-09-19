@@ -138,6 +138,9 @@ type ViewerProfile = {
     secondarySpec?: string | null;
     sparkSpec?: string | null;
     partnershipSpec?: string | null;
+    motiveScores?: unknown;
+    lenses?: unknown;
+    attachment?: unknown;
   }[];
 };
 
@@ -285,6 +288,20 @@ export async function searchDiscoverProfiles(
     where,
     select: {
       ...profileCardSelect(),
+      specTestResults: {
+        select: {
+          specType: true,
+          assumedAttractionTarget: true,
+          secondarySpec: true,
+          sparkSpec: true,
+          partnershipSpec: true,
+          motiveScores: true,
+          lenses: true,
+          attachment: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
       locationLat: true,
       locationLng: true,
       createdAt: true,
@@ -326,8 +343,37 @@ export async function searchDiscoverProfiles(
     withDistance.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
+  const profiles: ProfileCardData[] = withDistance
+    .slice(offset, offset + RESULTS_PAGE_SIZE)
+    .map((candidate) => {
+      // Full Spec vectors and exact coordinates exist only to rank this server-side pool.
+      // Explicitly project back to the public card contract before page props/API JSON are
+      // created, including when the taker chose not to show their Spec publicly.
+      const {
+        locationLat,
+        locationLng,
+        createdAt,
+        lastActiveAt,
+        specTestResults,
+        ...publicProfile
+      } = candidate;
+      void locationLat;
+      void locationLng;
+      void createdAt;
+      void lastActiveAt;
+      return {
+        ...publicProfile,
+        specTestResults: publicProfile.specShownPublicly
+          ? specTestResults.map(({ specType, assumedAttractionTarget }) => ({
+              specType,
+              assumedAttractionTarget,
+            }))
+          : [],
+      };
+    });
+
   return {
-    profiles: withDistance.slice(offset, offset + RESULTS_PAGE_SIZE),
+    profiles,
     hasMore: offset + RESULTS_PAGE_SIZE < withDistance.length,
   };
 }

@@ -14,6 +14,7 @@ import {
   typeTerm,
 } from "@/lib/ranking/people-scoring";
 import { prisma } from "@/lib/prisma";
+import { LENS_KEYS, SCORING_DIMENSION_KEYS } from "@/lib/spec-test/taxonomy";
 
 const mockPrisma = prisma as unknown as {
   creatorAffinity: { findMany: jest.Mock };
@@ -105,6 +106,22 @@ describe("availabilityTerm", () => {
 });
 
 const trustless = { isTrustedMember: false, isVerified: false, isVerifiedCreator: false, isVerifiedServiceProvider: false };
+
+function vectorResult(value: number) {
+  return {
+    specType: "grounded_equal",
+    motiveScores: {
+      motives: Object.fromEntries(
+        SCORING_DIMENSION_KEYS
+          .filter((key) => key !== "containedDepthPrivacy" && key !== "aestheticSelectivity")
+          .map((key) => [key, value]),
+      ),
+      facets: { containedDepthPrivacy: value, aestheticSelectivity: value },
+    },
+    lenses: Object.fromEntries(LENS_KEYS.map((key) => [key, value])),
+    attachment: { anxiety: value, avoidance: value },
+  };
+}
 
 describe("rankRecommendedProfiles", () => {
   it("returns an empty list without querying prisma for an empty candidate set", async () => {
@@ -205,6 +222,35 @@ describe("rankRecommendedProfiles", () => {
     const result = await rankRecommendedProfiles(viewer, candidates, NOW);
 
     expect(result).toEqual(["complement", "no-spec"]);
+  });
+
+  it("ranks a full-vector-aligned candidate above an opposed archetype-identical candidate", async () => {
+    const viewer = {
+      id: "viewer-1",
+      profileType: "EXPLORER" as const,
+      ...NO_LOCATION,
+      specTestResults: [vectorResult(75)],
+    };
+    const candidates = [
+      {
+        id: "opposed",
+        profileType: "EXPLORER" as const,
+        ...NO_LOCATION,
+        createdAt: NOW,
+        ...trustless,
+        specTestResults: [vectorResult(0)],
+      },
+      {
+        id: "aligned",
+        profileType: "EXPLORER" as const,
+        ...NO_LOCATION,
+        createdAt: NOW,
+        ...trustless,
+        specTestResults: [vectorResult(75)],
+      },
+    ];
+
+    await expect(rankRecommendedProfiles(viewer, candidates, NOW)).resolves.toEqual(["aligned", "opposed"]);
   });
 
   it("changes the Spec lens when the viewer changes match priority", async () => {

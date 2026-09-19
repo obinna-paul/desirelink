@@ -931,3 +931,37 @@ query is restricted to the exact instrument and consent versions. It includes it
 choices plus provisional scores but excludes submission/attempt ids, identity fields, exact
 timestamps, IP addresses, and free text; elapsed time is rounded, participant order is
 shuffled for each export, caching is disabled, and the download is audit-logged.
+
+## Matching model — full Spec-vector scoring
+
+**Why.** The first matching integration compared only the two public archetype labels. That
+discarded nearly all of the answer-level result: two people carrying the same label can have
+meaningfully different motive mixes, relationship lenses and responses under uncertainty.
+
+**New behavior.** Discover and the home recommendation rail now compare the latest complete
+result vectors on both profiles. The matching input is the eight-dimensional attraction
+profile reconstructed from stored motives/facets, all eight relationship lenses, and the two
+ordinary-language uncertainty-response axes. The combined intrigue score is not counted in
+addition to its two source facets. Archetype compatibility is now a legacy fallback only when
+no vector component is valid on both sides, so a derived label is never stacked on top of the
+same answers as a second bonus.
+
+**Priority lenses.** Balanced weights the entire profile broadly. Good Chemistry emphasizes
+vitality, novelty, cognitive play, aesthetics and spark/pace lenses. Something Real emphasizes
+warmth, reliability, closeness, commitment and the uncertainty-response context. Lenses have
+less aggregate weight than attraction dimensions because the current instruments derive them
+partly from those dimensions; uncertainty response remains deliberately modest and is never
+presented as a diagnosis.
+
+**Safety and missing data.** Gender, orientation, assumed attraction target, raw answers and
+public-display consent are not matching inputs. A component must contain every expected finite
+0–100 value on both sides or it is ignored. Available components are reweighted rather than
+penalizing missing data. No result on either side yields a neutral zero boost, never a negative
+score. Match copy says that profiles/preferences align; it does not claim one person possesses
+the traits the other prefers or display an unsupported compatibility percentage.
+
+**Validation status.** These weights are transparent product hypotheses, not evidence of
+relationship success. The Spec term remains capped within each broader recommender. Once the
+sample supports it, weights and thresholds should be evaluated against consent-appropriate
+outcomes such as mutual replies, sustained conversations and user feedback, with hold-out
+validation and fairness checks before any refit ships.

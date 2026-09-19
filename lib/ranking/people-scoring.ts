@@ -6,38 +6,21 @@ import { affinityTerm } from "@/lib/recommendation-scoring";
 import { seededTiebreak } from "@/lib/ranking/slate";
 import { bucketStartFor } from "@/lib/feed-slate";
 import { typeTerm } from "@/lib/ranking/type-priority";
-import { specCompatibilityWeight } from "@/lib/spec-test/compatibility";
-import type { ArchetypeKey } from "@/lib/spec-test/taxonomy";
+import { scoreSpecVectorCompatibility, type SpecVectorResult } from "@/lib/spec-test/vector-compatibility";
 import { normalizeMatchPriority, type MatchPriorityValue } from "@/lib/match-priority";
 
 export { affinityTerm, typeTerm };
 
-/** [0, 1] already - lib/spec-test/compatibility.ts's own weight scale matches every other
- *  term in this file, so no rescaling needed here (unlike lib/recommendations.ts, which
- *  scales it into that module's own unbounded point system). */
-type RankedSpecResult = {
-  specType: string;
-  secondarySpec?: string | null;
-  sparkSpec?: string | null;
-  partnershipSpec?: string | null;
-};
-
-function selectedViewerSpec(results: RankedSpecResult[], priority: MatchPriorityValue): ArchetypeKey | undefined {
-  const result = results[0];
-  if (!result) return undefined;
-  if (priority === "SPARK") return (result.sparkSpec ?? result.specType) as ArchetypeKey;
-  if (priority === "PARTNERSHIP") return (result.partnershipSpec ?? result.specType) as ArchetypeKey;
-  return result.specType as ArchetypeKey;
-}
+/** [0, 1] already. Full result vectors are compared when both sides have them; older rows
+ * fall back to the provisional archetype table. */
+type RankedSpecResult = SpecVectorResult;
 
 export function specTerm(
   viewerSpec: RankedSpecResult[],
   candidateSpec: RankedSpecResult[],
   priority: MatchPriorityValue = "BALANCED",
 ): number {
-  const viewerKey = selectedViewerSpec(viewerSpec, priority);
-  const candidateKey = candidateSpec[0]?.specType as ArchetypeKey | undefined;
-  return specCompatibilityWeight(viewerKey, candidateKey);
+  return scoreSpecVectorCompatibility(viewerSpec, candidateSpec, priority).score;
 }
 
 const TONIGHT_STATUSES = new Set(["available_tonight", "out_tonight"]);
@@ -132,9 +115,9 @@ export type RecommendableProfile = {
  * still leads since behavioral affinity is the strongest available personalization signal;
  * type is the second-strongest since (unlike locality/trust/novelty) it's read directly off
  * the viewer, not just the candidate, so it varies the order between viewers even before any
- * interaction history exists. Spec starts small since it's a newer, unvalidated signal (see
- * lib/spec-test/compatibility.ts) - it contributes 0 for the common case where either side
- * hasn't taken the test, same as every other term when its input is absent. */
+ * interaction history exists. Spec starts small since matching outcomes are not yet
+ * validated - it contributes 0 for the common case where either side hasn't taken the test,
+ * same as every other term when its input is absent. */
 const PEOPLE_WEIGHTS = {
   BALANCED: { affinity: 0.35, type: 0.15, locality: 0.15, trust: 0.15, novelty: 0.1, spec: 0.1, availability: 0 },
   SPARK: { affinity: 0.35, type: 0.1, locality: 0.1, trust: 0.1, novelty: 0.1, spec: 0.25, availability: 0 },
