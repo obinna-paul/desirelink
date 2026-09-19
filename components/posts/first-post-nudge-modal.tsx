@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRight, ImagePlus, Sparkles, X } from "lucide-react";
+import { ArrowRight, ImagePlus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/lib/use-focus-trap";
@@ -211,8 +211,7 @@ export function FirstPostNudgeModal({ profileId }: { profileId: string }) {
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-tint">
               <ImagePlus className="h-6 w-6 text-primary" aria-hidden="true" />
             </span>
-            <p className="mt-5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            <p className="mt-5 text-xs font-semibold uppercase tracking-[0.14em] text-primary">
               Give them something to notice
             </p>
             <h2
