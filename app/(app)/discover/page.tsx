@@ -44,11 +44,22 @@ export default async function DiscoverPage({
       profileType: true,
       locationLat: true,
       locationLng: true,
-      specTestResults: { select: { specType: true }, orderBy: { createdAt: "desc" }, take: 1 },
+      matchPriority: true,
+      availabilityStatuses: {
+        where: { expiresAt: { gt: new Date() } },
+        select: { status: true, expiresAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+      specTestResults: {
+        select: { specType: true, secondarySpec: true, sparkSpec: true, partnershipSpec: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
     },
   });
 
-  const filters = parseDiscoverFilters(searchParams);
+  const filters = parseDiscoverFilters(searchParams, viewerProfile?.matchPriority ?? "BALANCED");
   const { profiles, note, hasMore } = await searchDiscoverProfiles(filters, viewerProfile);
 
   const searchRows = filters.query ? await searchDocuments(filters.query) : [];
@@ -144,6 +155,7 @@ export default async function DiscoverPage({
   if (filters.radiusKm !== null) gridQueryParams.set("radius", String(filters.radiusKm));
   if (filters.availability !== "any") gridQueryParams.set("availability", filters.availability);
   if (filters.sort !== "recommended") gridQueryParams.set("sort", filters.sort);
+  if (filters.matchPriority !== "BALANCED") gridQueryParams.set("priority", filters.matchPriority);
 
   const activeFilterCount =
     (filters.query ? 1 : 0) +

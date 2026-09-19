@@ -13,6 +13,7 @@ const discoverFilters = {
   radiusKm: null,
   availability: "any" as const,
   sort: "recommended" as const,
+  matchPriority: "BALANCED" as const,
 };
 
 const serviceFilters = {
@@ -33,6 +34,7 @@ describe("search filter panels", () => {
     fireEvent.click(screen.getByRole("button", { name: "Filters" }));
 
     expect(screen.getByText("Location and activity")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Match priority" })).toHaveTextContent("Balanced");
     expect(screen.queryByText("Body type")).not.toBeInTheDocument();
     expect(container.querySelector("select")).toBeNull();
 

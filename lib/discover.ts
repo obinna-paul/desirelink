@@ -7,6 +7,7 @@ import { searchDocuments } from "@/lib/search";
 import { rankRecommendedProfiles } from "@/lib/ranking/people-scoring";
 import { ARCHETYPE_DISPLAY_NAMES } from "@/lib/spec-test/archetype-labels";
 import { ARCHETYPE_KEYS, type ArchetypeKey } from "@/lib/spec-test/taxonomy";
+import { isMatchPriorityValue, type MatchPriorityValue } from "@/lib/match-priority";
 
 const GENDER_FILTER_VALUES = new Set<string>(GENDER_OPTIONS);
 const ORIENTATION_FILTER_VALUES = new Set<string>(ORIENTATION_OPTIONS);
@@ -64,6 +65,8 @@ export type DiscoverFilters = {
   radiusKm: number | null;
   availability: AvailabilityFilterValue;
   sort: DiscoverSortValue;
+  /** Ranking lens only; it does not exclude profiles and therefore is not counted as a filter. */
+  matchPriority: MatchPriorityValue;
   /** Spec Test archetypes to filter to, e.g. finding "who reads as Soft Landing" directly. */
   specTypes: ArchetypeKey[];
 };
@@ -80,12 +83,16 @@ function toSingle(value: SearchParamValue): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export function parseDiscoverFilters(searchParams: DiscoverSearchParams): DiscoverFilters {
+export function parseDiscoverFilters(
+  searchParams: DiscoverSearchParams,
+  savedMatchPriority: MatchPriorityValue = "BALANCED",
+): DiscoverFilters {
   const radiusParam = toSingle(searchParams.radius);
   const availabilityParam = toSingle(searchParams.availability);
   const sortParam = toSingle(searchParams.sort);
   const lastActiveParam = toSingle(searchParams.lastActive);
   const verificationParam = toSingle(searchParams.verification);
+  const priorityParam = toSingle(searchParams.priority);
 
   return {
     query: toSingle(searchParams.q)?.trim() ?? "",
@@ -115,6 +122,7 @@ export function parseDiscoverFilters(searchParams: DiscoverSearchParams): Discov
     sort: DISCOVER_SORT_OPTIONS.some((option) => option.value === sortParam)
       ? (sortParam as DiscoverSortValue)
       : "recommended",
+    matchPriority: isMatchPriorityValue(priorityParam) ? priorityParam : savedMatchPriority,
   };
 }
 
@@ -123,7 +131,14 @@ type ViewerProfile = {
   profileType: ProfileType;
   locationLat: number;
   locationLng: number;
-  specTestResults: { specType: string }[];
+  matchPriority?: MatchPriorityValue;
+  availabilityStatuses?: { status: AvailabilityStatusType; expiresAt: Date }[];
+  specTestResults: {
+    specType: string;
+    secondarySpec?: string | null;
+    sparkSpec?: string | null;
+    partnershipSpec?: string | null;
+  }[];
 };
 
 // (0, 0) is the sentinel for "location never set" - a real GPS reading landing exactly

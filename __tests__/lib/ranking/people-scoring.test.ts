@@ -5,6 +5,7 @@ jest.mock("@/lib/prisma", () => ({
 }));
 
 import {
+  availabilityTerm,
   localityTerm,
   noveltyTerm,
   rankRecommendedCreators,
@@ -92,6 +93,14 @@ describe("noveltyTerm", () => {
     expect(noveltyTerm(NOW, NOW)).toBe(1);
     expect(noveltyTerm(new Date(NOW.getTime() - 30 * 24 * 60 * 60 * 1000), NOW)).toBeCloseTo(0.5, 10);
     expect(noveltyTerm(new Date(NOW.getTime() - 60 * 24 * 60 * 60 * 1000), NOW)).toBeCloseTo(0.25, 10);
+  });
+});
+
+describe("availabilityTerm", () => {
+  it("only activates for a viewer whose current status is tonight", () => {
+    expect(availabilityTerm([], [{ status: "available_tonight" }])).toBe(0);
+    expect(availabilityTerm([{ status: "open_to_meeting" }], [{ status: "available_tonight" }])).toBe(0);
+    expect(availabilityTerm([{ status: "available_tonight" }], [{ status: "out_tonight" }])).toBe(1);
   });
 });
 
@@ -196,6 +205,67 @@ describe("rankRecommendedProfiles", () => {
     const result = await rankRecommendedProfiles(viewer, candidates, NOW);
 
     expect(result).toEqual(["complement", "no-spec"]);
+  });
+
+  it("changes the Spec lens when the viewer changes match priority", async () => {
+    const viewerBase = {
+      id: "viewer-1",
+      profileType: "EXPLORER" as const,
+      ...NO_LOCATION,
+      availabilityStatuses: [],
+      specTestResults: [{
+        specType: "soft_landing",
+        sparkSpec: "electric_charmer",
+        partnershipSpec: "grounded_equal",
+      }],
+    };
+    const candidates = [
+      {
+        id: "spark-fit",
+        profileType: "EXPLORER" as const,
+        ...NO_LOCATION,
+        createdAt: NOW,
+        ...trustless,
+        specTestResults: [{ specType: "grounded_equal" }],
+      },
+      {
+        id: "partnership-fit",
+        profileType: "EXPLORER" as const,
+        ...NO_LOCATION,
+        createdAt: NOW,
+        ...trustless,
+        specTestResults: [{ specType: "electric_charmer" }],
+      },
+    ];
+
+    await expect(rankRecommendedProfiles({ ...viewerBase, matchPriority: "SPARK" }, candidates, NOW))
+      .resolves.toEqual(["spark-fit", "partnership-fit"]);
+    await expect(rankRecommendedProfiles({ ...viewerBase, matchPriority: "PARTNERSHIP" }, candidates, NOW))
+      .resolves.toEqual(["partnership-fit", "spark-fit"]);
+  });
+
+  it("automatically prioritises mutual tonight availability without a separate mode", async () => {
+    const viewer = {
+      id: "viewer-1",
+      profileType: "EXPLORER" as const,
+      ...NO_LOCATION,
+      matchPriority: "BALANCED" as const,
+      availabilityStatuses: [{ status: "available_tonight" }],
+      specTestResults: [],
+    };
+    const candidates = [
+      { id: "later", profileType: "EXPLORER" as const, ...NO_LOCATION, createdAt: NOW, ...trustless },
+      {
+        id: "tonight",
+        profileType: "EXPLORER" as const,
+        ...NO_LOCATION,
+        createdAt: NOW,
+        ...trustless,
+        availabilityStatuses: [{ status: "out_tonight" }],
+      },
+    ];
+
+    await expect(rankRecommendedProfiles(viewer, candidates, NOW)).resolves.toEqual(["tonight", "later"]);
   });
 });
 

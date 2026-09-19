@@ -8,16 +8,53 @@ import { bucketStartFor } from "@/lib/feed-slate";
 import { typeTerm } from "@/lib/ranking/type-priority";
 import { specCompatibilityWeight } from "@/lib/spec-test/compatibility";
 import type { ArchetypeKey } from "@/lib/spec-test/taxonomy";
+import { normalizeMatchPriority, type MatchPriorityValue } from "@/lib/match-priority";
 
 export { affinityTerm, typeTerm };
 
 /** [0, 1] already - lib/spec-test/compatibility.ts's own weight scale matches every other
  *  term in this file, so no rescaling needed here (unlike lib/recommendations.ts, which
  *  scales it into that module's own unbounded point system). */
-export function specTerm(viewerSpec: { specType: string }[], candidateSpec: { specType: string }[]): number {
-  const viewerKey = viewerSpec[0]?.specType as ArchetypeKey | undefined;
+type RankedSpecResult = {
+  specType: string;
+  secondarySpec?: string | null;
+  sparkSpec?: string | null;
+  partnershipSpec?: string | null;
+};
+
+function selectedViewerSpec(results: RankedSpecResult[], priority: MatchPriorityValue): ArchetypeKey | undefined {
+  const result = results[0];
+  if (!result) return undefined;
+  if (priority === "SPARK") return (result.sparkSpec ?? result.specType) as ArchetypeKey;
+  if (priority === "PARTNERSHIP") return (result.partnershipSpec ?? result.specType) as ArchetypeKey;
+  return result.specType as ArchetypeKey;
+}
+
+export function specTerm(
+  viewerSpec: RankedSpecResult[],
+  candidateSpec: RankedSpecResult[],
+  priority: MatchPriorityValue = "BALANCED",
+): number {
+  const viewerKey = selectedViewerSpec(viewerSpec, priority);
   const candidateKey = candidateSpec[0]?.specType as ArchetypeKey | undefined;
   return specCompatibilityWeight(viewerKey, candidateKey);
+}
+
+const TONIGHT_STATUSES = new Set(["available_tonight", "out_tonight"]);
+
+export function availabilityTerm(
+  viewerStatuses: { status: string }[] | undefined,
+  candidateStatuses: { status: string }[] | undefined,
+): number {
+  const viewerStatus = viewerStatuses?.[0]?.status;
+  if (!viewerStatus || !TONIGHT_STATUSES.has(viewerStatus)) return 0;
+
+  const candidateStatus = candidateStatuses?.[0]?.status;
+  if (!candidateStatus) return 0;
+  if (TONIGHT_STATUSES.has(candidateStatus)) return 1;
+  if (candidateStatus === "open_to_meeting" || candidateStatus === "couple_looking") return 0.65;
+  if (candidateStatus === "chatting_only") return 0.35;
+  return 0;
 }
 
 /** Same distance buckets as lib/recommendations.ts's scoreProximity and
@@ -87,7 +124,8 @@ export type RecommendableProfile = {
   // Optional, not required: rankRecommendedCreators below never reads this (creators
   // directory candidates aren't built from profileCardSelect()), so it shouldn't have to
   // supply a field it has no use for. rankRecommendedProfiles (Discover) always has it.
-  specTestResults?: { specType: string }[];
+  availabilityStatuses?: { status: string; expiresAt?: Date }[];
+  specTestResults?: RankedSpecResult[];
 };
 
 /** Reweighted to make room for the type term below, then again for spec below that. Affinity
@@ -98,13 +136,11 @@ export type RecommendableProfile = {
  * lib/spec-test/compatibility.ts) - it contributes 0 for the common case where either side
  * hasn't taken the test, same as every other term when its input is absent. */
 const PEOPLE_WEIGHTS = {
-  affinity: 0.35,
-  type: 0.15,
-  locality: 0.15,
-  trust: 0.15,
-  novelty: 0.1,
-  spec: 0.1,
-};
+  BALANCED: { affinity: 0.35, type: 0.15, locality: 0.15, trust: 0.15, novelty: 0.1, spec: 0.1, availability: 0 },
+  SPARK: { affinity: 0.35, type: 0.1, locality: 0.1, trust: 0.1, novelty: 0.1, spec: 0.25, availability: 0 },
+  PARTNERSHIP: { affinity: 0.25, type: 0.1, locality: 0.1, trust: 0.25, novelty: 0.05, spec: 0.25, availability: 0 },
+  TONIGHT: { affinity: 0.2, type: 0.1, locality: 0.25, trust: 0.15, novelty: 0.05, spec: 0.1, availability: 0.15 },
+} as const;
 
 /** Score values are continuous, so exact ties are rare - quantizing into steps this wide
  * groups "close enough" candidates into the same rank tier so they still shuffle together
@@ -149,7 +185,9 @@ export async function rankRecommendedProfiles(
         profileType: ProfileType | null;
         locationLat: number;
         locationLng: number;
-        specTestResults: { specType: string }[];
+        matchPriority?: MatchPriorityValue;
+        availabilityStatuses?: { status: string; expiresAt?: Date }[];
+        specTestResults: RankedSpecResult[];
       }
     | null,
   candidates: RecommendableProfile[],
@@ -161,16 +199,20 @@ export async function rankRecommendedProfiles(
   const affinityByCreator = viewer
     ? await getAffinityByCreator(viewer.id, candidateIds)
     : new Map<string, number>();
-  const seed = `discover:${viewer?.id ?? "anon"}:${bucketStartFor(now).getTime()}`;
+  const priority = normalizeMatchPriority(viewer?.matchPriority);
+  const tonight = Boolean(viewer?.availabilityStatuses?.[0]?.status && TONIGHT_STATUSES.has(viewer.availabilityStatuses[0].status));
+  const weights = tonight ? PEOPLE_WEIGHTS.TONIGHT : PEOPLE_WEIGHTS[priority];
+  const seed = `discover:${viewer?.id ?? "anon"}:${priority}:${tonight ? "tonight" : "standard"}:${bucketStartFor(now).getTime()}`;
 
   const scored = candidates.map((candidate) => {
     const score =
-      PEOPLE_WEIGHTS.affinity * affinityTerm(affinityByCreator.get(candidate.id) ?? 0) +
-      PEOPLE_WEIGHTS.type * typeTerm(viewer?.profileType ?? null, candidate.profileType) +
-      PEOPLE_WEIGHTS.locality * localityTerm(viewer, candidate) +
-      PEOPLE_WEIGHTS.trust * trustTerm(candidate) +
-      PEOPLE_WEIGHTS.novelty * noveltyTerm(candidate.createdAt, now) +
-      PEOPLE_WEIGHTS.spec * specTerm(viewer?.specTestResults ?? [], candidate.specTestResults ?? []);
+      weights.affinity * affinityTerm(affinityByCreator.get(candidate.id) ?? 0) +
+      weights.type * typeTerm(viewer?.profileType ?? null, candidate.profileType) +
+      weights.locality * localityTerm(viewer, candidate) +
+      weights.trust * trustTerm(candidate) +
+      weights.novelty * noveltyTerm(candidate.createdAt, now) +
+      weights.spec * specTerm(viewer?.specTestResults ?? [], candidate.specTestResults ?? [], priority) +
+      weights.availability * availabilityTerm(viewer?.availabilityStatuses, candidate.availabilityStatuses);
     return { id: candidate.id, score };
   });
 

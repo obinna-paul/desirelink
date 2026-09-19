@@ -37,4 +37,10 @@ describe("search filter parsing", () => {
   it("falls back to the default radius only for a garbage explicit value, not a missing one", () => {
     expect(parseDiscoverFilters({ radius: "not-a-number" }).radiusKm).toBe(50);
   });
+
+  it("uses a saved match priority unless a valid URL priority overrides it", () => {
+    expect(parseDiscoverFilters({}, "PARTNERSHIP").matchPriority).toBe("PARTNERSHIP");
+    expect(parseDiscoverFilters({ priority: "SPARK" }, "PARTNERSHIP").matchPriority).toBe("SPARK");
+    expect(parseDiscoverFilters({ priority: "not-real" }, "PARTNERSHIP").matchPriority).toBe("PARTNERSHIP");
+  });
 });

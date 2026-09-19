@@ -97,6 +97,12 @@ enum ProfileType {
   CREATOR
 }
 
+enum MatchPriority {
+  BALANCED
+  SPARK
+  PARTNERSHIP
+}
+
 enum AdminRole {
   SUPPORT
   MODERATOR
@@ -226,6 +232,9 @@ model Profile {
 
   openToChat                Boolean   @default(false)
   openToMeet                Boolean   @default(false)
+  /** Controls the lens used by Recommended results. "Tonight" remains an expiring
+   * availability state rather than a permanent preference. */
+  matchPriority             MatchPriority @default(BALANCED)
   isIncognito               Boolean   @default(false)
   showInSearch              Boolean   @default(true)
   showExactLocation         Boolean   @default(false)

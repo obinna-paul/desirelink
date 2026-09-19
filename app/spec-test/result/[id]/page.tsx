@@ -11,7 +11,10 @@ import { Button } from "@/components/ui/button";
 import { ShareButton } from "@/components/ui/share-button";
 import { EmailCaptureForm } from "@/components/spec-test/email-capture-form";
 import { AgeBadge } from "@/components/spec-test/age-badge";
+import { MatchPriorityPicker } from "@/components/spec-test/match-priority-picker";
 import { authOptions } from "@/lib/auth";
+import { normalizeMatchPriority, type MatchPriorityValue } from "@/lib/match-priority";
+import { prisma } from "@/lib/prisma";
 import { getSpecTestReading } from "@/lib/spec-test";
 import type { ArchetypeKey, Gender } from "@/lib/spec-test";
 import { publicPageMetadata } from "@/lib/seo";
@@ -153,7 +156,17 @@ function LearnMoreDisclosure({ children }: { children: React.ReactNode }) {
 // invites a friend to take the quiz themselves (href points at /spec-test, the quiz's own
 // landing page, never this taker's personal result) - not "share my result," since a result
 // is a private reading about the taker, not something meant to circulate on its own.
-function JoinCta({ resultId, specName, isSignedIn }: { resultId: string; specName: string; isSignedIn: boolean }) {
+function JoinCta({
+  resultId,
+  specName,
+  isSignedIn,
+  matchPriority,
+}: {
+  resultId: string;
+  specName: string;
+  isSignedIn: boolean;
+  matchPriority: MatchPriorityValue;
+}) {
   const inviteShare = (
     <ShareButton
       href="/spec-test"
@@ -166,22 +179,27 @@ function JoinCta({ resultId, specName, isSignedIn }: { resultId: string; specNam
 
   if (isSignedIn) {
     return (
-      <RevealSection delayMs={700} className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-card p-6 text-center shadow-card">
-        <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <Check className="h-4 w-4 text-primary" aria-hidden="true" />
-          Saved to your profile - find it anytime under Profile settings.
-        </p>
-        <Button
-          asChild
-          className="h-14 w-full max-w-sm gap-2 rounded-full bg-gradient-to-r from-primary to-neon-pink text-base font-bold shadow-lift transition-transform hover:scale-[1.02] hover:opacity-95 active:scale-[0.99]"
-        >
-          <Link href="/">
-            Back to Udala
-            <ArrowRight className="h-5 w-5" aria-hidden="true" />
-          </Link>
-        </Button>
-        {inviteShare}
-      </RevealSection>
+      <>
+        <RevealSection delayMs={680}>
+          <MatchPriorityPicker initialPriority={matchPriority} />
+        </RevealSection>
+        <RevealSection delayMs={720} className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-card p-6 text-center shadow-card">
+          <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+            Saved to your profile - find it anytime under Profile settings.
+          </p>
+          <Button
+            asChild
+            className="h-14 w-full max-w-sm gap-2 rounded-full bg-gradient-to-r from-primary to-neon-pink text-base font-bold shadow-lift transition-transform hover:scale-[1.02] hover:opacity-95 active:scale-[0.99]"
+          >
+            <Link href="/">
+              Back to Udala
+              <ArrowRight className="h-5 w-5" aria-hidden="true" />
+            </Link>
+          </Button>
+          {inviteShare}
+        </RevealSection>
+      </>
     );
   }
 
@@ -211,6 +229,13 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
   const [reading, session] = await Promise.all([getSpecTestReading(params.id), getServerSession(authOptions)]);
   if (!reading) notFound();
   const isSignedIn = Boolean(session?.user?.id);
+  const profile = session?.user?.id
+    ? await prisma.profile.findUnique({
+        where: { userId: session.user.id },
+        select: { matchPriority: true },
+      })
+    : null;
+  const matchPriority = normalizeMatchPriority(profile?.matchPriority);
 
   if (reading.version === "v1") {
     const { reading: v1 } = reading;
@@ -279,7 +304,7 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
             </RevealSection>
           </LearnMoreDisclosure>
 
-          <JoinCta resultId={params.id} specName={v1.name} isSignedIn={isSignedIn} />
+          <JoinCta resultId={params.id} specName={v1.name} isSignedIn={isSignedIn} matchPriority={matchPriority} />
         </main>
 
         <PublicFooter />
@@ -407,7 +432,7 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
         </LearnMoreDisclosure>
 
         {/* 12. Join / back-to-app card, with an invite-a-friend share action */}
-        <JoinCta resultId={params.id} specName={copy.headline.name} isSignedIn={isSignedIn} />
+        <JoinCta resultId={params.id} specName={copy.headline.name} isSignedIn={isSignedIn} matchPriority={matchPriority} />
       </main>
 
       <PublicFooter />

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect } from "@/lib/home-feed";
 import { specCompatibilityWeight } from "@/lib/spec-test/compatibility";
 import type { ArchetypeKey } from "@/lib/spec-test/taxonomy";
+import { normalizeMatchPriority } from "@/lib/match-priority";
 
 const DEFAULT_RECOMMENDATION_LIMIT = 6;
 const MAX_RECOMMENDATION_LIMIT = 50;
@@ -41,6 +42,7 @@ function viewerProfileSelect() {
     country: true,
     openToChat: true,
     openToMeet: true,
+    matchPriority: true,
     availabilityStatuses: {
       where: { expiresAt: { gt: new Date() } },
       select: { status: true, expiresAt: true },
@@ -48,7 +50,7 @@ function viewerProfileSelect() {
       take: 1,
     },
     specTestResults: {
-      select: { specType: true },
+      select: { specType: true, secondarySpec: true, sparkSpec: true, partnershipSpec: true },
       orderBy: { createdAt: "desc" },
       take: 1,
     },
@@ -125,6 +127,12 @@ function scoreAvailability(
   const candidateStatus = candidate.availabilityStatuses[0]?.status;
 
   if (viewerStatus && candidateStatus) {
+    const viewerIsTonight = viewerStatus === "available_tonight" || viewerStatus === "out_tonight";
+    const candidateIsTonight = candidateStatus === "available_tonight" || candidateStatus === "out_tonight";
+    if (viewerIsTonight && candidateIsTonight) {
+      return { score: 20, reasons: ["Also available tonight"] };
+    }
+
     if (
       (ACTIVE_MEETING_STATUSES.has(viewerStatus) && ACTIVE_MEETING_STATUSES.has(candidateStatus)) ||
       (ACTIVE_CHAT_STATUSES.has(viewerStatus) && ACTIVE_CHAT_STATUSES.has(candidateStatus))
@@ -164,13 +172,29 @@ function scoreSpec(
   viewer: ViewerRecommendationProfile,
   candidate: RecommendationProfileData,
 ): { score: number; reasons: string[] } {
-  const viewerSpec = viewer.specTestResults[0]?.specType as ArchetypeKey | undefined;
+  const priority = normalizeMatchPriority(viewer.matchPriority);
+  const result = viewer.specTestResults[0];
+  const viewerSpec = (
+    priority === "SPARK"
+      ? result?.sparkSpec ?? result?.specType
+      : priority === "PARTNERSHIP"
+        ? result?.partnershipSpec ?? result?.specType
+        : result?.specType
+  ) as ArchetypeKey | undefined;
   const candidateSpec = candidate.specTestResults[0]?.specType as ArchetypeKey | undefined;
   const weight = specCompatibilityWeight(viewerSpec, candidateSpec);
   if (weight <= 0) return { score: 0, reasons: [] };
 
-  const reason = viewerSpec === candidateSpec ? "Shares your spec" : "Great spec match";
-  return { score: Math.round(weight * 15), reasons: [reason] };
+  const reason =
+    priority === "SPARK"
+      ? "Strong chemistry fit"
+      : priority === "PARTNERSHIP"
+        ? "Strong long-term fit"
+        : viewerSpec === candidateSpec
+          ? "Shares your spec"
+          : "Great spec match";
+  const maxScore = priority === "BALANCED" ? 15 : 20;
+  return { score: Math.round(weight * maxScore), reasons: [reason] };
 }
 
 function scoreCandidate(

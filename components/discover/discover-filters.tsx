@@ -10,6 +10,7 @@ import {
   type FilterOption,
 } from "@/components/filters/filter-select";
 import { Button } from "@/components/ui/button";
+import { MATCH_PRIORITY_OPTIONS, type MatchPriorityValue } from "@/lib/match-priority";
 import { GENDER_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/profile-options";
 import {
   AVAILABILITY_FILTER_OPTIONS,
@@ -51,7 +52,10 @@ export function DiscoverFiltersPanel({
     initialFilters.availability,
   );
   const [sort, setSort] = useState<DiscoverSortValue>(initialFilters.sort);
+  const [matchPriority, setMatchPriority] = useState<MatchPriorityValue>(initialFilters.matchPriority);
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const activeFilterCount =
     genders.length +
@@ -63,7 +67,25 @@ export function DiscoverFiltersPanel({
     (lastActive !== "any" ? 1 : 0) +
     (verification !== "any" ? 1 : 0);
 
-  function applyFilters() {
+  async function applyFilters() {
+    setSaveError("");
+    if (matchPriority !== initialFilters.matchPriority) {
+      setSaving(true);
+      try {
+        const response = await fetch("/api/profile/match-priority", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ priority: matchPriority }),
+        });
+        if (!response.ok) throw new Error("Unable to save match priority");
+      } catch {
+        setSaveError("We couldn’t save your match priority. Please try again.");
+        setSaving(false);
+        return;
+      }
+      setSaving(false);
+    }
+
     const params = new URLSearchParams();
     if (initialFilters.query) params.set("q", initialFilters.query);
     genders.forEach((value) => params.append("gender", value));
@@ -74,6 +96,7 @@ export function DiscoverFiltersPanel({
     params.set("radius", radiusKm);
     params.set("availability", availability);
     params.set("sort", sort);
+    if (matchPriority !== "BALANCED") params.set("priority", matchPriority);
     router.push(`/discover?${params.toString()}`);
     setOpen(false);
   }
@@ -159,14 +182,22 @@ export function DiscoverFiltersPanel({
             options={DISCOVER_SORT_OPTIONS}
             onChange={(value) => setSort(value as DiscoverSortValue)}
           />
+          <FilterSelect
+            label="Match priority"
+            value={matchPriority}
+            options={MATCH_PRIORITY_OPTIONS.map((option) => ({ value: option.value, label: option.shortLabel }))}
+            onChange={(value) => setMatchPriority(value as MatchPriorityValue)}
+          />
         </FilterGroup>
+
+        {saveError && <p className="text-sm font-medium text-destructive" role="alert">{saveError}</p>}
 
         <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
           <Button type="button" variant="ghost" onClick={clearFilters}>
             Reset
           </Button>
-          <Button type="button" onClick={applyFilters} className="sm:min-w-36">
-            Show results
+          <Button type="button" onClick={applyFilters} disabled={saving} className="sm:min-w-36">
+            {saving ? "Saving…" : "Show results"}
           </Button>
         </div>
       </div>

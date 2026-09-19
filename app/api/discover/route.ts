@@ -22,7 +22,18 @@ export async function GET(req: Request) {
       profileType: true,
       locationLat: true,
       locationLng: true,
-      specTestResults: { select: { specType: true }, orderBy: { createdAt: "desc" }, take: 1 },
+      matchPriority: true,
+      availabilityStatuses: {
+        where: { expiresAt: { gt: new Date() } },
+        select: { status: true, expiresAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+      specTestResults: {
+        select: { specType: true, secondarySpec: true, sparkSpec: true, partnershipSpec: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
     },
   });
 
@@ -33,7 +44,7 @@ export async function GET(req: Request) {
     searchParams[key] = values.length > 1 ? values : values[0];
   }
 
-  const filters = parseDiscoverFilters(searchParams);
+  const filters = parseDiscoverFilters(searchParams, viewerProfile?.matchPriority ?? "BALANCED");
   const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
 
   // Search results (filters.query set) are a different surface (SearchResults, mixing
