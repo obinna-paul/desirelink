@@ -83,7 +83,7 @@ describe("SpecTestQuizFlow (official v3)", () => {
     try {
       render(<SpecTestQuizFlow />);
       await startQuiz("male");
-      expect(screen.getByTestId("spec-question-motion")).toHaveClass("motion-safe:slide-in-from-right-4");
+      expect(screen.getByTestId("spec-question-motion")).toHaveClass("motion-safe:animate-spec-question-enter-forward");
 
       fireEvent.click(screen.getAllByText("My type")[0]);
       fireEvent.click(screen.getAllByText("Not really")[1]);
@@ -91,18 +91,18 @@ describe("SpecTestQuizFlow (official v3)", () => {
 
       const leaving = screen.getByTestId("spec-question-motion");
       expect(leaving).toHaveAttribute("data-motion-phase", "exiting");
-      expect(leaving).toHaveClass("motion-safe:slide-out-to-left-4");
+      expect(leaving).toHaveClass("motion-safe:animate-spec-question-exit-forward");
       expect(screen.getByTestId("spec-next")).toBeDisabled();
 
-      act(() => jest.advanceTimersByTime(200));
+      act(() => jest.advanceTimersByTime(300));
       expect(screen.getByText("Question 2 of 28")).toBeInTheDocument();
-      expect(screen.getByTestId("spec-question-motion")).toHaveClass("motion-safe:slide-in-from-right-4");
+      expect(screen.getByTestId("spec-question-motion")).toHaveClass("motion-safe:animate-spec-question-enter-forward");
 
       fireEvent.click(screen.getByTestId("spec-back"));
-      expect(screen.getByTestId("spec-question-motion")).toHaveClass("motion-safe:slide-out-to-right-4");
-      act(() => jest.advanceTimersByTime(200));
+      expect(screen.getByTestId("spec-question-motion")).toHaveClass("motion-safe:animate-spec-question-exit-backward");
+      act(() => jest.advanceTimersByTime(300));
       expect(screen.getByText("Question 1 of 28")).toBeInTheDocument();
-      expect(screen.getByTestId("spec-question-motion")).toHaveClass("motion-safe:slide-in-from-left-4");
+      expect(screen.getByTestId("spec-question-motion")).toHaveClass("motion-safe:animate-spec-question-enter-backward");
     } finally {
       jest.useRealTimers();
       Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });

@@ -34,7 +34,7 @@ export default async function SpecTestQuizPage() {
     <div className="flex min-h-screen flex-col">
       <PublicHeader minimal badge={<AgeBadge />} />
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-4 py-10 sm:px-8">
-        <div className="rounded-3xl border border-border/60 bg-card p-6 shadow-card sm:p-8">
+        <div className="overflow-hidden rounded-3xl border border-border/60 bg-card p-6 shadow-card sm:p-8">
           {cooldown ? (
             // Checked up front rather than only at submit time: without this, a signed-in
             // taker inside the cooldown would answer all 28 questions before ever being told

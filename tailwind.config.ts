@@ -90,6 +90,24 @@ const config: Config = {
         "2xl": "1.75rem",
       },
       keyframes: {
+        "spec-question-enter-forward": {
+          "0%": { opacity: "0", transform: "translate3d(2.5rem, 0, 0) scale(0.98)" },
+          "70%": { opacity: "1" },
+          "100%": { opacity: "1", transform: "translate3d(0, 0, 0) scale(1)" },
+        },
+        "spec-question-enter-backward": {
+          "0%": { opacity: "0", transform: "translate3d(-2.5rem, 0, 0) scale(0.98)" },
+          "70%": { opacity: "1" },
+          "100%": { opacity: "1", transform: "translate3d(0, 0, 0) scale(1)" },
+        },
+        "spec-question-exit-forward": {
+          "0%": { opacity: "1", transform: "translate3d(0, 0, 0) scale(1)" },
+          "100%": { opacity: "0", transform: "translate3d(-1.75rem, 0, 0) scale(0.99)" },
+        },
+        "spec-question-exit-backward": {
+          "0%": { opacity: "1", transform: "translate3d(0, 0, 0) scale(1)" },
+          "100%": { opacity: "0", transform: "translate3d(1.75rem, 0, 0) scale(0.99)" },
+        },
         "float-heart": {
           "0%": { transform: "translateY(0) scale(0.7)", opacity: "0" },
           "15%": { opacity: "1" },
@@ -103,6 +121,14 @@ const config: Config = {
         },
       },
       animation: {
+        "spec-question-enter-forward":
+          "spec-question-enter-forward 520ms cubic-bezier(0.22, 0.65, 0.3, 1) both",
+        "spec-question-enter-backward":
+          "spec-question-enter-backward 520ms cubic-bezier(0.22, 0.65, 0.3, 1) both",
+        "spec-question-exit-forward":
+          "spec-question-exit-forward 280ms cubic-bezier(0.4, 0, 0.6, 1) both",
+        "spec-question-exit-backward":
+          "spec-question-exit-backward 280ms cubic-bezier(0.4, 0, 0.6, 1) both",
         "float-heart": "float-heart 1.6s ease-out forwards",
         "progress-sweep": "progress-sweep 1.4s ease-in-out infinite",
       },

@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 const DRAFT_STORAGE_KEY = "spec-test-draft-v3";
 const TOTAL_ITEMS = SPEC_TEST_ITEMS_V3.length;
 const PHASE_STARTS = new Set([0, 16, 24]);
-const QUESTION_EXIT_MS = 170;
+const QUESTION_EXIT_MS = 280;
 
 const PHASE_COPY: Record<number, { eyebrow: string; title: string; body: string }> = {
   0: {
@@ -471,11 +471,11 @@ export function SpecTestQuizFlow() {
           "flex flex-col gap-7 will-change-transform",
           motionPhase === "exiting"
             ? motionDirection === "forward"
-              ? "motion-safe:animate-out motion-safe:fade-out motion-safe:slide-out-to-left-4 motion-safe:duration-150 motion-safe:ease-in"
-              : "motion-safe:animate-out motion-safe:fade-out motion-safe:slide-out-to-right-4 motion-safe:duration-150 motion-safe:ease-in"
+              ? "motion-safe:animate-spec-question-exit-forward"
+              : "motion-safe:animate-spec-question-exit-backward"
             : motionDirection === "forward"
-              ? "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-4 motion-safe:duration-300 motion-safe:ease-out"
-              : "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-4 motion-safe:duration-300 motion-safe:ease-out",
+              ? "motion-safe:animate-spec-question-enter-forward"
+              : "motion-safe:animate-spec-question-enter-backward",
         )}
       >
         {currentItem.kind === "best_worst" && (
