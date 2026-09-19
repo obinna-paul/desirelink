@@ -33,6 +33,7 @@ function mockPresence() {
     rest.get("http://localhost/api/messages/presence", (_req, res, ctx) =>
       res(ctx.json({ visible: false, state: "hidden", lastActiveAt: null })),
     ),
+    rest.post("http://localhost/api/messages/typing", (_req, res, ctx) => res(ctx.status(204))),
   );
 }
 
@@ -122,5 +123,47 @@ describe("ChatWindow - Enter key sends only from a physical keyboard", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(sendCalled).toBe(false);
+  });
+});
+
+describe("ChatWindow - opener shuffle", () => {
+  beforeEach(() => {
+    mockPresence();
+    setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120");
+  });
+
+  it("shows Seeker-only fun categories, hides Creator/Fan, and never immediately repeats a suggestion", async () => {
+    render(
+      <ChatWindow
+        viewerProfileId="viewer-1"
+        viewerProfileType="SEEKER"
+        counterpart={counterpart}
+        initialMessages={[]}
+      />,
+    );
+
+    expect(await screen.findByRole("button", { name: "Would you rather" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hot take" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quick game" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Date energy" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Creator/Fan" })).not.toBeInTheDocument();
+
+    const flirty = screen.getByRole("button", { name: "Flirty" });
+    const textarea = screen.getByPlaceholderText("Message...");
+    fireEvent.click(flirty);
+    const first = (textarea as HTMLTextAreaElement).value;
+    expect(first.length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Flirty" })).toHaveAttribute("aria-pressed", "true");
+
+    const shuffle = screen.getByRole("button", { name: "Try another opener in this category" });
+    fireEvent.click(shuffle);
+    const second = (textarea as HTMLTextAreaElement).value;
+    expect(second).not.toBe(first);
+
+    fireEvent.click(screen.getByRole("button", { name: "Flirty" }));
+    expect(textarea).not.toHaveValue(second);
+
+    fireEvent.click(screen.getByRole("button", { name: "Change style" }));
+    expect(screen.getByRole("button", { name: "Funny" })).toBeInTheDocument();
   });
 });

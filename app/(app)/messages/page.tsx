@@ -23,7 +23,7 @@ export default async function MessagesPage({
 
   const viewerProfile = await prisma.profile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, heartsBalance: true },
+    select: { id: true, heartsBalance: true, profileType: true },
   });
   if (!viewerProfile) {
     redirect("/login");
@@ -89,6 +89,7 @@ export default async function MessagesPage({
                 initialMessages={initialMessages}
                 blockRelationship={blockRelationship}
                 viewerHeartsBalance={viewerProfile.heartsBalance}
+                viewerProfileType={viewerProfile.profileType}
               />
             </div>
           ) : (

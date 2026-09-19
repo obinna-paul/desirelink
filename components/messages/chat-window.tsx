@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
+import type { ProfileType } from "@prisma/client";
 import {
   ChevronDown,
   ChevronLeft,
@@ -18,6 +19,7 @@ import {
   Reply,
   Send,
   ShieldX,
+  Shuffle,
   UserRound,
   X,
 } from "lucide-react";
@@ -39,11 +41,12 @@ import {
   TYPING_EVENT,
 } from "@/lib/message-channels";
 import {
-  CONNECTION_REASONS,
+  type ConnectionReasonValue,
   type ConversationMedia,
   type ConversationMessage,
   type ConversationParticipant,
 } from "@/lib/message-types";
+import { getMessageOpenerCategoriesForProfile, shuffleMessageOpeners } from "@/lib/message-openers";
 import { getPusherClient } from "@/lib/pusher-client";
 import { isProviderProfileType } from "@/lib/provider-types";
 import { useFocusTrap } from "@/lib/use-focus-trap";
@@ -108,12 +111,14 @@ export function ChatWindow({
   initialMessages,
   blockRelationship = "none",
   viewerHeartsBalance = 0,
+  viewerProfileType = "EXPLORER",
 }: {
   viewerProfileId: string;
   counterpart: ConversationParticipant;
   initialMessages: ConversationMessage[];
   blockRelationship?: BlockRelationship;
   viewerHeartsBalance?: number;
+  viewerProfileType?: ProfileType;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
@@ -131,6 +136,8 @@ export function ChatWindow({
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [selectedOpenerCategory, setSelectedOpenerCategory] = useState<ConnectionReasonValue | null>(null);
+  const [openerAnnouncement, setOpenerAnnouncement] = useState("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -150,6 +157,7 @@ export function ChatWindow({
   const sendRecordedVoiceRef = useRef(false);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingDurationRef = useRef(0);
+  const openerDecksRef = useRef<Partial<Record<ConnectionReasonValue, string[]>>>({});
 
   const blocked = blockRelationship !== "none";
   const counterpartIsProvider = isProviderProfileType(counterpart.profileType);
@@ -158,6 +166,14 @@ export function ChatWindow({
     counterpart.isVerifiedCreator ||
     counterpart.isVerifiedServiceProvider ||
     counterpart.verificationPending;
+  const openerCategories = useMemo(
+    () => getMessageOpenerCategoriesForProfile(viewerProfileType),
+    [viewerProfileType],
+  );
+  const selectedOpenerOption = useMemo(
+    () => openerCategories.find((category) => category.value === selectedOpenerCategory) ?? null,
+    [openerCategories, selectedOpenerCategory],
+  );
   initialMessagesRef.current = initialMessages;
   const { data: presence } = useSWR(
     `/api/messages/presence?profileId=${encodeURIComponent(counterpart.id)}`,
@@ -341,6 +357,23 @@ export function ChatWindow({
         sendTypingState(false);
       }, 1_400);
     }
+  }
+
+  function drawOpener(category: ConnectionReasonValue) {
+    const option = openerCategories.find((candidate) => candidate.value === category);
+    if (!option) return;
+
+    let deck = openerDecksRef.current[category] ?? [];
+    if (deck.length === 0) {
+      deck = shuffleMessageOpeners(option.openers, selectedOpenerCategory === category ? content : undefined);
+    }
+    const next = deck.pop();
+    if (!next) return;
+
+    openerDecksRef.current[category] = deck;
+    setSelectedOpenerCategory(category);
+    setOpenerAnnouncement(`New ${option.label.toLowerCase()} opener ready: ${next}`);
+    handleContentChange(next);
   }
 
   function startReply(message: ConversationMessage) {
@@ -647,16 +680,58 @@ export function ChatWindow({
         </button>
       )}
 
-      {!blocked && messages.length === 0 && content.length === 0 && (
+      {!blocked && messages.length === 0 && (
         <div className="shrink-0 border-t border-[hsl(var(--chat-border))] bg-[hsl(var(--chat-header))] px-3 py-2.5 md:px-5">
-          <p className="mb-2 text-xs font-medium text-muted-foreground">Need an opener?</p>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {CONNECTION_REASONS.map((option) => (
-              <button key={option.value} type="button" onClick={() => handleContentChange(option.template)} className="min-h-10 shrink-0 rounded-full border border-[hsl(var(--chat-border))] bg-[hsl(var(--chat-canvas))] px-3.5 text-xs font-medium transition-colors hover:bg-[hsl(var(--chat-incoming))]">
-                {option.label}
+          {selectedOpenerOption ? (
+            <div className="flex min-h-11 items-center gap-2 overflow-x-auto" data-testid="selected-opener-controls">
+              <button
+                type="button"
+                onClick={() => drawOpener(selectedOpenerOption.value)}
+                aria-pressed="true"
+                className="min-h-11 shrink-0 rounded-full border border-[hsl(var(--chat-outgoing))] bg-[hsl(var(--chat-outgoing))] px-3.5 text-xs font-semibold text-[hsl(var(--chat-outgoing-foreground))] transition-[background-color,border-color,color,transform] active:scale-[0.98] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {selectedOpenerOption.label}
               </button>
-            ))}
-          </div>
+              <button
+                type="button"
+                onClick={() => drawOpener(selectedOpenerOption.value)}
+                className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-primary transition-[background-color,transform] hover:bg-[hsl(var(--chat-incoming))] active:scale-[0.98] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Try another opener in this category"
+                data-testid="opener-shuffle"
+              >
+                <Shuffle className="h-3.5 w-3.5" aria-hidden="true" />
+                Try another
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedOpenerCategory(null);
+                  setOpenerAnnouncement("Choose another opener style.");
+                }}
+                className="min-h-11 shrink-0 rounded-full px-2 text-xs font-medium text-muted-foreground underline decoration-transparent underline-offset-4 transition-[color,text-decoration-color] hover:text-foreground hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Change style
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Need an opener?</p>
+              <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Opener styles">
+                {openerCategories.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => drawOpener(option.value)}
+                    aria-pressed="false"
+                    className="min-h-11 shrink-0 rounded-full border border-[hsl(var(--chat-border))] bg-[hsl(var(--chat-canvas))] px-3.5 text-xs font-medium transition-[background-color,border-color,color,transform] hover:bg-[hsl(var(--chat-incoming))] active:scale-[0.98] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          <span className="sr-only" aria-live="polite">{openerAnnouncement}</span>
         </div>
       )}
 

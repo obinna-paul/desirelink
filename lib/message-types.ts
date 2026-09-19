@@ -1,62 +1,16 @@
 import type { ProfileType } from "@prisma/client";
+import {
+  isMessageOpenerCategoryId,
+  MESSAGE_OPENER_CATEGORIES,
+  type MessageOpenerCategoryId,
+} from "@/lib/message-openers";
 
-export const CONNECTION_REASONS = [
-  {
-    value: "shared_interest",
-    label: "Shared interest",
-    template: "Hey! Looks like we're into some of the same things 👀",
-  },
-  {
-    value: "same_city",
-    label: "Same city",
-    template: "Hey! Noticed we're in the same city — small world.",
-  },
-  {
-    value: "creator_fan",
-    label: "Creator/Fan",
-    template: "Hi! I'm a fan of your content and wanted to say hello.",
-  },
-  {
-    value: "compliment",
-    label: "Compliment",
-    template: "Not gonna lie, your profile stopped my scroll 😏",
-  },
-  {
-    value: "flirty",
-    label: "Flirty",
-    template: "Okay I have to ask... are you as much trouble as you look? 😉",
-  },
-  {
-    value: "straight_up",
-    label: "Straight up",
-    template: "You're exactly my type. Tell me something about you?",
-  },
-  {
-    value: "curious",
-    label: "Curious",
-    template: "What's something you're really into that most people don't know about you?",
-  },
-  {
-    value: "playful",
-    label: "Playful",
-    template: "Be honest — are you as much fun as your photos make you look?",
-  },
-  {
-    value: "spicy",
-    label: "Spicy",
-    template: "I'll admit, I've got a few things on my mind after seeing your photos 😏",
-  },
-  {
-    value: "confident",
-    label: "Confident",
-    template: "Hey gorgeous, mind if I steal a little of your time?",
-  },
-] as const;
+export const CONNECTION_REASONS = MESSAGE_OPENER_CATEGORIES;
 
-export type ConnectionReasonValue = (typeof CONNECTION_REASONS)[number]["value"];
+export type ConnectionReasonValue = MessageOpenerCategoryId;
 
 export function isConnectionReasonValue(value: unknown): value is ConnectionReasonValue {
-  return typeof value === "string" && CONNECTION_REASONS.some((reason) => reason.value === value);
+  return isMessageOpenerCategoryId(value);
 }
 
 export type ConversationParticipant = {
