@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { rest } from "msw";
 import * as navigation from "next/navigation";
 
@@ -61,6 +61,52 @@ describe("SpecTestQuizFlow (official v3)", () => {
     expect(await screen.findByText(/what’s your gender/i)).toBeInTheDocument();
     expect(screen.queryByTestId("spec-question")).not.toBeInTheDocument();
     expect(screen.queryByTestId("spec-continue")).not.toBeInTheDocument();
+  });
+
+  it("animates forward and backward question changes while locking repeated taps", async () => {
+    const originalMatchMedia = window.matchMedia;
+    jest.useFakeTimers();
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: jest.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      })),
+    });
+
+    try {
+      render(<SpecTestQuizFlow />);
+      await startQuiz("male");
+      expect(screen.getByTestId("spec-question-motion")).toHaveClass("motion-safe:slide-in-from-right-4");
+
+      fireEvent.click(screen.getAllByText("My type")[0]);
+      fireEvent.click(screen.getAllByText("Not really")[1]);
+      fireEvent.click(screen.getByTestId("spec-next"));
+
+      const leaving = screen.getByTestId("spec-question-motion");
+      expect(leaving).toHaveAttribute("data-motion-phase", "exiting");
+      expect(leaving).toHaveClass("motion-safe:slide-out-to-left-4");
+      expect(screen.getByTestId("spec-next")).toBeDisabled();
+
+      act(() => jest.advanceTimersByTime(200));
+      expect(screen.getByText("Question 2 of 28")).toBeInTheDocument();
+      expect(screen.getByTestId("spec-question-motion")).toHaveClass("motion-safe:slide-in-from-right-4");
+
+      fireEvent.click(screen.getByTestId("spec-back"));
+      expect(screen.getByTestId("spec-question-motion")).toHaveClass("motion-safe:slide-out-to-right-4");
+      act(() => jest.advanceTimersByTime(200));
+      expect(screen.getByText("Question 1 of 28")).toBeInTheDocument();
+      expect(screen.getByTestId("spec-question-motion")).toHaveClass("motion-safe:slide-in-from-left-4");
+    } finally {
+      jest.useRealTimers();
+      Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
+    }
   });
 
   it("renders a woman for a male taker and a man for a female taker", async () => {

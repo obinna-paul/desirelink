@@ -13,10 +13,12 @@ import { routeForm, type Gender } from "@/lib/spec-test/gender/forms";
 import type { RenderForm } from "@/lib/spec-test/gender/terms";
 import { SPEC_TEST_ITEMS_V3, V3_INSTRUMENT_VERSION, type SpecItemV3 } from "@/lib/spec-test/items/spec-v3";
 import type { SpecTestResponseV3 } from "@/lib/spec-test/response";
+import { cn } from "@/lib/utils";
 
 const DRAFT_STORAGE_KEY = "spec-test-draft-v3";
 const TOTAL_ITEMS = SPEC_TEST_ITEMS_V3.length;
 const PHASE_STARTS = new Set([0, 16, 24]);
+const QUESTION_EXIT_MS = 170;
 
 const PHASE_COPY: Record<number, { eyebrow: string; title: string; body: string }> = {
   0: {
@@ -42,6 +44,8 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [
 ];
 
 type Step = "gender" | "phase-intro" | "question" | "submitting" | "low-signal";
+type MotionDirection = "forward" | "backward";
+type MotionPhase = "entering" | "exiting";
 
 type Draft = {
   instrumentVersion: typeof V3_INSTRUMENT_VERSION;
@@ -128,6 +132,11 @@ function phaseLabel(index: number): string {
   return "Your relationship instinct";
 }
 
+function questionExitDelay(): number {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return 0;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : QUESTION_EXIT_MS;
+}
+
 export function SpecTestQuizFlow() {
   const router = useRouter();
   const initialRef = useRef<Draft | null>(null);
@@ -149,14 +158,22 @@ export function SpecTestQuizFlow() {
   );
   const [error, setError] = useState<string | null>(null);
   const [lowSignalFlags, setLowSignalFlags] = useState<string[]>([]);
+  const [motionDirection, setMotionDirection] = useState<MotionDirection>("forward");
+  const [motionPhase, setMotionPhase] = useState<MotionPhase>("entering");
   const itemStartedAt = useRef(Date.now());
   const submittingRef = useRef(false);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentItem = SPEC_TEST_ITEMS_V3[itemIndex];
   const form: RenderForm = gender ? routeForm(gender).quizForm : "neutral";
   const currentOrder = currentItem?.kind === "intensity"
     ? []
     : optionOrders[currentItem?.id] ?? [0, 1, 2, 3];
+  const isTransitioning = motionPhase === "exiting";
+
+  useEffect(() => () => {
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+  }, []);
 
   useEffect(() => {
     if (!currentItem) return;
@@ -226,7 +243,24 @@ export function SpecTestQuizFlow() {
   function continueFromIntro() {
     ensureOptionOrder(currentItem);
     itemStartedAt.current = Date.now();
+    setMotionDirection("forward");
+    setMotionPhase("entering");
     setStep("question");
+  }
+
+  function transitionQuestion(direction: MotionDirection, complete: () => void) {
+    if (isTransitioning) return;
+    setMotionDirection(direction);
+    setMotionPhase("exiting");
+
+    const finish = () => {
+      transitionTimerRef.current = null;
+      complete();
+      setMotionPhase("entering");
+    };
+    const delay = questionExitDelay();
+    if (delay === 0) finish();
+    else transitionTimerRef.current = setTimeout(finish, delay);
   }
 
   function responseForCurrent(skipped = false): SpecTestResponseV3 | null {
@@ -266,6 +300,7 @@ export function SpecTestQuizFlow() {
   }
 
   function commitCurrent(skipped = false) {
+    if (isTransitioning) return;
     const response = responseForCurrent(skipped);
     if (!response) {
       setError(currentItem?.kind === "best_worst"
@@ -276,22 +311,25 @@ export function SpecTestQuizFlow() {
     const nextResponses = { ...responses, [response.itemId]: response };
     const nextIndex = itemIndex + 1;
     setResponses(nextResponses);
-    setItemIndex(nextIndex);
-
-    if (nextIndex >= TOTAL_ITEMS) {
-      setStep("submitting");
-      return;
-    }
-    ensureOptionOrder(SPEC_TEST_ITEMS_V3[nextIndex]);
-    setStep(PHASE_STARTS.has(nextIndex) ? "phase-intro" : "question");
+    transitionQuestion("forward", () => {
+      setItemIndex(nextIndex);
+      if (nextIndex >= TOTAL_ITEMS) {
+        setStep("submitting");
+        return;
+      }
+      ensureOptionOrder(SPEC_TEST_ITEMS_V3[nextIndex]);
+      setStep(PHASE_STARTS.has(nextIndex) ? "phase-intro" : "question");
+    });
   }
 
   function goBack() {
-    if (itemIndex <= 0) return;
+    if (itemIndex <= 0 || isTransitioning) return;
     const previousIndex = itemIndex - 1;
-    setItemIndex(previousIndex);
-    ensureOptionOrder(SPEC_TEST_ITEMS_V3[previousIndex]);
-    setStep("question");
+    transitionQuestion("backward", () => {
+      setItemIndex(previousIndex);
+      ensureOptionOrder(SPEC_TEST_ITEMS_V3[previousIndex]);
+      setStep("question");
+    });
   }
 
   function retrySubmit() {
@@ -308,6 +346,8 @@ export function SpecTestQuizFlow() {
     setItemIndex(0);
     setError(null);
     setLowSignalFlags([]);
+    setMotionDirection("forward");
+    setMotionPhase("entering");
     setStep("phase-intro");
   }
 
@@ -399,7 +439,7 @@ export function SpecTestQuizFlow() {
         <button
           type="button"
           onClick={goBack}
-          disabled={itemIndex === 0}
+          disabled={itemIndex === 0 || isTransitioning}
           aria-label="Back to previous question"
           data-testid="spec-back"
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent-tint hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-30"
@@ -414,53 +454,80 @@ export function SpecTestQuizFlow() {
         <button
           type="button"
           onClick={() => commitCurrent(true)}
+          disabled={isTransitioning}
           data-testid="spec-skip"
-          className="ml-auto min-h-11 px-2 text-xs font-medium text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="ml-auto min-h-11 px-2 text-xs font-medium text-muted-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
         >
           Skip
         </button>
       </div>
 
-      {currentItem.kind === "best_worst" && (
-        <BestWorstQuestion
-          item={currentItem}
-          value={answer.kind === "best_worst" ? answer.selection : { bestOptionId: null, worstOptionId: null }}
-          onChange={(selection) => {
-            setAnswer({ kind: "best_worst", selection });
-            setError(null);
-          }}
-          optionOrder={currentOrder}
-          form={form}
-        />
-      )}
-      {currentItem.kind === "intensity" && (
-        <IntensityQuestion
-          item={currentItem}
-          value={answer.kind === "intensity" ? answer.rating : null}
-          onChange={(rating) => {
-            setAnswer({ kind: "intensity", rating });
-            setError(null);
-          }}
-          form={form}
-        />
-      )}
-      {currentItem.kind === "single_choice" && (
-        <SingleChoiceQuestion
-          item={currentItem}
-          value={answer.kind === "single_choice" ? answer.optionId : null}
-          onChange={(optionId) => {
-            setAnswer({ kind: "single_choice", optionId });
-            setError(null);
-          }}
-          optionOrder={currentOrder}
-          form={form}
-        />
-      )}
+      <div
+        key={currentItem.id}
+        data-testid="spec-question-motion"
+        data-motion-phase={motionPhase}
+        data-motion-direction={motionDirection}
+        className={cn(
+          "flex flex-col gap-7 will-change-transform",
+          motionPhase === "exiting"
+            ? motionDirection === "forward"
+              ? "motion-safe:animate-out motion-safe:fade-out motion-safe:slide-out-to-left-4 motion-safe:duration-150 motion-safe:ease-in"
+              : "motion-safe:animate-out motion-safe:fade-out motion-safe:slide-out-to-right-4 motion-safe:duration-150 motion-safe:ease-in"
+            : motionDirection === "forward"
+              ? "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-4 motion-safe:duration-300 motion-safe:ease-out"
+              : "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-4 motion-safe:duration-300 motion-safe:ease-out",
+        )}
+      >
+        {currentItem.kind === "best_worst" && (
+          <BestWorstQuestion
+            item={currentItem}
+            value={answer.kind === "best_worst" ? answer.selection : { bestOptionId: null, worstOptionId: null }}
+            onChange={(selection) => {
+              setAnswer({ kind: "best_worst", selection });
+              setError(null);
+            }}
+            optionOrder={currentOrder}
+            form={form}
+            disabled={isTransitioning}
+          />
+        )}
+        {currentItem.kind === "intensity" && (
+          <IntensityQuestion
+            item={currentItem}
+            value={answer.kind === "intensity" ? answer.rating : null}
+            onChange={(rating) => {
+              setAnswer({ kind: "intensity", rating });
+              setError(null);
+            }}
+            form={form}
+            disabled={isTransitioning}
+          />
+        )}
+        {currentItem.kind === "single_choice" && (
+          <SingleChoiceQuestion
+            item={currentItem}
+            value={answer.kind === "single_choice" ? answer.optionId : null}
+            onChange={(optionId) => {
+              setAnswer({ kind: "single_choice", optionId });
+              setError(null);
+            }}
+            optionOrder={currentOrder}
+            form={form}
+            disabled={isTransitioning}
+          />
+        )}
 
-      {error && <p className="text-sm font-medium text-destructive" role="alert">{error}</p>}
-      <Button size="lg" className="min-h-11 w-full" onClick={() => commitCurrent(false)} data-testid="spec-next">
-        {itemIndex === TOTAL_ITEMS - 1 ? "Show me my Spec" : "Next question"}
-      </Button>
+        {error && <p className="text-sm font-medium text-destructive" role="alert">{error}</p>}
+        <Button
+          size="lg"
+          className="min-h-11 w-full"
+          onClick={() => commitCurrent(false)}
+          disabled={isTransitioning}
+          data-testid="spec-next"
+        >
+          {itemIndex === TOTAL_ITEMS - 1 ? "Show me my Spec" : "Next question"}
+        </Button>
+      </div>
     </div>
   );
 }
