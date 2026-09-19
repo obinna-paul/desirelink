@@ -2,6 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { MatchPriorityPicker } from "@/components/spec-test/match-priority-picker";
 
+const { __mockRouter: mockRouter } = jest.requireMock("next/navigation") as {
+  __mockRouter: { refresh: jest.Mock };
+};
+
 describe("MatchPriorityPicker", () => {
   afterEach(() => jest.restoreAllMocks());
 
@@ -18,6 +22,7 @@ describe("MatchPriorityPicker", () => {
       "/api/profile/match-priority",
       expect.objectContaining({ method: "PATCH", body: JSON.stringify({ priority: "SPARK" }) }),
     );
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
   });
 
   it("restores the previous selection when saving fails", async () => {

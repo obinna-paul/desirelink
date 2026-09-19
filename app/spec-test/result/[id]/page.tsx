@@ -12,11 +12,13 @@ import { ShareButton } from "@/components/ui/share-button";
 import { EmailCaptureForm } from "@/components/spec-test/email-capture-form";
 import { AgeBadge } from "@/components/spec-test/age-badge";
 import { MatchPriorityPicker } from "@/components/spec-test/match-priority-picker";
+import { ResultMatchPreviewCard } from "@/components/spec-test/result-match-preview";
 import { authOptions } from "@/lib/auth";
 import { normalizeMatchPriority, type MatchPriorityValue } from "@/lib/match-priority";
 import { prisma } from "@/lib/prisma";
 import { getSpecTestReading } from "@/lib/spec-test";
 import type { ArchetypeKey, Gender } from "@/lib/spec-test";
+import { getResultMatchShortlist, type ResultMatchShortlist } from "@/lib/spec-test/result-matches";
 import { publicPageMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
@@ -152,20 +154,21 @@ function LearnMoreDisclosure({ children }: { children: React.ReactNode }) {
 // A signed-in taker's result is already linked to their account the moment they submitted
 // it (see app/api/spec-test/submit/route.ts's viewerProfileId) - no email step needed, and
 // "Join Udala" would be a strange thing to say to someone already a member. They get a
-// plain confirmation and a way back into the app instead. Either way, the share action always
-// invites a friend to take the quiz themselves (href points at /spec-test, the quiz's own
-// landing page, never this taker's personal result) - not "share my result," since a result
-// is a private reading about the taker, not something meant to circulate on its own.
+// match previews when a reciprocal shortlist exists, otherwise the original confirmation and
+// way back into the app. Either way, the share action always invites a friend to take the quiz
+// themselves (href points at /spec-test, never this taker's private result URL).
 function JoinCta({
   resultId,
   specName,
   isSignedIn,
   matchPriority,
+  matches,
 }: {
   resultId: string;
   specName: string;
   isSignedIn: boolean;
   matchPriority: MatchPriorityValue;
+  matches?: ResultMatchShortlist;
 }) {
   const inviteShare = (
     <ShareButton
@@ -176,6 +179,82 @@ function JoinCta({
       className="text-muted-foreground"
     />
   );
+
+  if (matches && matches.count > 0 && matches.profiles.length > 0) {
+    const energy =
+      matchPriority === "SPARK"
+        ? "Spark"
+        : matchPriority === "PARTNERSHIP"
+          ? "Partnership"
+          : "overall";
+    const personWord = matches.count === 1 ? "person" : "people";
+    const matchVerb = matches.count === 1 ? "matches" : "match";
+    const discoverHref = `/discover?sort=recommended&priority=${matchPriority}`;
+
+    return (
+      <>
+        {isSignedIn && (
+          <RevealSection delayMs={680}>
+            <MatchPriorityPicker initialPriority={matchPriority} />
+          </RevealSection>
+        )}
+        <RevealSection
+          delayMs={720}
+          className="flex flex-col gap-6 rounded-3xl border border-primary/25 bg-card p-5 shadow-lift sm:p-7"
+        >
+          <div className="mx-auto max-w-lg text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Your matches are ready</p>
+            <h2 className="mt-2 text-balance font-heading text-2xl font-bold leading-tight sm:text-3xl">
+              We found {matches.count} {personWord} who {matchVerb} your {energy} energy.
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Here’s a first look. Profiles stay preview-only until you continue to Udala.
+            </p>
+          </div>
+
+          <div
+            className={cn(
+              "grid gap-4",
+              matches.profiles.length === 1 && "mx-auto w-full max-w-xs",
+              matches.profiles.length === 2 && "sm:grid-cols-2",
+              matches.profiles.length >= 3 && "sm:grid-cols-3",
+            )}
+            aria-label="Your match previews"
+          >
+            {matches.profiles.map((match) => (
+              <ResultMatchPreviewCard key={match.id} profile={match} />
+            ))}
+          </div>
+
+          <div className="flex flex-col items-center gap-3">
+            {isSignedIn && (
+              <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+                Saved to your profile.
+              </p>
+            )}
+            <Button
+              asChild
+              className="h-14 w-full max-w-sm gap-2 rounded-full bg-gradient-to-r from-primary to-neon-pink text-base font-bold shadow-lift transition-[transform,opacity] hover:scale-[1.02] hover:opacity-95 active:scale-[0.99] motion-reduce:transform-none"
+            >
+              <Link href={isSignedIn ? discoverHref : "/signup"}>
+                Meet them on Udala
+                <ArrowRight className="h-5 w-5" aria-hidden="true" />
+              </Link>
+            </Button>
+            {inviteShare}
+          </div>
+
+          {!isSignedIn && (
+            <div className="mx-auto w-full max-w-sm border-t border-border/60 pt-5 text-center">
+              <p className="mb-3 text-sm font-medium">Want a copy of this in your inbox?</p>
+              <EmailCaptureForm resultId={resultId} />
+            </div>
+          )}
+        </RevealSection>
+      </>
+    );
+  }
 
   if (isSignedIn) {
     return (
@@ -232,7 +311,7 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
   const profile = session?.user?.id
     ? await prisma.profile.findUnique({
         where: { userId: session.user.id },
-        select: { matchPriority: true },
+        select: { id: true, locationLat: true, locationLng: true, matchPriority: true },
       })
     : null;
   const matchPriority = normalizeMatchPriority(profile?.matchPriority);
@@ -316,6 +395,22 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
   const { copy } = reading;
   const accent = SPEC_ACCENTS[copy.primarySpec];
   const target = reading.assumedAttractionTarget;
+  const matches = await getResultMatchShortlist({
+    resultId: params.id,
+    profileId: profile?.id ?? null,
+    locationLat: profile?.locationLat ?? null,
+    locationLng: profile?.locationLng ?? null,
+    priority: matchPriority,
+    specResult: {
+      specType: reading.primarySpec,
+      secondarySpec: reading.secondarySpec,
+      sparkSpec: reading.sparkSpec,
+      partnershipSpec: reading.partnershipSpec,
+      motiveScores: { motives: reading.motiveScores, facets: reading.motiveFacets },
+      lenses: reading.lenses,
+      attachment: reading.attachment,
+    },
+  });
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -432,7 +527,13 @@ export default async function SpecTestResultPage({ params }: { params: { id: str
         </LearnMoreDisclosure>
 
         {/* 12. Join / back-to-app card, with an invite-a-friend share action */}
-        <JoinCta resultId={params.id} specName={copy.headline.name} isSignedIn={isSignedIn} matchPriority={matchPriority} />
+        <JoinCta
+          resultId={params.id}
+          specName={copy.headline.name}
+          isSignedIn={isSignedIn}
+          matchPriority={matchPriority}
+          matches={matches}
+        />
       </main>
 
       <PublicFooter />

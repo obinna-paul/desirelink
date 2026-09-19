@@ -1000,3 +1000,37 @@ raw answers are not formula inputs. Reciprocity here means two-way preference-pr
 alignment, not predicted attraction, consent, reply probability or relationship success.
 The formula should eventually be validated against consent-appropriate mutual outcomes and
 recalibrated on a hold-out sample; until then it stays capped inside the broader recommender.
+
+## Result experience — immediate read-only match previews
+
+**Why.** The result page previously ended at a generic join/back button, separating the Spec
+insight from its most useful next step. A taker with real reciprocal matches now sees that
+value while the result is still emotionally salient instead of having to enter Discover and
+infer what changed.
+
+**Eligibility and ordering.** The result's complete vector is compared reciprocally against
+the latest result of every eligible, searchable, non-incognito, non-suspended profile. A pair
+must reach a 0.5 reciprocal Spec score to appear. That threshold is the eligibility gate;
+nearby location and current availability only order people who already passed it and cannot
+manufacture a psychological match. The linked result owner, blocked profiles and profiles
+that blocked the owner are excluded. The server counts all qualifying profiles in the bounded
+candidate pool and returns only the top three previews.
+
+**Result-page presentation.** The generic ending is replaced only when at least one match
+exists. It states the real count for the current Balanced/Spark/Partnership lens, shows up to
+three responsive profile previews with one evidence-grounded explanation each, and offers a
+single “Meet them on Udala” CTA. Signed-in users continue to Recommended Discover; anonymous
+takers continue through signup, preserving the existing result-claim flow. Changing the
+priority refreshes the server-rendered shortlist so the count and profiles do not go stale.
+
+**Preview-only boundary.** Match cards are semantic non-interactive articles—not links,
+buttons or disguised controls. They expose only the name/avatar and the same location level
+the public card permits; full vectors, candidate priority, exact coordinates and ranking
+scores stay server-side. If no pair clears the threshold, or shortlist retrieval fails, the
+page renders the exact pre-existing join/back ending.
+
+**Explanation integrity.** Copy describes only signals the test actually measures: shared
+preferences for steadiness, consistency, chemistry, wit, communication rhythm, or closeness.
+It does not claim a candidate personally embodies a preferred trait. “Currently available
+nearby” appears only when an unexpired availability state and a computed distance within
+50 km are both present.

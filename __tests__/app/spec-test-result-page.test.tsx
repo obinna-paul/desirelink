@@ -5,6 +5,7 @@ jest.mock("@/components/layout/public-footer", () => ({ PublicFooter: () => null
 jest.mock("@/components/spec-test/age-badge", () => ({ AgeBadge: () => null }));
 jest.mock("@/components/spec-test/email-capture-form", () => ({ EmailCaptureForm: () => null }));
 jest.mock("@/lib/spec-test", () => ({ getSpecTestReading: jest.fn() }));
+jest.mock("@/lib/spec-test/result-matches", () => ({ getResultMatchShortlist: jest.fn() }));
 jest.mock("next-auth", () => ({ getServerSession: jest.fn() }));
 jest.mock("@/lib/auth", () => ({ authOptions: {} }));
 jest.mock("@/lib/prisma", () => ({
@@ -18,11 +19,13 @@ import { notFound } from "next/navigation";
 import type { SpecTestReading } from "@/lib/spec-test/results";
 import { SPEC_TYPE_READINGS } from "@/lib/spec-test/legacy";
 import { prisma } from "@/lib/prisma";
+import { getResultMatchShortlist } from "@/lib/spec-test/result-matches";
 
 const mockGetReading = getSpecTestReading as jest.Mock;
 const mockSession = getServerSession as jest.Mock;
 const mockNotFound = notFound as unknown as jest.Mock;
 const mockProfileFindUnique = prisma.profile.findUnique as jest.Mock;
+const mockGetResultMatches = getResultMatchShortlist as jest.Mock;
 
 function v2Reading(overrides: Partial<Extract<SpecTestReading, { version: "v2" }>> = {}): Extract<SpecTestReading, { version: "v2" }> {
   return {
@@ -98,6 +101,7 @@ describe("Spec Test result page", () => {
     jest.clearAllMocks();
     mockSession.mockResolvedValue(null);
     mockProfileFindUnique.mockResolvedValue({ matchPriority: "BALANCED" });
+    mockGetResultMatches.mockResolvedValue({ count: 0, profiles: [] });
   });
 
   it("calls notFound for a missing result", async () => {
@@ -250,5 +254,76 @@ describe("Spec Test result page", () => {
     expect(screen.queryByText("Want a copy of this in your inbox?")).not.toBeInTheDocument();
     // A signed-in taker can still invite a friend to take the quiz.
     expect(screen.getByRole("button", { name: "Invite a friend to take it" })).toBeInTheDocument();
+  });
+
+  it("shows three read-only match previews and one continue CTA when matches exist", async () => {
+    mockSession.mockResolvedValue({ user: { id: "user-1" } });
+    mockProfileFindUnique.mockResolvedValue({
+      id: "viewer-1",
+      locationLat: 6.5,
+      locationLng: 3.3,
+      matchPriority: "PARTNERSHIP",
+    });
+    mockGetReading.mockResolvedValue(v2Reading());
+    mockGetResultMatches.mockResolvedValue({
+      count: 7,
+      profiles: ["Ada", "Bola", "Chidi"].map((displayName, index) => ({
+        id: `match-${index}`,
+        username: displayName.toLowerCase(),
+        displayName,
+        avatarUrl: "",
+        bannerUrl: "",
+        city: "Lagos",
+        country: "Nigeria",
+        showExactLocation: false,
+        isVerified: false,
+        isVerifiedCreator: false,
+        distanceKm: null,
+        explanation: index === 0
+          ? "You both value emotional steadiness."
+          : "You prefer a similar communication rhythm.",
+      })),
+    });
+
+    const jsx = await SpecTestResultPage({ params: { id: "result-1" } });
+    render(jsx);
+
+    expect(screen.getByText("We found 7 people who match your Partnership energy.")).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/match preview$/)).toHaveLength(3);
+    expect(screen.getByText("You both value emotional steadiness.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Meet them on Udala/ })).toHaveAttribute(
+      "href",
+      "/discover?sort=recommended&priority=PARTNERSHIP",
+    );
+    expect(screen.queryByText("Back to Udala")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ada" })).not.toBeInTheDocument();
+  });
+
+  it("sends an anonymous taker through signup from the same match-preview CTA", async () => {
+    mockGetReading.mockResolvedValue(v2Reading());
+    mockGetResultMatches.mockResolvedValue({
+      count: 1,
+      profiles: [{
+        id: "match-1",
+        username: "ada",
+        displayName: "Ada",
+        avatarUrl: "",
+        bannerUrl: "",
+        city: "Lagos",
+        country: "Nigeria",
+        showExactLocation: false,
+        isVerified: false,
+        isVerifiedCreator: false,
+        distanceKm: null,
+        explanation: "Your Spec preferences align both ways.",
+      }],
+    });
+
+    const jsx = await SpecTestResultPage({ params: { id: "result-1" } });
+    render(jsx);
+
+    expect(screen.getByText("We found 1 person who matches your overall energy.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Meet them on Udala/ })).toHaveAttribute("href", "/signup");
+    expect(screen.queryByText("Join Udala")).not.toBeInTheDocument();
   });
 });

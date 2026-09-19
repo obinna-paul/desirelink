@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, HeartHandshake, Scale, Sparkles } from "lucide-react";
 
 import { MATCH_PRIORITY_OPTIONS, type MatchPriorityValue } from "@/lib/match-priority";
@@ -13,6 +14,7 @@ const ICONS = {
 } as const;
 
 export function MatchPriorityPicker({ initialPriority }: { initialPriority: MatchPriorityValue }) {
+  const router = useRouter();
   const [priority, setPriority] = useState(initialPriority);
   const [saving, setSaving] = useState<MatchPriorityValue | null>(null);
   const [message, setMessage] = useState("");
@@ -36,6 +38,9 @@ export function MatchPriorityPicker({ initialPriority }: { initialPriority: Matc
       if (!response.ok) throw new Error("Unable to save match priority");
       setMessage("Your recommendations are tuned.");
       setMessageType("success");
+      // The result page's read-only match previews are server-ranked. Refresh their RSC
+      // payload after saving so the count, profiles and explanations follow the new lens.
+      router.refresh();
     } catch {
       setPriority(previous);
       setMessage("We couldn’t save that yet. Please try again.");
