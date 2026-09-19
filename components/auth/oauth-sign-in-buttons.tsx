@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useState } from "react";
 import { getProviders, signIn } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
@@ -13,10 +13,6 @@ const PROVIDER_ORDER: OAuthProviderId[] = ["google", "twitter"];
 const PROVIDER_LABELS: Record<OAuthProviderId, string> = {
   google: "Continue with Google",
   twitter: "Continue with X",
-};
-const PROVIDER_ICONS: Record<OAuthProviderId, ComponentType<{ className?: string }>> = {
-  google: GoogleIcon,
-  twitter: XIcon,
 };
 
 export function OAuthSignInButtons({ variant = "default" }: { variant?: "default" | "auth" | "lightAuth" }) {
@@ -52,7 +48,7 @@ export function OAuthSignInButtons({ variant = "default" }: { variant?: "default
       </div>
       <div className="flex flex-col gap-3">
         {available.map((id) => {
-          const Icon = PROVIDER_ICONS[id];
+          const isGoogleWhite = id === "google" && isLightAuth;
           return (
             <Button
               key={id}
@@ -71,12 +67,14 @@ export function OAuthSignInButtons({ variant = "default" }: { variant?: "default
               )}
               onClick={() => signIn(id, { callbackUrl: "/" })}
             >
-              <Icon
-                className={cn(
-                  "absolute left-4 h-5 w-5 shrink-0",
-                  id === "google" ? "" : "text-current"
-                )}
-              />
+              {id === "google" ? (
+                <GoogleIcon
+                  tone={isGoogleWhite ? "white" : "brand"}
+                  className={cn("absolute left-4 h-5 w-5 shrink-0", isGoogleWhite && "text-white")}
+                />
+              ) : (
+                <XIcon className="absolute left-4 h-5 w-5 shrink-0 text-current" />
+              )}
               {PROVIDER_LABELS[id]}
             </Button>
           );
