@@ -1,7 +1,7 @@
 // Client-safe. Matching uses only already-persisted Spec result summaries; raw answers,
 // gender and assumed-attraction-target never enter this module.
 
-import type { MatchPriorityValue } from "@/lib/match-priority";
+import { normalizeMatchPriority, type MatchPriorityValue } from "@/lib/match-priority";
 import { specCompatibilityWeight } from "@/lib/spec-test/compatibility";
 import {
   ARCHETYPE_KEYS,
@@ -31,6 +31,13 @@ export type SpecVectorCompatibility = {
   coverage: number;
   source: SpecCompatibilitySource;
   reason: string | null;
+};
+
+export type ReciprocalSpecCompatibility = SpecVectorCompatibility & {
+  /** How strongly the candidate fits the viewer's selected priority. */
+  forwardScore: number;
+  /** How strongly the viewer fits the candidate's saved priority. */
+  reverseScore: number;
 };
 
 type AttachmentVector = { anxiety: number; avoidance: number };
@@ -274,5 +281,70 @@ export function scoreSpecVectorCompatibility(
     coverage: 0,
     source: score > 0 ? "archetype" : "none",
     reason: null,
+  };
+}
+
+/**
+ * Rewards two-way fit without making a sparse legacy signal all-or-nothing. The geometric
+ * mean is the dominant term, so a high score requires strength in both directions; the
+ * smaller arithmetic-mean term preserves a modest discovery boost for a one-way signal.
+ */
+export function combineReciprocalScores(forwardScore: number, reverseScore: number): number {
+  const forward = clamp01(forwardScore);
+  const reverse = clamp01(reverseScore);
+  const arithmeticMean = (forward + reverse) / 2;
+  const geometricMean = Math.sqrt(forward * reverse);
+  return clamp01(0.35 * arithmeticMean + 0.65 * geometricMean);
+}
+
+/**
+ * Scores both directions using each person's own priority, then combines them into one
+ * reciprocal boost. This remains a preference-alignment score, not a prediction that either
+ * person will like, reply to, or consent to contact from the other.
+ */
+export function scoreReciprocalSpecCompatibility(
+  viewerResults: SpecVectorResult[],
+  candidateResults: SpecVectorResult[],
+  viewerPriority: MatchPriorityValue = "BALANCED",
+  candidatePriority: MatchPriorityValue = "BALANCED",
+): ReciprocalSpecCompatibility {
+  const forward = scoreSpecVectorCompatibility(
+    viewerResults,
+    candidateResults,
+    normalizeMatchPriority(viewerPriority),
+  );
+  const reverse = scoreSpecVectorCompatibility(
+    candidateResults,
+    viewerResults,
+    normalizeMatchPriority(candidatePriority),
+  );
+  const score = combineReciprocalScores(forward.score, reverse.score);
+  const source: SpecCompatibilitySource =
+    forward.source === "vector" || reverse.source === "vector"
+      ? "vector"
+      : forward.source === "archetype" || reverse.source === "archetype"
+        ? "archetype"
+        : "none";
+
+  let reason: string | null = null;
+  if (source === "vector" && score >= 0.5) {
+    reason = "Your Spec preferences align both ways";
+  } else if (
+    source === "archetype" &&
+    viewerResults[0]?.specType === candidateResults[0]?.specType &&
+    score >= 0.3
+  ) {
+    reason = "Shares your spec";
+  } else if (source === "archetype" && score >= 0.5) {
+    reason = "Your Specs complement each other";
+  }
+
+  return {
+    score,
+    coverage: (forward.coverage + reverse.coverage) / 2,
+    source,
+    reason,
+    forwardScore: forward.score,
+    reverseScore: reverse.score,
   };
 }

@@ -1,7 +1,9 @@
 import {
+  combineReciprocalScores,
   readAttachmentVector,
   readLensVector,
   readScoringVector,
+  scoreReciprocalSpecCompatibility,
   scoreSpecVectorCompatibility,
   type SpecVectorResult,
 } from "@/lib/spec-test/vector-compatibility";
@@ -42,6 +44,91 @@ describe("Spec vector readers", () => {
     expect(readScoringVector({ specType: "soft_landing", motiveScores: { motives: {} } })).toBeNull();
     expect(readLensVector({ specType: "soft_landing", lenses: { sparkSafety: 101 } })).toBeNull();
     expect(readAttachmentVector({ specType: "soft_landing", attachment: { anxiety: "50", avoidance: 50 } })).toBeNull();
+  });
+});
+
+describe("scoreReciprocalSpecCompatibility", () => {
+  it("strongly rewards two-way fit while preserving only a small one-way discovery boost", () => {
+    expect(combineReciprocalScores(1, 1)).toBe(1);
+    expect(combineReciprocalScores(1, 0)).toBeCloseTo(0.175);
+    expect(combineReciprocalScores(0, 1)).toBeCloseTo(0.175);
+    expect(combineReciprocalScores(0.6, 0.6)).toBeCloseTo(0.6);
+  });
+
+  it("scores modern vectors in both directions and explains a strong mutual fit", () => {
+    const compatibility = scoreReciprocalSpecCompatibility(
+      [fullResult(70)],
+      [fullResult(70)],
+      "SPARK",
+      "PARTNERSHIP",
+    );
+
+    expect(compatibility).toEqual({
+      score: 1,
+      coverage: 1,
+      source: "vector",
+      reason: "Your Spec preferences align both ways",
+      forwardScore: 1,
+      reverseScore: 1,
+    });
+  });
+
+  it("uses the candidate's own priority for the reverse direction", () => {
+    const viewer = fullResult(80, { lenses: undefined, attachment: undefined });
+    const candidate = fullResult(80, {
+      lenses: undefined,
+      attachment: undefined,
+      motiveScores: {
+        motives: {
+          warmthResponsiveness: 20,
+          reliabilityReciprocity: 20,
+          socialVitality: 80,
+          agencyDirection: 80,
+          cognitivePlay: 80,
+          noveltyAutonomy: 80,
+        },
+        facets: { containedDepthPrivacy: 80, aestheticSelectivity: 80 },
+      },
+    });
+
+    const candidateSeekingChemistry = scoreReciprocalSpecCompatibility(
+      [viewer],
+      [candidate],
+      "BALANCED",
+      "SPARK",
+    );
+    const candidateSeekingPartnership = scoreReciprocalSpecCompatibility(
+      [viewer],
+      [candidate],
+      "BALANCED",
+      "PARTNERSHIP",
+    );
+
+    expect(candidateSeekingChemistry.forwardScore).toBeCloseTo(candidateSeekingPartnership.forwardScore);
+    expect(candidateSeekingChemistry.reverseScore).toBeGreaterThan(candidateSeekingPartnership.reverseScore);
+    expect(candidateSeekingChemistry.score).toBeGreaterThan(candidateSeekingPartnership.score);
+  });
+
+  it("does not mislabel a one-way legacy complement as mutual", () => {
+    const compatibility = scoreReciprocalSpecCompatibility(
+      [{ specType: "soft_landing" }],
+      [{ specType: "grounded_equal" }],
+    );
+
+    expect(compatibility.forwardScore).toBe(1);
+    expect(compatibility.reverseScore).toBe(0);
+    expect(compatibility.score).toBeCloseTo(0.175);
+    expect(compatibility.reason).toBeNull();
+  });
+
+  it("keeps same-archetype legacy resonance understandable", () => {
+    const compatibility = scoreReciprocalSpecCompatibility(
+      [{ specType: "soft_landing" }],
+      [{ specType: "soft_landing" }],
+    );
+
+    expect(compatibility.score).toBeCloseTo(0.3);
+    expect(compatibility.reason).toBe("Shares your spec");
   });
 });
 

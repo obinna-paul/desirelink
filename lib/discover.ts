@@ -288,6 +288,7 @@ export async function searchDiscoverProfiles(
     where,
     select: {
       ...profileCardSelect(),
+      matchPriority: true,
       specTestResults: {
         select: {
           specType: true,
@@ -354,6 +355,7 @@ export async function searchDiscoverProfiles(
         locationLng,
         createdAt,
         lastActiveAt,
+        matchPriority,
         specTestResults,
         ...publicProfile
       } = candidate;
@@ -361,6 +363,7 @@ export async function searchDiscoverProfiles(
       void locationLng;
       void createdAt;
       void lastActiveAt;
+      void matchPriority;
       return {
         ...publicProfile,
         specTestResults: publicProfile.specShownPublicly

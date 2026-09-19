@@ -2,7 +2,7 @@ import type { AvailabilityStatusType, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm, profileCardSelect, type ProfileCardData } from "@/lib/home-feed";
-import { scoreSpecVectorCompatibility } from "@/lib/spec-test/vector-compatibility";
+import { scoreReciprocalSpecCompatibility } from "@/lib/spec-test/vector-compatibility";
 import { normalizeMatchPriority } from "@/lib/match-priority";
 
 const DEFAULT_RECOMMENDATION_LIMIT = 6;
@@ -24,6 +24,7 @@ const ACTIVE_CHAT_STATUSES = new Set<AvailabilityStatusType>([
 function recommendationProfileSelect() {
   return {
     ...profileCardSelect(),
+    matchPriority: true,
     specTestResults: {
       select: {
         specType: true,
@@ -186,8 +187,9 @@ function scoreActivity(updatedAt: Date): { score: number; reasons: string[] } {
   return { score: 0, reasons: [] };
 }
 
-/** The "preference overlap" this section's own subtitle already promises. Uses continuous
- * Spec vectors where possible and the provisional archetype table only for legacy rows.
+/** The "preference overlap" this section's own subtitle already promises. Scores both
+ * directions with each person's own priority, using continuous Spec vectors where possible
+ * and the provisional archetype table only for legacy rows.
  * Capped below proximity's top score (25) because matching outcomes are not yet validated,
  * but above availability's top (12) - this is meant to matter, not be a tiebreaker. Missing
  * Spec data contributes 0, same as every other term when its signal is absent. */
@@ -196,10 +198,11 @@ function scoreSpec(
   candidate: RankableRecommendationProfileData,
 ): { score: number; reasons: string[] } {
   const priority = normalizeMatchPriority(viewer.matchPriority);
-  const compatibility = scoreSpecVectorCompatibility(
+  const compatibility = scoreReciprocalSpecCompatibility(
     viewer.specTestResults,
     candidate.specTestResults,
     priority,
+    normalizeMatchPriority(candidate.matchPriority),
   );
   const weight = compatibility.score;
   if (weight <= 0) return { score: 0, reasons: [] };
@@ -208,22 +211,7 @@ function scoreSpec(
   const score = Math.round(weight * maxScore);
   if (score <= 0) return { score: 0, reasons: [] };
 
-  const result = viewer.specTestResults[0];
-  const candidateResult = candidate.specTestResults[0];
-  const viewerSpec = priority === "SPARK"
-    ? result?.sparkSpec ?? result?.specType
-    : priority === "PARTNERSHIP"
-      ? result?.partnershipSpec ?? result?.specType
-      : result?.specType;
-  const fallbackReason =
-    priority === "SPARK"
-      ? "Strong chemistry fit"
-      : priority === "PARTNERSHIP"
-        ? "Strong long-term fit"
-        : viewerSpec === candidateResult?.specType
-          ? "Shares your spec"
-          : "Great spec match";
-  const reason = compatibility.source === "vector" ? compatibility.reason : fallbackReason;
+  const reason = compatibility.reason;
   return { score, reasons: reason ? [reason] : [] };
 }
 
@@ -247,6 +235,7 @@ function scoreCandidate(
     openToChat,
     openToMeet,
     updatedAt,
+    matchPriority,
     specTestResults,
     ...publicProfile
   } = candidate;
@@ -255,6 +244,7 @@ function scoreCandidate(
   void openToChat;
   void openToMeet;
   void updatedAt;
+  void matchPriority;
   const publicSpecResults = publicProfile.specShownPublicly
     ? specTestResults.map(({ specType, assumedAttractionTarget }) => ({
         specType,

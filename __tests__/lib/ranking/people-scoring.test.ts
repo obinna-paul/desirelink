@@ -10,6 +10,7 @@ import {
   noveltyTerm,
   rankRecommendedCreators,
   rankRecommendedProfiles,
+  specTerm,
   trustTerm,
   typeTerm,
 } from "@/lib/ranking/people-scoring";
@@ -122,6 +123,29 @@ function vectorResult(value: number) {
     attachment: { anxiety: value, avoidance: value },
   };
 }
+
+describe("specTerm reciprocity", () => {
+  it("uses the candidate's priority for the reverse half of the fit", () => {
+    const viewer = vectorResult(80);
+    const candidate = {
+      ...vectorResult(80),
+      motiveScores: {
+        motives: {
+          warmthResponsiveness: 20,
+          reliabilityReciprocity: 20,
+          socialVitality: 80,
+          agencyDirection: 80,
+          cognitivePlay: 80,
+          noveltyAutonomy: 80,
+        },
+        facets: { containedDepthPrivacy: 80, aestheticSelectivity: 80 },
+      },
+    };
+
+    expect(specTerm([viewer], [candidate], "BALANCED", "SPARK"))
+      .toBeGreaterThan(specTerm([viewer], [candidate], "BALANCED", "PARTNERSHIP"));
+  });
+});
 
 describe("rankRecommendedProfiles", () => {
   it("returns an empty list without querying prisma for an empty candidate set", async () => {

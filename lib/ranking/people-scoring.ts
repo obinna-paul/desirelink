@@ -6,21 +6,27 @@ import { affinityTerm } from "@/lib/recommendation-scoring";
 import { seededTiebreak } from "@/lib/ranking/slate";
 import { bucketStartFor } from "@/lib/feed-slate";
 import { typeTerm } from "@/lib/ranking/type-priority";
-import { scoreSpecVectorCompatibility, type SpecVectorResult } from "@/lib/spec-test/vector-compatibility";
+import { scoreReciprocalSpecCompatibility, type SpecVectorResult } from "@/lib/spec-test/vector-compatibility";
 import { normalizeMatchPriority, type MatchPriorityValue } from "@/lib/match-priority";
 
 export { affinityTerm, typeTerm };
 
-/** [0, 1] already. Full result vectors are compared when both sides have them; older rows
- * fall back to the provisional archetype table. */
+/** [0, 1] already. Scores both directions using each person's own priority; full vectors
+ * are used when both sides have them and older rows fall back to archetype compatibility. */
 type RankedSpecResult = SpecVectorResult;
 
 export function specTerm(
   viewerSpec: RankedSpecResult[],
   candidateSpec: RankedSpecResult[],
-  priority: MatchPriorityValue = "BALANCED",
+  viewerPriority: MatchPriorityValue = "BALANCED",
+  candidatePriority: MatchPriorityValue = "BALANCED",
 ): number {
-  return scoreSpecVectorCompatibility(viewerSpec, candidateSpec, priority).score;
+  return scoreReciprocalSpecCompatibility(
+    viewerSpec,
+    candidateSpec,
+    viewerPriority,
+    candidatePriority,
+  ).score;
 }
 
 const TONIGHT_STATUSES = new Set(["available_tonight", "out_tonight"]);
@@ -104,6 +110,7 @@ export type RecommendableProfile = {
   isVerified: boolean;
   isVerifiedCreator: boolean;
   isVerifiedServiceProvider: boolean;
+  matchPriority?: MatchPriorityValue;
   // Optional, not required: rankRecommendedCreators below never reads this (creators
   // directory candidates aren't built from profileCardSelect()), so it shouldn't have to
   // supply a field it has no use for. rankRecommendedProfiles (Discover) always has it.
@@ -194,7 +201,12 @@ export async function rankRecommendedProfiles(
       weights.locality * localityTerm(viewer, candidate) +
       weights.trust * trustTerm(candidate) +
       weights.novelty * noveltyTerm(candidate.createdAt, now) +
-      weights.spec * specTerm(viewer?.specTestResults ?? [], candidate.specTestResults ?? [], priority) +
+      weights.spec * specTerm(
+        viewer?.specTestResults ?? [],
+        candidate.specTestResults ?? [],
+        priority,
+        normalizeMatchPriority(candidate.matchPriority),
+      ) +
       weights.availability * availabilityTerm(viewer?.availabilityStatuses, candidate.availabilityStatuses);
     return { id: candidate.id, score };
   });

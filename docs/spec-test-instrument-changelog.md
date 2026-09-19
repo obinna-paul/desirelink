@@ -965,3 +965,38 @@ relationship success. The Spec term remains capped within each broader recommend
 sample supports it, weights and thresholds should be evaluated against consent-appropriate
 outcomes such as mutual replies, sustained conversations and user feedback, with hold-out
 validation and fairness checks before any refit ships.
+
+## Matching model — reciprocal ranking formula
+
+**Why.** A high viewer-to-candidate score answers only half of a matching question. The same
+pair can look different through each person's priority: one may currently value chemistry
+while the other is looking for relationship steadiness. Ranking a one-sided fit as a strong
+match would reproduce the exact mismatch the priority controls were meant to prevent.
+
+**Directional scores.** The engine now calculates the pair twice. Forward fit compares the
+candidate with the viewer's selected priority; reverse fit compares the viewer with the
+candidate's saved priority. Each direction uses the same full-vector parser, missing-data
+rules and legacy fallback. A candidate's priority is fetched only inside the server-side
+ranking query and is removed before page props or API JSON are constructed.
+
+**Combination formula.** Let `F` be forward fit and `R` reverse fit, each clamped to 0–1:
+
+`reciprocal = 0.35 × ((F + R) / 2) + 0.65 × sqrt(F × R)`
+
+The geometric mean dominates, so high placement requires strength in both directions. The
+smaller arithmetic term prevents sparse legacy data from becoming all-or-nothing: a 1.0/0.0
+one-way signal receives 0.175, while 1.0/1.0 remains 1.0 and 0.6/0.6 remains 0.6. This remains
+a non-negative recommendation boost; it never turns an incomplete or weak Spec signal into a
+penalty.
+
+**Explanation rules.** Strong modern-vector pairs can show “Your Spec preferences align both
+ways.” Legacy pairs show “Your Specs complement each other” only when their hand-authored
+compatibility is strong in both directions; same-archetype resonance keeps the more modest
+“Shares your spec.” One-way legacy complements receive their small discovery boost silently
+rather than being mislabeled as mutual.
+
+**Boundaries.** Gender, orientation, assumed attraction target, public-Spec visibility and
+raw answers are not formula inputs. Reciprocity here means two-way preference-profile
+alignment, not predicted attraction, consent, reply probability or relationship success.
+The formula should eventually be validated against consent-appropriate mutual outcomes and
+recalibrated on a hold-out sample; until then it stays capped inside the broader recommender.

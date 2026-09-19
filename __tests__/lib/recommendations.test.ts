@@ -44,6 +44,7 @@ function baseCandidate(overrides: Record<string, unknown> = {}) {
     isVerifiedServiceProvider: false,
     verificationPending: false,
     isTrustedMember: false,
+    matchPriority: "BALANCED",
     availabilityStatuses: [],
     specShownPublicly: false,
     specTestResults: [],
@@ -75,9 +76,9 @@ function vectorResult(value: number) {
 describe("getPersonalizedRecommendations - spec compatibility term", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("boosts and explains a candidate whose spec complements the viewer's", async () => {
+  it("fully boosts and explains a candidate whose Specs complement each other both ways", async () => {
     mockPrisma.profile.findUnique.mockResolvedValue(
-      baseProfile({ specTestResults: [{ specType: "soft_landing" }] }),
+      baseProfile({ specTestResults: [{ specType: "electric_charmer" }] }),
     );
     mockPrisma.profile.findMany.mockResolvedValue([
       baseCandidate({ id: "no-spec" }),
@@ -90,20 +91,20 @@ describe("getPersonalizedRecommendations - spec compatibility term", () => {
     const complement = results!.find((r) => r.profile.id === "complement")!;
     const noSpec = results!.find((r) => r.profile.id === "no-spec")!;
 
-    expect(complement.reasons).toContain("Great spec match");
+    expect(complement.reasons).toContain("Your Specs complement each other");
     expect(complement.compatibilityScore).toBeGreaterThan(noSpec.compatibilityScore);
-    // Highest-listed complement for soft_landing is grounded_equal - full weight, so the
-    // full +15 should be reflected (both candidates are otherwise identical).
+    // Electric Charmer and Grounded Equal list one another as their strongest complement,
+    // so both directional scores are 1 and the full +15 is reflected.
     expect(complement.compatibilityScore - noSpec.compatibilityScore).toBe(15);
   });
 
   it("credits, but less than a true complement, when the candidate shares the viewer's own spec", async () => {
     mockPrisma.profile.findUnique.mockResolvedValue(
-      baseProfile({ specTestResults: [{ specType: "soft_landing" }] }),
+      baseProfile({ specTestResults: [{ specType: "grounded_equal" }] }),
     );
     mockPrisma.profile.findMany.mockResolvedValue([
-      baseCandidate({ id: "same-spec", specTestResults: [{ specType: "soft_landing" }] }),
-      baseCandidate({ id: "complement", specTestResults: [{ specType: "grounded_equal" }] }),
+      baseCandidate({ id: "same-spec", specTestResults: [{ specType: "grounded_equal" }] }),
+      baseCandidate({ id: "complement", specTestResults: [{ specType: "electric_charmer" }] }),
     ]);
 
     const results = await getPersonalizedRecommendations("user-1");
@@ -122,7 +123,7 @@ describe("getPersonalizedRecommendations - spec compatibility term", () => {
 
     const results = await getPersonalizedRecommendations("user-1");
 
-    expect(results![0].reasons).not.toContain("Great spec match");
+    expect(results![0].reasons).not.toContain("Your Specs complement each other");
     expect(results![0].reasons).not.toContain("Shares your spec");
   });
 
@@ -140,11 +141,12 @@ describe("getPersonalizedRecommendations - spec compatibility term", () => {
     const opposed = results!.find((result) => result.profile.id === "opposed")!;
 
     expect(aligned.compatibilityScore - opposed.compatibilityScore).toBe(15);
-    expect(aligned.reasons).toContain("Your Spec profiles align");
+    expect(aligned.reasons).toContain("Your Spec preferences align both ways");
     expect(aligned.profile.specTestResults).toEqual([
       { specType: "grounded_equal", assumedAttractionTarget: undefined },
     ]);
     expect(aligned.profile).not.toHaveProperty("locationLat");
+    expect(aligned.profile).not.toHaveProperty("matchPriority");
     expect(aligned.profile.specTestResults[0]).not.toHaveProperty("motiveScores");
     expect(opposed.profile.specTestResults).toEqual([]);
   });

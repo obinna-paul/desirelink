@@ -98,6 +98,7 @@ describe("searchDiscoverProfiles", () => {
       isVerified: false,
       isVerifiedCreator: false,
       isVerifiedServiceProvider: false,
+      matchPriority: "SPARK",
       availabilityStatuses: [],
       specShownPublicly: false,
       specTestResults: [{
@@ -113,6 +114,7 @@ describe("searchDiscoverProfiles", () => {
 
     expect(result.profiles[0]).not.toHaveProperty("locationLat");
     expect(result.profiles[0]).not.toHaveProperty("locationLng");
+    expect(result.profiles[0]).not.toHaveProperty("matchPriority");
     expect(result.profiles[0].specTestResults).toEqual([]);
   });
 });
