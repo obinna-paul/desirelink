@@ -320,6 +320,14 @@ model Profile {
   specTestNudgeShownAt DateTime?
 
   /**
+   * Set when the delayed "make your first post" discovery nudge is actually shown.
+   * Null means the profile is still eligible if it has never created a post. The modal
+   * marks this immediately on reveal, rather than on CTA/dismiss, so every exit path still
+   * satisfies the once-ever promise.
+   */
+  firstPostNudgeShownAt DateTime?
+
+  /**
    * Dedupes the one-time personal welcome note from the founder - see app/api/cron/ceo-welcome-note.
    */
   ceoNoteSentAt      DateTime?

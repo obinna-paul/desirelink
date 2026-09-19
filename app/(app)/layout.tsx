@@ -9,6 +9,7 @@ import { GENDER_UNSPECIFIED } from "@/lib/profile-options";
 import { AppShell } from "@/components/layout/app-shell";
 import { CreatorWelcomeModal } from "@/components/creator/creator-welcome-modal";
 import { SpecTestNudgeModal } from "@/components/spec-test/spec-test-nudge-modal";
+import { FirstPostNudgeModal } from "@/components/posts/first-post-nudge-modal";
 
 export default async function AppGroupLayout({
   children,
@@ -29,7 +30,9 @@ export default async function AppGroupLayout({
           username: true,
           creatorWelcomeShownAt: true,
           specTestNudgeShownAt: true,
+          firstPostNudgeShownAt: true,
           specTestResults: { select: { id: true }, take: 1 },
+          _count: { select: { posts: true } },
         },
       })
     : null;
@@ -56,6 +59,15 @@ export default async function AppGroupLayout({
   // instead, since specTestNudgeShownAt stays null until it's actually been shown.
   const showSpecNudge =
     !!profile && !showCreatorWelcome && !profile.specTestNudgeShownAt && profile.specTestResults.length === 0;
+  // Prompt moments are deliberately serialized: a profile sees at most one modal on a
+  // visit. This one waits until the earlier welcome/Spec moments have had their turn, then
+  // the client adds a short delay so ordinary app content lands first.
+  const showFirstPostNudge =
+    !!profile &&
+    !showCreatorWelcome &&
+    !showSpecNudge &&
+    !profile.firstPostNudgeShownAt &&
+    profile._count.posts === 0;
   const accountThemeClass = profile ? getAccountThemeClass(profile.profileType) : "theme-olive";
 
   return (
@@ -65,6 +77,7 @@ export default async function AppGroupLayout({
       </AppShell>
       {showCreatorWelcome && <CreatorWelcomeModal profileHref={`/profile/${profile!.username}`} />}
       {showSpecNudge && <SpecTestNudgeModal variant="global" />}
+      {showFirstPostNudge && <FirstPostNudgeModal profileId={profile.id} />}
     </>
   );
 }
